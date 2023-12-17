@@ -148,7 +148,7 @@ update_gdt_gsbase(struct thread *td, uint32_t base)
 		return;
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	critical_enter();
-	sd = PCPU_GET(gs32p);
+	sd = PCPU_GET(pc_gs32p);
 	sd->sd_lobase = base & 0xffffff;
 	sd->sd_hibase = (base >> 24) & 0xff;
 	critical_exit();
@@ -163,7 +163,7 @@ update_gdt_fsbase(struct thread *td, uint32_t base)
 		return;
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	critical_enter();
-	sd = PCPU_GET(fs32p);
+	sd = PCPU_GET(pc_fs32p);
 	sd->sd_lobase = base & 0xffffff;
 	sd->sd_hibase = (base >> 24) & 0xff;
 	critical_exit();
@@ -361,7 +361,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		 */
 		map = &td->td_proc->p_vmspace->vm_map;
 		vm_map_lock_read(map);
-		error = pmap_pkru_set(PCPU_GET(curpmap),
+		error = pmap_pkru_set(PCPU_GET(pc_curpmap),
 		    (vm_offset_t)a64pkru.addr, (vm_offset_t)a64pkru.addr +
 		    a64pkru.len, a64pkru.keyidx, a64pkru.flags);
 		vm_map_unlock_read(map);
@@ -375,7 +375,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		}
 		map = &td->td_proc->p_vmspace->vm_map;
 		vm_map_lock_read(map);
-		error = pmap_pkru_clear(PCPU_GET(curpmap),
+		error = pmap_pkru_clear(PCPU_GET(pc_curpmap),
 		    (vm_offset_t)a64pkru.addr,
 		    (vm_offset_t)a64pkru.addr + a64pkru.len);
 		vm_map_unlock_read(map);
@@ -421,15 +421,15 @@ amd64_set_ioperm(struct thread *td, struct i386_ioperm_args *uap)
 		memset(iomap, 0xff, IOPERM_BITMAP_SIZE);
 		critical_enter();
 		/* Takes care of tss_rsp0. */
-		memcpy(tssp, PCPU_PTR(common_tss), sizeof(struct amd64tss));
+		memcpy(tssp, PCPU_PTR(pc_common_tss), sizeof(struct amd64tss));
 		tssp->tss_iobase = sizeof(*tssp);
 		pcb->pcb_tssp = tssp;
-		tss_sd = PCPU_GET(tss);
+		tss_sd = PCPU_GET(pc_tss);
 		tss_sd->sd_lobase = (u_long)tssp & 0xffffff;
 		tss_sd->sd_hibase = ((u_long)tssp >> 24) & 0xfffffffffful;
 		tss_sd->sd_type = SDT_SYSTSS;
 		ltr(GSEL(GPROC0_SEL, SEL_KPL));
-		PCPU_SET(tssp, tssp);
+		PCPU_SET(pc_tssp, tssp);
 		critical_exit();
 	} else
 		iomap = (char *)&pcb->pcb_tssp[1];
@@ -480,7 +480,7 @@ static void
 set_user_ldt(struct mdproc *mdp)
 {
 
-	*PCPU_GET(ldt) = mdp->md_ldt_sd;
+	*PCPU_GET(pc_ldt) = mdp->md_ldt_sd;
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 }
 

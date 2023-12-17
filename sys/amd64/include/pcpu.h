@@ -266,12 +266,12 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 })
 #endif /* !__SEG_GS */
 
-#define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
-#define	PCPU_ADD(member, val)	__PCPU_ADD(pc_ ## member, val)
-#define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
-#define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
+#define	PCPU_GET(member)	__PCPU_GET(/*pc_ ## */member)
+#define	PCPU_ADD(member, val)	__PCPU_ADD(/*pc_ ## */member, val)
+#define	PCPU_PTR(member)	__PCPU_PTR(/*pc_ ## */member)
+#define	PCPU_SET(member, val)	__PCPU_SET(/*pc_ ## */member, val)
 
-#define	IS_BSP()	(PCPU_GET(cpuid) == 0)
+#define	IS_BSP()	(PCPU_GET(pc_cpuid) == 0)
 
 #define zpcpu_offset_cpu(cpu)	((uintptr_t)&__pcpu[0] + UMA_PCPU_ALLOC_SIZE * cpu)
 #define zpcpu_base_to_offset(base) (void *)((uintptr_t)(base) - (uintptr_t)&__pcpu[0])

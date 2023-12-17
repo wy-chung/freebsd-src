@@ -2066,8 +2066,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 		kernel_pmap->pm_pcidp = (void *)(uintptr_t)
 		    offsetof(struct pcpu, pc_kpmap_store);
 
-		PCPU_SET(kpmap_store.pm_pcid, PMAP_PCID_KERN);
-		PCPU_SET(kpmap_store.pm_gen, 1);
+		PCPU_SET(pc_kpmap_store.pm_pcid, PMAP_PCID_KERN);
+		PCPU_SET(pc_kpmap_store.pm_gen, 1);
 
 		/*
 		 * PMAP_PCID_KERN + 1 is used for initialization of
@@ -2075,8 +2075,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 		 * EFIRT entry before first context switch, so it
 		 * needs to be valid.
 		 */
-		PCPU_SET(pcid_next, PMAP_PCID_KERN + 2);
-		PCPU_SET(pcid_gen, 1);
+		PCPU_SET(pc_pcid_next, PMAP_PCID_KERN + 2);
+		PCPU_SET(pc_pcid_gen, 1);
 
 		/*
 		 * pcpu area for APs is zeroed during AP startup.
@@ -3078,8 +3078,8 @@ pmap_invalidate_preipi_pcid(pmap_t pmap)
 
 	sched_pin();
 
-	cpuid = PCPU_GET(cpuid);
-	if (pmap != PCPU_GET(curpmap))
+	cpuid = PCPU_GET(pc_cpuid);
+	if (pmap != PCPU_GET(pc_curpmap))
 		cpuid = 0xffffffff;	/* An impossible value */
 
 	CPU_FOREACH(i) {
@@ -3136,7 +3136,7 @@ pmap_invalidate_page_pcid_cb(pmap_t pmap, vm_offset_t va,
 	 * because we have preemption disabled.
 	 */
 	if (pmap->pm_ucr3 == PMAP_NO_CR3 ||
-	    PCPU_GET(ucr3_load_mask) != PMAP_UCR3_NOMASK)
+	    PCPU_GET(pc_ucr3_load_mask) != PMAP_UCR3_NOMASK)
 		return;
 
 	pcid = pmap_get_pcid(pmap);
@@ -3183,7 +3183,7 @@ pmap_invalidate_page_curcpu_cb(pmap_t pmap, vm_offset_t va,
 {
 	if (pmap == kernel_pmap) {
 		pmap_invlpg(kernel_pmap, va);
-	} else if (pmap == PCPU_GET(curpmap)) {
+	} else if (pmap == PCPU_GET(pc_curpmap)) {
 		invlpg(va);
 		pmap_invalidate_page_cb(pmap, va);
 	}
@@ -3217,9 +3217,9 @@ pmap_invalidate_range_pcid_cb(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 
 	CRITICAL_ASSERT(curthread);
 
-	if (pmap != PCPU_GET(curpmap) ||
+	if (pmap != PCPU_GET(pc_curpmap) ||
 	    pmap->pm_ucr3 == PMAP_NO_CR3 ||
-	    PCPU_GET(ucr3_load_mask) != PMAP_UCR3_NOMASK)
+	    PCPU_GET(pc_ucr3_load_mask) != PMAP_UCR3_NOMASK)
 		return;
 
 	pcid = pmap_get_pcid(pmap);
@@ -3270,7 +3270,7 @@ pmap_invalidate_range_curcpu_cb(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	vm_offset_t addr;
 
 	if (pmap == kernel_pmap) {
-		if (PCPU_GET(pcid_invlpg_workaround)) {
+		if (PCPU_GET(pc_pcid_invlpg_workaround)) {
 			struct invpcid_descr d = { 0 };
 
 			invpcid(&d, INVPCID_CTXGLOB);
@@ -3278,7 +3278,7 @@ pmap_invalidate_range_curcpu_cb(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
 		}
-	} else if (pmap == PCPU_GET(curpmap)) {
+	} else if (pmap == PCPU_GET(pc_curpmap)) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
 		pmap_invalidate_range_cb(pmap, sva, eva);
@@ -3320,7 +3320,7 @@ pmap_invalidate_all_pcid_cb(pmap_t pmap, bool invpcid_works1)
 		} else {
 			invltlb_glob();
 		}
-	} else if (pmap == PCPU_GET(curpmap)) {
+	} else if (pmap == PCPU_GET(pc_curpmap)) {
 		CRITICAL_ASSERT(curthread);
 
 		pcid = pmap_get_pcid(pmap);
@@ -3334,7 +3334,7 @@ pmap_invalidate_all_pcid_cb(pmap_t pmap, bool invpcid_works1)
 			load_cr3(kcr3);
 		}
 		if (pmap->pm_ucr3 != PMAP_NO_CR3)
-			PCPU_SET(ucr3_load_mask, ~CR3_PCID_SAVE);
+			PCPU_SET(pc_ucr3_load_mask, ~CR3_PCID_SAVE);
 	}
 }
 
@@ -3355,7 +3355,7 @@ pmap_invalidate_all_nopcid_cb(pmap_t pmap)
 {
 	if (pmap == kernel_pmap)
 		invltlb_glob();
-	else if (pmap == PCPU_GET(curpmap))
+	else if (pmap == PCPU_GET(pc_curpmap))
 		invltlb();
 }
 
@@ -3417,7 +3417,7 @@ pmap_update_pde_action(void *arg)
 {
 	struct pde_action *act = arg;
 
-	if (act->store == PCPU_GET(cpuid))
+	if (act->store == PCPU_GET(pc_cpuid))
 		pmap_update_pde_store(act->pmap, act->pde, act->newpde);
 }
 
@@ -3426,7 +3426,7 @@ pmap_update_pde_teardown(void *arg)
 {
 	struct pde_action *act = arg;
 
-	if (CPU_ISSET(PCPU_GET(cpuid), &act->invalidate))
+	if (CPU_ISSET(PCPU_GET(pc_cpuid), &act->invalidate))
 		pmap_update_pde_invalidate(act->pmap, act->va, act->newpde);
 }
 
@@ -3446,7 +3446,7 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 	u_int cpuid;
 
 	sched_pin();
-	cpuid = PCPU_GET(cpuid);
+	cpuid = PCPU_GET(pc_cpuid);
 	other_cpus = all_cpus;
 	CPU_CLR(cpuid, &other_cpus);
 	if (pmap == kernel_pmap || pmap_type_guest(pmap)) 
@@ -3491,9 +3491,9 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	KASSERT(pmap->pm_type == PT_X86,
 	    ("pmap_invalidate_range: unknown type %d", pmap->pm_type));
 
-	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap)) {
+	if (pmap == kernel_pmap || pmap == PCPU_GET(pc_curpmap)) {
 		invlpg(va);
-		if (pmap == PCPU_GET(curpmap) && pmap_pcid_enabled &&
+		if (pmap == PCPU_GET(pc_curpmap) && pmap_pcid_enabled &&
 		    pmap->pm_ucr3 != PMAP_NO_CR3) {
 			critical_enter();
 			pcid = pmap_get_pcid(pmap);
@@ -3532,10 +3532,10 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	KASSERT(pmap->pm_type == PT_X86,
 	    ("pmap_invalidate_range: unknown type %d", pmap->pm_type));
 
-	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap)) {
+	if (pmap == kernel_pmap || pmap == PCPU_GET(pc_curpmap)) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
-		if (pmap == PCPU_GET(curpmap) && pmap_pcid_enabled &&
+		if (pmap == PCPU_GET(pc_curpmap) && pmap_pcid_enabled &&
 		    pmap->pm_ucr3 != PMAP_NO_CR3) {
 			critical_enter();
 			pcid = pmap_get_pcid(pmap);
@@ -3581,7 +3581,7 @@ pmap_invalidate_all(pmap_t pmap)
 		} else {
 			invltlb_glob();
 		}
-	} else if (pmap == PCPU_GET(curpmap)) {
+	} else if (pmap == PCPU_GET(pc_curpmap)) {
 		if (pmap_pcid_enabled) {
 			critical_enter();
 			pcid = pmap_get_pcid(pmap);
@@ -3626,7 +3626,7 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 	struct pmap_pcid *pcidp;
 
 	pmap_update_pde_store(pmap, pde, newpde);
-	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap))
+	if (pmap == kernel_pmap || pmap == PCPU_GET(pc_curpmap))
 		pmap_update_pde_invalidate(pmap, va, newpde);
 	else {
 		pcidp = zpcpu_get(pmap->pm_pcidp);
@@ -5465,7 +5465,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	vm_page_t m;
 	int i, domain;
 
-	domain = PCPU_GET(domain);
+	domain = PCPU_GET(pc_domain);
 	for (i = 0; i < vm_ndomains; i++) {
 		m = reclaim_pv_chunk_domain(locked_pmap, lockp, domain);
 		if (m != NULL)
@@ -8523,14 +8523,14 @@ pmap_remove_pages(pmap_t pmap)
 	 * CPU.  Unfortunately, we cannot block another CPU from
 	 * activating the pmap while this function is executing.
 	 */
-	KASSERT(pmap == PCPU_GET(curpmap), ("non-current pmap %p", pmap));
+	KASSERT(pmap == PCPU_GET(pc_curpmap), ("non-current pmap %p", pmap));
 #ifdef INVARIANTS
 	{
 		cpuset_t other_cpus;
 
 		other_cpus = all_cpus;
 		critical_enter();
-		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+		CPU_CLR(PCPU_GET(pc_cpuid), &other_cpus);
 		CPU_AND(&other_cpus, &other_cpus, &pmap->pm_active);
 		critical_exit();
 		KASSERT(CPU_EMPTY(&other_cpus), ("pmap active %p", pmap));
@@ -10050,28 +10050,28 @@ pmap_pcid_alloc(pmap_t pmap, struct pmap_pcid *pcidp)
 	uint32_t gen, new_gen, pcid_next;
 
 	CRITICAL_ASSERT(curthread);
-	gen = PCPU_GET(pcid_gen);
+	gen = PCPU_GET(pc_pcid_gen);
 	if (pcidp->pm_pcid == PMAP_PCID_KERN)
 		return (pti ? 0 : CR3_PCID_SAVE);
 	if (pcidp->pm_gen == gen)
 		return (CR3_PCID_SAVE);
-	pcid_next = PCPU_GET(pcid_next);
+	pcid_next = PCPU_GET(pc_pcid_next);
 	KASSERT((!pti && pcid_next <= PMAP_PCID_OVERMAX) ||
 	    (pti && pcid_next <= PMAP_PCID_OVERMAX_KERN),
-	    ("cpu %d pcid_next %#x", PCPU_GET(cpuid), pcid_next));
+	    ("cpu %d pcid_next %#x", PCPU_GET(pc_cpuid), pcid_next));
 	if ((!pti && pcid_next == PMAP_PCID_OVERMAX) ||
 	    (pti && pcid_next == PMAP_PCID_OVERMAX_KERN)) {
 		new_gen = gen + 1;
 		if (new_gen == 0)
 			new_gen = 1;
-		PCPU_SET(pcid_gen, new_gen);
+		PCPU_SET(pc_pcid_gen, new_gen);
 		pcid_next = PMAP_PCID_KERN + 1;
 	} else {
 		new_gen = gen;
 	}
 	pcidp->pm_pcid = pcid_next;
 	pcidp->pm_gen = new_gen;
-	PCPU_SET(pcid_next, pcid_next + 1);
+	PCPU_SET(pc_pcid_next, pcid_next + 1);
 	return (0);
 }
 
@@ -10082,10 +10082,10 @@ pmap_pcid_alloc_checked(pmap_t pmap, struct pmap_pcid *pcidp)
 
 	cached = pmap_pcid_alloc(pmap, pcidp);
 	KASSERT(pcidp->pm_pcid < PMAP_PCID_OVERMAX,
-	    ("pmap %p cpu %d pcid %#x", pmap, PCPU_GET(cpuid), pcidp->pm_pcid));
+	    ("pmap %p cpu %d pcid %#x", pmap, PCPU_GET(pc_cpuid), pcidp->pm_pcid));
 	KASSERT(pcidp->pm_pcid != PMAP_PCID_KERN || pmap == kernel_pmap,
 	    ("non-kernel pmap pmap %p cpu %d pcid %#x",
-	    pmap, PCPU_GET(cpuid), pcidp->pm_pcid));
+	    pmap, PCPU_GET(pc_cpuid), pcidp->pm_pcid));
 	return (cached);
 }
 
@@ -10093,8 +10093,8 @@ static void
 pmap_activate_sw_pti_post(struct thread *td, pmap_t pmap)
 {
 
-	PCPU_GET(tssp)->tss_rsp0 = pmap->pm_ucr3 != PMAP_NO_CR3 ?
-	    PCPU_GET(pti_rsp0) : (uintptr_t)td->td_md.md_stack_base;
+	PCPU_GET(pc_tssp)->tss_rsp0 = pmap->pm_ucr3 != PMAP_NO_CR3 ?
+	    PCPU_GET(pc_pti_rsp0) : (uintptr_t)td->td_md.md_stack_base;
 }
 
 static void
@@ -10108,9 +10108,9 @@ pmap_activate_sw_pcid_pti(struct thread *td, pmap_t pmap, u_int cpuid)
 	    ("PCID needs interrupts disabled in pmap_activate_sw()"));
 
 	/* See the comment in pmap_invalidate_page_pcid(). */
-	if (PCPU_GET(ucr3_load_mask) != PMAP_UCR3_NOMASK) {
-		PCPU_SET(ucr3_load_mask, PMAP_UCR3_NOMASK);
-		old_pmap = PCPU_GET(curpmap);
+	if (PCPU_GET(pc_ucr3_load_mask) != PMAP_UCR3_NOMASK) {
+		PCPU_SET(pc_ucr3_load_mask, PMAP_UCR3_NOMASK);
+		old_pmap = PCPU_GET(pc_curpmap);
 		MPASS(old_pmap->pm_ucr3 != PMAP_NO_CR3);
 		old_pcidp = zpcpu_get_cpu(old_pmap->pm_pcidp, cpuid);
 		old_pcidp->pm_gen = 0;
@@ -10121,15 +10121,15 @@ pmap_activate_sw_pcid_pti(struct thread *td, pmap_t pmap, u_int cpuid)
 	cr3 = rcr3();
 	if ((cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3)
 		load_cr3(pmap->pm_cr3 | pcidp->pm_pcid);
-	PCPU_SET(curpmap, pmap);
+	PCPU_SET(pc_curpmap, pmap);
 	kcr3 = pmap->pm_cr3 | pcidp->pm_pcid;
 	ucr3 = pmap->pm_ucr3 | pcidp->pm_pcid | PMAP_PCID_USER_PT;
 
 	if (!cached && pmap->pm_ucr3 != PMAP_NO_CR3)
-		PCPU_SET(ucr3_load_mask, ~CR3_PCID_SAVE);
+		PCPU_SET(pc_ucr3_load_mask, ~CR3_PCID_SAVE);
 
-	PCPU_SET(kcr3, kcr3 | CR3_PCID_SAVE);
-	PCPU_SET(ucr3, ucr3 | CR3_PCID_SAVE);
+	PCPU_SET(pc_kcr3, kcr3 | CR3_PCID_SAVE);
+	PCPU_SET(pc_ucr3, ucr3 | CR3_PCID_SAVE);
 	if (cached)
 		counter_u64_add(pcid_save_cnt, 1);
 
@@ -10151,7 +10151,7 @@ pmap_activate_sw_pcid_nopti(struct thread *td __unused, pmap_t pmap,
 	cr3 = rcr3();
 	if (!cached || (cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3)
 		load_cr3(pmap->pm_cr3 | pcidp->pm_pcid | cached);
-	PCPU_SET(curpmap, pmap);
+	PCPU_SET(pc_curpmap, pmap);
 	if (cached)
 		counter_u64_add(pcid_save_cnt, 1);
 }
@@ -10162,7 +10162,7 @@ pmap_activate_sw_nopcid_nopti(struct thread *td __unused, pmap_t pmap,
 {
 
 	load_cr3(pmap->pm_cr3);
-	PCPU_SET(curpmap, pmap);
+	PCPU_SET(pc_curpmap, pmap);
 }
 
 static void
@@ -10171,8 +10171,8 @@ pmap_activate_sw_nopcid_pti(struct thread *td, pmap_t pmap,
 {
 
 	pmap_activate_sw_nopcid_nopti(td, pmap, cpuid);
-	PCPU_SET(kcr3, pmap->pm_cr3);
-	PCPU_SET(ucr3, pmap->pm_ucr3);
+	PCPU_SET(pc_kcr3, pmap->pm_cr3);
+	PCPU_SET(pc_ucr3, pmap->pm_ucr3);
 	pmap_activate_sw_pti_post(td, pmap);
 }
 
@@ -10196,14 +10196,14 @@ pmap_activate_sw(struct thread *td)
 	pmap_t oldpmap, pmap;
 	u_int cpuid;
 
-	oldpmap = PCPU_GET(curpmap);
+	oldpmap = PCPU_GET(pc_curpmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	if (oldpmap == pmap) {
 		if (cpu_vendor_id != CPU_VENDOR_INTEL)
 			mfence();
 		return;
 	}
-	cpuid = PCPU_GET(cpuid);
+	cpuid = PCPU_GET(pc_cpuid);
 #ifdef SMP
 	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
 #else
@@ -10254,13 +10254,13 @@ pmap_activate_boot(pmap_t pmap)
 	 */
 	MPASS(pmap != kernel_pmap);
 
-	cpuid = PCPU_GET(cpuid);
+	cpuid = PCPU_GET(pc_cpuid);
 #ifdef SMP
 	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
 #else
 	CPU_SET(cpuid, &pmap->pm_active);
 #endif
-	PCPU_SET(curpmap, pmap);
+	PCPU_SET(pc_curpmap, pmap);
 	if (pti) {
 		kcr3 = pmap->pm_cr3;
 		if (pmap_pcid_enabled)
@@ -10268,8 +10268,8 @@ pmap_activate_boot(pmap_t pmap)
 	} else {
 		kcr3 = PMAP_NO_CR3;
 	}
-	PCPU_SET(kcr3, kcr3);
-	PCPU_SET(ucr3, PMAP_NO_CR3);
+	PCPU_SET(pc_kcr3, kcr3);
+	PCPU_SET(pc_ucr3, PMAP_NO_CR3);
 }
 
 void
@@ -12146,7 +12146,7 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 	if (kdb_thread != NULL)
 		pmap = vmspace_pmap(kdb_thread->td_proc->p_vmspace);
 	else
-		pmap = PCPU_GET(curpmap);
+		pmap = PCPU_GET(pc_curpmap);
 
 	PG_V = pmap_valid_bit(pmap);
 	db_printf("VA 0x%016lx", va);
@@ -12263,7 +12263,7 @@ DB_SHOW_COMMAND(ptpages, pmap_ptpages)
 	if (have_addr)
 		pmap = (pmap_t)addr;
 	else
-		pmap = PCPU_GET(curpmap);
+		pmap = PCPU_GET(pc_curpmap);
 
 	PG_V = pmap_valid_bit(pmap);
 

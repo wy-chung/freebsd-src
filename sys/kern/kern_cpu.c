@@ -336,7 +336,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 		sched_bind(curthread, pc->pc_cpuid);
 		thread_unlock(curthread);
 		CF_DEBUG("setting abs freq %d on %s (cpu %d)\n", set->freq,
-		    device_get_nameunit(set->dev), PCPU_GET(cpuid));
+		    device_get_nameunit(set->dev), PCPU_GET(pc_cpuid));
 		error = CPUFREQ_DRV_SET(set->dev, set);
 		thread_lock(curthread);
 		sched_unbind(curthread);
@@ -363,7 +363,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 		sched_bind(curthread, pc->pc_cpuid);
 		thread_unlock(curthread);
 		CF_DEBUG("setting rel freq %d on %s (cpu %d)\n", set->freq,
-		    device_get_nameunit(set->dev), PCPU_GET(cpuid));
+		    device_get_nameunit(set->dev), PCPU_GET(pc_cpuid));
 		error = CPUFREQ_DRV_SET(set->dev, set);
 		thread_lock(curthread);
 		sched_unbind(curthread);

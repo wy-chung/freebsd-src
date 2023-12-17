@@ -1922,7 +1922,7 @@ restart:
 
 	tscval = rdtsc();
 
-	pcb = PCPU_GET(curpcb);
+	pcb = PCPU_GET(pc_curpcb);
 	set_pcb_flags(pcb, PCB_FULL_IRET);
 
 	restore_guest_fpustate(vcpu);

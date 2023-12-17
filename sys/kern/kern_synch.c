@@ -530,13 +530,13 @@ mi_switch(int flags)
 	 * thread was running, and add that to its total so far.
 	 */
 	new_switchtime = cpu_ticks();
-	runtime = new_switchtime - PCPU_GET(switchtime);
+	runtime = new_switchtime - PCPU_GET(pc_switchtime);
 	td->td_runtime += runtime;
 	td->td_incruntime += runtime;
-	PCPU_SET(switchtime, new_switchtime);
+	PCPU_SET(pc_switchtime, new_switchtime);
 	td->td_generation++;	/* bump preempt-detect counter */
 	VM_CNT_INC(v_swtch);
-	PCPU_SET(switchticks, ticks);
+	PCPU_SET(pc_switchticks, ticks);
 	CTR4(KTR_PROC, "mi_switch: old thread %ld (td_sched %p, pid %ld, %s)",
 	    td->td_tid, td_get_sched(td), td->td_proc->p_pid, td->td_name);
 #ifdef KDTRACE_HOOKS
@@ -552,8 +552,8 @@ mi_switch(int flags)
 	/* 
 	 * If the last thread was exiting, finish cleaning it up.
 	 */
-	if ((td = PCPU_GET(deadthread))) {
-		PCPU_SET(deadthread, NULL);
+	if ((td = PCPU_GET(pc_deadthread))) {
+		PCPU_SET(pc_deadthread, NULL);
 		thread_stash(td);
 	}
 	spinlock_exit();

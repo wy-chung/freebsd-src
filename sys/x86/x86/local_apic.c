@@ -460,7 +460,7 @@ lapic_init(vm_paddr_t addr)
 	lapic_enable();
 
 	/* Set BSP's per-CPU local APIC ID. */
-	PCPU_SET(apic_id, lapic_id());
+	PCPU_SET(pc_apic_id, lapic_id());
 
 	/* Local APIC timer interrupt. */
 	setidt(APIC_TIMER_INT, pti ? IDTVEC(timerint_pti) : IDTVEC(timerint),
@@ -657,7 +657,7 @@ lapic_dump(const char* str)
 
 	version = lapic_read32(LAPIC_VERSION);
 	maxlvt = (version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
-	printf("cpu%d %s:\n", PCPU_GET(cpuid), str);
+	printf("cpu%d %s:\n", PCPU_GET(pc_cpuid), str);
 	printf("     ID: 0x%08x   VER: 0x%08x LDR: 0x%08x DFR: 0x%08x",
 	    lapic_read32(LAPIC_ID), version,
 	    lapic_read32(LAPIC_LDR), x2apic_mode ? 0 : lapic_read32(LAPIC_DFR));
@@ -1010,7 +1010,7 @@ lapic_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 {
 	struct lapic *la;
 
-	la = &lapics[PCPU_GET(apic_id)];
+	la = &lapics[PCPU_GET(pc_apic_id)];
 	if (period != 0) {
 		lapic_change_mode(et, la, LAT_MODE_PERIODIC);
 		la->la_timer_period = ((uint32_t)et->et_frequency * period) >>
@@ -1034,7 +1034,7 @@ lapic_et_stop(struct eventtimer *et)
 {
 	struct lapic *la;
 
-	la = &lapics[PCPU_GET(apic_id)];
+	la = &lapics[PCPU_GET(pc_apic_id)];
 	lapic_timer_stop(la);
 	la->la_timer_mode = LAT_MODE_UNDEF;
 	return (0);
@@ -1282,7 +1282,7 @@ lapic_handle_intr(int vector, struct trapframe *frame)
 	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 	trap_check_kstack();
 
-	isrc = intr_lookup_source(apic_idt_to_irq(PCPU_GET(apic_id),
+	isrc = intr_lookup_source(apic_idt_to_irq(PCPU_GET(pc_apic_id),
 	    vector));
 	intr_execute_handlers(isrc, frame);
 }
@@ -1313,12 +1313,12 @@ lapic_handle_timer(struct trapframe *frame)
 	 * and unlike other schedulers it actually schedules threads to
 	 * those CPUs.
 	 */
-	if (CPU_ISSET(PCPU_GET(cpuid), &hlt_cpus_mask))
+	if (CPU_ISSET(PCPU_GET(pc_cpuid), &hlt_cpus_mask))
 		return;
 #endif
 
 	/* Look up our local APIC structure for the tick counters. */
-	la = &lapics[PCPU_GET(apic_id)];
+	la = &lapics[PCPU_GET(pc_apic_id)];
 	(*la->la_timer_count)++;
 	critical_enter();
 	if (lapic_et.et_active) {
@@ -1440,7 +1440,7 @@ lapic_enable_cmc(void)
 	if (!x2apic_mode && lapic_map == NULL)
 		return;
 #endif
-	apic_id = PCPU_GET(apic_id);
+	apic_id = PCPU_GET(pc_apic_id);
 	KASSERT(lapics[apic_id].la_present,
 	    ("%s: missing APIC %u", __func__, apic_id));
 	lapics[apic_id].la_lvts[APIC_LVT_CMCI].lvt_masked = 0;
@@ -1459,7 +1459,7 @@ lapic_enable_mca_elvt(void)
 		return (-1);
 #endif
 
-	apic_id = PCPU_GET(apic_id);
+	apic_id = PCPU_GET(pc_apic_id);
 	KASSERT(lapics[apic_id].la_present,
 	    ("%s: missing APIC %u", __func__, apic_id));
 	elvt_count = amd_read_elvt_count();
@@ -1493,7 +1493,7 @@ lapic_handle_error(void)
 	lapic_write32(LAPIC_ESR, 0);
 	esr = lapic_read32(LAPIC_ESR);
 
-	printf("CPU%d: local APIC error 0x%x\n", PCPU_GET(cpuid), esr);
+	printf("CPU%d: local APIC error 0x%x\n", PCPU_GET(pc_cpuid), esr);
 	lapic_eoi();
 }
 

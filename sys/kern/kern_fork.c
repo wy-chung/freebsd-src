@@ -1157,8 +1157,8 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	 * cpu_switch()'ed to, but when children start up they arrive here
 	 * instead, so we must do much the same things as mi_switch() would.
 	 */
-	if ((dtd = PCPU_GET(deadthread))) {
-		PCPU_SET(deadthread, NULL);
+	if ((dtd = PCPU_GET(pc_deadthread))) {
+		PCPU_SET(pc_deadthread, NULL);
 		thread_stash(dtd);
 	}
 	thread_unlock(td);

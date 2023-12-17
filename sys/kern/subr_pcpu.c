@@ -398,7 +398,7 @@ DB_SHOW_COMMAND_FLAGS(pcpu, db_show_pcpu, DB_CMD_MEMSAFE)
 	if (have_addr)
 		id = ((addr >> 4) % 16) * 10 + (addr % 16);
 	else
-		id = PCPU_GET(cpuid);
+		id = PCPU_GET(pc_cpuid);
 	pc = pcpu_find(id);
 	if (pc == NULL) {
 		db_printf("CPU %d not found\n", id);
@@ -412,7 +412,7 @@ DB_SHOW_ALL_COMMAND(pcpu, db_show_cpu_all)
 	struct pcpu *pc;
 	int id;
 
-	db_printf("Current CPU: %d\n\n", PCPU_GET(cpuid));
+	db_printf("Current CPU: %d\n\n", PCPU_GET(pc_cpuid));
 	CPU_FOREACH(id) {
 		pc = pcpu_find(id);
 		if (pc != NULL) {

@@ -762,7 +762,7 @@ fpstate_drop(struct thread *td)
 
 	KASSERT(PCB_USER_FPU(td->td_pcb), ("fpstate_drop: kernel-owned fpu"));
 	critical_enter();
-	if (PCPU_GET(fpcurthread) == td)
+	if (PCPU_GET(pc_fpcurthread) == td)
 		fpudrop();
 	/*
 	 * XXX force a full drop of the fpu.  The above only drops it if we

@@ -680,8 +680,8 @@ proc0_post(void *dummy __unused)
 		PROC_UNLOCK(p);
 	}
 	sx_sunlock(&allproc_lock);
-	PCPU_SET(switchtime, cpu_ticks());
-	PCPU_SET(switchticks, ticks);
+	PCPU_SET(pc_switchtime, cpu_ticks());
+	PCPU_SET(pc_switchticks, ticks);
 }
 SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL);
 

@@ -139,7 +139,7 @@ kern_membarrier(struct thread *td, int cmd, unsigned flags, int cpu_id)
 		swt = malloc((mp_maxid + 1) * sizeof(*swt), M_TEMP, M_WAITOK);
 		CPU_ZERO(&cs);
 		sched_pin();
-		CPU_SET(PCPU_GET(cpuid), &cs);
+		CPU_SET(PCPU_GET(pc_cpuid), &cs);
 		for (first = true; error == 0; first = false) {
 			CPU_FOREACH(c)
 				check_cpu_switched(c, &cs, swt, first);

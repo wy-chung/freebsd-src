@@ -1910,7 +1910,7 @@ restore_host_tss(void)
 	 * 'ltr' requires the descriptor to be marked available so change the
 	 * type to "64-bit available TSS".
 	 */
-	tss_sd = PCPU_GET(tss);
+	tss_sd = PCPU_GET(pc_tss);
 	tss_sd->sd_type = SDT_SYSTSS;
 	ltr(GSEL(GPROC0_SEL, SEL_KPL));
 }

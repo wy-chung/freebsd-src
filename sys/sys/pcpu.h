@@ -118,7 +118,7 @@ extern uintptr_t dpcpu_off[];
 /*
  * Accessors for the current cpu.
  */
-#define	DPCPU_PTR(n)		_DPCPU_PTR(PCPU_GET(dynamic), n)
+#define	DPCPU_PTR(n)		_DPCPU_PTR(PCPU_GET(pc_dynamic), n)
 #define	DPCPU_GET(n)		(*DPCPU_PTR(n))
 #define	DPCPU_SET(n, v)		(*DPCPU_PTR(n) = v)
 
@@ -265,15 +265,15 @@ STAILQ_HEAD(cpuhead, pcpu);
 extern struct cpuhead cpuhead;
 extern struct pcpu *cpuid_to_pcpu[];
 
-#define	curcpu		PCPU_GET(cpuid)
-#define	curvidata	PCPU_GET(vidata)
+#define	curcpu		PCPU_GET(pc_cpuid)
+#define	curvidata	PCPU_GET(pc_vidata)
 
 #define UMA_PCPU_ALLOC_SIZE		PAGE_SIZE
 
 #include <machine/pcpu_aux.h>
 
 #ifndef curthread
-#define	curthread	PCPU_GET(curthread)
+#define	curthread	PCPU_GET(pc_curthread)
 #endif
 #define	curproc		(curthread->td_proc)
 
@@ -285,7 +285,7 @@ extern struct pcpu *cpuid_to_pcpu[];
 #define zpcpu_offset_cpu(cpu)	(UMA_PCPU_ALLOC_SIZE * cpu)
 #endif
 #ifndef zpcpu_offset
-#define zpcpu_offset()		(PCPU_GET(zpcpu_offset))
+#define zpcpu_offset()		(PCPU_GET(pc_zpcpu_offset))
 #endif
 
 #ifndef zpcpu_base_to_offset

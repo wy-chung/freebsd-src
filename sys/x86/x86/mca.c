@@ -679,12 +679,12 @@ mca_check_status(enum scan_mode mode, uint64_t mcg_cap, int bank,
 	if (status & MC_STATUS_MISCV)
 		rec->mr_misc = rdmsr(mca_msr_ops.misc(bank));
 	rec->mr_tsc = rdtsc();
-	rec->mr_apic_id = PCPU_GET(apic_id);
+	rec->mr_apic_id = PCPU_GET(pc_apic_id);
 	rec->mr_mcg_cap = rdmsr(MSR_MCG_CAP);
 	rec->mr_mcg_status = rdmsr(MSR_MCG_STATUS);
 	rec->mr_cpu_id = cpu_id;
 	rec->mr_cpu_vendor_id = cpu_vendor_id;
-	rec->mr_cpu = PCPU_GET(cpuid);
+	rec->mr_cpu = PCPU_GET(pc_cpuid);
 
 	/*
 	 * Clear machine check.  Don't do this for uncorrectable
@@ -838,7 +838,7 @@ cmci_update(enum scan_mode mode, int bank, int valid, struct mca_record *rec)
 	int count;
 
 	/* Fetch the current limit for this bank. */
-	cc = &cmc_state[PCPU_GET(cpuid)][bank];
+	cc = &cmc_state[PCPU_GET(pc_cpuid)][bank];
 	ctl = rdmsr(MSR_MC_CTL2(bank));
 	count = (rec->mr_status & MC_STATUS_COR_COUNT) >> 38;
 	cur_threshold = ctl & MC_CTL2_THRESHOLD;
@@ -863,7 +863,7 @@ amd_thresholding_update(enum scan_mode mode, int bank, int valid)
 	int new_threshold;
 	int count;
 
-	cc = &amd_et_state[PCPU_GET(cpuid)][bank];
+	cc = &amd_et_state[PCPU_GET(pc_cpuid)][bank];
 	misc = rdmsr(mca_msr_ops.misc(bank));
 	count = (misc & MC_MISC_AMD_CNT_MASK) >> MC_MISC_AMD_CNT_SHIFT;
 	count = count - (MC_MISC_AMD_CNT_MAX - cc->cur_threshold);
@@ -904,7 +904,7 @@ mca_scan(enum scan_mode mode, bool *recoverablep)
 		 * For a CMCI, only check banks this CPU is
 		 * responsible for.
 		 */
-		if (mode == CMCI && !(PCPU_GET(cmci_mask) & 1 << i))
+		if (mode == CMCI && !(PCPU_GET(pc_cmci_mask) & 1 << i))
 			continue;
 #endif
 
@@ -922,7 +922,7 @@ mca_scan(enum scan_mode mode, bool *recoverablep)
 		 * If this is a bank this CPU monitors via CMCI,
 		 * update the threshold.
 		 */
-		if (PCPU_GET(cmci_mask) & 1 << i) {
+		if (PCPU_GET(pc_cmci_mask) & 1 << i) {
 			if (cmc_state != NULL)
 				cmci_update(mode, i, valid, &rec);
 			else
@@ -1175,7 +1175,7 @@ cmci_monitor(int i)
 	struct cmc_state *cc;
 	uint64_t ctl;
 
-	KASSERT(i < mca_banks, ("CPU %d has more MC banks", PCPU_GET(cpuid)));
+	KASSERT(i < mca_banks, ("CPU %d has more MC banks", PCPU_GET(pc_cpuid)));
 
 	/*
 	 * It is possible for some APs to report CMCI support even if the BSP
@@ -1185,8 +1185,8 @@ cmci_monitor(int i)
 		if (bootverbose) {
 			printf(
 		    "AP %d (%d,%d) reports CMCI support but the BSP does not\n",
-			    PCPU_GET(cpuid), PCPU_GET(apic_id),
-			    PCPU_GET(acpi_id));
+			    PCPU_GET(pc_cpuid), PCPU_GET(pc_apic_id),
+			    PCPU_GET(pc_acpi_id));
 		}
 		return;
 	}
@@ -1205,7 +1205,7 @@ cmci_monitor(int i)
 		/* This bank does not support CMCI. */
 		return;
 
-	cc = &cmc_state[PCPU_GET(cpuid)][i];
+	cc = &cmc_state[PCPU_GET(pc_cpuid)][i];
 
 	/* Determine maximum threshold. */
 	ctl &= ~MC_CTL2_THRESHOLD;
@@ -1220,7 +1220,7 @@ cmci_monitor(int i)
 	wrmsr(MSR_MC_CTL2(i), ctl);
 
 	/* Mark this bank as monitored. */
-	PCPU_SET(cmci_mask, PCPU_GET(cmci_mask) | 1 << i);
+	PCPU_SET(pc_cmci_mask, PCPU_GET(pc_cmci_mask) | 1 << i);
 }
 
 /*
@@ -1233,17 +1233,17 @@ cmci_resume(int i)
 	struct cmc_state *cc;
 	uint64_t ctl;
 
-	KASSERT(i < mca_banks, ("CPU %d has more MC banks", PCPU_GET(cpuid)));
+	KASSERT(i < mca_banks, ("CPU %d has more MC banks", PCPU_GET(pc_cpuid)));
 
 	/* See cmci_monitor(). */
 	if (cmc_state == NULL)
 		return;
 
 	/* Ignore banks not monitored by this CPU. */
-	if (!(PCPU_GET(cmci_mask) & 1 << i))
+	if (!(PCPU_GET(pc_cmci_mask) & 1 << i))
 		return;
 
-	cc = &cmc_state[PCPU_GET(cpuid)][i];
+	cc = &cmc_state[PCPU_GET(pc_cpuid)][i];
 	cc->last_intr = 0;
 	ctl = rdmsr(MSR_MC_CTL2(i));
 	ctl &= ~MC_CTL2_THRESHOLD;
@@ -1330,12 +1330,12 @@ amd_thresholding_monitor(int i)
 		return;
 	}
 
-	cc = &amd_et_state[PCPU_GET(cpuid)][i];
+	cc = &amd_et_state[PCPU_GET(pc_cpuid)][i];
 	cc->cur_threshold = 1;
 	amd_thresholding_start(cc, i);
 
 	/* Mark this bank as monitored. */
-	PCPU_SET(cmci_mask, PCPU_GET(cmci_mask) | 1 << i);
+	PCPU_SET(pc_cmci_mask, PCPU_GET(pc_cmci_mask) | 1 << i);
 }
 
 static void
@@ -1343,13 +1343,13 @@ amd_thresholding_resume(int i)
 {
 	struct amd_et_state *cc;
 
-	KASSERT(i < mca_banks, ("CPU %d has more MC banks", PCPU_GET(cpuid)));
+	KASSERT(i < mca_banks, ("CPU %d has more MC banks", PCPU_GET(pc_cpuid)));
 
 	/* Ignore banks not monitored by this CPU. */
-	if (!(PCPU_GET(cmci_mask) & 1 << i))
+	if (!(PCPU_GET(pc_cmci_mask) & 1 << i))
 		return;
 
-	cc = &amd_et_state[PCPU_GET(cpuid)][i];
+	cc = &amd_et_state[PCPU_GET(pc_cpuid)][i];
 	cc->last_intr = 0;
 	cc->cur_threshold = 1;
 	amd_thresholding_start(cc, i);
@@ -1375,7 +1375,7 @@ _mca_init(int boot)
 
 	if (cpu_feature & CPUID_MCA) {
 		if (boot)
-			PCPU_SET(cmci_mask, 0);
+			PCPU_SET(pc_cmci_mask, 0);
 
 		mcg_cap = rdmsr(MSR_MCG_CAP);
 		if (mcg_cap & MCG_CAP_CTL_P)
@@ -1463,7 +1463,7 @@ _mca_init(int boot)
 
 #ifdef DEV_APIC
 		if (cmci_supported(mcg_cap) &&
-		    PCPU_GET(cmci_mask) != 0 && boot)
+		    PCPU_GET(pc_cmci_mask) != 0 && boot)
 			lapic_enable_cmc();
 #endif
 	}

@@ -301,7 +301,7 @@ static int balance_ticks;
 DPCPU_DEFINE_STATIC(struct tdq, tdq);
 DPCPU_DEFINE_STATIC(uint32_t, randomval);
 
-#define	TDQ_SELF()	((struct tdq *)PCPU_GET(sched))
+#define	TDQ_SELF()	((struct tdq *)PCPU_GET(pc_sched))
 #define	TDQ_CPU(x)	(DPCPU_ID_PTR((x), tdq))
 #define	TDQ_ID(x)	((x)->tdq_id)
 #else	/* !SMP */
@@ -971,7 +971,7 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 			 * reschedule.  Otherwise maybe schedule a preemption.
 			 */
 			cpu = TDQ_ID(low);
-			if (cpu != PCPU_GET(cpuid))
+			if (cpu != PCPU_GET(pc_cpuid))
 				tdq_notify(low, lowpri);
 			else
 				sched_setpreempt(low->tdq_lowpri);
@@ -1030,7 +1030,7 @@ tdq_idled(struct tdq *tdq)
 	if (smp_started == 0 || steal_idle == 0 || tdq->tdq_cg == NULL)
 		return (1);
 	CPU_FILL(&mask);
-	CPU_CLR(PCPU_GET(cpuid), &mask);
+	CPU_CLR(PCPU_GET(pc_cpuid), &mask);
 restart:
 	switchcnt = TDQ_SWITCHCNT(tdq);
 	for (cg = tdq->tdq_cg, goup = 0; ; ) {
@@ -1324,7 +1324,7 @@ sched_pickcpu(struct thread *td, int flags)
 	cpuset_t *mask;
 	int cpu, pri, r, self, intr;
 
-	self = PCPU_GET(cpuid);
+	self = PCPU_GET(pc_cpuid);
 	ts = td_get_sched(td);
 	KASSERT(!CPU_ABSENT(ts->ts_cpu), ("sched_pickcpu: Start scheduler on "
 	    "absent CPU %d for thread %s.", ts->ts_cpu, td->td_name));
@@ -1518,7 +1518,7 @@ sched_setup_smp(void)
 			panic("Can't find cpu group for %d\n", i);
 		DPCPU_ID_SET(i, randomval, i * 69069 + 5);
 	}
-	PCPU_SET(sched, DPCPU_PTR(tdq));
+	PCPU_SET(pc_sched, DPCPU_PTR(tdq));
 	balance_tdq = TDQ_SELF();
 }
 #endif
@@ -1795,9 +1795,9 @@ schedinit_ap(void)
 {
 
 #ifdef SMP
-	PCPU_SET(sched, DPCPU_PTR(tdq));
+	PCPU_SET(pc_sched, DPCPU_PTR(tdq));
 #endif
-	PCPU_GET(idlethread)->td_lock = TDQ_LOCKPTR(TDQ_SELF());
+	PCPU_GET(pc_idlethread)->td_lock = TDQ_LOCKPTR(TDQ_SELF());
 }
 
 /*
@@ -2032,7 +2032,7 @@ tdq_trysteal(struct tdq *tdq)
 	    tdq->tdq_cg == NULL)
 		return;
 	CPU_FILL(&mask);
-	CPU_CLR(PCPU_GET(cpuid), &mask);
+	CPU_CLR(PCPU_GET(pc_cpuid), &mask);
 	/* We don't want to be preempted while we're iterating. */
 	spinlock_enter();
 	TDQ_UNLOCK(tdq);
@@ -2190,7 +2190,7 @@ sched_switch(struct thread *td, int flags)
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
-	cpuid = PCPU_GET(cpuid);
+	cpuid = PCPU_GET(pc_cpuid);
 	tdq = TDQ_SELF();
 	ts = td_get_sched(td);
 	sched_pctcpu_update(ts, 1);
@@ -2287,7 +2287,7 @@ sched_switch(struct thread *td, int flags)
 #endif
 		td->td_oncpu = NOCPU;
 		cpu_switch(td, newtd, mtx);
-		cpuid = td->td_oncpu = PCPU_GET(cpuid);
+		cpuid = td->td_oncpu = PCPU_GET(pc_cpuid);
 
 		SDT_PROBE0(sched, , , on__cpu);
 #ifdef	HWPMC_HOOKS
@@ -2693,7 +2693,7 @@ sched_choose(void)
 		tdq->tdq_lowpri = td->td_priority;
 	} else { 
 		tdq->tdq_lowpri = PRI_MAX_IDLE;
-		td = PCPU_GET(idlethread);
+		td = PCPU_GET(pc_idlethread);
 	}
 	tdq->tdq_curthread = td;
 	return (td);
@@ -2786,7 +2786,7 @@ sched_add(struct thread *td, int flags)
 	cpu = sched_pickcpu(td, flags);
 	tdq = sched_setcpu(td, cpu, flags);
 	lowpri = tdq_add(tdq, td, flags);
-	if (cpu != PCPU_GET(cpuid))
+	if (cpu != PCPU_GET(pc_cpuid))
 		tdq_notify(tdq, lowpri);
 	else if (!(flags & SRQ_YIELDING))
 		sched_setpreempt(td->td_priority);
@@ -2909,7 +2909,7 @@ sched_bind(struct thread *td, int cpu)
 	KASSERT(THREAD_CAN_MIGRATE(td), ("%p must be migratable", td));
 	ts->ts_flags |= TSF_BOUND;
 	sched_pin();
-	if (PCPU_GET(cpuid) == cpu)
+	if (PCPU_GET(pc_cpuid) == cpu)
 		return;
 	ts->ts_cpu = cpu;
 	/* When we return from mi_switch we'll be on the correct cpu. */
@@ -3109,8 +3109,8 @@ sched_ap_entry(void)
 	TDQ_LOCK(tdq);
 	/* Correct spinlock nesting. */
 	spinlock_exit();
-	PCPU_SET(switchtime, cpu_ticks());
-	PCPU_SET(switchticks, ticks);
+	PCPU_SET(pc_switchtime, cpu_ticks());
+	PCPU_SET(pc_switchticks, ticks);
 
 	newtd = sched_throw_grab(tdq);
 
@@ -3160,7 +3160,7 @@ sched_fork_exit(struct thread *td)
 	 */
 	KASSERT(curthread->td_md.md_spinlock_count == 1,
 	    ("invalid count %d", curthread->td_md.md_spinlock_count));
-	cpuid = PCPU_GET(cpuid);
+	cpuid = PCPU_GET(pc_cpuid);
 	tdq = TDQ_SELF();
 	TDQ_LOCK(tdq);
 	spinlock_exit();

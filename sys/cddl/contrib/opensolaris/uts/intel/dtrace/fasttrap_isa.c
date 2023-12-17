@@ -853,7 +853,7 @@ fasttrap_do_seg(fasttrap_tracepoint_t *tp, struct reg *rp, uintptr_t *addr)
 #ifdef __i386__
 		desc = &gdt[ndx].sd;
 #else
-		desc = PCPU_PTR(gdt)[ndx];
+		desc = PCPU_PTR(pc_gdt)[ndx];
 #endif
 	}
 

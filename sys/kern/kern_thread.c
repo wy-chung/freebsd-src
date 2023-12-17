@@ -690,7 +690,7 @@ thread_reap_all(void)
 	struct thread_domain_data *tdd;
 	int i, domain;
 
-	domain = PCPU_GET(domain);
+	domain = PCPU_GET(pc_domain);
 	for (i = 0; i < vm_ndomains; i++) {
 		tdd = &thread_domain_data[(i + domain) % vm_ndomains];
 		thread_reap_domain(tdd);
@@ -706,7 +706,7 @@ thread_reap(void)
 	struct thread_domain_data *tdd;
 	int domain;
 
-	domain = PCPU_GET(domain);
+	domain = PCPU_GET(pc_domain);
 	tdd = &thread_domain_data[domain];
 
 	thread_reap_domain(tdd);
@@ -983,7 +983,7 @@ thread_exit(void)
 				}
 			}
 
-			PCPU_SET(deadthread, td);
+			PCPU_SET(pc_deadthread, td);
 		} else {
 			/*
 			 * The last thread is exiting.. but not through exit()
@@ -1009,11 +1009,11 @@ thread_exit(void)
 
 	/* Do the same timestamp bookkeeping that mi_switch() would do. */
 	new_switchtime = cpu_ticks();
-	runtime = new_switchtime - PCPU_GET(switchtime);
+	runtime = new_switchtime - PCPU_GET(pc_switchtime);
 	td->td_runtime += runtime;
 	td->td_incruntime += runtime;
-	PCPU_SET(switchtime, new_switchtime);
-	PCPU_SET(switchticks, ticks);
+	PCPU_SET(pc_switchtime, new_switchtime);
+	PCPU_SET(pc_switchticks, ticks);
 	VM_CNT_INC(v_swtch);
 
 	/* Save our resource usage in our process. */

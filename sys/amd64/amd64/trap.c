@@ -492,11 +492,11 @@ trap(struct trapframe *frame)
 				KASSERT((read_rflags() & PSL_I) == 0,
 				    ("interrupts enabled"));
 				frame->tf_rip = (long)doreti_iret_fault;
-				if ((PCPU_GET(curpmap)->pm_ucr3 !=
+				if ((PCPU_GET(pc_curpmap)->pm_ucr3 !=
 				    PMAP_NO_CR3) &&
 				    (frame->tf_rsp == (uintptr_t)PCPU_GET(
-				    pti_rsp0) - 5 * sizeof(register_t))) {
-					frame->tf_rsp = PCPU_GET(rsp0) - 5 *
+				    pc_pti_rsp0) - 5 * sizeof(register_t))) {
+					frame->tf_rsp = PCPU_GET(pc_rsp0) - 5 *
 					    sizeof(register_t);
 				}
 				return;
@@ -685,7 +685,7 @@ trap_is_smap(struct trapframe *frame)
 static bool
 trap_is_pti(struct trapframe *frame)
 {
-	struct pmap *curpmap = PCPU_GET(curpmap); //wyc
+	struct pmap *curpmap = PCPU_GET(pc_curpmap); //wyc
 
 	return (curpmap->pm_ucr3 != PMAP_NO_CR3 &&
 	    pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
@@ -884,7 +884,7 @@ trap_fatal(struct trapframe *frame, vm_offset_t eva)
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
-	gdt = *PCPU_PTR(gdt);
+	gdt = *PCPU_PTR(pc_gdt);
 	sdtossd(&gdt[IDXSEL(frame->tf_cs & 0xffff)], &softseg);
 
 	printf("\n\nFatal trap %d: %s while in %s mode\n", type,
@@ -892,8 +892,8 @@ trap_fatal(struct trapframe *frame, vm_offset_t eva)
 	    TRAPF_USERMODE(frame) ? "user" : "kernel");
 #ifdef SMP
 	/* two separate prints in case of a trap on an unmapped page */
-	printf("cpuid = %d; ", PCPU_GET(cpuid));
-	printf("apic id = %02x\n", PCPU_GET(apic_id));
+	printf("cpuid = %d; ", PCPU_GET(pc_cpuid));
+	printf("apic id = %02x\n", PCPU_GET(pc_apic_id));
 #endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%lx\n", eva);
@@ -1007,8 +1007,8 @@ dblfault_handler(struct trapframe *frame)
 	    rdmsr(MSR_FSBASE), rdmsr(MSR_GSBASE), rdmsr(MSR_KGSBASE));
 #ifdef SMP
 	/* two separate prints in case of a trap on an unmapped page */
-	printf("cpuid = %d; ", PCPU_GET(cpuid));
-	printf("apic id = %02x\n", PCPU_GET(apic_id));
+	printf("cpuid = %d; ", PCPU_GET(pc_cpuid));
+	printf("apic id = %02x\n", PCPU_GET(pc_apic_id));
 #endif
 	panic("double fault");
 }

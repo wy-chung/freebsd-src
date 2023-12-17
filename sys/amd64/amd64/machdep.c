@@ -1195,26 +1195,26 @@ amd64_bsp_pcpu_init1(struct pcpu *pc)
 {
 	struct user_segment_descriptor *gdt;
 
-	PCPU_SET(prvspace, pc);
-	gdt = *PCPU_PTR(gdt);
-	PCPU_SET(curthread, &thread0);
-	PCPU_SET(tssp, PCPU_PTR(common_tss));
-	PCPU_SET(tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
-	PCPU_SET(ldt, (struct system_segment_descriptor *)&gdt[GUSERLDT_SEL]);
-	PCPU_SET(fs32p, &gdt[GUFS32_SEL]);
-	PCPU_SET(gs32p, &gdt[GUGS32_SEL]);
-	PCPU_SET(ucr3_load_mask, PMAP_UCR3_NOMASK);
-	PCPU_SET(smp_tlb_gen, 1);
+	PCPU_SET(pc_prvspace, pc);
+	gdt = *PCPU_PTR(pc_gdt);
+	PCPU_SET(pc_curthread, &thread0);
+	PCPU_SET(pc_tssp, PCPU_PTR(pc_common_tss));
+	PCPU_SET(pc_tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
+	PCPU_SET(pc_ldt, (struct system_segment_descriptor *)&gdt[GUSERLDT_SEL]);
+	PCPU_SET(pc_fs32p, &gdt[GUFS32_SEL]);
+	PCPU_SET(pc_gs32p, &gdt[GUGS32_SEL]);
+	PCPU_SET(pc_ucr3_load_mask, PMAP_UCR3_NOMASK);
+	PCPU_SET(pc_smp_tlb_gen, 1);
 }
 
 void
 amd64_bsp_pcpu_init2(uint64_t rsp0)
 {
 
-	PCPU_SET(rsp0, rsp0);
-	PCPU_SET(pti_rsp0, ((vm_offset_t)PCPU_PTR(pti_stack) +
+	PCPU_SET(pc_rsp0, rsp0);
+	PCPU_SET(pc_pti_rsp0, ((vm_offset_t)PCPU_PTR(pc_pti_stack) +
 	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful);
-	PCPU_SET(curpcb, thread0.td_pcb);
+	PCPU_SET(pc_curpcb, thread0.td_pcb);
 }
 
 void
@@ -1588,7 +1588,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	rsp0 = thread0.td_md.md_stack_base;
 	/* Ensure the stack is aligned to 16 bytes */
 	rsp0 &= ~0xFul;
-	PCPU_PTR(common_tss)->tss_rsp0 = rsp0;
+	PCPU_PTR(pc_common_tss)->tss_rsp0 = rsp0;
 	amd64_bsp_pcpu_init2(rsp0);
 
 	/* transfer to user mode */

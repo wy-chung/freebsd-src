@@ -350,7 +350,7 @@ racct_getpcpu(struct proc *p, u_int pcpu)
 
 	p_pctcpu = 0;
 	FOREACH_THREAD_IN_PROC(p, td) {
-		if (td == PCPU_GET(idlethread))
+		if (td == PCPU_GET(pc_idlethread))
 			continue;
 #ifdef SMP
 		found = 0;

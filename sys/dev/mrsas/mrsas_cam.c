@@ -49,7 +49,7 @@
 #include <sys/time.h>			/* XXX for pcpu.h */
 #include <sys/pcpu.h>			/* XXX for PCPU_GET */
 
-#define	smp_processor_id()  PCPU_GET(cpuid)
+#define	smp_processor_id()  PCPU_GET(pc_cpuid)
 
 /*
  * Function prototypes

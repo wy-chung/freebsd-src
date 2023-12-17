@@ -522,7 +522,7 @@ pmap_invalidate_cpu_mask(pmap_t pmap)
 static __inline void
 pmap_invlpg(pmap_t pmap, vm_offset_t va)
 {
-	if (pmap == kernel_pmap && PCPU_GET(pcid_invlpg_workaround)) {
+	if (pmap == kernel_pmap && PCPU_GET(pc_pcid_invlpg_workaround)) {
 		struct invpcid_descr d = { 0 };
 
 		invpcid(&d, INVPCID_CTXGLOB);

@@ -367,7 +367,7 @@ vm_thread_new(struct thread *td, int pages)
 	 * swap-in.
 	 */
 	if (ks == 0)
-		ks = vm_thread_stack_create(DOMAINSET_PREF(PCPU_GET(domain)),
+		ks = vm_thread_stack_create(DOMAINSET_PREF(PCPU_GET(pc_domain)),
 		    pages);
 	if (ks == 0)
 		return (0);

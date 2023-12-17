@@ -1158,7 +1158,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 		 * unpin it.
 		 */
 		sched_pin();
-		lock_list = PCPU_GET(spinlocks);
+		lock_list = PCPU_GET(pc_spinlocks);
 		if (lock_list == NULL || lock_list->ll_count == 0) {
 			sched_unpin();
 			return;
@@ -1522,7 +1522,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	if (LOCK_CLASS(lock)->lc_flags & LC_SLEEPLOCK)
 		lock_list = &td->td_sleeplocks;
 	else
-		lock_list = PCPU_PTR(spinlocks);
+		lock_list = PCPU_PTR(pc_spinlocks);
 
 	/* Check to see if we are recursing on a lock we already own. */
 	instance = find_instance(*lock_list, lock);
@@ -1674,7 +1674,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 	if (class->lc_flags & LC_SLEEPLOCK)
 		lock_list = &td->td_sleeplocks;
 	else
-		lock_list = PCPU_PTR(spinlocks);
+		lock_list = PCPU_PTR(pc_spinlocks);
 	lle = *lock_list;
 	for (; *lock_list != NULL; lock_list = &(*lock_list)->ll_next)
 		for (i = 0; i < (*lock_list)->ll_count; i++) {
@@ -1839,7 +1839,7 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 	 * the thread is in a safe path and it can be unpinned.
 	 */
 	sched_pin();
-	lock_list = PCPU_GET(spinlocks);
+	lock_list = PCPU_GET(pc_spinlocks);
 	if (lock_list != NULL && lock_list->ll_count != 0) {
 		sched_unpin();
 
@@ -2382,7 +2382,7 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 	else {
 		if (witness_skipspin)
 			return;
-		lock_list = PCPU_GET(spinlocks);
+		lock_list = PCPU_GET(pc_spinlocks);
 	}
 	instance = find_instance(lock_list, lock);
 	if (instance == NULL) {
@@ -2417,7 +2417,7 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 	else {
 		if (witness_skipspin)
 			return;
-		lock_list = PCPU_GET(spinlocks);
+		lock_list = PCPU_GET(pc_spinlocks);
 	}
 	instance = find_instance(lock_list, lock);
 	if (instance == NULL)
@@ -2445,7 +2445,7 @@ witness_find_instance(const struct lock_object *lock,
 		*instance = find_instance(curthread->td_sleeplocks, lock);
 		return (true);
 	} else if ((class->lc_flags & LC_SPINLOCK) != 0) {
-		*instance = find_instance(PCPU_GET(spinlocks), lock);
+		*instance = find_instance(PCPU_GET(pc_spinlocks), lock);
 		return (true);
 	} else {
 		kassert_panic("Lock (%s) %s is not sleep or spin!",
@@ -2556,7 +2556,7 @@ witness_setflag(struct lock_object *lock, int flag, int set)
 	else {
 		if (witness_skipspin)
 			return;
-		lock_list = PCPU_GET(spinlocks);
+		lock_list = PCPU_GET(pc_spinlocks);
 	}
 	instance = find_instance(lock_list, lock);
 	if (instance == NULL) {
@@ -2611,8 +2611,8 @@ witness_ddb_list(struct thread *td)
 	 * list out from under us.  It is probably best to just not try to
 	 * handle threads on other CPU's for now.
 	 */
-	if (td == curthread && PCPU_GET(spinlocks) != NULL)
-		witness_list_locks(PCPU_PTR(spinlocks), db_printf);
+	if (td == curthread && PCPU_GET(pc_spinlocks) != NULL)
+		witness_list_locks(PCPU_PTR(pc_spinlocks), db_printf);
 }
 
 DB_SHOW_COMMAND(locks, db_witness_list)

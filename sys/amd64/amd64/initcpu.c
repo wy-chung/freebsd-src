@@ -246,7 +246,7 @@ u_int
 cpu_auxmsr(void)
 {
 	KASSERT((read_rflags() & PSL_I) == 0, ("context switch possible"));
-	return (PCPU_GET(cpuid));
+	return (PCPU_GET(pc_cpuid));
 }
 
 void
@@ -261,10 +261,10 @@ cpu_init_small_core(void)
 	if ((r[0] & CPUID_HYBRID_CORE_MASK) != CPUID_HYBRID_SMALL_CORE)
 		return;
 
-	PCPU_SET(small_core, 1);
+	PCPU_SET(pc_small_core, 1);
 	if (pmap_pcid_enabled && invpcid_works &&
 	    pmap_pcid_invlpg_workaround_uena) {
-		PCPU_SET(pcid_invlpg_workaround, 1);
+		PCPU_SET(pc_pcid_invlpg_workaround, 1);
 		pmap_pcid_invlpg_workaround = 1;
 	}
 }
