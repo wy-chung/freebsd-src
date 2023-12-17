@@ -98,6 +98,12 @@ struct fork_args {
 };
 #endif
 
+static int	fork_flags = RFFDG | RFPROC; // == 0x14, 20
+SYSCTL_INT(_kern, OID_AUTO, fork_flags, CTLFLAG_RW, &fork_flags, 0, "fork flags");
+
+static int	vfork_flags = RFFDG | RFPROC | RFPPWAIT | RFMEM; // == 0x8000_0034
+SYSCTL_INT(_kern, OID_AUTO, vfork_flags, CTLFLAG_RW, &vfork_flags, 0, "fork flags");
+
 /* ARGSUSED */
 int
 sys_fork(struct thread *td, struct fork_args *uap)
@@ -106,7 +112,7 @@ sys_fork(struct thread *td, struct fork_args *uap)
 	int error, pid;
 
 	bzero(&fr, sizeof(fr));
-	fr.fr_flags = RFFDG | RFPROC;
+	fr.fr_flags = fork_flags; // RFFDG | RFPROC;
 	fr.fr_pidp = &pid;
 	error = fork1(td, &fr);
 	if (error == 0) {
@@ -151,7 +157,7 @@ sys_vfork(struct thread *td, struct vfork_args *uap)
 	int error, pid;
 
 	bzero(&fr, sizeof(fr));
-	fr.fr_flags = RFFDG | RFPROC | RFPPWAIT | RFMEM;
+	fr.fr_flags = vfork_flags; // RFFDG | RFPROC | RFPPWAIT | RFMEM;
 	fr.fr_pidp = &pid;
 	error = fork1(td, &fr);
 	if (error == 0) {
@@ -472,7 +478,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	td2->td_flags = TDF_INMEM;
 	td2->td_lend_user_pri = PRI_MAX;
 
-#ifdef VIMAGE
+#ifdef VIMAGE // conf options, Subsystem virtualization
 	td2->td_vnet = NULL;
 	td2->td_vnet_lpush = NULL;
 #endif
@@ -673,11 +679,11 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	 */
 	vm_forkproc(td, p2, td2, vm2, fr->fr_flags);
 
-	if (fr->fr_flags == (RFFDG | RFPROC)) {
+	if (fr->fr_flags == (RFFDG | RFPROC)) { // fork
 		VM_CNT_INC(v_forks);
 		VM_CNT_ADD(v_forkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
-	} else if (fr->fr_flags == (RFFDG | RFPROC | RFPPWAIT | RFMEM)) {
+	} else if (fr->fr_flags == (RFFDG | RFPROC | RFPPWAIT | RFMEM)) { // vfork
 		VM_CNT_INC(v_vforks);
 		VM_CNT_ADD(v_vforkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
@@ -855,7 +861,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	struct ucred *cred;
 	struct file *fp_procdesc;
 	struct pgrp *pg;
-	vm_ooffset_t mem_charged;
+	//vm_ooffset_t mem_charged; //wyc moved into a block
 	int error, nprocs_new;
 	static int curfail;
 	static struct timeval lastfail;
@@ -863,7 +869,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	bool killsx_locked, singlethreaded;
 
 	flags = fr->fr_flags;
-	pages = fr->fr_pages;
+	pages = fr->fr_pages;	//wyc number of pages for kernel stack
 
 	if ((flags & RFSTOPPED) != 0)
 		MPASS(fr->fr_procp != NULL && fr->fr_pidp == NULL);
@@ -1007,8 +1013,8 @@ fork1(struct thread *td, struct fork_req *fr)
 		AUDIT_ARG_FD(*fr->fr_pd_fd);
 	}
 
-	mem_charged = 0;
-	if (pages == 0)
+	//mem_charged = 0; //wyc moved below
+	if (pages == 0) //wyc always true
 		pages = kstack_pages;
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
@@ -1036,7 +1042,9 @@ fork1(struct thread *td, struct fork_req *fr)
 		}
 	}
 
-	if ((flags & RFMEM) == 0) {
+	if ((flags & RFMEM) == 0) { // not share address space
+		vm_ooffset_t mem_charged;
+
 		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
 		if (vm2 == NULL) {
 			error = ENOMEM;

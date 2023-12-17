@@ -206,6 +206,56 @@ struct pcpu {
 	 * if only to make kernel debugging easier.
 	 */
 	PCPU_MD_FIELDS;
+#if defined(WYC)
+	struct monitorbuf pc_monitorbuf __aligned(128);	/* cache line */
+	struct	pcpu *pc_prvspace;	/* Self-reference */
+	struct	pmap *pc_curpmap;
+	struct	amd64tss *pc_tssp;	/* TSS segment active on CPU */
+	void	*pc_pad0;
+	uint64_t pc_kcr3;
+	uint64_t pc_ucr3;
+	uint64_t pc_saved_ucr3;
+	register_t pc_rsp0;
+	register_t pc_scratch_rsp;	/* User %rsp in syscall */
+	register_t pc_scratch_rax;
+	u_int	pc_apic_id;
+	u_int   pc_acpi_id;		/* ACPI CPU id */
+	/* Pointer to the CPU %fs descriptor */
+	struct user_segment_descriptor	*pc_fs32p;
+	/* Pointer to the CPU %gs descriptor */
+	struct user_segment_descriptor	*pc_gs32p;
+	/* Pointer to the CPU LDT descriptor */
+	struct system_segment_descriptor *pc_ldt;
+	/* Pointer to the CPU TSS descriptor */
+	struct system_segment_descriptor *pc_tss;
+	u_int	pc_cmci_mask;		/* MCx banks for CMCI */
+	uint64_t pc_dbreg[16];		/* ddb debugging regs */
+	uint64_t pc_pti_stack[PC_PTI_STACK_SZ];
+	register_t pc_pti_rsp0;
+	int pc_dbreg_cmd;		/* ddb debugging reg cmd */
+	u_int	pc_vcpu_id;		/* Xen vCPU ID */
+	uint32_t pc_pcid_next;
+	uint32_t pc_pcid_gen;
+	uint32_t pc_unused;
+	uint32_t pc_ibpb_set;
+	void	*pc_mds_buf;
+	void	*pc_mds_buf64;
+	uint32_t pc_pad[4];
+	uint8_t	pc_mds_tmp[64];
+	u_int 	pc_ipi_bitmap;
+	struct amd64tss pc_common_tss;
+	struct user_segment_descriptor pc_gdt[NGDT];
+	void	*pc_smp_tlb_pmap;
+	uint64_t pc_smp_tlb_addr1;
+	uint64_t pc_smp_tlb_addr2;
+	uint32_t pc_smp_tlb_gen;
+	u_int	pc_smp_tlb_op;
+	uint64_t pc_ucr3_load_mask;
+	u_int	pc_small_core;
+	u_int	pc_pcid_invlpg_workaround;
+	struct pmap_pcid pc_kpmap_store;
+	char	__pad[2900];		/* pad to UMA_PCPU_ALLOC_SIZE */
+#endif
 } __aligned(CACHE_LINE_SIZE);
 
 #ifdef _KERNEL

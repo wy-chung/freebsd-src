@@ -92,7 +92,7 @@
 			.type __CONCAT(X,name),@function; __CONCAT(X,name):
 
 	.macro	SAVE_SEGS
-	movw	%fs,TF_FS(%rsp)
+	movw	%fs,TF_FS(%rsp) // rsp.TF_FS = %fs
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)

@@ -82,7 +82,7 @@
 #define	X86_PG_PKU_MASK		X86_PG_PKU(PMAP_MAX_PKRU_IDX)
 
 /*
- * Intel extended page table (EPT) bit definitions.
+ * Intel extended page table (EPT) bit definitions. //wyc used by hypervisor
  */
 #define	EPT_PG_READ		0x001	/* R	Read		*/
 #define	EPT_PG_WRITE		0x002	/* W	Write		*/
@@ -380,8 +380,8 @@ struct pmap {
 	struct mtx		pm_mtx;
 	pml4_entry_t		*pm_pmltop;	/* KVA of top level page table */
 	pml4_entry_t		*pm_pmltopu;	/* KVA of user top page table */
-	uint64_t		pm_cr3;
-	uint64_t		pm_ucr3;
+	uint64_t		pm_cr3;	//wyc physical address of the PML4 page table, don't contain PCID and cached flag
+	uint64_t		pm_ucr3; //wyc user mode page table
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t		pm_active;	/* active on cpus */
 	enum pmap_type		pm_type;	/* regular or nested tables */

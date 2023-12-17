@@ -473,7 +473,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 0,
 	.ssd_gran = 0		},
-};
+}; // gdt_segs
 _Static_assert(nitems(gdt_segs) == NGDT, "Stale NGDT");
 
 void
@@ -1599,9 +1599,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	_ufssel = GSEL(GUFS32_SEL, SEL_UPL);
 	_ugssel = GSEL(GUGS32_SEL, SEL_UPL);
 
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(_ufssel);
+	load_ds(_udatasel);	//wyctest
+	load_es(_udatasel);	//wyctest
+	load_fs(_ufssel);	//wyctest
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;

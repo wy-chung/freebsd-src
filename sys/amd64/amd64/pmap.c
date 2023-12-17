@@ -428,7 +428,7 @@ static int __read_frequently pg_ps_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pg_ps_enabled, 0, "Are large page mappings enabled?");
 
-int __read_frequently la57 = 0;
+int __read_frequently la57 = 0; // == 0 means la48
 SYSCTL_INT(_vm_pmap, OID_AUTO, la57, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &la57, 0,
     "5-level paging for host is enabled");
@@ -2250,9 +2250,9 @@ pmap_bootstrap_la57(void *arg __unused)
 	 */
 	lgdt(&r_gdt);
 	wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[0]);
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(_ufssel);
+	load_ds(_udatasel);	//wyctest
+	load_es(_udatasel);	//wyctest
+	load_fs(_ufssel);	//wyctest
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
 	    (struct system_segment_descriptor *)&__pcpu[0].pc_gdt[GPROC0_SEL]);
 	ltr(GSEL(GPROC0_SEL, SEL_KPL));
@@ -10147,7 +10147,7 @@ pmap_activate_sw_pcid_nopti(struct thread *td __unused, pmap_t pmap,
 	    ("PCID needs interrupts disabled in pmap_activate_sw()"));
 
 	pcidp = zpcpu_get_cpu(pmap->pm_pcidp, cpuid);
-	cached = pmap_pcid_alloc_checked(pmap, pcidp);
+	cached = pmap_pcid_alloc_checked(pmap, pcidp); //wyc bit0 ~ bit62 are always 0
 	cr3 = rcr3();
 	if (!cached || (cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3)
 		load_cr3(pmap->pm_cr3 | pcidp->pm_pcid | cached);
@@ -10179,7 +10179,7 @@ pmap_activate_sw_nopcid_pti(struct thread *td, pmap_t pmap,
 DEFINE_IFUNC(static, void, pmap_activate_sw_mode, (struct thread *, pmap_t,
     u_int))
 {
-
+	//wyc pti: page table isolation
 	if (pmap_pcid_enabled && pti)
 		return (pmap_activate_sw_pcid_pti);
 	else if (pmap_pcid_enabled && !pti)

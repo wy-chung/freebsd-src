@@ -648,6 +648,11 @@ enum {
 /*
  * Process structure.
  */
+enum p_states {
+	PRS_NEW = 0,		/* In creation */
+	PRS_NORMAL,		/* threads can be run. */
+	PRS_ZOMBIE
+};			/* (j/c) Process status. */
 struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 	TAILQ_HEAD(, thread) p_threads;	/* (c) all threads. */
@@ -663,11 +668,7 @@ struct proc {
 
 	int		p_flag;		/* (c) P_* flags. */
 	int		p_flag2;	/* (c) P2_* flags. */
-	enum p_states {
-		PRS_NEW = 0,		/* In creation */
-		PRS_NORMAL,		/* threads can be run. */
-		PRS_ZOMBIE
-	} p_state;			/* (j/c) Process status. */
+	enum p_states	p_state;	/* (j/c) Process status. */
 	pid_t		p_pid;		/* (b) Process identifier. */
 	LIST_ENTRY(proc) p_hash;	/* (d) Hash chain. */
 	LIST_ENTRY(proc) p_pglist;	/* (g + e) List of processes in pgrp. */
@@ -1116,18 +1117,18 @@ struct	pgrp *pgfind(pid_t);		/* Find process group by id. */
 void	pidhash_slockall(void);		/* Shared lock all pid hash lists. */
 void	pidhash_sunlockall(void);	/* Shared unlock all pid hash lists. */
 
+#define	FR2_DROPSIG_CAUGHT	0x00000001 /* Drop caught non-DFL signals */
+#define	FR2_SHARE_PATHS		0x00000002 /* Invert sense of RFFDG for paths */
+#define	FR2_KPROC		0x00000004 /* Create a kernel process */
 struct	fork_req {
 	int		fr_flags;
-	int		fr_pages;
+	int		fr_pages;	//wyc number of pages for kernel stack
 	int 		*fr_pidp;
 	struct proc 	**fr_procp;
 	int 		*fr_pd_fd;
 	int 		fr_pd_flags;
 	struct filecaps	*fr_pd_fcaps;
-	int 		fr_flags2;
-#define	FR2_DROPSIG_CAUGHT	0x00000001 /* Drop caught non-DFL signals */
-#define	FR2_SHARE_PATHS		0x00000002 /* Invert sense of RFFDG for paths */
-#define	FR2_KPROC		0x00000004 /* Create a kernel process */
+	int 		fr_flags2;	//wyc see FR2_xxx above
 };
 
 /*

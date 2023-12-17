@@ -56,21 +56,25 @@
 /*
  * Virtual memory related constants, all in bytes
  */
-#define	MAXTSIZ		(32768UL*1024*1024)	/* max text size */
+//#define	MAXTSIZ		(32768UL*1024*1024)	/* max text size */	//wyc 128M for i386
+  #define	MAXTSIZ		(128UL*1024*1024)	/* max text size */	//wyc
 #ifndef DFLDSIZ
-#define	DFLDSIZ		(32768UL*1024*1024)	/* initial data size limit */
+//#define	DFLDSIZ		(32768UL*1024*1024)	/* initial data size limit */	//wyc 128M for i386
+  #define	DFLDSIZ		(128UL*1024*1024)	/* initial data size limit */	//wyc
 #endif
 #ifndef MAXDSIZ
-#define	MAXDSIZ		(32768UL*1024*1024)	/* max data size */
+//#define	MAXDSIZ		(32768UL*1024*1024)	/* max data size */	//wyc 512M for i386
+  #define	MAXDSIZ		(512UL*1024*1024)	/* max data size */	//wyc
 #endif
 #ifndef	DFLSSIZ
-#define	DFLSSIZ		(8UL*1024*1024)		/* initial stack size limit */
+#define	DFLSSIZ		(8UL*1024*1024)		/* initial stack size limit */	// the same
 #endif
 #ifndef	MAXSSIZ
-#define	MAXSSIZ		(512UL*1024*1024)	/* max stack size */
+//#define	MAXSSIZ		(512UL*1024*1024)	/* max stack size */	//wyc 64M for i386
+  #define	MAXSSIZ		(64UL*1024*1024)	/* max stack size */	//wyc
 #endif
 #ifndef SGROWSIZ
-#define	SGROWSIZ	(128UL*1024)		/* amount to grow stack */
+#define	SGROWSIZ	(128UL*1024)		/* amount to grow stack */	// the same
 #endif
 
 /*
@@ -163,11 +167,11 @@
 #define	KERNLOAD	0x200000
 #endif
 
-/*
+/* //wyc virtual address space is 48 bits == 256T
  * Virtual addresses of things.  Derived from the page directory and
  * page table indexes from pmap.h for precision.
  *
- * 0x0000000000000000 - 0x00007fffffffffff   user map
+ * 0x0000000000000000 - 0x00007fffffffffff   user map //wyc == 128T
  * 0x0000800000000000 - 0xffff7fffffffffff   does not exist (hole)
  * 0xffff800000000000 - 0xffff804020100fff   recursive page table (512GB slot)
  * 0xffff804020100fff - 0xffff807fffffffff   unused
@@ -221,9 +225,13 @@
 #define	UPT_MAX_ADDRESS		KV4ADDR(PML4PML4I, PML4PML4I, PML4PML4I, PML4PML4I)
 #define	UPT_MIN_ADDRESS		KV4ADDR(PML4PML4I, 0, 0, 0)
 
-#define	VM_MAXUSER_ADDRESS_LA57	UVADDR(NUPML5E, 0, 0, 0, 0)
-#define	VM_MAXUSER_ADDRESS_LA48	UVADDR(0, NUP4ML4E, 0, 0, 0)
-#define	VM_MAXUSER_ADDRESS	VM_MAXUSER_ADDRESS_LA57
+//#define	VM_MAXUSER_ADDRESS_LA57	UVADDR(NUPML5E, 0, 0, 0, 0)
+//#define	VM_MAXUSER_ADDRESS_LA48	UVADDR(0, NUP4ML4E, 0, 0, 0)
+//#define	VM_MAXUSER_ADDRESS	VM_MAXUSER_ADDRESS_LA57	//wyc?
+
+  #define	VM_MAXUSER_ADDRESS_LA57	0x100000000UL //wyc
+  #define	VM_MAXUSER_ADDRESS_LA48	0x100000000UL //wyc
+  #define	VM_MAXUSER_ADDRESS	0x100000000UL //wyc
 
 #define	SHAREDPAGE_LA57		(VM_MAXUSER_ADDRESS_LA57 - PAGE_SIZE)
 #define	SHAREDPAGE_LA48		(VM_MAXUSER_ADDRESS_LA48 - PAGE_SIZE)

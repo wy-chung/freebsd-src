@@ -1122,9 +1122,9 @@ init_secondary_tail(void)
 #ifdef __amd64__
 	if (pmap_pcid_enabled)
 		load_cr4(rcr4() | CR4_PCIDE);
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(_ufssel);
+	load_ds(_udatasel);	//wyctest
+	load_es(_udatasel);	//wyctest
+	load_fs(_ufssel);	//wyctest
 #endif
 
 	mtx_unlock_spin(&ap_boot_mtx);

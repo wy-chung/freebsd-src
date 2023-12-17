@@ -72,7 +72,7 @@ END(cpu_throw)
  */
 ENTRY(cpu_switch)
 	/* Switch to new thread.  First, save context. */
-	leaq	TD_MD_PCB(%rdi),%r8
+	leaq	TD_MD_PCB(%rdi),%r8	// op	src, dst
 
 	movq	(%rsp),%rax			/* Hardware registers */
 	movq	%r15,PCB_R15(%r8)
@@ -84,7 +84,7 @@ ENTRY(cpu_switch)
 	movq	%rbx,PCB_RBX(%r8)
 	movq	%rax,PCB_RIP(%r8)
 
-	testl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%r8)	/* full iret is required */
 	jnz	2f
 	orl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
 	testl	$TDP_KTHREAD,TD_PFLAGS(%rdi)
@@ -99,13 +99,13 @@ ENTRY(cpu_switch)
 1:	movl	%gs,%eax
 	cmpl	$KUG32SEL,%eax
 	jne	2f
-	movq	%rdx,%r12
+	movq	%rdx,%r12	// save %rdx
 	movl	$MSR_KGSBASE,%ecx		/* Read user gs base */
 	rdmsr
 	shlq	$32,%rdx
 	orq	%rdx,%rax
 	movq	%rax,PCB_GSBASE(%r8)
-	movq	%r12,%rdx
+	movq	%r12,%rdx	// restore %rdx
 
 2:
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
@@ -134,11 +134,11 @@ ctx_switch_xsave_done:
 	movq	%rcx,%rdx
 ctx_switch_fpusave_done:
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
-	movq	%rsi,%r12
-	movq	%rdi,%r13
-	movq	%rdx,%r15
-	movq	%rsi,%rdi
-	callq	pmap_activate_sw
+	movq	%rsi,%r12	// %r12 = newtd
+	movq	%rdi,%r13	// %r13 = oldtd
+	movq	%rdx,%r15	// %r15 = mtx
+	movq	%rsi,%rdi	// %rdi = newtd
+	callq	pmap_activate_sw // pmap_activate_sw(newtd)
 	movq	%r15,TD_LOCK(%r13)		/* Release the old thread */
 sw1:
 	leaq	TD_MD_PCB(%r12),%r8
@@ -146,11 +146,11 @@ sw1:
 	movq	$blocked_lock, %rdx
 	movq	TD_LOCK(%r12),%rcx
 	cmpq	%rcx, %rdx
-	je	sw1wait
+	je	sw1wait	// #509
 sw1cont:
 #endif
 	/*
-	 * At this point, we've switched address spaces and are ready
+	 * At this point, we`ve switched address spaces and are ready
 	 * to load up the rest of the next context.
 	 */
 
@@ -163,7 +163,7 @@ sw1cont:
 	 */
 	movq	TD_PROC(%r12),%rcx
 	cmpq	$0, P_MD+MD_LDT(%rcx)
-	jne	do_ldt
+	jne	do_ldt // #291
 	xorl	%eax,%eax
 ld_ldt:	lldt	%ax
 
@@ -207,7 +207,7 @@ done_tss:
 
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
-	jnz	load_dr				/* static predict not taken */
+	jnz	load_dr	// #256			/* static predict not taken */
 done_load_dr:
 
 	/* Restore context. */
@@ -223,13 +223,13 @@ done_load_dr:
 	movq	PCPU(CURTHREAD),%rdi
 	call	fpu_activate_sw
 	cmpb	$0,cpu_flush_rsb_ctxsw(%rip)
-	jne	rsb_flush
+	jne	rsb_flush	// support.S:1644 Flush Return Stack Buffer on context switch
 	ret
 
 	/*
 	 * We order these strangely for several reasons.
 	 * 1: I wanted to use static branch prediction hints
-	 * 2: Most athlon64/opteron cpus don't have them.  They define
+	 * 2: Most athlon64/opteron cpus don`t have them.  They define
 	 *    a forward branch as 'predict not taken'.  Intel cores have
 	 *    the 'rep' prefix to invert this.
 	 * So, to make it work on both forms of cpu we do the detour.
@@ -294,7 +294,7 @@ do_ldt:	movq	PCPU(LDT),%rax
 	movq	P_MD+MD_LDT_SD+8(%rcx),%rdx
 	movq	%rdx,8(%rax)
 	movl	$LDTSEL,%eax
-	jmp	ld_ldt
+	jmp	ld_ldt // #168
 
 	.globl	ctx_switch_xsave32
 ctx_switch_xsave32:
@@ -307,7 +307,7 @@ END(cpu_switch)
  * Update pcb, saving current processor state.
  */
 ENTRY(savectx)
-	/* Save caller's return address. */
+	/* Save caller`s return address. */
 	movq	(%rsp),%rax
 	movq	%rax,PCB_RIP(%rdi)
 
@@ -345,30 +345,37 @@ ENTRY(savectx)
 	rdmsr
 	movl	%eax,PCB_FSBASE(%rdi)
 	movl	%edx,PCB_FSBASE+4(%rdi)
+
 	movl	$MSR_GSBASE,%ecx
 	rdmsr
 	movl	%eax,PCB_GSBASE(%rdi)
 	movl	%edx,PCB_GSBASE+4(%rdi)
+
 	movl	$MSR_KGSBASE,%ecx
 	rdmsr
 	movl	%eax,PCB_KGSBASE(%rdi)
 	movl	%edx,PCB_KGSBASE+4(%rdi)
+
 	movl	$MSR_EFER,%ecx
 	rdmsr
 	movl	%eax,PCB_EFER(%rdi)
 	movl	%edx,PCB_EFER+4(%rdi)
+
 	movl	$MSR_STAR,%ecx
 	rdmsr
 	movl	%eax,PCB_STAR(%rdi)
 	movl	%edx,PCB_STAR+4(%rdi)
+
 	movl	$MSR_LSTAR,%ecx
 	rdmsr
 	movl	%eax,PCB_LSTAR(%rdi)
 	movl	%edx,PCB_LSTAR+4(%rdi)
+
 	movl	$MSR_CSTAR,%ecx
 	rdmsr
 	movl	%eax,PCB_CSTAR(%rdi)
 	movl	%edx,PCB_CSTAR+4(%rdi)
+
 	movl	$MSR_SF_MASK,%ecx
 	rdmsr
 	movl	%eax,PCB_SFMASK(%rdi)
@@ -505,5 +512,5 @@ sw1wait:
 	movq	TD_LOCK(%r12),%rcx
 	cmpq	%rcx, %rdx
 	je	1b
-	jmp	sw1cont
+	jmp	sw1cont	// #150
 #endif

@@ -2232,7 +2232,7 @@ sched_switch(struct thread *td, int flags)
 			tdq_runq_add(tdq, td, srqflag);
 		else
 			mtx = sched_switch_migrate(tdq, td, srqflag);
-	} else {
+	} else { //wyc not idle and not running
 		/* This thread must be going to sleep. */
 		if (mtx != TDQ_LOCKPTR(tdq)) {
 			mtx_unlock_spin(mtx);

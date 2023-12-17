@@ -534,7 +534,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 	struct domainset *dset;
 	int error;
 
-	if ((flags & RFPROC) == 0) {
+	if ((flags & RFPROC) == 0) { //wyc false
 		/*
 		 * Divorce the memory, if it is shared, essentially
 		 * this changes shared memory amongst threads, into
@@ -549,7 +549,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 		return (0);
 	}
 
-	if (flags & RFMEM) {
+	if (flags & RFMEM) { //wyc for vfork
 		p2->p_vmspace = p1->p_vmspace;
 		refcount_acquire(&p1->p_vmspace->vm_refcnt);
 	}
