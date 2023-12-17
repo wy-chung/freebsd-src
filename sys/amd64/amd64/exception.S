@@ -270,7 +270,7 @@ alltraps_pushregs_no_rax:
 
 	/*
 	 * Set our jump address for the jump back in the event that
-	 * the breakpoint wasn't caused by DTrace at all.
+	 * the breakpoint wasn`t caused by DTrace at all.
 	 */
 	movq	$calltrap,dtrace_invop_calltrap_addr(%rip)
 
@@ -581,7 +581,7 @@ fast_syscall_common:
 	cli
 	testl	$PCB_FULL_IRET,PCB_FLAGS(%rax)
 	jnz	4f
-	/* Check for and handle AST's on return to userland. */
+	/* Check for and handle AST`s on return to userland. */
 	movq	PCPU(CURTHREAD),%rax
 	cmpl	$0,TD_AST(%rax)
 	jne	3f
@@ -610,7 +610,7 @@ fast_syscall_common:
 3:	/* AST scheduled. */
 	sti
 	movq	%rsp,%rdi
-	call	ast
+	call	ast	// asynchronous software trap
 	jmp	1b
 
 4:	/* Requested full context restore, use doreti for that. */
@@ -659,7 +659,7 @@ IDTVEC(dbg)
 	jnz	dbg_fromuserspace
 	lfence
 	/*
-	 * We've interrupted the kernel.  See comment in NMI handler about
+	 * We`ve interrupted the kernel.  See comment in NMI handler about
 	 * registers use.
 	 */
 	movq	%cr2,%r15
@@ -1087,7 +1087,7 @@ ENTRY(fork_trampoline)
  * and bintr, and only interrupt handlers between the labels bintr and
  * eintr.  This is implemented (partly) by including files that contain
  * some of the handlers.  Before including the files, set up a normal asm
- * environment so that the included files doen't need to know that they are
+ * environment so that the included files doen`t need to know that they are
  * included.
  */
 
@@ -1129,7 +1129,7 @@ doreti:
 	 * Check if ASTs can be handled now.
 	 */
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* are we returning to user mode? */
-	jz	doreti_exit		/* can't handle ASTs now if not */
+	jz	doreti_exit		/* can`t handle ASTs now if not */
 
 doreti_ast:
 	/*
@@ -1143,7 +1143,7 @@ doreti_ast:
 	je	doreti_exit
 	sti
 	movq	%rsp,%rdi	/* pass a pointer to the trapframe */
-	call	ast
+	call	ast	// asynchronous software trap
 	jmp	doreti_ast
 
 	/*
@@ -1180,7 +1180,7 @@ ld_fs:
 	cmpw	$KUF32SEL,%ax
 	jne	1f
 	movl	$MSR_FSBASE,%ecx
-	movl	PCB_FSBASE(%r8),%eax
+	movl	PCB_FSBASE(%r8),%eax	// %eax = ($r8)->pcb_fsbase
 	movl	PCB_FSBASE+4(%r8),%edx
 	.globl	ld_fsbase
 ld_fsbase:
@@ -1190,14 +1190,15 @@ ld_fsbase:
 	movw	TF_GS(%rsp),%si
 	pushfq
 	cli
+
 	movl	$MSR_GSBASE,%ecx
 	/* Save current kernel %gs base into %r12d:%r13d */
 	rdmsr
-	movl	%eax,%r12d
+	movl	%eax,%r12d	// %r12d = %eax
 	movl	%edx,%r13d
 	.globl	ld_gs
 ld_gs:
-	movw	%si,%gs
+	movw	%si,%gs //wyctest
 	/* Save user %gs base into %r14d:%r15d */
 	rdmsr
 	movl	%eax,%r14d

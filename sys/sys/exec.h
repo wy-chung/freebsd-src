@@ -157,6 +157,6 @@ extern int coredump_pack_vmmapinfo;
 	}; \
 	DECLARE_MODULE_TIED(name, __CONCAT(name,_mod), SI_SUB_EXEC, \
 	    SI_ORDER_ANY)
-#endif
+#endif // _KERNEL
 
 #endif

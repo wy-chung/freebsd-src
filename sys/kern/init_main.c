@@ -744,7 +744,7 @@ start_init(void *dummy)
 	kern_unsetenv("kern.geom.eli.passphrase");
 
 	/* For Multicons, report which console is primary to both */
-	if (boothowto & RB_MULTIPLE) {
+	if (boothowto & RB_MULTIPLE) { // boothowto == 0
 		if (boothowto & RB_SERIAL)
 			printf("Dual Console: Serial Primary, Video Secondary\n");
 		else

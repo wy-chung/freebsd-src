@@ -31,7 +31,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if !defined(WYC)
 #define	__ELF_WORD_SIZE	64
+#endif
 
 #include <sys/param.h>
 #include <sys/exec.h>

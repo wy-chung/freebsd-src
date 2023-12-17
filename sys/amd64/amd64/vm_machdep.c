@@ -227,7 +227,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	struct proc_ldt *pldt;
 
 	p1 = td1->td_proc;
-	if ((flags & RFPROC) == 0) {
+	if ((flags & RFPROC) == 0) { // false
 		if ((flags & RFMEM) == 0) {
 			/* unshare user LDT */
 			mdp1 = &p1->p_md;

@@ -50,7 +50,7 @@ static int	hw_instruction_sse;
 SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
     &hw_instruction_sse, 0, "SIMD/MMX2 instructions available in CPU");
 static int	lower_sharedpage_init;
-int		hw_lower_amd64_sharedpage;
+int		hw_lower_amd64_sharedpage; // == 0
 SYSCTL_INT(_hw, OID_AUTO, lower_amd64_sharedpage, CTLFLAG_RDTUN,
     &hw_lower_amd64_sharedpage, 0,
    "Lower sharedpage to work around Ryzen issue with executing code near the top of user memory");

@@ -1851,9 +1851,10 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
     vm_offset_t start, vm_offset_t end, vm_prot_t prot, vm_prot_t max, int cow)
 {
 	vm_map_entry_t res;
+	int ret; //wyc
 
-	return (vm_map_insert1(map, object, offset, start, end, prot, max,
-	    cow, &res));
+	ret = vm_map_insert1(map, object, offset, start, end, prot, max, cow, &res);
+	return ret;
 }
 
 /*
@@ -2147,12 +2148,12 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		curr_min_addr = min_addr = vm_map_min(map);
 	try = 0;
 	vm_map_lock(map);
-	if (cluster) {
+	if (cluster) { // false
 		curr_min_addr = map->anon_loc;
 		if (curr_min_addr == 0)
 			cluster = false;
 	}
-	if (find_space != VMFS_NO_SPACE) {
+	if (find_space != VMFS_NO_SPACE) { // false
 		KASSERT(find_space == VMFS_ANY_SPACE ||
 		    find_space == VMFS_OPTIMAL_SPACE ||
 		    find_space == VMFS_SUPER_SPACE ||
@@ -2234,7 +2235,7 @@ again:
 			}
 			goto done;
 		}
-	} else if ((cow & MAP_REMAP) != 0) {
+	} else if ((cow & MAP_REMAP) != 0) { // false
 		if (!vm_map_range_valid(map, *addr, *addr + length)) {
 			rv = KERN_INVALID_ADDRESS;
 			goto done;
@@ -2243,7 +2244,7 @@ again:
 		if (rv != KERN_SUCCESS)
 			goto done;
 	}
-	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) {
+	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) { // true
 		rv = vm_map_stack_locked(map, *addr, length, sgrowsiz, prot,
 		    max, cow);
 	} else {
@@ -2255,7 +2256,7 @@ again:
 done:
 	vm_map_unlock(map);
 	return (rv);
-}
+} // vm_map_find
 
 /*
  *	vm_map_find_min() is a variant of vm_map_find() that takes an
@@ -4318,7 +4319,7 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  * The source map must not be locked.
  */
 struct vmspace *
-vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
+vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge /*OUT*/)
 {
 	struct vmspace *vm2;
 	vm_map_t new_map, old_map;

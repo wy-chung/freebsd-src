@@ -685,12 +685,13 @@ trap_is_smap(struct trapframe *frame)
 static bool
 trap_is_pti(struct trapframe *frame)
 {
+	struct pmap *curpmap = PCPU_GET(curpmap); //wyc
 
-	return (PCPU_GET(curpmap)->pm_ucr3 != PMAP_NO_CR3 &&
+	return (curpmap->pm_ucr3 != PMAP_NO_CR3 &&
 	    pg_nx != 0 && (frame->tf_err & (PGEX_P | PGEX_W |
 	    PGEX_U | PGEX_I)) == (PGEX_P | PGEX_U | PGEX_I) &&
 	    (curpcb->pcb_saved_ucr3 & ~CR3_PCID_MASK) ==
-	    (PCPU_GET(curpmap)->pm_cr3 & ~CR3_PCID_MASK));
+	    (curpmap->pm_cr3 & ~CR3_PCID_MASK));
 }
 
 /*

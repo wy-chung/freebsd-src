@@ -356,7 +356,7 @@ CTASSERT(sizeof(struct nmi_pcpu) == 16);
  * slots as corresponding segments for i386 kernel.
  */
 struct soft_segment_descriptor gdt_segs[] = {
-/* GNULL_SEL	0 Null Descriptor */
+[GNULL_SEL] =	/* 0 Null Descriptor */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0x0,
 	.ssd_type = 0,
@@ -365,7 +365,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 0,
 	.ssd_gran = 0		},
-/* GNULL2_SEL	1 Null Descriptor */
+[GNULL2_SEL] =	/* 1 Null Descriptor */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0x0,
 	.ssd_type = 0,
@@ -374,7 +374,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 0,
 	.ssd_gran = 0		},
-/* GUFS32_SEL	2 32 bit %gs Descriptor for user */
+[GUFS32_SEL] =	/* 2 32 bit %gs Descriptor for user */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMRWA,
@@ -383,7 +383,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 1,
 	.ssd_gran = 1		},
-/* GUGS32_SEL	3 32 bit %fs Descriptor for user */
+[GUGS32_SEL] =	/* 3 32 bit %fs Descriptor for user */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMRWA,
@@ -392,7 +392,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 1,
 	.ssd_gran = 1		},
-/* GCODE_SEL	4 Code Descriptor for kernel */
+[GCODE_SEL] =	/* 4 Code Descriptor for kernel */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMERA,
@@ -401,7 +401,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 1,
 	.ssd_def32 = 0,
 	.ssd_gran = 1		},
-/* GDATA_SEL	5 Data Descriptor for kernel */
+[GDATA_SEL] =	/* 5 Data Descriptor for kernel */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMRWA,
@@ -410,7 +410,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 1,
 	.ssd_def32 = 0,
 	.ssd_gran = 1		},
-/* GUCODE32_SEL	6 32 bit Code Descriptor for user */
+[GUCODE32_SEL] =	/* 6 32 bit Code Descriptor for user */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMERA,
@@ -419,7 +419,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 1,
 	.ssd_gran = 1		},
-/* GUDATA_SEL	7 32/64 bit Data Descriptor for user */
+[GUDATA_SEL] =	/* 7 32/64 bit Data Descriptor for user */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMRWA,
@@ -428,7 +428,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 1,
 	.ssd_gran = 1		},
-/* GUCODE_SEL	8 64 bit Code Descriptor for user */
+[GUCODE_SEL] =	/* 8 64 bit Code Descriptor for user */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0xfffff,
 	.ssd_type = SDT_MEMERA,
@@ -437,7 +437,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 1,
 	.ssd_def32 = 0,
 	.ssd_gran = 1		},
-/* GPROC0_SEL	9 Proc 0 Tss Descriptor */
+[GPROC0_SEL] =	/* 9 Proc 0 Tss Descriptor */
 {	.ssd_base = 0x0,
 	.ssd_limit = sizeof(struct amd64tss) + IOPERM_BITMAP_SIZE - 1,
 	.ssd_type = SDT_SYSTSS,
@@ -446,7 +446,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 0,
 	.ssd_gran = 0		},
-/* Actually, the TSS is a system descriptor which is double size */
+/* slot 10, the second half of PROC0_SEL, Actually the TSS is a system descriptor which is double size */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0x0,
 	.ssd_type = 0,
@@ -455,7 +455,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 0,
 	.ssd_gran = 0		},
-/* GUSERLDT_SEL	11 LDT Descriptor */
+[GUSERLDT_SEL] =	/* 11 LDT Descriptor */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0x0,
 	.ssd_type = 0,
@@ -464,7 +464,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 0,
 	.ssd_gran = 0		},
-/* GUSERLDT_SEL	12 LDT Descriptor, double size */
+/* slot 12, the second half of GUSERLDT_SEL */
 {	.ssd_base = 0x0,
 	.ssd_limit = 0x0,
 	.ssd_type = 0,
@@ -473,7 +473,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 0,
 	.ssd_gran = 0		},
-};
+}; // gdt_segs
 _Static_assert(nitems(gdt_segs) == NGDT, "Stale NGDT");
 
 void
@@ -1599,9 +1599,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	_ufssel = GSEL(GUFS32_SEL, SEL_UPL);
 	_ugssel = GSEL(GUGS32_SEL, SEL_UPL);
 
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(_ufssel);
+	load_ds(_udatasel);	//wyctest
+	load_es(_udatasel);	//wyctest
+	load_fs(_ufssel);	//wyctest
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;

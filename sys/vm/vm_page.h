@@ -348,7 +348,9 @@ extern struct mtx_padalign pa_lock[];
 #if defined(__arm__)
 #define	PDRSHIFT	PDR_SHIFT
 #elif !defined(PDRSHIFT)
+#if !defined(WYC)
 #define PDRSHIFT	21
+#endif
 #endif
 
 #define	pa_index(pa)	((pa) >> PDRSHIFT)

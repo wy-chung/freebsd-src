@@ -338,7 +338,11 @@ static Elf_Brandinfo *
 __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
     int32_t *osrel, uint32_t *fctl0)
 {
+#if defined(WYC)
+	const Elf64_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
+#else
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
+#endif
 	Elf_Brandinfo *bi, *bi_m;
 	bool ret, has_fctl0;
 	int i, interp_name_len;
@@ -891,8 +895,13 @@ fail:
  * did not pass sanity checks for overflow and range correctness.
  */
 static int
+#if !defined(WYC)
 __CONCAT(rnd_, __elfN(base))(vm_map_t map, u_long minv, u_long maxv,
     u_int align, u_long *resp)
+#else
+rnd_elf64_base(vm_map_t map, u_long minv, u_long maxv,
+    u_int align, u_long *resp)
+#endif
 {
 	u_long rbase, res;
 
@@ -1093,11 +1102,20 @@ __elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
 #define	ET_DYN_ADDR_RAND	1
 
 static int
+#if !defined(WYC)
 __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
+#else
+exec_elf64_imgact(struct image_params *imgp)
+#endif
 {
 	struct thread *td;
+#if defined(WYC)
+	const Elf64_Ehdr *hdr;
+	const Elf64_Phdr *phdr;
+#else
 	const Elf_Ehdr *hdr;
 	const Elf_Phdr *phdr;
+#endif
 	Elf_Auxargs *elf_auxargs;
 	struct vmspace *vmspace;
 	vm_map_t map;
@@ -1120,6 +1138,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * if particular brand doesn't support it.
 	 */
 	if (__elfN(check_header)(hdr) != 0 ||
+#if defined(WYC)
+	    elf32_check_header(hdr) != 0 ||
+#endif
 	    (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN))
 		return (-1);
 
@@ -1129,6 +1150,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 */
 
 	if (!__elfN(phdr_in_zero_page)(hdr)) {
+#if defined(WYC)
+	     elf32_phdr_in_zero_page();
+#endif
 		uprintf("Program headers not in the first page\n");
 		return (ENOEXEC);
 	}
@@ -1226,6 +1250,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	}
 
 	brand_info = __elfN(get_brandinfo)(imgp, interp, &osrel, &fctl0);
+#if defined(WYC)
+		     elf32_get_brandinfo();
+#endif
 	if (brand_info == NULL) {
 		uprintf("ELF binary type \"%u\" not known.\n",
 		    hdr->e_ident[EI_OSABI]);
@@ -1233,7 +1260,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		goto ret;
 	}
 	sv = brand_info->sysvec;
-	if (hdr->e_type == ET_DYN) {
+	if (hdr->e_type == ET_DYN) { // false
 		if ((brand_info->flags & BI_CAN_EXEC_DYN) == 0) {
 			uprintf("Cannot execute shared object\n");
 			error = ENOEXEC;
@@ -1282,12 +1309,12 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		    P2_WXORX_DISABLE | P2_WXORX_ENABLE_EXEC);
 		PROC_UNLOCK(imgp->proc);
 	}
-	if ((sv->sv_flags & SV_ASLR) == 0 ||
+	if ((sv->sv_flags & SV_ASLR) == 0 || // false
 	    (imgp->proc->p_flag2 & P2_ASLR_DISABLE) != 0 ||
 	    (fctl0 & NT_FREEBSD_FCTL_ASLR_DISABLE) != 0) {
 		KASSERT(imgp->et_dyn_addr != ET_DYN_ADDR_RAND,
 		    ("imgp->et_dyn_addr == RAND and !ASLR"));
-	} else if ((imgp->proc->p_flag2 & P2_ASLR_ENABLE) != 0 ||
+	} else if ((imgp->proc->p_flag2 & P2_ASLR_ENABLE) != 0 || // false
 	    (__elfN(aslr_enabled) && hdr->e_type == ET_EXEC) ||
 	    imgp->et_dyn_addr == ET_DYN_ADDR_RAND) {
 		imgp->map_flags |= MAP_ASLR;
@@ -1300,9 +1327,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		if (!__elfN(aslr_honor_sbrk) ||
 		    (imgp->proc->p_flag2 & P2_ASLR_IGNSTART) != 0)
 			imgp->map_flags |= MAP_ASLR_IGNSTART;
-		if (__elfN(aslr_stack))
+		if (__elfN(aslr_stack)) // true
 			imgp->map_flags |= MAP_ASLR_STACK;
-		if (__elfN(aslr_shared_page))
+		if (__elfN(aslr_shared_page)) // true
 			imgp->imgp_flags |= IMGP_ASLR_SHARED_PAGE;
 	}
 
@@ -1319,7 +1346,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	vmspace = imgp->proc->p_vmspace;
 	map = &vmspace->vm_map;
 	maxv = sv->sv_usrstack;
-	if ((imgp->map_flags & MAP_ASLR_STACK) == 0)
+	if ((imgp->map_flags & MAP_ASLR_STACK) == 0) //true
 		maxv -= lim_max(td, RLIMIT_STACK);
 	if (error == 0 && mapsz >= maxv - vm_map_min(map)) {
 		uprintf("Excessive mapping size\n");
@@ -2869,7 +2896,11 @@ __elfN(check_note)(struct image_params *imgp, Elf_Brandnote *brandnote,
  * Tell kern_execve.c about it, with a little help from the linker.
  */
 static struct execsw __elfN(execsw) = {
+#if defined(WYC)
+	.ex_imgact = exec_elf64_imgact,
+#else
 	.ex_imgact = __CONCAT(exec_, __elfN(imgact)),
+#endif
 	.ex_name = __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
 };
 EXEC_SET(__CONCAT(elf, __ELF_WORD_SIZE), __elfN(execsw));

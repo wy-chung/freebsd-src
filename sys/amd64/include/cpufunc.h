@@ -554,13 +554,13 @@ rss(void)
 }
 
 static __inline void
-load_ds(u_short sel)
+load_ds(u_short sel) // write to ds
 {
 	__asm __volatile("movw %0,%%ds" : : "rm" (sel));
 }
 
 static __inline void
-load_es(u_short sel)
+load_es(u_short sel) // write to es
 {
 	__asm __volatile("movw %0,%%es" : : "rm" (sel));
 }
@@ -613,7 +613,7 @@ load_fs(u_short sel)
 #define	MSR_GSBASE	0xc0000101
 #endif
 static __inline void
-load_gs(u_short sel)
+load_gs(u_short sel) // for PCPU
 {
 	/*
 	 * Preserve the gsbase value across the selector load.
