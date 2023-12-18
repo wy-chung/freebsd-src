@@ -95,9 +95,14 @@ struct sysarch_args {
 };
 #endif
 
+#define NO_LDT 1
+
 int
 sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
 {
+#if defined(NO_LDT)
+	return EOPNOTSUPP;
+#else
 	struct i386_ldt_args *largs, la;
 	struct user_segment_descriptor *lp;
 	int error = 0;
@@ -137,6 +142,7 @@ sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
 		break;
 	}
 	return (error);
+#endif // !NO_LDT
 }
 
 void
@@ -503,6 +509,9 @@ set_user_ldt_rv(void *arg)
 struct proc_ldt *
 user_ldt_alloc(struct proc *p, int force)
 {
+#if defined(NO_LDT)
+	return NULL;
+#else
 	struct proc_ldt *pldt, *new_ldt;
 	struct mdproc *mdp;
 	struct soft_segment_descriptor sldt;
@@ -550,11 +559,15 @@ user_ldt_alloc(struct proc *p, int force)
 	smp_rendezvous(NULL, set_user_ldt_rv, NULL, p);
 
 	return (mdp->md_ldt);
+#endif // !NO_LDT
 }
 
 void
 user_ldt_free(struct thread *td)
 {
+#if defined(NO_LDT)
+	panic("%s: EOPNOTSUPP", __func__);
+#else
 	struct proc *p = td->td_proc;
 	struct mdproc *mdp = &p->p_md;
 	struct proc_ldt *pldt;
@@ -573,6 +586,7 @@ user_ldt_free(struct thread *td)
 		lldt(GSEL(GNULL_SEL, SEL_KPL));
 	critical_exit();
 	user_ldt_deref(pldt);
+#endif // !NO_LDT
 }
 
 static void
@@ -608,6 +622,9 @@ user_ldt_deref(struct proc_ldt *pldt)
 int
 amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 {
+#if defined(NO_LDT)
+	return EOPNOTSUPP;
+#else
 	struct proc_ldt *pldt;
 	struct user_segment_descriptor *lp;
 	uint64_t *data;
@@ -638,12 +655,16 @@ amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 	if (error == 0)
 		td->td_retval[0] = num;
 	return (error);
+#endif // !NO_LDT
 }
 
 int
 amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
     struct user_segment_descriptor *descs)
 {
+#if defined(NO_LDT)
+	return EOPNOTSUPP;
+#else
 	struct mdproc *mdp;
 	struct proc_ldt *pldt;
 	struct user_segment_descriptor *dp;
@@ -786,6 +807,7 @@ amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 	if (error == 0)
 		td->td_retval[0] = uap->start;
 	return (error);
+#endif // !NO_LDT	
 }
 
 int
