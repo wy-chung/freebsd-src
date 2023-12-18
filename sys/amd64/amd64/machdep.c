@@ -1800,7 +1800,11 @@ set_pcb_flags_fsgsbase(struct pcb *pcb, const u_int flags)
 	}
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, void, set_pcb_flags, (struct pcb *, const u_int))
+#else
+void set_pcb_flags(struct pcb *, const u_int)
+#endif
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0 ?
@@ -1881,22 +1885,34 @@ memcpy(void * _Nonnull dst, const void * _Nonnull src, size_t len)
 	return (memcpy_std(dst, src, len));
 }
 #else
+#if !defined(WYC)
 DEFINE_IFUNC(, void *, memset, (void *, int, size_t))
+#else
+void * memset(void *, int, size_t)
+#endif
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?
 	    memset_erms : memset_std);
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, void *, memmove, (void * _Nonnull, const void * _Nonnull,
     size_t))
+#else
+void * memmove(void * _Nonnull, const void * _Nonnull,size_t)
+#endif
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?
 	    memmove_erms : memmove_std);
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, void *, memcpy, (void * _Nonnull, const void * _Nonnull,size_t))
+#else
+void * memcpy(void * _Nonnull, const void * _Nonnull,size_t)
+#endif
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?
@@ -1906,7 +1922,11 @@ DEFINE_IFUNC(, void *, memcpy, (void * _Nonnull, const void * _Nonnull,size_t))
 
 void	pagezero_std(void *addr);
 void	pagezero_erms(void *addr);
+#if !defined(WYC)
 DEFINE_IFUNC(, void , pagezero, (void *))
+#else
+void  pagezero(void *)
+#endif
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?

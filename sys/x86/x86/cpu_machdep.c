@@ -1646,7 +1646,11 @@ acpi_get_fadt_bootflags(uint16_t *flagsp)
 #endif
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, uint64_t, rdtsc_ordered, (void))
+#else
+uint64_t rdtsc_ordered(void)
+#endif
 {
 	bool cpu_is_amd = cpu_vendor_id == CPU_VENDOR_AMD ||
 	    cpu_vendor_id == CPU_VENDOR_HYGON;

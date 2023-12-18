@@ -633,7 +633,11 @@ SYSCTL_PROC(_vm_pmap, OID_AUTO, di_locked, CTLTYPE_INT | CTLFLAG_RDTUN |
 
 static bool pmap_not_in_di_l(void);
 static bool pmap_not_in_di_u(void);
+#if !defined(WYC)
 DEFINE_IFUNC(, bool, pmap_not_in_di, (void))
+#else
+bool pmap_not_in_di(void)
+#endif
 {
 
 	return (pmap_di_locked() ? pmap_not_in_di_l : pmap_not_in_di_u);
@@ -1185,28 +1189,44 @@ pmap_delayed_invl_wait_u(vm_page_t m)
 	}
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, void, pmap_thread_init_invl_gen, (struct thread *))
+#else
+void pmap_thread_init_invl_gen(struct thread *)
+#endif
 {
 
 	return (pmap_di_locked() ? pmap_thread_init_invl_gen_l :
 	    pmap_thread_init_invl_gen_u);
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_delayed_invl_start, (void))
+#else
+static void pmap_delayed_invl_start(void)
+#endif
 {
 
 	return (pmap_di_locked() ? pmap_delayed_invl_start_l :
 	    pmap_delayed_invl_start_u);
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_delayed_invl_finish, (void))
+#else
+static void pmap_delayed_invl_finish(void)
+#endif
 {
 
 	return (pmap_di_locked() ? pmap_delayed_invl_finish_l :
 	    pmap_delayed_invl_finish_u);
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_delayed_invl_wait, (vm_page_t))
+#else
+static void pmap_delayed_invl_wait(vm_page_t)
+#endif
 {
 
 	return (pmap_di_locked() ? pmap_delayed_invl_wait_l :
@@ -3108,7 +3128,11 @@ pmap_invalidate_preipi_nopcid(pmap_t pmap __unused)
 	sched_pin();
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_invalidate_preipi, (pmap_t))
+#else
+static void pmap_invalidate_preipi(pmap_t)
+#endif
 {
 	return (pmap_pcid_enabled ? pmap_invalidate_preipi_pcid :
 	    pmap_invalidate_preipi_nopcid);
@@ -3169,7 +3193,11 @@ pmap_invalidate_page_nopcid_cb(pmap_t pmap __unused, vm_offset_t va __unused)
 {
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_invalidate_page_cb, (pmap_t, vm_offset_t))
+#else
+static void pmap_invalidate_page_cb(pmap_t, vm_offset_t)
+#endif
 {
 	if (pmap_pcid_enabled)
 		return (invpcid_works ? pmap_invalidate_page_pcid_invpcid_cb :
@@ -3255,8 +3283,12 @@ pmap_invalidate_range_nopcid_cb(pmap_t pmap __unused, vm_offset_t sva __unused,
 {
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_invalidate_range_cb, (pmap_t, vm_offset_t,
     vm_offset_t))
+#else
+static void pmap_invalidate_range_cb(pmap_t, vm_offset_t, vm_offset_t)
+#endif
 {
 	if (pmap_pcid_enabled)
 		return (invpcid_works ? pmap_invalidate_range_pcid_invpcid_cb :
@@ -3359,7 +3391,11 @@ pmap_invalidate_all_nopcid_cb(pmap_t pmap)
 		invltlb();
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_invalidate_all_cb, (pmap_t))
+#else
+static void pmap_invalidate_all_cb(pmap_t)
+#endif
 {
 	if (pmap_pcid_enabled)
 		return (invpcid_works ? pmap_invalidate_all_pcid_invpcid_cb :
@@ -3656,8 +3692,12 @@ pmap_invalidate_pde_page(pmap_t pmap, vm_offset_t va, pd_entry_t pde)
 		pmap_invalidate_page(pmap, va);
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, void, pmap_invalidate_cache_range,
     (vm_offset_t sva, vm_offset_t eva))
+#else
+void pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
+#endif
 {
 
 	if ((cpu_feature & CPUID_SS) != 0)
@@ -10176,8 +10216,12 @@ pmap_activate_sw_nopcid_pti(struct thread *td, pmap_t pmap,
 	pmap_activate_sw_pti_post(td, pmap);
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_activate_sw_mode, (struct thread *, pmap_t,
     u_int))
+#else
+static void pmap_activate_sw_mode(struct thread *, pmap_t, u_int)
+#endif
 {
 	//wyc pti: page table isolation
 	if (pmap_pcid_enabled && pti)
@@ -10929,7 +10973,11 @@ pmap_large_map_wb_fence_nop(void)
 {
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_large_map_wb_fence, (void))
+#else
+static void pmap_large_map_wb_fence(void)
+#endif
 {
 
 	if (cpu_vendor_id != CPU_VENDOR_INTEL)
@@ -10974,7 +11022,11 @@ pmap_large_map_flush_range_nop(vm_offset_t sva __unused, vm_size_t len __unused)
 {
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_large_map_flush_range, (vm_offset_t, vm_size_t))
+#else
+static void pmap_large_map_flush_range(vm_offset_t, vm_size_t)
+#endif
 {
 
 	if ((cpu_stdext_feature & CPUID_STDEXT_CLWB) != 0)

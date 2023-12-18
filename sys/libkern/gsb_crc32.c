@@ -776,8 +776,12 @@ DEFINE_IFUNC(, uint32_t, calculate_crc32c,
 	return (table_crc32c);
 }
 #elif defined(_KERNEL) && (defined(__amd64__) || defined(__i386__))
+ #if !defined(WYC)
 DEFINE_IFUNC(, uint32_t, calculate_crc32c,
     (uint32_t crc32c, const unsigned char *buffer, unsigned int length))
+ #else
+uint32_t calculate_crc32c(uint32_t crc32c, const unsigned char *buffer, unsigned int length)
+ #endif
 {
 	if ((cpu_feature2 & CPUID2_SSE42) != 0)
 		return (sse42_crc32c);
