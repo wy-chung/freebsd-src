@@ -95,12 +95,13 @@ struct sysarch_args {
 };
 #endif
 
-#define NO_LDT 1
+#define WYC_NO_LDT 1
 
 int
 sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
 {
-#if defined(NO_LDT)
+#if defined(WYC_NO_LDT)
+	panic("%s", __func__);
 	return EOPNOTSUPP;
 #else
 	struct i386_ldt_args *largs, la;
@@ -142,7 +143,7 @@ sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
 		break;
 	}
 	return (error);
-#endif // !NO_LDT
+#endif // !WYC_NO_LDT
 }
 
 void
@@ -478,6 +479,7 @@ done:
 	return (0);
 }
 
+#if !defined(WYC_NO_LDT)
 /*
  * Update the GDT entry pointing to the LDT to point to the LDT of the
  * current process.
@@ -505,11 +507,13 @@ set_user_ldt_rv(void *arg)
 
 	set_user_ldt(&target->p_md);
 }
+#endif
 
 struct proc_ldt *
 user_ldt_alloc(struct proc *p, int force)
 {
-#if defined(NO_LDT)
+#if defined(WYC_NO_LDT)
+	panic("%s", __func__);
 	return NULL;
 #else
 	struct proc_ldt *pldt, *new_ldt;
@@ -559,13 +563,13 @@ user_ldt_alloc(struct proc *p, int force)
 	smp_rendezvous(NULL, set_user_ldt_rv, NULL, p);
 
 	return (mdp->md_ldt);
-#endif // !NO_LDT
+#endif // !WYC_NO_LDT
 }
 
 void
 user_ldt_free(struct thread *td)
 {
-#if defined(NO_LDT)
+#if defined(WYC_NO_LDT)
 	panic("%s: EOPNOTSUPP", __func__);
 #else
 	struct proc *p = td->td_proc;
@@ -586,9 +590,10 @@ user_ldt_free(struct thread *td)
 		lldt(GSEL(GNULL_SEL, SEL_KPL));
 	critical_exit();
 	user_ldt_deref(pldt);
-#endif // !NO_LDT
+#endif // !WYC_NO_LDT
 }
 
+#if !defined(WYC_NO_LDT)
 static void
 user_ldt_derefl(struct proc_ldt *pldt)
 {
@@ -612,6 +617,7 @@ user_ldt_deref(struct proc_ldt *pldt)
 	user_ldt_derefl(pldt);
 	mtx_unlock(&dt_lock);
 }
+#endif
 
 /*
  * Note for the authors of compat layers (linux, etc): copyout() in
@@ -622,7 +628,8 @@ user_ldt_deref(struct proc_ldt *pldt)
 int
 amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 {
-#if defined(NO_LDT)
+#if defined(WYC_NO_LDT)
+	panic("%s", __func__);
 	return EOPNOTSUPP;
 #else
 	struct proc_ldt *pldt;
@@ -632,7 +639,7 @@ amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 	int error;
 
 #ifdef	DEBUG
-	printf("amd64_get_ldt: start=%u num=%u descs=%p\n",
+	printf("%s: start=%u num=%u descs=%p\n", __func__,
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
@@ -655,14 +662,15 @@ amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 	if (error == 0)
 		td->td_retval[0] = num;
 	return (error);
-#endif // !NO_LDT
+#endif // !WYC_NO_LDT
 }
 
 int
 amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
     struct user_segment_descriptor *descs)
 {
-#if defined(NO_LDT)
+#if defined(WYC_NO_LDT)
+	panic("%s", __func__);
 	return EOPNOTSUPP;
 #else
 	struct mdproc *mdp;
@@ -673,7 +681,7 @@ amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 	int error;
 
 #ifdef	DEBUG
-	printf("amd64_set_ldt: start=%u num=%u descs=%p\n",
+	printf("%s: start=%u num=%u descs=%p\n", __func__,
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 	mdp = &td->td_proc->p_md;
@@ -807,13 +815,17 @@ amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 	if (error == 0)
 		td->td_retval[0] = uap->start;
 	return (error);
-#endif // !NO_LDT	
+#endif // !WYC_NO_LDT
 }
 
 int
 amd64_set_ldt_data(struct thread *td, int start, int num,
     struct user_segment_descriptor *descs)
 {
+#if defined(WYC_NO_LDT)
+	panic("%s", __func__);
+	return EOPNOTSUPP;
+#else
 	struct mdproc *mdp;
 	struct proc_ldt *pldt;
 	volatile uint64_t *dst, *src;
@@ -828,4 +840,5 @@ amd64_set_ldt_data(struct thread *td, int start, int num,
 	for (i = 0; i < num; i++)
 		dst[start + i] = src[i];
 	return (0);
+#endif
 }
