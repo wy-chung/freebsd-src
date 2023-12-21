@@ -160,14 +160,14 @@ sw1cont:
 
 	/*
 	 * Load ldt register
-	 */
-	movq	TD_PROC(%r12),%rcx
-	cmpq	$0, P_MD+MD_LDT(%rcx)
-	jne	do_ldt // #291
+	 */ //  td_proc.p_md.md_ldt is always 0
+	//movq	TD_PROC(%r12),%rcx
+	//cmpq	$0, P_MD+MD_LDT(%rcx)
+	//jne	do_ldt // #291
 	xorl	%eax,%eax
 ld_ldt:	lldt	%ax
 
-	/* Restore fs base in GDT */
+	/* Restore fs base in GDT */ // thread local storage
 	movl	PCB_FSBASE(%r8),%eax
 	movq	PCPU(FS32P),%rdx
 	movw	%ax,2(%rdx)
@@ -287,15 +287,16 @@ do_tss:	movq	%rdx,PCPU(TSSP)
 	movl	$TSSSEL,%eax
 	ltr	%ax
 	jmp	done_tss
-
-do_ldt:	movq	PCPU(LDT),%rax
+#if 0 //wyc
+do_ldt:	hlt	//wyctest success
+	movq	PCPU(LDT),%rax
 	movq	P_MD+MD_LDT_SD(%rcx),%rdx
 	movq	%rdx,(%rax)
 	movq	P_MD+MD_LDT_SD+8(%rcx),%rdx
 	movq	%rdx,8(%rax)
 	movl	$LDTSEL,%eax
 	jmp	ld_ldt // #168
-
+#endif
 	.globl	ctx_switch_xsave32
 ctx_switch_xsave32:
 	xsave	(%r9)

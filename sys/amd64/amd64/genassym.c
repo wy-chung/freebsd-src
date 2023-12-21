@@ -73,8 +73,8 @@ ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 
 ASSYM(P_MD, offsetof(struct proc, p_md));
-ASSYM(MD_LDT, offsetof(struct mdproc, md_ldt));
-ASSYM(MD_LDT_SD, offsetof(struct mdproc, md_ldt_sd));
+//wyc ASSYM(MD_LDT, offsetof(struct mdproc, md_ldt));
+//wyc ASSYM(MD_LDT_SD, offsetof(struct mdproc, md_ldt_sd));
 
 ASSYM(MD_EFIRT_TMP, offsetof(struct mdthread, md_efirt_tmp));
 

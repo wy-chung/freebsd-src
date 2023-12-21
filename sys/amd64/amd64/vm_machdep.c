@@ -219,23 +219,23 @@ copy_thread(struct thread *td1, struct thread *td2)
  * ready to run and return to user mode.
  */
 void
-cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
+cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags) // flags: fork request flags
 {
 	struct proc *p1;
 	struct pcb *pcb2;
-	struct mdproc *mdp1, *mdp2;
-	struct proc_ldt *pldt;
+	struct mdproc /**mdp1, */*mdp2;
+	//struct proc_ldt *pldt;
 
 	p1 = td1->td_proc;
 	if ((flags & RFPROC) == 0) { // false
 		if ((flags & RFMEM) == 0) {
 			/* unshare user LDT */
-			mdp1 = &p1->p_md;
+			//mdp1 = &p1->p_md;
 			mtx_lock(&dt_lock);
-			if ((pldt = mdp1->md_ldt) != NULL &&
-			    pldt->ldt_refcnt > 1 &&
-			    user_ldt_alloc(p1, 1) == NULL)
-				panic("could not copy LDT");
+			//if ((pldt = mdp1->md_ldt) != NULL &&
+			//    pldt->ldt_refcnt > 1 &&
+			//    user_ldt_alloc(p1, 1) == NULL)
+			//	panic("could not copy LDT");
 			mtx_unlock(&dt_lock);
 		}
 		return;
@@ -252,7 +252,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	/* Point mdproc and then copy over p1's contents */
 	mdp2 = &p2->p_md;
-	bcopy(&p1->p_md, mdp2, sizeof(*mdp2));
+	bcopy(&p1->p_md, mdp2, sizeof(*mdp2)); // from, to, len
 
 	/* Set child return values. */
 	p2->p_sysent->sv_set_fork_retval(td2);
@@ -263,13 +263,15 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/* New segment registers. */
 	set_pcb_flags_raw(pcb2, PCB_FULL_IRET);
 
+#if 0 //wyc
 	/* Copy the LDT, if necessary. */
 	mdp1 = &td1->td_proc->p_md;
 	mdp2 = &p2->p_md;
-	if (mdp1->md_ldt == NULL) {
+	if (mdp1->md_ldt == NULL) { //wyc true
 		mdp2->md_ldt = NULL;
 		return;
 	}
+panic("%s: wyctest", __func__); //wyctest test pass
 	mtx_lock(&dt_lock);
 	if (mdp1->md_ldt != NULL) {
 		if (flags & RFMEM) {
@@ -299,6 +301,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	 * will set up a stack to call fork_return(p, frame); to complete
 	 * the return to user-mode.
 	 */
+#endif // #if 0
 }
 
 void
@@ -335,8 +338,8 @@ cpu_exit(struct thread *td)
 	/*
 	 * If this process has a custom LDT, release it.
 	 */
-	if (td->td_proc->p_md.md_ldt != NULL)
-		user_ldt_free(td);
+	//if (td->td_proc->p_md.md_ldt != NULL) //wyc false. It is indeed NULL
+	//	user_ldt_free(td);
 }
 
 void

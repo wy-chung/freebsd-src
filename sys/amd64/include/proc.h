@@ -82,8 +82,8 @@ struct mdthread {
 };
 
 struct mdproc {
-	struct proc_ldt *md_ldt;	/* (t) per-process ldt */
-	struct system_segment_descriptor md_ldt_sd;
+	struct proc_ldt *md_ldt;	/* (t) per-process ldt */	//wyc cannot remove, assertion fail
+	struct system_segment_descriptor md_ldt_sd;			//wyc cannot remove, assertion fail
 	u_int md_flags;			/* (c) md process flags P_MD */
 };
 

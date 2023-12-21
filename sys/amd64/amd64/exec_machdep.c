@@ -377,8 +377,8 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	regs = td->td_frame;
 	pcb = td->td_pcb;
 
-	if (td->td_proc->p_md.md_ldt != NULL)
-		user_ldt_free(td);
+	//if (td->td_proc->p_md.md_ldt != NULL) //wyc false. It is NULL indeed
+	//	user_ldt_free(td);
 
 	update_pcb_bases(pcb);
 	pcb->pcb_fsbase = 0;

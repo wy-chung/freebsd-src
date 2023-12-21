@@ -528,7 +528,7 @@ intr_prof_stack_use(struct thread *td, struct trapframe *frame)
  */
 int
 vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
-    struct vmspace *vm2, int flags)
+    struct vmspace *vm2, int flags) // flags: fork request flags
 {
 	struct proc *p1 = td->td_proc;
 	struct domainset *dset;

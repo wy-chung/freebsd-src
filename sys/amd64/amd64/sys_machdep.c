@@ -95,57 +95,6 @@ struct sysarch_args {
 };
 #endif
 
-#define WYC_NO_LDT 1
-
-int
-sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
-{
-#if defined(WYC_NO_LDT)
-	panic("%s", __func__);
-	return EOPNOTSUPP;
-#else
-	struct i386_ldt_args *largs, la;
-	struct user_segment_descriptor *lp;
-	int error = 0;
-
-	/*
-	 * XXXKIB check that the BSM generation code knows to encode
-	 * the op argument.
-	 */
-	AUDIT_ARG_CMD(uap->op);
-	if (uap_space == UIO_USERSPACE) {
-		error = copyin(uap->parms, &la, sizeof(struct i386_ldt_args));
-		if (error != 0)
-			return (error);
-		largs = &la;
-	} else
-		largs = (struct i386_ldt_args *)uap->parms;
-
-	switch (uap->op) {
-	case I386_GET_LDT:
-		error = amd64_get_ldt(td, largs);
-		break;
-	case I386_SET_LDT:
-		if (largs->descs != NULL && largs->num > max_ldt_segment)
-			return (EINVAL);
-		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
-		if (largs->descs != NULL) {
-			lp = malloc(largs->num * sizeof(struct
-			    user_segment_descriptor), M_TEMP, M_WAITOK);
-			error = copyin(largs->descs, lp, largs->num *
-			    sizeof(struct user_segment_descriptor));
-			if (error == 0)
-				error = amd64_set_ldt(td, largs, lp);
-			free(lp, M_TEMP);
-		} else {
-			error = amd64_set_ldt(td, largs, NULL);
-		}
-		break;
-	}
-	return (error);
-#endif // !WYC_NO_LDT
-}
-
 void
 update_gdt_gsbase(struct thread *td, uint32_t base)
 {
@@ -479,6 +428,58 @@ done:
 	return (0);
 }
 
+#define WYC_NO_LDT 1
+
+int
+sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space) //wyc cannot remove. Link error
+{
+#if defined(WYC_NO_LDT)
+	panic("%s", __func__);
+	return EOPNOTSUPP;
+#else
+	struct i386_ldt_args *largs, la;
+	struct user_segment_descriptor *lp;
+	int error = 0;
+
+	/*
+	 * XXXKIB check that the BSM generation code knows to encode
+	 * the op argument.
+	 */
+	AUDIT_ARG_CMD(uap->op);
+	if (uap_space == UIO_USERSPACE) {
+		error = copyin(uap->parms, &la, sizeof(struct i386_ldt_args));
+		if (error != 0)
+			return (error);
+		largs = &la;
+	} else
+		largs = (struct i386_ldt_args *)uap->parms;
+
+	switch (uap->op) {
+	case I386_GET_LDT:
+		error = amd64_get_ldt(td, largs);
+		break;
+	case I386_SET_LDT:
+		if (largs->descs != NULL && largs->num > max_ldt_segment)
+			return (EINVAL);
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
+		if (largs->descs != NULL) {
+			lp = malloc(largs->num * sizeof(struct
+			    user_segment_descriptor), M_TEMP, M_WAITOK);
+			error = copyin(largs->descs, lp, largs->num *
+			    sizeof(struct user_segment_descriptor));
+			if (error == 0)
+				error = amd64_set_ldt(td, largs, lp);
+			free(lp, M_TEMP);
+		} else {
+			error = amd64_set_ldt(td, largs, NULL);
+		}
+		break;
+	}
+	return (error);
+#endif // !WYC_NO_LDT
+}
+
+#if 0 //wyc
 #if !defined(WYC_NO_LDT)
 /*
  * Update the GDT entry pointing to the LDT to point to the LDT of the
@@ -842,3 +843,4 @@ amd64_set_ldt_data(struct thread *td, int start, int num,
 	return (0);
 #endif
 }
+#endif // #if 0
