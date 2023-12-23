@@ -1132,7 +1132,7 @@ cleanup:
 /*
  * Handle the return of a child process from fork1().  This function
  * is called from the MD fork_trampoline() entry point.
- */
+ */	    // called by fork_trampoline(exception.S)
 void
 fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
     struct trapframe *frame)

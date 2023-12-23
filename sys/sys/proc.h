@@ -650,6 +650,7 @@ enum {
  */
 enum p_states {
 	PRS_NEW = 0,		/* In creation */
+	PRS_INFANT,	//wyctodo after fork and before execve
 	PRS_NORMAL,		/* threads can be run. */
 	PRS_ZOMBIE
 };			/* (j/c) Process status. */

@@ -904,9 +904,9 @@ forkshell(struct job *jp, union node *n, int mode)
 	if (pid == -1) {
 		TRACE(("Fork failed, errno=%d\n", errno));
 		INTON;
-		error("Cannot fork: %s", strerror(errno));
+		error("%s: Cannot fork: %s", __func__, strerror(errno)); //wyc
 	}
-	if (pid == 0) {
+	if (pid == 0) { // child
 		struct job *p;
 		int wasroot;
 		int i;
@@ -1025,9 +1025,9 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	if (pid == -1) {
 		TRACE(("Vfork failed, errno=%d\n", errno));
 		INTON;
-		error("Cannot fork: %s", strerror(errno));
+		error("%s: Cannot fork: %s", __func__, strerror(errno)); //wyc
 	}
-	if (pid == 0) {
+	if (pid == 0) { // child
 		TRACE(("Child shell %d\n", (int)getpid()));
 		if (setjmp(jmploc.loc))
 			_exit(exitstatus);
