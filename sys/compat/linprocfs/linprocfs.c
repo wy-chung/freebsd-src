@@ -1085,7 +1085,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 		state = "T (stopped)";
 	} else {
 		switch(p->p_state) {
-		case PRS_NEW:
+		case PRS_NEWBORN:
 			state = "I (idle)";
 			break;
 		case PRS_NORMAL:

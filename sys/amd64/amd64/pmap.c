@@ -546,7 +546,7 @@ static u_int lm_ents;
 #define	PMAP_ADDRESS_IN_LARGEMAP(va)	((va) >= LARGEMAP_MIN_ADDRESS && \
 	(va) < LARGEMAP_MIN_ADDRESS + NBPML4 * (u_long)lm_ents)
 
-int pmap_pcid_enabled = 1;
+int pmap_pcid_enabled = 1; //wyc set to 0 in hammer_time
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pmap_pcid_enabled, 0, "Is TLB Context ID enabled ?");
 int invpcid_works = 0;
@@ -559,7 +559,7 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_invlpg_workaround,
     "Enable small core PCID/INVLPG workaround");
 int pmap_pcid_invlpg_workaround_uena = 1;
 
-int __read_frequently pti = 0;
+int __read_frequently pti = 0; //wyc set to 0 in hammer_time
 SYSCTL_INT(_vm_pmap, OID_AUTO, pti, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pti, 0,
     "Page Table Isolation enabled");

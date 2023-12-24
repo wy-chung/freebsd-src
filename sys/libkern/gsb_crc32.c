@@ -735,9 +735,9 @@ crc32c_sb8_64_bit(uint32_t crc,
 	return crc;
 }
 
-#ifndef TESTING
+ #ifndef TESTING
 static
-#endif
+ #endif
 uint32_t
 multitable_crc32c(uint32_t crc32c,
     const void *buffer,
@@ -762,7 +762,7 @@ table_crc32c(uint32_t crc32c, const unsigned char *buffer, unsigned int length)
 	}
 }
 
-#if defined(_KERNEL) && defined(__aarch64__)
+ #if defined(_KERNEL) && defined(__aarch64__)
 DEFINE_IFUNC(, uint32_t, calculate_crc32c,
     (uint32_t crc32c, const unsigned char *buffer, unsigned int length))
 {
@@ -775,20 +775,20 @@ DEFINE_IFUNC(, uint32_t, calculate_crc32c,
 
 	return (table_crc32c);
 }
-#elif defined(_KERNEL) && (defined(__amd64__) || defined(__i386__))
- #if !defined(WYC)
+ #elif defined(_KERNEL) && (defined(__amd64__) || defined(__i386__))
+  #if !defined(WYC)
 DEFINE_IFUNC(, uint32_t, calculate_crc32c,
     (uint32_t crc32c, const unsigned char *buffer, unsigned int length))
- #else
+  #else
 uint32_t calculate_crc32c(uint32_t crc32c, const unsigned char *buffer, unsigned int length)
- #endif
+  #endif
 {
 	if ((cpu_feature2 & CPUID2_SSE42) != 0)
 		return (sse42_crc32c);
 
 	return (table_crc32c);
 }
-#else
+ #else // !(defined(_KERNEL) && defined(__aarch64__))
 uint32_t
 calculate_crc32c(uint32_t crc32c,
     const unsigned char *buffer,
@@ -796,9 +796,9 @@ calculate_crc32c(uint32_t crc32c,
 {
 	return (table_crc32c(crc32c, buffer, length));
 }
-#endif /* _KERNEL && __aarch64__ */
+ #endif /* _KERNEL && __aarch64__ */
 
-#else
+#else // _STANDALONE
 uint32_t
 calculate_crc32c(uint32_t crc32c, const unsigned char *buffer, unsigned int length)
 {

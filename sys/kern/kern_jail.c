@@ -3032,7 +3032,7 @@ prison_proc_iterate(struct prison *pr, void (*cb)(struct proc *, void *),
 	if (atomic_load_int(&pr->pr_childcount) == 0) {
 		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &pr->pr_proclist, p_jaillist) {
-			if (p->p_state == PRS_NEW)
+			if (p->p_state == PRS_NEWBORN)
 				continue;
 			PROC_LOCK(p);
 			cb(p, cbarg);
@@ -3050,7 +3050,7 @@ prison_proc_iterate(struct prison *pr, void (*cb)(struct proc *, void *),
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
-		if (p->p_state != PRS_NEW && p->p_ucred != NULL) {
+		if (p->p_state != PRS_NEWBORN && p->p_ucred != NULL) {
 			for (ppr = p->p_ucred->cr_prison;
 			    ppr != &prison0;
 			    ppr = ppr->pr_parent) {

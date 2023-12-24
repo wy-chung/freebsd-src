@@ -4381,7 +4381,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW) {
+			if (p->p_state == PRS_NEWBORN) {
 				PROC_UNLOCK(p);
 				continue;
 			}
@@ -4402,7 +4402,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
-		if (p->p_state == PRS_NEW) {
+		if (p->p_state == PRS_NEWBORN) {
 			PROC_UNLOCK(p);
 			continue;
 		}
@@ -5059,7 +5059,7 @@ file_to_first_proc(struct file *fp)
 	int n;
 
 	FOREACH_PROC_IN_SYSTEM(p) {
-		if (p->p_state == PRS_NEW)
+		if (p->p_state == PRS_NEWBORN)
 			continue;
 		fdp = p->p_fd;
 		if (fdp == NULL)
@@ -5114,7 +5114,7 @@ DB_SHOW_COMMAND_FLAGS(files, db_show_files, DB_CMD_MEMSAFE)
 
 	header = 1;
 	FOREACH_PROC_IN_SYSTEM(p) {
-		if (p->p_state == PRS_NEW)
+		if (p->p_state == PRS_NEWBORN)
 			continue;
 		if ((fdp = p->p_fd) == NULL)
 			continue;

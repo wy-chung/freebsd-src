@@ -2243,7 +2243,7 @@ proc_unset_cred(struct proc *p)
 {
 	struct ucred *cr;
 
-	MPASS(p->p_state == PRS_ZOMBIE || p->p_state == PRS_NEW);
+	MPASS(p->p_state == PRS_ZOMBIE || p->p_state == PRS_NEWBORN);
 	cr = p->p_ucred;
 	p->p_ucred = NULL;
 	KASSERT(cr->cr_users > 0, ("%s: users %d not > 0 on cred %p",

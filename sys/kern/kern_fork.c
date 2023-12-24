@@ -395,7 +395,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	/* Tell the prison that we exist. */
 	prison_proc_hold(p2->p_ucred->cr_prison);
 
-	p2->p_state = PRS_NEW;		/* protect against others */
+	p2->p_state = PRS_NEWBORN;		/* protect against others */
 	p2->p_pid = fork_findpid(fr->fr_flags);
 	AUDIT_ARG_PID(p2->p_pid);
 	TSFORK(p2->p_pid, p1->p_pid);

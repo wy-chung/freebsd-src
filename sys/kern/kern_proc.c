@@ -422,7 +422,7 @@ pfind_any_locked(pid_t pid)
 	LIST_FOREACH(p, PIDHASH(pid), p_hash) {
 		if (p->p_pid == pid) {
 			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW) {
+			if (p->p_state == PRS_NEWBORN) {
 				PROC_UNLOCK(p);
 				p = NULL;
 			}
@@ -435,7 +435,7 @@ pfind_any_locked(pid_t pid)
 /*
  * Locate a process by number.
  *
- * By not returning processes in the PRS_NEW state, we allow callers to avoid
+ * By not returning processes in the PRS_NEWBORN state, we allow callers to avoid
  * testing for that condition to avoid dereferencing p_ucred, et al.
  */
 static __always_inline struct proc *
@@ -452,7 +452,7 @@ _pfind(pid_t pid, bool zombie)
 	LIST_FOREACH(p, PIDHASH(pid), p_hash) {
 		if (p->p_pid == pid) {
 			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW ||
+			if (p->p_state == PRS_NEWBORN ||
 			    (!zombie && p->p_state == PRS_ZOMBIE)) {
 				PROC_UNLOCK(p);
 				p = NULL;
@@ -1135,7 +1135,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_sigcatch = ps->ps_sigcatch;
 		mtx_unlock(&ps->ps_mtx);
 	}
-	if (p->p_state != PRS_NEW &&
+	if (p->p_state != PRS_NEWBORN &&
 	    p->p_state != PRS_ZOMBIE &&
 	    p->p_vmspace != NULL) {
 		struct vmspace *vm = p->p_vmspace;
@@ -1612,7 +1612,7 @@ proc_iterate(int (*cb)(struct proc *, void *), void *cbarg)
 		sx_slock(&pidhashtbl_lock[i]);
 		for (j = i; j <= pidhash; j += pidhashlock + 1) {
 			LIST_FOREACH(p, &pidhashtbl[j], p_hash) {
-				if (p->p_state == PRS_NEW)
+				if (p->p_state == PRS_NEWBORN)
 					continue;
 				error = cb(p, cbarg);
 				PROC_LOCK_ASSERT(p, MA_NOTOWNED);
