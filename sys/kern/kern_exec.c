@@ -742,7 +742,11 @@ interpret:
 	/*
 	 * Stack setup.
 	 */
+#if !defined(WYC)
 	error = (*p->p_sysent->sv_fixup)(&stack_base, imgp);
+#else
+	error = elf32_freebsd_fixup();
+#endif
 	if (error != 0) {
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		goto exec_fail_dealloc;

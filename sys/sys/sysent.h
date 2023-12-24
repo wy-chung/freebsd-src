@@ -98,7 +98,7 @@ struct trapframe;
 struct vnode;
 struct note_info_list;
 
-struct sysentvec {
+struct sysentvec { // elf64_freebsd_sysvec_la48
 	int		sv_size;	/* number of entries */
 	struct sysent	*sv_table;	/* pointer to sysent */
 	int		(*sv_fixup)(uintptr_t *, struct image_params *);
@@ -130,7 +130,7 @@ struct sysentvec {
 			    uintptr_t);
 	void		(*sv_fixlimit)(struct rlimit *, int);
 	u_long		*sv_maxssiz;
-	u_int		sv_flags;
+	u_int		sv_flags; // SV_ABI_FREEBSD | SV_ASLR | SV_LP64 | SV_SHP | SV_TIMEKEEP | SV_RNG_SEED_VER | SV_DSO_SIG | SV_SIGSYS
 	void		(*sv_set_syscall_retval)(struct thread *, int);
 	int		(*sv_fetch_syscall_args)(struct thread *);
 	const char	**sv_syscallnames;

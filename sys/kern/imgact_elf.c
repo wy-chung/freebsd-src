@@ -1223,15 +1223,22 @@ exec_elf64_imgact(struct image_params *imgp)
 				error = ENOEXEC;
 				goto ret;
 			}
-			error = __elfN(get_interp)(imgp, &phdr[i], &interp,
-			    &free_interp);
+		#if !defined(WYC)
+			error = __elfN(get_interp)(imgp, &phdr[i], &interp, &free_interp);
+		#else
+			error = elf32_get_interp(imgp, &phdr[i], &interp, &free_interp);
+		#endif
 			if (error != 0)
 				goto ret;
 			break;
 		case PT_GNU_STACK:
 			if (__elfN(nxstack)) {
 				imgp->stack_prot =
+			#if !defined(WYC)
 				    __elfN(trans_prot)(phdr[i].p_flags);
+			#else
+				    elf32_trans_prot();
+			#endif
 				if ((imgp->stack_prot & VM_PROT_RW) !=
 				    VM_PROT_RW) {
 					uprintf("Invalid PT_GNU_STACK\n");
@@ -1539,7 +1546,11 @@ __elfN(freebsd_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 int
 __elfN(freebsd_fixup)(uintptr_t *stack_base, struct image_params *imgp)
 {
+#if !defined(WYC)
 	Elf_Addr *base;
+#else
+	Elf64_Addr *base;
+#endif
 
 	base = (Elf_Addr *)*stack_base;
 	base--;
