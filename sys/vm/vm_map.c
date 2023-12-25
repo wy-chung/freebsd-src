@@ -4345,7 +4345,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge /*OUT*/)
 		vm_map_wait_busy(old_map);
 	new_map = &vm2->vm_map;
 	locked = vm_map_trylock(new_map); /* trylock to silence WITNESS */
-	KASSERT(locked, ("vmspace_fork: lock failed"));
+	KASSERT(locked, ("%s: lock failed", __func__)); //wyctodo
 
 	error = pmap_vmspace_copy(new_map->pmap, old_map->pmap);
 	if (error != 0) {
@@ -4411,7 +4411,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge /*OUT*/)
 				vm_object_clear_flag(object, OBJ_ONEMAPPING);
 				if (old_entry->cred != NULL) {
 					KASSERT(object->cred == NULL,
-					    ("vmspace_fork both cred"));
+					    ("%s: both cred", __func__)); //wyctodo
 					object->cred = old_entry->cred;
 					object->charge = old_entry->end -
 					    old_entry->start;
@@ -4428,11 +4428,11 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge /*OUT*/)
 				    object->type == OBJT_VNODE) {
 					KASSERT(((struct vnode *)object->
 					    handle)->v_writecount > 0,
-					    ("vmspace_fork: v_writecount %p",
+					    ("%s: v_writecount %p", __func__, //wyctodo
 					    object));
 					KASSERT(object->un_pager.vnp.
 					    writemappings > 0,
-					    ("vmspace_fork: vnp.writecount %p",
+					    ("%s: vnp.writecount %p", __func__, //wyctodo
 					    object));
 				}
 				VM_OBJECT_WUNLOCK(object);
@@ -4949,6 +4949,7 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 	return (0);
 }
 
+#if 0 //wyctodo
 /*
  * Unshare the specified VM space for forcing COW.  This
  * is called by rfork, for the (RFMEM|RFPROC) == 0 case.
@@ -4982,6 +4983,7 @@ vmspace_unshare(struct proc *p)
 	vmspace_free(oldvmspace);
 	return (0);
 }
+#endif
 
 /*
  *	vm_map_lookup:

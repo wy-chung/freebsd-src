@@ -532,9 +532,11 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 {
 	struct proc *p1 = td->td_proc;
 	struct domainset *dset;
-	int error;
 
 	if ((flags & RFPROC) == 0) { //wyc false
+panic("%s", __func__); //wyctest success, never reached
+#if 0 //wyc
+		int error;
 		/*
 		 * Divorce the memory, if it is shared, essentially
 		 * this changes shared memory amongst threads, into
@@ -547,6 +549,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 		}
 		cpu_fork(td, p2, td2, flags);
 		return (0);
+#endif
 	}
 
 	if (flags & RFMEM) { //wyc for vfork

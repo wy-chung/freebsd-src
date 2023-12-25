@@ -718,7 +718,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_ontdexit	= linux_thread_dtor,
 	.sv_setid_allowed = &linux_setid_allowed_query,
 	.sv_set_fork_retval = linux_set_fork_retval,
-};
+}; // elf_linux_sysvec
 
 static int
 linux_on_exec_vmspace(struct proc *p, struct image_params *imgp)
