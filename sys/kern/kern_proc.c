@@ -325,10 +325,10 @@ bitstr_t bit_decl(proc_id_sessidmap, PID_MAX);
 bitstr_t bit_decl(proc_id_reapmap, PID_MAX);
 
 static bitstr_t *proc_id_array[] = {
-	proc_id_pidmap,
-	proc_id_grpidmap,
-	proc_id_sessidmap,
-	proc_id_reapmap,
+	proc_id_pidmap,		// PROC_ID_PID
+	proc_id_grpidmap,	// PROC_ID_GROUP
+	proc_id_sessidmap,	// PROC_ID_SESSION
+	proc_id_reapmap,	// PROC_ID_REAP
 };
 
 void

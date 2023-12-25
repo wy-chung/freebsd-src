@@ -396,9 +396,11 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	prison_proc_hold(p2->p_ucred->cr_prison);
 
 	p2->p_state = PRS_NEWBORN;		/* protect against others */
+#if defined(WYC) // moved to fork1
 	p2->p_pid = fork_findpid(fr->fr_flags);
 	AUDIT_ARG_PID(p2->p_pid);
 	TSFORK(p2->p_pid, p1->p_pid);
+#endif
 
 	sx_xlock(&allproc_lock);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
@@ -781,8 +783,8 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 			td->td_dbg_forked = p2->p_pid;
 			td2->td_dbgflags |= TDB_STOPATFORK;
 			proc_set_traced(p2, true);
-			CTR2(KTR_PTRACE,
-			    "do_fork: attaching to new child pid %d: oppid %d",
+			CTR3(KTR_PTRACE,
+			    "%s: attaching to new child pid %d: oppid %d", __func__, //wyctodo
 			    p2->p_pid, p2->p_oppid);
 			proc_reparent(p2, p1->p_pptr, false);
 		}
@@ -950,7 +952,7 @@ fork1(struct thread *td, struct fork_req *fr)
 				    td->td_ucred->cr_ruid, p1->p_pid);
 			}
 			sx_xunlock(&allproc_lock);
-			goto fail2;
+			goto fail3;
 		}
 	}
 
@@ -970,7 +972,7 @@ fork1(struct thread *td, struct fork_req *fr)
 			if (thread_single(p1, SINGLE_BOUNDARY)) {
 				PROC_UNLOCK(p1);
 				error = ERESTART;
-				goto fail2;
+				goto fail3;
 			}
 			PROC_UNLOCK(p1);
 			singlethreaded = true;
@@ -983,7 +985,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	 */
 	if (!killsx_locked && sx_slock_sig(&pg->pg_killsx) != 0) {
 		error = ERESTART;
-		goto fail2;
+		goto fail3;
 	}
 	if (__predict_false(p1->p_pgrp != pg || sig_intr() != 0)) {
 		/*
@@ -995,7 +997,7 @@ fork1(struct thread *td, struct fork_req *fr)
 		sx_sunlock(&pg->pg_killsx);
 		killsx_locked = false;
 		error = ERESTART;
-		goto fail2;
+		goto fail3;
 	} else {
 		killsx_locked = true;
 	}
@@ -1009,7 +1011,7 @@ fork1(struct thread *td, struct fork_req *fr)
 		error = procdesc_falloc(td, &fp_procdesc, fr->fr_pd_fd,
 		    fr->fr_pd_flags, fr->fr_pd_fcaps);
 		if (error != 0)
-			goto fail2;
+			goto fail3;
 		AUDIT_ARG_FD(*fr->fr_pd_fd);
 	}
 
@@ -1018,6 +1020,10 @@ fork1(struct thread *td, struct fork_req *fr)
 		pages = kstack_pages;
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
+	newproc->p_pid = fork_findpid(fr->fr_flags);
+	AUDIT_ARG_PID(newproc->p_pid);
+	TSFORK(newproc->p_pid, p1->p_pid);
+
 	td2 = FIRST_THREAD_IN_PROC(newproc);
 	if (td2 == NULL) {
 		td2 = thread_alloc(pages);
@@ -1110,7 +1116,9 @@ fail1:
 fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
+	proc_id_clear(PROC_ID_PID ,newproc->p_pid);
 	uma_zfree(proc_zone, newproc);
+fail3: //wyctodo
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
 		fdclose(td, fp_procdesc, *fr->fr_pd_fd);
 		fdrop(fp_procdesc, td);
