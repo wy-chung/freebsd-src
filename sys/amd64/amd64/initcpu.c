@@ -284,12 +284,12 @@ initializecpu(void)
 		cr4 |= CR4_FXSR | CR4_XMM;
 		hw_instruction_sse = 1;
 	}
-	if (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE)
+	if (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) //qemu false
 		cr4 |= CR4_FSGSBASE;
 
 	if (cpu_stdext_feature2 & CPUID_STDEXT2_PKU)
 		cr4 |= CR4_PKE;
-
+	//qemu cr4 == 0x620 == {CR4_XMM, CR4_FXSR, CR4_PAE}
 	/*
 	 * If SMEP is present, we only need to flush RSB (by default)
 	 * on context switches, to prevent cross-process ret2spec

@@ -1785,6 +1785,7 @@ set_pcb_flags_fsgsbase(struct pcb *pcb, const u_int flags)
 {
 	register_t r;
 
+//panic("%s", __func__); //wyctest qemu success, kvm fail
 	if (curpcb == pcb &&
 	    (flags & PCB_FULL_IRET) != 0 &&
 	    (pcb->pcb_flags & PCB_FULL_IRET) == 0) {
@@ -1810,7 +1811,7 @@ void set_pcb_flags(struct pcb *, const u_int)
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0 ?
-	    set_pcb_flags_fsgsbase : set_pcb_flags_raw);
+	    set_pcb_flags_fsgsbase : set_pcb_flags_raw); // kvm : qemu
 }
 
 void

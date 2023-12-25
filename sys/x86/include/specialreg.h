@@ -442,7 +442,7 @@
 /*
  * CPUID instruction 7 Structured Extended Features, leaf 0 ebx info
  */
-#define	CPUID_STDEXT_FSGSBASE	0x00000001
+#define	CPUID_STDEXT_FSGSBASE	0x00000001	/* Enable FS/GS BASE accessing instructions */
 #define	CPUID_STDEXT_TSC_ADJUST	0x00000002
 #define	CPUID_STDEXT_SGX	0x00000004
 #define	CPUID_STDEXT_BMI1	0x00000008
@@ -481,7 +481,7 @@
 #define	CPUID_STDEXT2_PREFETCHWT1 	0x00000001
 #define	CPUID_STDEXT2_AVX512VBMI	0x00000002
 #define	CPUID_STDEXT2_UMIP		0x00000004
-#define	CPUID_STDEXT2_PKU		0x00000008
+#define	CPUID_STDEXT2_PKU		0x00000008	/* Protection Keys Enable */
 #define	CPUID_STDEXT2_OSPKE		0x00000010
 #define	CPUID_STDEXT2_WAITPKG		0x00000020
 #define	CPUID_STDEXT2_AVX512VBMI2	0x00000040
@@ -1171,9 +1171,9 @@
 #define	MSR_LSTAR	0xc0000082	/* long mode SYSCALL target rip */
 #define	MSR_CSTAR	0xc0000083	/* compat mode SYSCALL target rip */
 #define	MSR_SF_MASK	0xc0000084	/* syscall flags mask */
-#define	MSR_FSBASE	0xc0000100	/* base address of the %fs "segment" */
+#define	MSR_FSBASE	0xc0000100	/* base address of the %fs "segment", for TLS */
 #define	MSR_GSBASE	0xc0000101	/* base address of the %gs "segment" */
-#define	MSR_KGSBASE	0xc0000102	/* base address of the kernel %gs */
+#define	MSR_KGSBASE	0xc0000102	/* base address of the kernel %gs, User value while in the kernel */
 #define	MSR_TSC_AUX	0xc0000103
 //wyc
 #define MSC_CSBASE	0xc000010c
