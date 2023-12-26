@@ -257,18 +257,18 @@ union descriptor {
  * Entries in the Global Descriptor Table (GDT)
  */
 enum {
-GNULL_SEL,	// 0	/* Null Descriptor */
-GNULL2_SEL,	// 1	/* Null Descriptor */
-GUFS32_SEL,	// 2	/* User 32 bit %fs Descriptor */
-GUGS32_SEL,	// 3	/* User 32 bit %gs Descriptor */
-GCODE_SEL,	// 4	/* Kernel Code Descriptor */
-GDATA_SEL,	// 5	/* Kernel Data Descriptor */
-GUCODE32_SEL,	// 6	/* User 32 bit code Descriptor */
-GUDATA_SEL,	// 7	/* User 32/64 bit Data Descriptor */
-GUCODE_SEL,	// 8	/* User 64 bit Code Descriptor */
-GPROC0_SEL,	// 9	/* TSS for entering kernel etc */
+GNULL_SEL,	// 0 /* Null Descriptor */
+GNULL2_SEL,	// 1 /* Null Descriptor */ // not referenced
+GUFS32_SEL,	// 2 /* User 32 bit %fs Descriptor */	// _ufssel
+GUGS32_SEL,	// 3 /* User 32 bit %gs Descriptor */	// _ugssel
+GCODE_SEL,	// 4 /* Kernel Code Descriptor */	// the cs for SYSCALL
+GDATA_SEL,	// 5 /* Kernel Data Descriptor */	// the ss for SYSCALL
+GUCODE32_SEL,	// 6 /* User 32 bit code Descriptor */	// _ucode32sel,	the cs for SYSRET(32-bit)
+GUDATA_SEL,	// 7 /* User 32/64 bit Data Descriptor  // _udatasel,	the ss for SYSRET
+GUCODE_SEL,	// 8 /* User 64 bit Code Descriptor */	// _ucodesel,	the cs for SYSRET(64-bit)
+GPROC0_SEL,	// 9 /* TSS for entering kernel etc */
 GPROC0_SEL2,	/* slot 10 is second half of GPROC0_SEL */
-GUSERLDT_SEL,	// 11	/* LDT */
+GUSERLDT_SEL,	// 11 /* LDT */
 GUSERLDT_SEL2,	/* slot 12 is second half of GUSERLDT_SEL */
 NGDT,		// 13
 };

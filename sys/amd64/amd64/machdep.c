@@ -194,7 +194,11 @@ vm_paddr_t efi_systbl_phys;
 #define ICH_PMBASE	0x400
 #define ICH_SMI_EN	ICH_PMBASE + 0x30
 
-int	_udatasel, _ucodesel, _ucode32sel, _ufssel, _ugssel;
+int	_udatasel;	// GUDATA_SEL
+int	_ucodesel;	// GUCODE_SEL
+int	_ucode32sel;	// GUCODE32_SEL
+int	_ufssel;	// GUFS32_SEL
+int	_ugssel;	// GUGS32_SEL
 
 int cold = 1;
 
@@ -1173,19 +1177,39 @@ amd64_kdb_init(void)
 #endif
 }
 
+/*
+SYSCALL
+  r11 = rflags
+  rcx = rip
+  cs = STAR[47:32]
+  rip = LSTAR
+  ss = STAR[47:32] + 8
+
+SYSRET(64-bit)
+  cs = STAR[63:48] + 16
+  rip = rcx
+  ss = START[63:48] + 8
+  eflags = r11
+
+SYSRET(32-bit)
+  cs = START[63:48]
+  eip = ecx
+  ss = START[63:48] + 8
+  eflags = r11
+*/
 /* Set up the fast syscall stuff */
 void
 amd64_conf_fast_syscall(void)
 {
 	uint64_t msr;
 
-	msr = rdmsr(MSR_EFER) | EFER_SCE;
+	msr = rdmsr(MSR_EFER) | EFER_SCE; // enable system call extension
 	wrmsr(MSR_EFER, msr);
 	wrmsr(MSR_LSTAR, pti ? (u_int64_t)IDTVEC(fast_syscall_pti) :
 	    (u_int64_t)IDTVEC(fast_syscall));
 	wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
-	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) |
-	    ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48);
+	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) | // for SYSCALL
+	    ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48); // for SYSRET
 	wrmsr(MSR_STAR, msr);
 	wrmsr(MSR_SF_MASK, PSL_NT | PSL_T | PSL_I | PSL_C | PSL_D | PSL_AC);
 }
@@ -1385,7 +1409,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	for (x = 0; x < NGDT; x++) {
 		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1) &&
-		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL) + 1)
+		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL + 1)) //wyctodo ')' moved
 			ssdtosd(&gdt_segs[x], &gdt[x]);
 	}
 	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&pc->pc_common_tss;
