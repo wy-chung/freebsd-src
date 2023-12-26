@@ -598,8 +598,10 @@ wrpkru(uint32_t mask)
 
 #ifdef _KERNEL
 /* This is defined in <machine/specialreg.h> but is too painful to get to */
-#ifndef	MSR_FSBASE
-#define	MSR_FSBASE	0xc0000100
+#if !defined(WYC)
+ #ifndef	MSR_FSBASE
+ #define	MSR_FSBASE	0xc0000100
+ #endif
 #endif
 static __inline void
 load_fs(u_short sel)
@@ -609,8 +611,10 @@ load_fs(u_short sel)
 	    : : "rm" (sel), "c" (MSR_FSBASE) : "eax", "edx");
 }
 
-#ifndef	MSR_GSBASE
-#define	MSR_GSBASE	0xc0000101
+#if !defined(WYC)
+ #ifndef	MSR_GSBASE
+ #define	MSR_GSBASE	0xc0000101
+ #endif
 #endif
 static __inline void
 load_gs(u_short sel) // for PCPU

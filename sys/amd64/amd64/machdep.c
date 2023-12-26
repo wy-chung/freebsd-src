@@ -194,11 +194,11 @@ vm_paddr_t efi_systbl_phys;
 #define ICH_PMBASE	0x400
 #define ICH_SMI_EN	ICH_PMBASE + 0x30
 
-int	_udatasel;	// GUDATA_SEL
-int	_ucodesel;	// GUCODE_SEL
 int	_ucode32sel;	// GUCODE32_SEL
-int	_ufssel;	// GUFS32_SEL
-int	_ugssel;	// GUGS32_SEL
+int	_ucodesel;	// GUCODE_SEL
+int	_udatasel;	// GUDATA_SEL
+int	_ufssel;	// GUFS32_SEL, TLS
+int	_ugssel;	// GUGS32_SEL, PCPU
 
 int cold = 1;
 
@@ -502,6 +502,7 @@ extern inthand_t
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(dblfault),
+
 	IDTVEC(div_pti), IDTVEC(bpt_pti),
 	IDTVEC(ofl_pti), IDTVEC(bnd_pti), IDTVEC(ill_pti), IDTVEC(dna_pti),
 	IDTVEC(fpusegm_pti), IDTVEC(tss_pti), IDTVEC(missing_pti),

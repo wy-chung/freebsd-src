@@ -244,7 +244,6 @@ struct pcpu {
 	uint8_t	pc_mds_tmp[64];
 	u_int 	pc_ipi_bitmap;
 	struct amd64tss pc_common_tss;
-	struct user_segment_descriptor pc_gdt[NGDT];
 	void	*pc_smp_tlb_pmap;
 	uint64_t pc_smp_tlb_addr1;
 	uint64_t pc_smp_tlb_addr2;
@@ -254,6 +253,7 @@ struct pcpu {
 	u_int	pc_small_core;
 	u_int	pc_pcid_invlpg_workaround;
 	struct pmap_pcid pc_kpmap_store;
+	struct user_segment_descriptor pc_gdt[NGDT];
 	char	__pad[2900];		/* pad to UMA_PCPU_ALLOC_SIZE */
 #endif
 } __aligned(CACHE_LINE_SIZE);
