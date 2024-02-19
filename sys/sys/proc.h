@@ -649,8 +649,8 @@ enum {
  * Process structure.
  */
 enum p_states {
-	PRS_NEWBORN = 0,	/* In creation */ //wyctodo after fork and before execve
-	PRS_NORMAL,		/* threads can be run. */
+	PRS_NEW = 0,	/* In creation */ //wyctodo after fork and before execve
+	PRS_NORMAL,	/* threads can be run. */
 	PRS_ZOMBIE
 };			/* (j/c) Process status. */
 struct proc {

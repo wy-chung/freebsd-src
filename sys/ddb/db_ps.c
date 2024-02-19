@@ -202,7 +202,7 @@ db_ps_proc(struct proc *p)
 				state[0] = '?';
 		}
 		break;
-	case PRS_NEWBORN:
+	case PRS_NEW:
 		state[0] = 'N';
 		break;
 	case PRS_ZOMBIE:
@@ -456,7 +456,7 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 	db_printf("Process %d (%s) at %p:\n", p->p_pid, p->p_comm, p);
 	db_printf(" state: ");
 	switch (p->p_state) {
-	case PRS_NEWBORN:
+	case PRS_NEW:
 		db_printf("NEW\n");
 		break;
 	case PRS_NORMAL:

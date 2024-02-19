@@ -395,12 +395,10 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	/* Tell the prison that we exist. */
 	prison_proc_hold(p2->p_ucred->cr_prison);
 
-	p2->p_state = PRS_NEWBORN;		/* protect against others */
-#if defined(WYC) // moved to fork1
+	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = fork_findpid(fr->fr_flags);
 	AUDIT_ARG_PID(p2->p_pid);
 	TSFORK(p2->p_pid, p1->p_pid);
-#endif
 
 	sx_xlock(&allproc_lock);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
@@ -863,7 +861,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	struct ucred *cred;
 	struct file *fp_procdesc;
 	struct pgrp *pg;
-	//vm_ooffset_t mem_charged; //wyc moved into a block
+	//vm_ooffset_t mem_charged; //wyctodo moved into a block
 	int error, nprocs_new;
 	static int curfail;
 	static struct timeval lastfail;
@@ -909,6 +907,14 @@ fork1(struct thread *td, struct fork_req *fr)
 	}
 
 	p1 = td->td_proc;
+#if 0
+	PROC_LOCK(p1);
+	if (p1->p_state <= PRS_CHILD) { //wyc child cannot fork another child
+		PROC_UNLOCK(p1);
+		return ECHILD; //wyc
+	}
+	PROC_UNLOCK(p1);
+#endif
 
 	/*
 	 * Here we don't create a new process, but we divorce
@@ -1015,15 +1021,11 @@ fork1(struct thread *td, struct fork_req *fr)
 		AUDIT_ARG_FD(*fr->fr_pd_fd);
 	}
 
-	//mem_charged = 0; //wyc moved below
+	//mem_charged = 0; //wyctodo moved below
 	if (pages == 0) //wyc always true
 		pages = kstack_pages;
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
-	newproc->p_pid = fork_findpid(fr->fr_flags);
-	AUDIT_ARG_PID(newproc->p_pid);
-	TSFORK(newproc->p_pid, p1->p_pid);
-
 	td2 = FIRST_THREAD_IN_PROC(newproc);
 	if (td2 == NULL) {
 		td2 = thread_alloc(pages);

@@ -670,7 +670,7 @@ swapper_selector(bool wkilled_only)
 	ppri = INT_MIN;
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
-		if (p->p_state == PRS_NEWBORN || (p->p_flag & (P_SWAPPINGOUT |
+		if (p->p_state == PRS_NEW || (p->p_flag & (P_SWAPPINGOUT |
 		    P_SWAPPINGIN | P_INMEM)) != 0) {
 			PROC_UNLOCK(p);
 			continue;

@@ -377,7 +377,7 @@ tty_info(struct tty *tp)
 	}
 #endif
 	thread_unlock(td);
-	if (p->p_state == PRS_NEWBORN || p->p_state == PRS_ZOMBIE)
+	if (p->p_state == PRS_NEW || p->p_state == PRS_ZOMBIE)
 		rss = 0;
 	else
 		rss = pgtok(vmspace_resident_count(p->p_vmspace));

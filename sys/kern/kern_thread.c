@@ -1793,7 +1793,7 @@ tdfind(lwpid_t tid, pid_t pid)
 			PROC_UNLOCK(p);
 			continue;
 		}
-		if (p->p_state == PRS_NEWBORN) {
+		if (p->p_state == PRS_NEW) {
 			PROC_UNLOCK(p);
 			return (NULL);
 		}

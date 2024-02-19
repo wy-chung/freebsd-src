@@ -1803,7 +1803,7 @@ killpg1_sendsig(struct proc *p, bool notself, struct killpg1_ctx *arg)
 {
 
 	if (p->p_pid <= 1 || (p->p_flag & P_SYSTEM) != 0 ||
-	    (notself && p == arg->td->td_proc) || p->p_state == PRS_NEWBORN)
+	    (notself && p == arg->td->td_proc) || p->p_state == PRS_NEW)
 		return;
 
 	PROC_LOCK(p);
@@ -1817,7 +1817,7 @@ kill_processes_prison_cb(struct proc *p, void *arg)
 	struct killpg1_ctx *ctx = arg;
 
 	if (p->p_pid <= 1 || (p->p_flag & P_SYSTEM) != 0 ||
-	    (p == ctx->td->td_proc) || p->p_state == PRS_NEWBORN)
+	    (p == ctx->td->td_proc) || p->p_state == PRS_NEW)
 		return;
 
 	killpg1_sendsig_locked(p, ctx);

@@ -662,7 +662,7 @@ proc0_post(void *dummy __unused)
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
-		if (p->p_state == PRS_NEWBORN) {
+		if (p->p_state == PRS_NEW) {
 			PROC_UNLOCK(p);
 			continue;
 		}
@@ -812,7 +812,7 @@ start_init(void *dummy)
  * runnable yet, init execution is started when userspace can be served.
  */
 static void
-create_init(const void *udata __unused)
+create_init(const void *udata __unused) // init process has pid 1
 {
 	struct fork_req fr;
 	struct ucred *newcred, *oldcred;

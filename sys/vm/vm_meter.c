@@ -187,7 +187,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		if ((p->p_flag & P_SYSTEM) != 0)
 			continue;
 		PROC_LOCK(p);
-		if (p->p_state != PRS_NEWBORN) {
+		if (p->p_state != PRS_NEW) {
 			FOREACH_THREAD_IN_PROC(p, td) {
 				thread_lock(td);
 				switch (TD_GET_STATE(td)) {
