@@ -233,6 +233,13 @@ struct rusage_ext {
  * This is what is put to sleep and reactivated.
  * Thread context.  Processes may have multiple threads.
  */
+enum td_states {
+	TDS_INACTIVE = 0x0,
+	TDS_INHIBITED,
+	TDS_CAN_RUN,
+	TDS_RUNQ,
+	TDS_RUNNING,
+};
 struct thread {
 	struct mtx	*volatile td_lock; /* replaces sched lock */
 	struct proc	*td_proc;	/* (*) Associated process. */
@@ -349,13 +356,7 @@ struct thread {
  * or already have been set in the allocator, constructor, etc.
  */
 	struct pcb	*td_pcb;	/* (k) Kernel VA of pcb and kstack. */
-	enum td_states {
-		TDS_INACTIVE = 0x0,
-		TDS_INHIBITED,
-		TDS_CAN_RUN,
-		TDS_RUNQ,
-		TDS_RUNNING
-	} td_state;			/* (t) thread state */
+	enum td_states	td_state;			/* (t) thread state */
 	/* Note: td_state must be accessed using TD_{GET,SET}_STATE(). */
 	union {
 		syscallarg_t	tdu_retval[2];
@@ -651,8 +652,8 @@ enum {
 enum p_states {
 	PRS_NEW = 0,	/* In creation */ //wyctodo after fork and before execve
 	PRS_NORMAL,	/* threads can be run. */
-	PRS_ZOMBIE
-};			/* (j/c) Process status. */
+	PRS_ZOMBIE,
+};
 struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 	TAILQ_HEAD(, thread) p_threads;	/* (c) all threads. */

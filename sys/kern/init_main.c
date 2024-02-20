@@ -460,7 +460,7 @@ struct sysentvec null_sysvec = {
  */
 /* ARGSUSED*/
 static void
-proc0_init(void *dummy __unused)
+proc0_init(void *dummy __unused) // kernel process
 {
 	struct proc *p;
 	struct thread *td;
