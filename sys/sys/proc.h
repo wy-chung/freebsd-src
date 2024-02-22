@@ -653,6 +653,7 @@ enum p_states {
 	PRS_NEW = 0,	/* In creation */ //wyctodo after fork and before execve
 	PRS_NORMAL,	/* threads can be run. */
 	PRS_ZOMBIE,
+	PRS_CHILD,	//wyc newly forked and before execve
 };
 struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */

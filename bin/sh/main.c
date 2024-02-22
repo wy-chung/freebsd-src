@@ -108,6 +108,7 @@ main(int argc, char *argv[])
 	volatile int state;
 	char *shinit;
 
+	printf("wyc sh\n");
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;

@@ -371,6 +371,9 @@ fail:
 	return (error);
 }
 
+static int fork_debug = 0; //wyc
+SYSCTL_INT(_debug, OID_AUTO, fork, CTLFLAG_RW, &fork_debug, 0, "for PRS_CHILD testing");
+
 static void
 do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *td2,
     struct vmspace *vm2, struct file *fp_procdesc)
@@ -718,7 +721,10 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	PROC_LOCK(p1);
 	microuptime(&p2->p_stats->p_start);
 	PROC_SLOCK(p2);
-	p2->p_state = PRS_NORMAL;
+	if (fork_debug)
+		p2->p_state = PRS_CHILD; //wyc
+	else
+		p2->p_state = PRS_NORMAL;
 	PROC_SUNLOCK(p2);
 
 #ifdef KDTRACE_HOOKS
@@ -907,14 +913,14 @@ fork1(struct thread *td, struct fork_req *fr)
 	}
 
 	p1 = td->td_proc;
-#if 0
-	PROC_LOCK(p1);
-	if (p1->p_state <= PRS_CHILD) { //wyc child cannot fork another child
+	if (fork_debug) { //wyc
+		PROC_LOCK(p1);
+		if (p1->p_state == PRS_CHILD) { //wyc child cannot fork another child
+			PROC_UNLOCK(p1);
+			return ECHILD;
+		}
 		PROC_UNLOCK(p1);
-		return ECHILD; //wyc
 	}
-	PROC_UNLOCK(p1);
-#endif
 
 	/*
 	 * Here we don't create a new process, but we divorce

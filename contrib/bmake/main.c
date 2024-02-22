@@ -1642,6 +1642,7 @@ main(int argc, char **argv)
 {
 	bool outOfDate;
 
+	printf("wyc make\n");
 	main_Init(argc, argv);
 	main_ReadFiles();
 	main_PrepareMaking();
