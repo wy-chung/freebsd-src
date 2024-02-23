@@ -102,7 +102,7 @@ static void indent(int, FILE *);
 static int nextfield(char *);
 static void skipbl(void);
 static int readline(FILE *);
-static void error(const char *, ...) __printf0like(1, 2) __dead2;
+static void _error(const char *, ...) __printf0like(1, 2) __dead2;
 static char *savestr(const char *);
 
 
@@ -112,9 +112,9 @@ main(int argc, char *argv[])
 	FILE *infp;
 
 	if (argc != 3)
-		error("usage: mknodes file");
+		_error("usage: mknodes file");
 	if ((infp = fopen(argv[1], "r")) == NULL)
-		error("Can't open %s: %s", argv[1], strerror(errno));
+		_error("Can't open %s: %s", argv[1], strerror(errno));
 	while (readline(infp)) {
 		if (line[0] == ' ' || line[0] == '\t')
 			parsefield();
@@ -139,9 +139,9 @@ parsenode(void)
 		curstr->done = 1;
 	nextfield(name);
 	if (! nextfield(tag))
-		error("Tag expected");
+		_error("Tag expected");
 	if (*linep != '\0')
-		error("Garbage at end of line");
+		_error("Garbage at end of line");
 	nodename[ntypes] = savestr(name);
 	for (sp = str ; sp < str + nstr ; sp++) {
 		if (strcmp(sp->tag, tag) == 0)
@@ -167,11 +167,11 @@ parsefield(void)
 	struct field *fp;
 
 	if (curstr == NULL || curstr->done)
-		error("No current structure to add field to");
+		_error("No current structure to add field to");
 	if (! nextfield(name))
-		error("No field name");
+		_error("No field name");
 	if (! nextfield(type))
-		error("No field type");
+		_error("No field type");
 	fp = &curstr->field[curstr->nfields];
 	fp->name = savestr(name);
 	if (strcmp(type, "nodeptr") == 0) {
@@ -191,14 +191,14 @@ parsefield(void)
 	} else if (strcmp(type, "temp") == 0) {
 		fp->type = T_TEMP;
 	} else {
-		error("Unknown type %s", type);
+		_error("Unknown type %s", type);
 	}
 	if (fp->type == T_OTHER || fp->type == T_TEMP) {
 		skipbl();
 		fp->decl = savestr(linep);
 	} else {
 		if (*linep)
-			error("Garbage at end of line");
+			_error("Garbage at end of line");
 		fp->decl = savestr(decl);
 	}
 	curstr->nfields++;
@@ -223,11 +223,11 @@ output(char *file)
 	char *p;
 
 	if ((patfile = fopen(file, "r")) == NULL)
-		error("Can't open %s: %s", file, strerror(errno));
+		_error("Can't open %s: %s", file, strerror(errno));
 	if ((hfile = fopen("nodes.h", "w")) == NULL)
-		error("Can't create nodes.h: %s", strerror(errno));
+		_error("Can't create nodes.h: %s", strerror(errno));
 	if ((cfile = fopen("nodes.c", "w")) == NULL)
-		error("Can't create nodes.c");
+		_error("Can't create nodes.c");
 	fputs(writer, hfile);
 	for (i = 0 ; i < ntypes ; i++)
 		fprintf(hfile, "#define %s %d\n", nodename[i], i);
@@ -255,9 +255,9 @@ output(char *file)
 	fputs("void reffunc(struct funcdef *);\n", hfile);
 	fputs("void unreffunc(struct funcdef *);\n", hfile);
 	if (ferror(hfile))
-		error("Can't write to nodes.h");
+		_error("Can't write to nodes.h");
 	if (fclose(hfile))
-		error("Can't close nodes.h");
+		_error("Can't close nodes.h");
 
 	fputs(writer, cfile);
 	while (fgets(line, sizeof line, patfile) != NULL) {
@@ -273,9 +273,9 @@ output(char *file)
 	}
 	fclose(patfile);
 	if (ferror(cfile))
-		error("Can't write to nodes.c");
+		_error("Can't write to nodes.c");
 	if (fclose(cfile))
-		error("Can't close nodes.c");
+		_error("Can't close nodes.c");
 }
 
 
@@ -424,14 +424,14 @@ readline(FILE *infp)
 	linep = line;
 	linno++;
 	if (p - line > BUFLEN)
-		error("Line too long");
+		_error("Line too long");
 	return 1;
 }
 
 
 
 static void
-error(const char *msg, ...)
+_error(const char *msg, ...)
 {
 	va_list va;
 	va_start(va, msg);
@@ -453,7 +453,7 @@ savestr(const char *s)
 	char *p;
 
 	if ((p = malloc(strlen(s) + 1)) == NULL)
-		error("Out of space");
+		_error("Out of space");
 	(void) strcpy(p, s);
 	return p;
 }
