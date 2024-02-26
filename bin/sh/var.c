@@ -204,7 +204,7 @@ setvarsafe(const char *name, const char *val, int flags)
 	int inton;
 
 	inton = is_int_on();
-	if (setjmp(jmploc.loc))
+	if (setjmp(jmploc.loc)) // return from longjmp
 		err = 1;
 	else {
 		handler = &jmploc;

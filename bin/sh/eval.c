@@ -36,6 +36,7 @@ static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
+#include <stdbool.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -458,7 +459,7 @@ evalredir(union node *n, int flags)
 	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
 	savehandler = handler;
-	if (setjmp(jmploc.loc)) {
+	if (setjmp(jmploc.loc)) { // return from longjmp
 		int e;
 
 		handler = savehandler;
@@ -490,7 +491,7 @@ exphere(union node *redir, struct arglist *fn)
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
 	struct localvar *savelocalvars;
-	int need_longjmp = 0;
+	bool need_longjmp = 0;
 	unsigned char saveoptreset;
 
 	redir->nhere.expdoc = "";
@@ -499,7 +500,7 @@ exphere(union node *redir, struct arglist *fn)
 	saveoptreset = shellparam.reset;
 	forcelocal++;
 	savehandler = handler;
-	if (setjmp(jmploc.loc))
+	if (setjmp(jmploc.loc)) // return from longjmp
 		need_longjmp = exception != EXERROR;
 	else {
 		handler = &jmploc;
@@ -588,7 +589,7 @@ evalpipe(union node *n)
 				error("Pipe call failed: %s", strerror(errno));
 			}
 		}
-		if (forkshell(jp, lp->n, n->npipe.backgnd) == 0) {
+		if (forkshell(jp, lp->n, n->npipe.backgnd) == 0) { // child
 			INTON;
 			if (prevfd > 0) {
 				dup2(prevfd, 0);
@@ -602,7 +603,7 @@ evalpipe(union node *n)
 					close(pip[1]);
 				}
 			}
-			evaltree(lp->n, EV_EXIT);
+			evaltree(lp->n, EV_EXIT); //wyc /* never returns */
 		}
 		if (prevfd >= 0)
 			close(prevfd);
@@ -663,7 +664,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 		saveoptreset = shellparam.reset;
 		forcelocal++;
 		savehandler = handler;
-		if (setjmp(jmploc.loc)) {
+		if (setjmp(jmploc.loc)) { // return from longjmp
 			if (exception == EXERROR)
 				/* nothing */;
 			else if (exception != 0) {
@@ -687,14 +688,14 @@ evalbackcmd(union node *n, struct backcmd *result)
 		if (pipe(pip) < 0)
 			error("Pipe call failed: %s", strerror(errno));
 		jp = makejob(n, 1);
-		if (forkshell(jp, n, FORK_NOJOB) == 0) {
+		if (forkshell(jp, n, FORK_NOJOB) == 0) { // child
 			FORCEINTON;
 			close(pip[0]);
 			if (pip[1] != 1) {
 				dup2(pip[1], 1);
 				close(pip[1]);
 			}
-			evaltree(n, EV_EXIT);
+			evaltree(n, EV_EXIT); //wyc /* never returns */
 		}
 		close(pip[1]);
 		result->fd = pip[0];
@@ -999,7 +1000,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			goto parent;
 		}
 		if (forkshell(jp, cmd, mode) != 0)
-			goto parent;	/* at end of routine */
+			goto parent;	// 1154 /* at end of routine */
 		if (flags & EV_BACKCMD) {
 			FORCEINTON;
 			close(pip[0]);
@@ -1030,7 +1031,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		localvars = NULL;
 		reffunc(cmdentry.u.func);
 		savehandler = handler;
-		if (setjmp(jmploc.loc)) {
+		if (setjmp(jmploc.loc)) { // return from longjmp
 			popredir();
 			unreffunc(cmdentry.u.func);
 			poplocalvars();
@@ -1066,7 +1067,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		if (jp)
 			exitshell(exitstatus);
-	} else if (cmdentry.cmdtype == CMDBUILTIN) {
+	} /* CMDFUNCTION */ else if (cmdentry.cmdtype == CMDBUILTIN) {
 #ifdef DEBUG
 		trputs("builtin command:  ");  trargs(argv);
 #endif
@@ -1080,7 +1081,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		cmdenviron = &varlist;
 		e = -1;
 		savehandler = handler;
-		if (setjmp(jmploc.loc)) {
+		if (setjmp(jmploc.loc)) { // return from longjmp
 			e = exception;
 			if (e == EXINT)
 				exitstatus = SIGINT+128;
@@ -1138,7 +1139,7 @@ cmddone:
 			if (flags != EV_BACKCMD)
 				FORCEINTON;
 		}
-	} else {
+	} /* CMDBUILTIN */ else {
 #ifdef DEBUG
 		trputs("normal command:  ");  trargs(argv);
 #endif

@@ -147,7 +147,7 @@ warning(const char *msg, ...)
 
 
 /*
- * Exverror is called to raise the error exception.  If the first argument
+ * exraise is called to raise the error exception.  If the first argument
  * is not NULL then error prints an error message using printf style
  * formatting.  It then raises the error exception.
  */

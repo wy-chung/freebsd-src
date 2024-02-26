@@ -33,9 +33,11 @@
  */
 
 /* Mode argument to forkshell.  Don't change FORK_FG or FORK_BG. */
-#define FORK_FG 0
-#define FORK_BG 1
-#define FORK_NOJOB 2
+enum fork_mode {
+	FORK_FG, // 0
+	FORK_BG, // 1
+	FORK_NOJOB, // 2
+};
 
 #include <signal.h>		/* for sig_atomic_t */
 

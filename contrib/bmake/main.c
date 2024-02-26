@@ -1637,18 +1637,24 @@ main_Exit(bool outOfDate)
 	return outOfDate ? 1 : 0;
 }
 
-int
-main(int argc, char **argv)
+static int
+make_main(int argc, char **argv)
 {
 	bool outOfDate;
 
-	printf("wyc make\n");
+	puts(__func__);
 	main_Init(argc, argv);
 	main_ReadFiles();
 	main_PrepareMaking();
 	outOfDate = main_Run();
 	main_CleanUp();
 	return main_Exit(outOfDate);
+}
+
+int
+main(int argc, char **argv)
+{
+	make_main(argc, argv);
 }
 
 /*

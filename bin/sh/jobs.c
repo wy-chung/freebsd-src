@@ -975,7 +975,7 @@ forkshell(struct job *jp, union node *n, int mode)
 			setsignal(SIGTERM);
 		}
 		return pid;
-	}
+	} // pid == 0
 	if (rootshell && mode != FORK_NOJOB && mflag) {
 		if (jp == NULL || jp->nprocs == 0)
 			pgrp = pid;
@@ -1031,7 +1031,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	}
 	if (pid == 0) { // child
 		TRACE(("Child shell %d\n", (int)getpid()));
-		if (setjmp(jmploc.loc))
+		if (setjmp(jmploc.loc)) // return from longjmp
 			_exit(exitstatus);
 		if (pip != NULL) {
 			close(pip[0]);

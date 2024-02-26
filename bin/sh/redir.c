@@ -285,7 +285,7 @@ openhere(union node *redir)
 		fcntl(pip[1], F_SETFL, flags);
 	}
 
-	if (forkshell((struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) {
+	if (forkshell((struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) { // child
 		close(pip[0]);
 		signal(SIGINT, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);

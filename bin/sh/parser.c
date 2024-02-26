@@ -1090,9 +1090,9 @@ parsebackq(char *out, struct nodelist **pbqlist,
 	union node *n;
 	char *volatile str;
 	struct jmploc jmploc;
-	struct jmploc *const savehandler = handler;
 	size_t savelen;
 	int saveprompt;
+	struct jmploc *const savehandler = handler;
 	const int bq_startlinno = plinno;
 	char *volatile ostr = NULL;
 	struct parsefile *const savetopfile = getcurrentfile();
@@ -1100,7 +1100,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 	struct heredoc *here;
 
 	str = NULL;
-	if (setjmp(jmploc.loc)) {
+	if (setjmp(jmploc.loc)) { // return from longjmp
 		popfilesupto(savetopfile);
 		if (str)
 			ckfree(str);

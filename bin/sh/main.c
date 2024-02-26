@@ -95,8 +95,8 @@ static char *find_dot_file(char *);
  * is used to figure out how far we had gotten.
  */
 
-int
-main(int argc, char *argv[])
+static int
+sh_main(int argc, char *argv[])
 {
 	/*
 	 * As smark is accessed after a longjmp, it cannot be a local in main().
@@ -108,11 +108,11 @@ main(int argc, char *argv[])
 	volatile int state;
 	char *shinit;
 
-	printf("wyc sh\n");
+	puts(__func__);
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;
-	if (setjmp(main_handler.loc)) {
+	if (setjmp(main_handler.loc)) { // return from longjmp
 		if (state == 0 || iflag == 0 || ! rootshell ||
 		    exception == EXEXIT)
 			exitshell(exitstatus);
@@ -182,6 +182,12 @@ state4:
 	exitshell(exitstatus);
 	/*NOTREACHED*/
 	return 0;
+} // sh_main
+
+int
+main(int argc, char *argv[])
+{
+	return sh_main(argc, argv);
 }
 
 static void

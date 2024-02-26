@@ -308,7 +308,7 @@ operands:
 		 * Catch interrupts to reset active counter and
 		 * cleanup temp files.
 		 */
-		if (setjmp(jmploc.loc)) {
+		if (setjmp(jmploc.loc)) { // return from longjmp
 			active = 0;
 			if (editfile)
 				unlink(editfile);
