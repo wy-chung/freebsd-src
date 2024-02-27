@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "shell.h"
 #if JOBS
@@ -951,7 +952,7 @@ forkshell(struct job *jp, union node *n, int mode)
 					    _PATH_DEVNULL, strerror(errno));
 			}
 		}
-#else
+#else // !JOBS
 		if (mode == FORK_BG) {
 			ignoresig(SIGINT);
 			ignoresig(SIGQUIT);
@@ -1041,7 +1042,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 			}
 		}
 		handler = &jmploc;
-		shellexec(argv, envp, path, idx);
+		shellexec(argv, envp, path, idx); // never returns
 	}
 	handler = savehandler;
 	if (jp) {

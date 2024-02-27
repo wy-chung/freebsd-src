@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)input.c	8.3 (Berkeley) 6/9/95";
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 /*
  * This file implements the input routines used by the parser.

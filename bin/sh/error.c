@@ -181,7 +181,7 @@ verrorwithstatus(int status, const char *msg, va_list ap)
 
 
 void
-error(const char *msg, ...)
+error(const char *msg, ...) // will call a longjmp
 {
 	va_list ap;
 	va_start(ap, msg);
@@ -191,7 +191,7 @@ error(const char *msg, ...)
 
 
 void
-errorwithstatus(int status, const char *msg, ...)
+errorwithstatus(int status, const char *msg, ...) // will call a longjmp
 {
 	va_list ap;
 	va_start(ap, msg);

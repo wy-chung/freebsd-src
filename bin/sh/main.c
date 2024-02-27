@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #include <fcntl.h>
 #include <locale.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #include "shell.h"
 #include "main.h"
@@ -108,7 +109,7 @@ sh_main(int argc, char *argv[])
 	volatile int state;
 	char *shinit;
 
-	puts(__func__);
+	printf("%s: %s %s\n", __func__, __DATE__, __TIME__);
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;

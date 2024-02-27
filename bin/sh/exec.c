@@ -106,7 +106,6 @@ static void addcmdentry(const char *, struct cmdentry *);
  *
  * The argv array may be changed and element argv[-1] should be writable.
  */
-
 void
 shellexec(char **argv, char **envp, const char *path, int idx)
 {

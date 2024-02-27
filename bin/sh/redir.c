@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 /*
  * Code for dealing with input/output redirection.
@@ -69,7 +70,7 @@ static char sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
 struct redirtab {
 	struct redirtab *next;
 	int renamed[10];
-	int fd0_redirected;
+	bool fd0_redirected;
 	unsigned int empty_redirs;
 };
 
@@ -81,7 +82,7 @@ static struct redirtab *redirlist;
  * background commands, where we want to redirect fd0 to /dev/null only
  * if it hasn't already been redirected.
 */
-static int fd0_redirected = 0;
+static bool fd0_redirected = false;
 
 /* Number of redirtabs that have not been allocated. */
 static unsigned int empty_redirs = 0;
@@ -104,7 +105,6 @@ static int openhere(union node *);
  * with EINTR). There is, however, a race condition if an interrupt
  * arrives after INTOFF and before open blocks.
  */
-
 void
 redirect(union node *redir, int flags)
 {
@@ -134,7 +134,7 @@ redirect(union node *redir, int flags)
 	for (n = redir ; n ; n = n->nfile.next) {
 		fd = n->nfile.fd;
 		if (fd == 0)
-			fd0_redirected = 1;
+			fd0_redirected = true;
 		if ((n->nfile.type == NTOFD || n->nfile.type == NFROMFD) &&
 		    n->ndup.dupfd == fd)
 			continue; /* redirect from/to same file descriptor */
@@ -336,10 +336,10 @@ popredir(void)
 }
 
 /* Return true if fd 0 has already been redirected at least once.  */
-int
+bool
 fd0_redirected_p(void)
 {
-        return fd0_redirected != 0;
+        return fd0_redirected;
 }
 
 /*
