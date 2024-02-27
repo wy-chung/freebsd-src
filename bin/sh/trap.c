@@ -516,7 +516,7 @@ exitshell_savedstatus(void)
 			exiting_exitstatus = oexitstatus;
 	}
 	exitstatus = oexitstatus = exiting_exitstatus;
-	if (!setjmp(loc1.loc)) {
+	if (setjmp(loc1.loc) == 0) { // return from setjmp
 		handler = &loc1;
 		if ((p = trap[0]) != NULL && *p != '\0') {
 			/*
@@ -529,7 +529,7 @@ exitshell_savedstatus(void)
 			evalstring(p, 0);
 		}
 	}
-	if (!setjmp(loc2.loc)) {
+	if (setjmp(loc2.loc) == 0) { // return from setjmp
 		handler = &loc2;		/* probably unnecessary */
 		FORCEINTON;
 		flushall();

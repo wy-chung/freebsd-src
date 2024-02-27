@@ -459,7 +459,14 @@ evalredir(union node *n, int flags)
 	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
 	savehandler = handler;
-	if (setjmp(jmploc.loc)) { // return from longjmp
+	if (setjmp(jmploc.loc) == 0) { // return from setjmp
+		INTOFF;
+		handler = &jmploc;
+		redirect(n->nredir.redirect, REDIR_PUSH);
+		in_redirect = 0;
+		INTON;
+		evaltree(n->nredir.n, flags);
+	} else { // return from longjmp
 		int e;
 
 		handler = savehandler;
@@ -470,13 +477,6 @@ evalredir(union node *n, int flags)
 			return;
 		}
 		longjmp(handler->loc, 1);
-	} else {
-		INTOFF;
-		handler = &jmploc;
-		redirect(n->nredir.redirect, REDIR_PUSH);
-		in_redirect = 0;
-		INTON;
-		evaltree(n->nredir.n, flags);
 	}
 	INTOFF;
 	handler = savehandler;
@@ -500,13 +500,13 @@ exphere(union node *redir, struct arglist *fn)
 	saveoptreset = shellparam.reset;
 	forcelocal++;
 	savehandler = handler;
-	if (setjmp(jmploc.loc)) // return from longjmp
-		need_longjmp = exception != EXERROR;
-	else {
+	if (setjmp(jmploc.loc) == 0) { // return from setjmp
 		handler = &jmploc;
 		expandarg(redir->nhere.doc, fn, 0);
 		redir->nhere.expdoc = fn->args[0];
 		INTOFF;
+	} else { // return from longjmp
+		need_longjmp = exception != EXERROR;
 	}
 	handler = savehandler;
 	forcelocal--;
@@ -664,7 +664,10 @@ evalbackcmd(union node *n, struct backcmd *result)
 		saveoptreset = shellparam.reset;
 		forcelocal++;
 		savehandler = handler;
-		if (setjmp(jmploc.loc)) { // return from longjmp
+		if (setjmp(jmploc.loc) == 0) { // return from setjmp
+			handler = &jmploc;
+			evalcommand(n, EV_BACKCMD, result);
+		} else { // return from longjmp
 			if (exception == EXERROR)
 				/* nothing */;
 			else if (exception != 0) {
@@ -675,9 +678,6 @@ evalbackcmd(union node *n, struct backcmd *result)
 				shellparam.reset = saveoptreset;
 				longjmp(handler->loc, 1);
 			}
-		} else {
-			handler = &jmploc;
-			evalcommand(n, EV_BACKCMD, result);
 		}
 		handler = savehandler;
 		forcelocal--;

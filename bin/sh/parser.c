@@ -2199,7 +2199,7 @@ expandstr(const char *ps)
 	struct parser_temp *const saveparser_temp = parser_temp;
 	const char *result = NULL;
 
-	if (!setjmp(jmploc.loc)) {
+	if (setjmp(jmploc.loc) == 0) { // return from setjmp
 		handler = &jmploc;
 		parser_temp = NULL;
 		setinputstring(ps, 1);

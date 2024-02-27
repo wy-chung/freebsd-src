@@ -204,11 +204,11 @@ setvarsafe(const char *name, const char *val, int flags)
 	int inton;
 
 	inton = is_int_on();
-	if (setjmp(jmploc.loc)) // return from longjmp
-		err = 1;
-	else {
+	if (setjmp(jmploc.loc) == 0) { // return from setjmp
 		handler = &jmploc;
 		setvar(name, val, flags);
+	} else { // return from longjmp
+		err = 1;
 	}
 	handler = savehandler;
 	SETINTON(inton);
