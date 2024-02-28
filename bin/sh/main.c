@@ -109,7 +109,7 @@ sh_main(int argc, char *argv[])
 	volatile int state;
 	char *shinit;
 
-	printf("%s: %s %s\n", __func__, __DATE__, __TIME__);
+	printf("%s:\n", __func__);
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;

@@ -1642,7 +1642,7 @@ make_main(int argc, char **argv)
 {
 	bool outOfDate;
 
-	printf("%s: %s %s\n", __func__, __DATE__, __TIME__);
+	printf("%s:\n", __func__);
 	main_Init(argc, argv);
 	main_ReadFiles();
 	main_PrepareMaking();

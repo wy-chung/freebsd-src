@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "shell.h"
 #include "parser.h"
@@ -282,7 +283,7 @@ list(int nlflag)
 		tok = readtoken();
 		if (tok == TBACKGND) {
 			if (n2 != NULL && n2->type == NPIPE) {
-				n2->npipe.backgnd = 1;
+				n2->npipe.backgnd = true;
 			} else if (n2 != NULL && n2->type == NREDIR) {
 				n2->type = NBACKGND;
 			} else {
@@ -380,7 +381,7 @@ pipeline(void)
 	if (readtoken() == TPIPE) {
 		pipenode = (union node *)stalloc(sizeof (struct npipe));
 		pipenode->type = NPIPE;
-		pipenode->npipe.backgnd = 0;
+		pipenode->npipe.backgnd = false;
 		lp = (struct nodelist *)stalloc(sizeof (struct nodelist));
 		pipenode->npipe.cmdlist = lp;
 		lp->n = n1;

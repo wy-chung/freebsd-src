@@ -888,15 +888,13 @@ getcurjob(struct job *nj)
  * input redirected to /dev/null (except for the second and later processes
  * in a pipeline).
  */
-
 pid_t
-forkshell(struct job *jp, union node *n, int mode)
+forkshell(struct job *jp, union node *n, enum fork_mode mode)
 {
 	pid_t pid;
 	pid_t pgrp;
 
-	TRACE(("forkshell(%%%td, %p, %d) called\n", jp - jobtab, (void *)n,
-	    mode));
+	TRACE(("forkshell(%%%td, %p, %d) called\n", jp - jobtab, (void *)n, mode));
 	INTOFF;
 	if (mode == FORK_BG && (jp == NULL || jp->nprocs == 0))
 		checkzombies();
@@ -907,6 +905,7 @@ forkshell(struct job *jp, union node *n, int mode)
 		INTON;
 		//wyc error("Cannot fork: %s", strerror(errno));
 		error("%s: Cannot fork: %s", __func__, strerror(errno));
+		/* NOTREACHED */
 	}
 	if (pid == 0) { // child
 		struct job *p;

@@ -185,7 +185,6 @@ evalstring(const char *s, int flags)
  * Evaluate a parse tree.  The value is left in the global variable
  * exitstatus.
  */
-
 void
 evaltree(union node *n, int flags)
 {
@@ -448,13 +447,12 @@ evalsubshell(union node *n, int flags)
 /*
  * Evaluate a redirected compound command.
  */
-
 static void
 evalredir(union node *n, int flags)
 {
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
-	volatile int in_redirect = 1;
+	volatile bool in_redirect = true;
 
 	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
@@ -463,7 +461,7 @@ evalredir(union node *n, int flags)
 		INTOFF;
 		handler = &jmploc;
 		redirect(n->nredir.redirect, REDIR_PUSH);
-		in_redirect = 0;
+		in_redirect = false;
 		INTON;
 		evaltree(n->nredir.n, flags);
 	} else { // return from longjmp
@@ -491,8 +489,8 @@ exphere(union node *redir, struct arglist *fn)
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
 	struct localvar *savelocalvars;
-	bool need_longjmp = 0;
-	unsigned char saveoptreset;
+	bool need_longjmp = false;
+	unsigned char saveoptreset; // it is actually bool type
 
 	redir->nhere.expdoc = "";
 	savelocalvars = localvars;
@@ -522,7 +520,6 @@ exphere(union node *redir, struct arglist *fn)
 /*
  * Compute the names of the files in a redirection list.
  */
-
 static void
 expredir(union node *n)
 {
@@ -823,7 +820,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	int argc;
 	char **envp;
 	int varflag;
-	int mode;
+	enum fork_mode mode;
 	int pip[2];
 	struct cmdentry cmdentry;
 	struct job *jp;
