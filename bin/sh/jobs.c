@@ -1041,7 +1041,8 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 			}
 		}
 		handler = &jmploc;
-		shellexec(argv, envp, path, idx); // never returns
+		shellexec(argv, envp, path, idx);
+		/* NOTREACHED */
 	}
 	handler = savehandler;
 	if (jp) {

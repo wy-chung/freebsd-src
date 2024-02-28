@@ -162,7 +162,7 @@ evalstring(const char *s, int flags)
 	while ((n = parsecmd(0)) != NEOF) {
 		if (n != NULL && !nflag) {
 			if (flags_exit && preadateof())
-				evaltree(n, flags | EV_EXIT);
+				evaltree(n, flags | EV_EXIT); /* NOTREACHED */
 			else
 				evaltree(n, flags);
 			any = 1;
@@ -195,7 +195,7 @@ evaltree(union node *n, int flags)
 	setstackmark(&smark);
 	do_etest = 0;
 	if (n == NULL) {
-		TRACE(("evaltree(NULL) called\n"));
+		TRACE(("%s(NULL) called\n", __func__));
 		exitstatus = 0;
 		goto out;
 	}
@@ -204,7 +204,7 @@ evaltree(union node *n, int flags)
 #ifndef NO_HISTORY
 		displayhist = 1;	/* show history substitutions done with fc */
 #endif
-		TRACE(("evaltree(%p: %d) called\n", (void *)n, n->type));
+		TRACE(("%s(%p: %d) called\n", __func__, (void *)n, n->type));
 		switch (n->type) {
 		case NSEMI:
 			evaltree(n->nbinary.ch1, flags & ~EV_EXIT);
@@ -434,7 +434,8 @@ evalsubshell(union node *n, int flags)
 		if (backgnd)
 			flags &=~ EV_TESTED;
 		redirect(n->nredir.redirect, 0);
-		evaltree(n->nredir.n, flags | EV_EXIT);	/* never returns */
+		evaltree(n->nredir.n, flags | EV_EXIT);
+		/* NOTREACHED */
 	} else if (! backgnd) {
 		INTOFF;
 		exitstatus = waitforjob(jp, (int *)NULL);
@@ -600,7 +601,8 @@ evalpipe(union node *n)
 					close(pip[1]);
 				}
 			}
-			evaltree(lp->n, EV_EXIT); //wyc /* never returns */
+			evaltree(lp->n, EV_EXIT);
+			/* NOTREACHED */
 		}
 		if (prevfd >= 0)
 			close(prevfd);
@@ -692,7 +694,8 @@ evalbackcmd(union node *n, struct backcmd *result)
 				dup2(pip[1], 1);
 				close(pip[1]);
 			}
-			evaltree(n, EV_EXIT); //wyc /* never returns */
+			evaltree(n, EV_EXIT);
+			/* NOTREACHED */
 		}
 		close(pip[1]);
 		result->fd = pip[0];
@@ -1046,8 +1049,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		for (i = 0; i < varlist.count; i++)
 			mklocal(varlist.args[i]);
 		exitstatus = oexitstatus;
-		evaltree(getfuncnode(cmdentry.u.func),
-		    flags & (EV_TESTED | EV_EXIT));
+		evaltree(getfuncnode(cmdentry.u.func), flags & (EV_TESTED | EV_EXIT));
 		INTOFF;
 		unreffunc(cmdentry.u.func);
 		poplocalvars();

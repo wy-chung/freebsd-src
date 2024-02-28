@@ -43,9 +43,9 @@ static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 5/4/95";
 #include <stdlib.h>
 
 #include "shell.h"
-#define DEFINE_OPTIONS
+//#define DEFINE_OPTIONS
 #include "options.h"
-#undef DEFINE_OPTIONS
+//#undef DEFINE_OPTIONS
 #include "nodes.h"	/* for other header files */
 #include "eval.h"
 #include "jobs.h"
@@ -60,6 +60,33 @@ static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 5/4/95";
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #endif
+
+char optval[NOPTS];
+const char optletter[NSHORTOPTS] = "efIimnsxvVECabupTPh";
+static const unsigned char optname[] =
+	"\007errexit"
+	"\006noglob"
+	"\011ignoreeof"
+	"\013interactive"
+	"\007monitor"
+	"\006noexec"
+	"\005stdin"
+	"\006xtrace"
+	"\007verbose"
+	"\002vi"
+	"\005emacs"
+	"\011noclobber"
+	"\011allexport"
+	"\006notify"
+	"\007nounset"
+	"\012privileged"
+	"\012trapsasync"
+	"\010physical"
+	"\010trackall"
+	"\005nolog"
+	"\010pipefail"
+	"\006verify"
+;
 
 char *arg0;			/* value of $0 */
 struct shparam shellparam;	/* current positional parameters */
@@ -81,7 +108,6 @@ static int getopts(char *, char *, char **, char ***, char **);
 /*
  * Process the shell command line arguments.
  */
-
 void
 procargs(int argc, char **argv)
 {
