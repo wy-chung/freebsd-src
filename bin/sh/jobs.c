@@ -179,7 +179,7 @@ setjobctl(int on)
 {
 	int i;
 
-	if (on == jobctl || rootshell == 0)
+	if (on == jobctl || !rootshell)
 		return;
 	if (on) {
 		if (ttyfd != -1)
@@ -334,7 +334,7 @@ jobscmd(int argc __unused, char *argv[] __unused)
 	}
 
 	if (*argptr == NULL)
-		showjobs(0, mode);
+		showjobs(false, mode);
 	else
 		while ((id = *argptr++) != NULL)
 			showjob(getjob(id), mode);
@@ -474,9 +474,8 @@ showjob(struct job *jp, int mode)
  * result may be a job structure containing zero processes.  Such structures
  * will be freed here.
  */
-
 void
-showjobs(int change, int mode)
+showjobs(bool change, int mode)
 {
 	int jobno;
 	struct job *jp;
@@ -506,11 +505,9 @@ showjobs(int change, int mode)
 	}
 }
 
-
 /*
  * Mark a job structure as unused.
  */
-
 static void
 freejob(struct job *jp)
 {
@@ -532,8 +529,6 @@ freejob(struct job *jp)
 #endif
 	INTON;
 }
-
-
 
 int
 waitcmd(int argc __unused, char **argv __unused)
@@ -613,8 +608,6 @@ waitcmdloop(struct job *job)
 	return sig + 128;
 }
 
-
-
 int
 jobidcmd(int argc __unused, char **argv __unused)
 {
@@ -635,7 +628,6 @@ jobidcmd(int argc __unused, char **argv __unused)
 /*
  * Convert a job name to a job structure.
  */
-
 static struct job *
 getjob_nonotfound(const char *name)
 {
@@ -708,7 +700,6 @@ getjob_nonotfound(const char *name)
 	return NULL;
 }
 
-
 static struct job *
 getjob(const char *name)
 {
@@ -719,7 +710,6 @@ getjob(const char *name)
 		error("No such job: %s", name);
 	return (jp);
 }
-
 
 int
 killjob(const char *name, int sig)
@@ -746,7 +736,6 @@ killjob(const char *name, int sig)
 /*
  * Return a new job structure,
  */
-
 struct job *
 makejob(union node *node __unused, int nprocs)
 {
@@ -871,7 +860,6 @@ getcurjob(struct job *nj)
 
 	return (NULL);
 }
-
 #endif
 
 /*
@@ -909,12 +897,12 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 	}
 	if (pid == 0) { // child
 		struct job *p;
-		int wasroot;
+		bool wasroot;
 		int i;
 
 		TRACE(("Child shell %d\n", (int)getpid()));
 		wasroot = rootshell;
-		rootshell = 0;
+		rootshell = false;
 		handler = &main_handler;
 		closescript();
 		INTON;
@@ -1007,7 +995,6 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 	return pid;
 }
 
-
 pid_t
 vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int idx, int pip[2])
 {
@@ -1079,7 +1066,6 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
  * sending a signal to themselves (instead of calling exit) they will
  * confuse this approach.
  */
-
 int
 waitforjob(struct job *jp, int *signaled)
 {
@@ -1130,7 +1116,6 @@ waitforjob(struct job *jp, int *signaled)
 	return st;
 }
 
-
 static void
 dummy_handler(int sig __unused)
 {
@@ -1139,7 +1124,6 @@ dummy_handler(int sig __unused)
 /*
  * Wait for a process to terminate.
  */
-
 static pid_t
 dowait(int mode, struct job *job)
 {
@@ -1279,8 +1263,6 @@ dowait(int mode, struct job *job)
 	return pid;
 }
 
-
-
 /*
  * return 1 if there are stopped jobs, otherwise 0
  */
@@ -1306,7 +1288,6 @@ stoppedjobs(void)
 	return (0);
 }
 
-
 static void
 checkzombies(void)
 {
@@ -1314,13 +1295,11 @@ checkzombies(void)
 		;
 }
 
-
 int
 backgndpidset(void)
 {
 	return backgndpid != -1;
 }
-
 
 pid_t
 backgndpidval(void)
@@ -1334,7 +1313,6 @@ backgndpidval(void)
  * Return a string identifying a command (to be printed by the
  * jobs command.
  */
-
 static char *cmdnextc;
 static int cmdnleft;
 #define MAXCMDTEXT	200
@@ -1351,7 +1329,6 @@ commandtext(union node *n)
 	return name;
 }
 
-
 static void
 cmdtxtdogroup(union node *n)
 {
@@ -1359,7 +1336,6 @@ cmdtxtdogroup(union node *n)
 	cmdtxt(n);
 	cmdputs("; done");
 }
-
 
 static void
 cmdtxtredir(union node *n, const char *op, int deffd)
@@ -1383,7 +1359,6 @@ cmdtxtredir(union node *n, const char *op, int deffd)
 		cmdtxt(n->nfile.fname);
 	}
 }
-
 
 static void
 cmdtxt(union node *n)
@@ -1504,8 +1479,6 @@ cmdtxt(union node *n)
 		break;
 	}
 }
-
-
 
 static void
 cmdputs(const char *s)

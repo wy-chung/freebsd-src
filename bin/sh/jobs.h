@@ -53,7 +53,7 @@ enum {
 extern int job_warning;		/* user was warned about stopped jobs */
 
 void setjobctl(int);
-void showjobs(int, int);
+void showjobs(bool, int);
 struct job *makejob(union node *, int);
 pid_t forkshell(struct job *, union node *, enum fork_mode);
 pid_t vforkexecshell(struct job *, char **, char **, const char *, int, int [2]);

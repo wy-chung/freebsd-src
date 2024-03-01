@@ -64,7 +64,6 @@ static time_t mailtime[MAXMBOXES];	/* times of mailboxes */
  * nozero, then the value of MAIL has changed, so we just update the
  * values.
  */
-
 void
 chkmail(int silent)
 {

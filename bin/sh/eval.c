@@ -101,7 +101,6 @@ static void prehash(union node *);
 /*
  * Called to reset things after an exception.
  */
-
 void
 reseteval(void)
 {
@@ -109,11 +108,9 @@ reseteval(void)
 	loopnest = 0;
 }
 
-
 /*
  * The eval command.
  */
-
 int
 evalcmd(int argc, char **argv)
 {
@@ -141,11 +138,9 @@ evalcmd(int argc, char **argv)
         return exitstatus;
 }
 
-
 /*
  * Execute a command or commands contained in a string.
  */
-
 void
 evalstring(const char *s, int flags)
 {
@@ -179,7 +174,6 @@ evalstring(const char *s, int flags)
 	if (flags_exit)
 		exraise(EXEXIT);
 }
-
 
 /*
  * Evaluate a parse tree.  The value is left in the global variable
@@ -306,7 +300,6 @@ out:
 		exraise(EXEXIT);
 }
 
-
 static void
 evalloop(union node *n, int flags)
 {
@@ -342,8 +335,6 @@ evalloop(union node *n, int flags)
 	exitstatus = status;
 }
 
-
-
 static void
 evalfor(union node *n, int flags)
 {
@@ -378,13 +369,11 @@ evalfor(union node *n, int flags)
 	exitstatus = status;
 }
 
-
 /*
  * Evaluate a case statement, returning the selected tree.
  *
  * The exit status needs care to get right.
  */
-
 static union node *
 evalcase(union node *n)
 {
@@ -415,12 +404,9 @@ evalcase(union node *n)
 	return (NULL);
 }
 
-
-
 /*
  * Kick off a subshell to evaluate a tree.
  */
-
 static void
 evalsubshell(union node *n, int flags)
 {
@@ -443,7 +429,6 @@ evalsubshell(union node *n, int flags)
 	} else
 		exitstatus = 0;
 }
-
 
 /*
  * Evaluate a redirected compound command.
@@ -483,7 +468,6 @@ evalredir(union node *n, int flags)
 	INTON;
 }
 
-
 static void
 exphere(union node *redir, struct arglist *fn)
 {
@@ -516,7 +500,6 @@ exphere(union node *redir, struct arglist *fn)
 		longjmp(handler->loc, 1);
 	INTON;
 }
-
 
 /*
  * Compute the names of the files in a redirection list.
@@ -552,15 +535,12 @@ expredir(union node *n)
 	}
 }
 
-
-
 /*
  * Evaluate a pipeline.  All the processes in the pipeline are children
  * of the process creating the pipeline.  (This differs from some versions
  * of the shell, which make the last process in a pipeline the parent
  * of all the rest.)
  */
-
 static void
 evalpipe(union node *n)
 {
@@ -620,8 +600,6 @@ evalpipe(union node *n)
 		exitstatus = 0;
 }
 
-
-
 static int
 is_valid_fast_cmdsubst(union node *n)
 {
@@ -635,7 +613,6 @@ is_valid_fast_cmdsubst(union node *n)
  * we fork off a subprocess and get the output of the command via a pipe.
  * Should be called with interrupts off.
  */
-
 void
 evalbackcmd(union node *n, struct backcmd *result)
 {
@@ -812,7 +789,6 @@ safe_builtin(int idx, int argc, char **argv)
  * Execute a simple command.
  * Note: This may or may not return if (flags & EV_EXIT).
  */
-
 static void
 evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 {
@@ -1172,15 +1148,12 @@ out:
 		clearcmdentry();
 }
 
-
-
 /*
  * Search for a command.  This is called before we fork so that the
  * location of the command will be available in the parent as well as
  * the child.  The check for "goodname" is an overly conservative
  * check that the name will not be subject to expansion.
  */
-
 static void
 prehash(union node *n)
 {
@@ -1192,8 +1165,6 @@ prehash(union node *n)
 				     pathval());
 }
 
-
-
 /*
  * Builtin commands.  Builtin commands whose functions are closely
  * tied to evaluation are implemented here.
@@ -1203,7 +1174,6 @@ prehash(union node *n)
  * No command given, a bltin command with no arguments, or a bltin command
  * with an invalid name.
  */
-
 int
 bltincmd(int argc, char **argv)
 {
@@ -1218,7 +1188,6 @@ bltincmd(int argc, char **argv)
 	return exitstatus;
 }
 
-
 /*
  * Handle break and continue commands.  Break, continue, and return are
  * all handled by setting the evalskip flag.  The evaluation routines
@@ -1229,7 +1198,6 @@ bltincmd(int argc, char **argv)
  * be an error to break out of more loops than exist, but it isn't
  * in the standard shell so we don't make it one here.
  */
-
 int
 breakcmd(int argc, char **argv)
 {
@@ -1293,11 +1261,9 @@ commandcmd(int argc __unused, char **argv __unused)
 	return 0;
 }
 
-
 /*
  * The return command.
  */
-
 int
 returncmd(int argc, char **argv)
 {
@@ -1308,20 +1274,17 @@ returncmd(int argc, char **argv)
 	return ret;
 }
 
-
 int
 falsecmd(int argc __unused, char **argv __unused)
 {
 	return 1;
 }
 
-
 int
 truecmd(int argc __unused, char **argv __unused)
 {
 	return 0;
 }
-
 
 int
 execcmd(int argc, char **argv)
@@ -1345,7 +1308,6 @@ execcmd(int argc, char **argv)
 	}
 	return 0;
 }
-
 
 int
 timescmd(int argc __unused, char **argv __unused)

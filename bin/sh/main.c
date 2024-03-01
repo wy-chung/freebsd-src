@@ -79,12 +79,12 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #endif
 
 int rootpid;
-int rootshell;
+bool rootshell;
 struct jmploc main_handler;
 int localeisutf8, initial_localeisutf8;
 
 static void reset(void);
-static void cmdloop(int);
+static void cmdloop(bool);
 static void read_profile(const char *);
 static char *find_dot_file(char *);
 
@@ -135,7 +135,7 @@ sh_main(int argc, char *argv[])
 	trputs("Shell args:  ");  trargs(argv);
 #endif
 	rootpid = getpid();
-	rootshell = 1;
+	rootshell = true;
 	INTOFF;
 	initvar();
 	setstackmark(&smark);
@@ -176,7 +176,7 @@ state3:
 	}
 state4:
 	if (sflag || minusc == NULL) {
-		cmdloop(1);
+		cmdloop(true);
 	}
 	exitshell(exitstatus);
 	/*NOTREACHED*/
@@ -200,9 +200,8 @@ reset(void)
  * Read and execute commands.  "Top" is nonzero for the top level command
  * loop; it turns on prompting if the shell is interactive.
  */
-
 static void
-cmdloop(int top)
+cmdloop(bool top)
 {
 	union node *n;
 	struct stackmark smark;
@@ -217,7 +216,7 @@ cmdloop(int top)
 		inter = 0;
 		if (iflag && top) {
 			inter++;
-			showjobs(1, SHOWJOBS_DEFAULT);
+			showjobs(true, SHOWJOBS_DEFAULT);
 			chkmail(0);
 			flushout(&output);
 		}
@@ -252,12 +251,9 @@ cmdloop(int top)
 	}
 }
 
-
-
 /*
  * Read /etc/profile or .profile.  Return on error.
  */
-
 static void
 read_profile(const char *name)
 {
@@ -277,32 +273,25 @@ read_profile(const char *name)
 	INTON;
 	if (fd < 0)
 		return;
-	cmdloop(0);
+	cmdloop(false);
 	popfile();
 }
-
-
 
 /*
  * Read a file containing shell functions.
  */
-
 void
 readcmdfile(const char *name, int verify)
 {
 	setinputfile(name, 1, verify);
-	cmdloop(0);
+	cmdloop(false);
 	popfile();
 }
-
-
 
 /*
  * Take commands from a file.  To be compatible we should do a path
  * search for the file, which is necessary to find sub-commands.
  */
-
-
 static char *
 find_dot_file(char *basename)
 {
@@ -329,7 +318,7 @@ find_dot_file(char *basename)
 }
 
 int
-dotcmd(int argc, char **argv)
+dotcmd(int argc, char **argv) // refer builtinfunc
 {
 	char *filename, *fullname;
 
@@ -347,11 +336,10 @@ dotcmd(int argc, char **argv)
 	fullname = find_dot_file(filename);
 	setinputfile(fullname, 1, -1 /* verify */);
 	commandname = fullname;
-	cmdloop(0);
+	cmdloop(false);
 	popfile();
 	return exitstatus;
 }
-
 
 int
 exitcmd(int argc, char **argv)

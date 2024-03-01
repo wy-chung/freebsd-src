@@ -36,6 +36,7 @@ static char sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
+#include <stdbool.h>
 /*
  * Errors and exceptions.
  */
@@ -54,7 +55,6 @@ static char sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 #include <unistd.h>
 #include <errno.h>
 
-
 /*
  * Code to handle exceptions in C.
  */
@@ -63,7 +63,6 @@ struct jmploc *handler;
 volatile sig_atomic_t exception;
 volatile sig_atomic_t suppressint;
 volatile sig_atomic_t intpending;
-
 
 static void verrorwithstatus(int, const char *, va_list) __printf0like(2, 0) __dead2;
 
@@ -75,7 +74,6 @@ static void verrorwithstatus(int, const char *, va_list) __printf0like(2, 0) __d
  * Interrupts are disabled; they should be re-enabled when the exception is
  * caught.
  */
-
 void
 exraise(int e)
 {
@@ -85,7 +83,6 @@ exraise(int e)
 	exception = e;
 	longjmp(handler->loc, 1);
 }
-
 
 /*
  * Called from trap.c when a SIGINT is received and not suppressed, or when
@@ -97,7 +94,6 @@ exraise(int e)
  * terminated if we get here, as if we were terminated directly by a SIGINT.
  * Arrange for this here.
  */
-
 void
 onint(void)
 {
@@ -123,7 +119,6 @@ onint(void)
 	}
 }
 
-
 static void
 vwarning(const char *msg, va_list ap)
 {
@@ -135,7 +130,6 @@ vwarning(const char *msg, va_list ap)
 	out2fmt_flush("\n");
 }
 
-
 void
 warning(const char *msg, ...)
 {
@@ -144,7 +138,6 @@ warning(const char *msg, ...)
 	vwarning(msg, ap);
 	va_end(ap);
 }
-
 
 /*
  * exraise is called to raise the error exception.  If the first argument
@@ -179,7 +172,6 @@ verrorwithstatus(int status, const char *msg, va_list ap)
 	exraise(EXERROR);
 }
 
-
 void
 error(const char *msg, ...) // will call a longjmp
 {
@@ -188,7 +180,6 @@ error(const char *msg, ...) // will call a longjmp
 	verrorwithstatus(2, msg, ap);
 	va_end(ap);
 }
-
 
 void
 errorwithstatus(int status, const char *msg, ...) // will call a longjmp
