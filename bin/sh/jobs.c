@@ -905,7 +905,7 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 		INTON;
 		//wyc error("Cannot fork: %s", strerror(errno));
 		error("%s: Cannot fork: %s", __func__, strerror(errno));
-		/* NOTREACHED */
+		/*NOTREACHED*/
 	}
 	if (pid == 0) { // child
 		struct job *p;
@@ -1042,7 +1042,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 		}
 		handler = &jmploc;
 		shellexec(argv, envp, path, idx);
-		/* NOTREACHED */
+		/*NOTREACHED*/
 	}
 	handler = savehandler;
 	if (jp) {

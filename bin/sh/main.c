@@ -95,7 +95,6 @@ static char *find_dot_file(char *);
  * exception occurs.  When an exception occurs the variable "state"
  * is used to figure out how far we had gotten.
  */
-
 static int
 sh_main(int argc, char *argv[])
 {
@@ -114,8 +113,7 @@ sh_main(int argc, char *argv[])
 	initcharset();
 	state = 0;
 	if (setjmp(main_handler.loc)) { // return from longjmp
-		if (state == 0 || iflag == 0 || ! rootshell ||
-		    exception == EXEXIT)
+		if (state == 0 || iflag == 0 || ! rootshell || exception == EXEXIT)
 			exitshell(exitstatus);
 		reset();
 		if (exception == EXINT)

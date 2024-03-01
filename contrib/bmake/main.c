@@ -1763,7 +1763,7 @@ Cmd_Exec(const char *cmd, char **error)
 
 		(void)execv(shellPath, UNCONST(args));
 		_exit(1);
-		/* NOTREACHED */
+		/*NOTREACHED*/
 
 	case -1:
 		*error = str_concat3("Couldn't exec \"", cmd, "\"");

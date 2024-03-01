@@ -87,7 +87,7 @@ int letcmd(int, char **);
 static __dead2 void yyerror(const char *s)
 {
 	error("arithmetic expression: %s: \"%s\"", s, arith_startbuf);
-	/* NOTREACHED */
+	/*NOTREACHED*/
 }
 
 static arith_t arith_lookupvarint(char *varname)

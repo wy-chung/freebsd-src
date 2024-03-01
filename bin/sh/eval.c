@@ -162,7 +162,7 @@ evalstring(const char *s, int flags)
 	while ((n = parsecmd(0)) != NEOF) {
 		if (n != NULL && !nflag) {
 			if (flags_exit && preadateof())
-				evaltree(n, flags | EV_EXIT); /* NOTREACHED */
+				evaltree(n, flags | EV_EXIT); /*NOTREACHED*/
 			else
 				evaltree(n, flags);
 			any = 1;
@@ -435,7 +435,7 @@ evalsubshell(union node *n, int flags)
 			flags &=~ EV_TESTED;
 		redirect(n->nredir.redirect, 0);
 		evaltree(n->nredir.n, flags | EV_EXIT);
-		/* NOTREACHED */
+		/*NOTREACHED*/
 	} else if (! backgnd) {
 		INTOFF;
 		exitstatus = waitforjob(jp, (int *)NULL);
@@ -602,7 +602,7 @@ evalpipe(union node *n)
 				}
 			}
 			evaltree(lp->n, EV_EXIT);
-			/* NOTREACHED */
+			/*NOTREACHED*/
 		}
 		if (prevfd >= 0)
 			close(prevfd);
@@ -695,7 +695,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 				close(pip[1]);
 			}
 			evaltree(n, EV_EXIT);
-			/* NOTREACHED */
+			/*NOTREACHED*/
 		}
 		close(pip[1]);
 		result->fd = pip[0];
@@ -981,8 +981,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	if (((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
 	    && ((flags & EV_EXIT) == 0 || have_traps()))
 	 || ((flags & EV_BACKCMD) != 0
-	    && (cmdentry.cmdtype != CMDBUILTIN ||
-		 !safe_builtin(cmdentry.u.index, argc, argv)))) {
+	    && (cmdentry.cmdtype != CMDBUILTIN || !safe_builtin(cmdentry.u.index, argc, argv)))) {
 		jp = makejob(cmd, 1);
 		mode = FORK_FG;
 		if (flags & EV_BACKCMD) {
