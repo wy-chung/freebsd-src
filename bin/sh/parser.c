@@ -205,7 +205,6 @@ parser_temp_free_all(void)
  * Read and parse a command.  Returns NEOF on end of file.  (NULL is a
  * valid parse tree indicating a blank line.)
  */
-
 union node *
 parsecmd(int interact)
 {
@@ -785,11 +784,9 @@ parsefname(void)
 	}
 }
 
-
 /*
  * Input any here documents.
  */
-
 static void
 parseheredoc(void)
 {
@@ -877,7 +874,6 @@ out:
 	return (t);
 }
 
-
 /*
  * Read the next input token.
  * If the token is a word, we set backquotelist to the list of cmds in
@@ -895,7 +891,6 @@ out:
  *  We could also make parseoperator in essence the main routine, and
  *  have parseword (readtoken1?) handle both words and redirection.]
  */
-
 #define RETURN(token)	return lasttoken = token
 
 static int
@@ -967,21 +962,20 @@ xxreadtoken(void)
 #undef RETURN
 }
 
-
 #define MAXNEST_static 8
+enum tokenstate_category
+{
+	TSTATE_TOP,
+	TSTATE_VAR_OLD, /* ${var+-=?}, inherits dquotes */
+	TSTATE_VAR_NEW, /* other ${var...}, own dquote state */
+	TSTATE_ARITH
+};
 struct tokenstate
 {
 	const char *syntax; /* *SYNTAX */
 	int parenlevel; /* levels of parentheses in arithmetic */
-	enum tokenstate_category
-	{
-		TSTATE_TOP,
-		TSTATE_VAR_OLD, /* ${var+-=?}, inherits dquotes */
-		TSTATE_VAR_NEW, /* other ${var...}, own dquote state */
-		TSTATE_ARITH
-	} category;
+	enum tokenstate_category category;
 };
-
 
 /*
  * Check to see whether we are at the end of the here document.  When this
@@ -989,7 +983,6 @@ struct tokenstate
  * we are at the end of the here document, this routine sets the c to PEOF.
  * The new value of c is returned.
  */
-
 static int
 checkend(int c, const char *eofmark, int striptabs)
 {
@@ -1021,13 +1014,11 @@ checkend(int c, const char *eofmark, int striptabs)
 	return (c);
 }
 
-
 /*
  * Parse a redirection operator.  The variable "out" points to a string
  * specifying the fd to be redirected.  The variable "c" contains the
  * first character of the redirection operator.
  */
-
 static void
 parseredir(char *out, int c)
 {
@@ -1082,7 +1073,6 @@ parseredir(char *out, int c)
 /*
  * Called to parse command substitutions.
  */
-
 static char *
 parsebackq(char *out, struct nodelist **pbqlist,
 		int oldstyle, int dblquote, int quoted)
@@ -1231,7 +1221,6 @@ parsebackq(char *out, struct nodelist **pbqlist,
 		USTPUTC(CTLBACKQ, out);
 	return out;
 }
-
 
 /*
  * Called to parse a backslash escape sequence inside $'...'.
@@ -1384,7 +1373,6 @@ readcstyleesc(char *out)
 	return out;
 }
 
-
 /*
  * If eofmark is NULL, read a word or a redirection symbol.  If eofmark
  * is not NULL, read a here document.  In the latter case, eofmark is the
@@ -1396,7 +1384,6 @@ readcstyleesc(char *out)
  * using goto's to implement the subroutine linkage.  The following macros
  * will run code that appears at the end of readtoken1.
  */
-
 #define PARSESUB()	{goto parsesub; parsesub_return:;}
 #define	PARSEARITH()	{goto parsearith; parsearith_return:;}
 
@@ -1427,7 +1414,7 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 	state[level].category = TSTATE_TOP;
 
 	STARTSTACKSTR(out);
-	loop: {	/* for each line, until end of word */
+	loop: {	//1566 /* for each line, until end of word */
 		if (eofmark && eofmark != NOEOFMARK)
 			/* set c to PEOF if at end of here document */
 			c = checkend(c, eofmark, striptabs);
@@ -1577,7 +1564,7 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 			}
 			c = pgetc_macro();
 		}
-	}
+	} // 1416 loop:
 endword:
 	if (state[level].syntax == ARISYNTAX)
 		synerror("Missing '))'");
@@ -1611,13 +1598,11 @@ endword:
 	return lasttoken = TWORD;
 /* end of readtoken routine */
 
-
 /*
  * Parse a substitution.  At this point, we have read the dollar sign
  * and nothing else.
  */
-
-parsesub: {
+parsesub: { // 1786
 	int subtype;
 	int typeloc;
 	int flags;
@@ -1799,8 +1784,7 @@ varname:
 		pungetc();
 	}
 	goto parsesub_return;
-}
-
+    } // 1604 parsesub:
 
 /*
  * Parse an arithmetic expansion (indicate start of one and set state)
@@ -1828,7 +1812,7 @@ parsearith: {
 	else
 		USTPUTC(' ',out);
 	goto parsearith_return;
-}
+    }
 
 } /* end of readtoken */
 
