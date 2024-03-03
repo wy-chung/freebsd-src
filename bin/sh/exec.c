@@ -127,6 +127,7 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 		errorwithstatus(127, "%s: not found", argv[0]);
 	else
 		errorwithstatus(126, "%s: %s", argv[0], strerror(e));
+	/*NOTREACHED*/
 }
 
 static bool
@@ -375,8 +376,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 
 	e = ENOENT;
 	idx = -1;
-	for (;(fullname = padvance(&path, &opt, name)) != NULL;
-	    stunalloc(fullname)) {
+	for (;(fullname = padvance(&path, &opt, name)) != NULL; stunalloc(fullname)) {
 		idx++;
 		if (opt) {
 			if (strncmp(opt, "func", 4) == 0) {
@@ -399,7 +399,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 			readcmdfile(fullname, -1 /* verify */);
 			if ((cmdp = cmdlookup(name, 0)) == NULL || cmdp->cmdtype != CMDFUNCTION)
 				error("%s not defined in %s", name, fullname);
-			stunalloc(fullname);
+			stunalloc(fullname); //allocated by padvance
 			goto success;
 		}
 #ifdef notdef
@@ -416,7 +416,6 @@ find_command(const char *name, struct cmdentry *entry, int act,
 #endif
 		TRACE(("searchexec \"%s\" returns \"%s\"\n", name, fullname));
 		INTOFF;
-		stunalloc(fullname);
 		cmdp = cmdlookup(name, 1);
 		if (cmdp->cmdtype == CMDFUNCTION)
 			cmdp = &loc_cmd;
@@ -424,6 +423,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 		cmdp->param.index = idx;
 		cmdp->special = 0;
 		INTON;
+		stunalloc(fullname); //allocated by padvance
 		goto success;
 	}
 

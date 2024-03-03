@@ -266,7 +266,7 @@ growstackblock(int min)
 		newlen -= ALIGN(sizeof(struct stack_block));
 		p = stalloc(newlen);
 		if (oldlen != 0)
-			memcpy(p, oldspace, oldlen);
+			memcpy(p, oldspace, oldlen); // dst, src, len
 		stunalloc(p);
 	}
 }

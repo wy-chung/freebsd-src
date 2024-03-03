@@ -1304,7 +1304,7 @@ execcmd(int argc, char **argv)
 		for (i = 0; i < cmdenviron->count; i++)
 			setvareq(cmdenviron->args[i], VEXPORT|VSTACK);
 		shellexec(argv + 1, environment(), pathval(), 0);
-
+		/*NOTREACHED*/
 	}
 	return 0;
 }
