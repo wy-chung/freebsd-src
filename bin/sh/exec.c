@@ -29,7 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)exec.c	8.4 (Berkeley) 6/8/95";
@@ -74,10 +73,7 @@ static char sccsid[] = "@(#)exec.c	8.4 (Berkeley) 6/8/95";
 #include "jobs.h"
 #include "alias.h"
 
-
 #define CMDTABLESIZE 31		/* should be prime */
-
-
 
 struct tblentry {
 	struct tblentry *next;	/* next entry in hash chain */
@@ -87,18 +83,14 @@ struct tblentry {
 	char cmdname[];		/* name of command */
 };
 
-
 static struct tblentry *cmdtable[CMDTABLESIZE];
 static int cmdtable_cd = 0;	/* cmdtable contains cd-dependent entries */
-
 
 static void tryexec(char *, char **, char **);
 static void printentry(struct tblentry *, int);
 static struct tblentry *cmdlookup(const char *, int);
 static void delete_cmd_entry(void);
 static void addcmdentry(const char *, struct cmdentry *);
-
-
 
 /*
  * Exec a program.  Never returns.  If you change this routine, you may
@@ -137,7 +129,6 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 		errorwithstatus(126, "%s: %s", argv[0], strerror(e));
 }
 
-
 static bool
 isbinary(const char *data, size_t len)
 {
@@ -167,7 +158,6 @@ isbinary(const char *data, size_t len)
 	}
 	return true;
 }
-
 
 static void
 tryexec(char *cmd, char **argv, char **envp)
@@ -205,7 +195,6 @@ tryexec(char *cmd, char **argv, char **envp)
  * the path entry then *popt will be set to point to it; else *popt will be
  * set to NULL.  If popt is NULL, percent signs are not special.
  */
-
 char *
 padvance(const char **path, const char **popt, const char *name)
 {
@@ -246,11 +235,7 @@ padvance(const char **path, const char **popt, const char *name)
 	return stalloc(len);
 }
 
-
-
 /*** Command hashing code ***/
-
-
 int
 hashcmd(int argc __unused, char **argv __unused)
 {
@@ -302,7 +287,6 @@ hashcmd(int argc __unused, char **argv __unused)
 	return errors;
 }
 
-
 static void
 printentry(struct tblentry *cmdp, int verbose)
 {
@@ -338,13 +322,10 @@ printentry(struct tblentry *cmdp, int verbose)
 	out1c('\n');
 }
 
-
-
 /*
  * Resolve a command name.  If you change this routine, you may have to
  * change the shellexec routine as well.
  */
-
 void
 find_command(const char *name, struct cmdentry *entry, int act,
     const char *path)
@@ -465,12 +446,9 @@ success:
 	entry->special = cmdp->special;
 }
 
-
-
 /*
  * Search the table of builtin commands.
  */
-
 int
 find_builtin(const char *name, int *special)
 {
@@ -487,13 +465,10 @@ find_builtin(const char *name, int *special)
 	return -1;
 }
 
-
-
 /*
  * Called when a cd is done.  If any entry in cmdtable depends on the current
  * directory, simply clear cmdtable completely.
  */
-
 void
 hashcd(void)
 {
@@ -501,25 +476,20 @@ hashcd(void)
 		clearcmdentry();
 }
 
-
-
 /*
  * Called before PATH is changed.  The argument is the new value of PATH;
  * pathval() still returns the old value at this point.  Called with
  * interrupts off.
  */
-
 void
 changepath(const char *newval __unused)
 {
 	clearcmdentry();
 }
 
-
 /*
  * Clear out cached utility locations.
  */
-
 void
 clearcmdentry(void)
 {
@@ -543,7 +513,6 @@ clearcmdentry(void)
 	INTON;
 }
 
-
 /*
  * Locate a command in the command hash table.  If "add" is nonzero,
  * add the command to the table if it is not already present.  The
@@ -551,9 +520,7 @@ clearcmdentry(void)
  * pointing to the entry, so that delete_cmd_entry can delete the
  * entry.
  */
-
 static struct tblentry **lastcmdentry;
-
 
 static struct tblentry *
 cmdlookup(const char *name, int add)
@@ -590,7 +557,6 @@ cmdlookup(const char *name, int add)
 /*
  * Delete the command entry returned on the last lookup.
  */
-
 static void
 delete_cmd_entry(void)
 {
@@ -603,13 +569,10 @@ delete_cmd_entry(void)
 	INTON;
 }
 
-
-
 /*
  * Add a new command entry, replacing any existing command entry for
  * the same name.
  */
-
 static void
 addcmdentry(const char *name, struct cmdentry *entry)
 {
@@ -625,7 +588,6 @@ addcmdentry(const char *name, struct cmdentry *entry)
 	cmdp->special = entry->special;
 	INTON;
 }
-
 
 /*
  * Define a shell function.
@@ -644,12 +606,10 @@ defun(const char *name, union node *func)
 	INTON;
 }
 
-
 /*
  * Delete a function if it exists.
  * Called with interrupts off.
  */
-
 int
 unsetfunc(const char *name)
 {
@@ -663,7 +623,6 @@ unsetfunc(const char *name)
 	return (0);
 }
 
-
 /*
  * Check if a function by a certain name exists.
  */
@@ -674,7 +633,6 @@ isfunc(const char *name)
 	cmdp = cmdlookup(name, 0);
 	return (cmdp != NULL && cmdp->cmdtype == CMDFUNCTION);
 }
-
 
 static void
 print_absolute_path(const char *name)
@@ -690,12 +648,10 @@ print_absolute_path(const char *name)
 	outcslow('\n', out1);
 }
 
-
 /*
  * Shared code for the following builtin commands:
  *    type, command -v, command -V
  */
-
 int
 typecmd_impl(int argc, char **argv, int cmd, const char *path)
 {
@@ -810,7 +766,6 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
 /*
  * Locate and print what a word is...
  */
-
 int
 typecmd(int argc, char **argv)
 {
