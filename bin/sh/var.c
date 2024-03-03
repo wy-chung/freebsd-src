@@ -40,12 +40,12 @@ static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
 #include <sys/cdefs.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <paths.h>
 
 /*
  * Shell variables.
  */
-
 #include <locale.h>
 #include <langinfo.h>
 
@@ -356,7 +356,7 @@ setvareq(char *s, int flags)
 		 */
 		if ((vp == &vmpath || (vp == &vmail && ! mpathset())) &&
 		    iflag == 1)
-			chkmail(1);
+			chkmail(true);
 		if ((vp->flags & VEXPORT) && localevar(s)) {
 			change_env(s, 1);
 			(void) setlocale(LC_ALL, "");

@@ -145,7 +145,7 @@ sh_main(int argc, char *argv[])
 	pwd_init(iflag);
 	INTON;
 	if (iflag)
-		chkmail(1);
+		chkmail(true);
 	if (argv[0] && argv[0][0] == '-') {
 		state = 1;
 		read_profile("/etc/profile");
@@ -217,7 +217,7 @@ cmdloop(bool top)
 		if (iflag && top) {
 			inter++;
 			showjobs(true, SHOWJOBS_DEFAULT);
-			chkmail(0);
+			chkmail(false);
 			flushout(&output);
 		}
 		n = parsecmd(inter);

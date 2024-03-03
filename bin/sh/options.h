@@ -44,8 +44,6 @@ struct shparam {
 	char *optptr;		/* used by getopts */
 };
 
-
-
 #define eflag optval[0] // Exit immediately if any untested command fails in non-interactive mode
 #define fflag optval[1] // Disable pathname expansion
 #define Iflag optval[2] // ignoreeof
@@ -102,7 +100,6 @@ static const unsigned char optname[] =
 	"\006verify"
 ;
 #endif
-
 
 extern char *minusc;		/* argument to -c option */
 extern char *arg0;		/* $0 */

@@ -31,7 +31,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
@@ -61,7 +60,6 @@ static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #include "myhistedit.h"
 #endif
 
-
 /*
  * Sigmode records the current value of the signal handlers for the various
  * modes.  A value of zero means that the current handler is not known.
@@ -73,7 +71,6 @@ static char sccsid[] = "@(#)trap.c	8.5 (Berkeley) 6/5/95";
 #define S_IGN 3			/* signal is ignored (SIG_IGN) */
 #define S_HARD_IGN 4		/* signal is ignored permanently */
 #define S_RESET 5		/* temporary - to reset a hard ignored sig */
-
 
 static char sigmode[NSIG];	/* current value of signal */
 volatile sig_atomic_t pendingsig;	/* indicates some signal received */
@@ -89,7 +86,6 @@ static int exiting;		/* exitshell() has been called */
 static int exiting_exitstatus;	/* value passed to exitshell() */
 
 static int getsigaction(int, sig_t *);
-
 
 /*
  * Map a string to a signal number.
@@ -120,7 +116,6 @@ sigstring_to_signum(char *sig)
 	return (-1);
 }
 
-
 /*
  * Print a list of valid signal names.
  */
@@ -147,7 +142,6 @@ printsignals(void)
 		}
 	}
 }
-
 
 /*
  * The trap builtin.
@@ -213,7 +207,6 @@ trapcmd(int argc __unused, char **argv)
 	return errors;
 }
 
-
 /*
  * Clear traps on a fork.
  */
@@ -233,7 +226,6 @@ clear_traps(void)
 		}
 	}
 }
-
 
 /*
  * Check if we have any traps enabled.
@@ -331,7 +323,6 @@ setsignal(int signo)
 	sigaction(signo, &sa, NULL);
 }
 
-
 /*
  * Return the current setting for sig w/o changing it.
  */
@@ -345,7 +336,6 @@ getsigaction(int signo, sig_t *sigact)
 	*sigact = (sig_t) sa.sa_handler;
 	return 1;
 }
-
 
 /*
  * Ignore a signal.
@@ -362,14 +352,12 @@ ignoresig(int signo)
 	}
 }
 
-
 int
 issigchldtrapped(void)
 {
 
 	return (trap[SIGCHLD] != NULL && *trap[SIGCHLD] != '\0');
 }
-
 
 /*
  * Signal handler.
@@ -397,7 +385,6 @@ onsig(int signo)
 		pendingsig_waitcmd = signo;
 	}
 }
-
 
 /*
  * Called to execute a trap.  Perhaps we should avoid entering new trap
@@ -470,14 +457,12 @@ dotrap(void)
 	in_dotrap--;
 }
 
-
 void
 trap_init(void)
 {
 	setsignal(SIGINT);
 	setsignal(SIGQUIT);
 }
-
 
 /*
  * Controls whether the shell is interactive or not based on iflag.
@@ -487,7 +472,6 @@ setinteractive(void)
 {
 	setsignal(SIGTERM);
 }
-
 
 /*
  * Called to exit the shell.

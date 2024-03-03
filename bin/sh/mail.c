@@ -29,13 +29,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)mail.c	8.2 (Berkeley) 5/4/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
+#include <stdbool.h>
 /*
  * Routines to check for mail.  (Perhaps make part of main.c?)
  */
@@ -50,14 +50,10 @@ static char sccsid[] = "@(#)mail.c	8.2 (Berkeley) 5/4/95";
 #include <sys/stat.h>
 #include <stdlib.h>
 
-
 #define MAXMBOXES 10
-
 
 static int nmboxes;			/* number of mailboxes */
 static time_t mailtime[MAXMBOXES];	/* times of mailboxes */
-
-
 
 /*
  * Print appropriate message(s) if mail has arrived.  If the argument is
@@ -65,7 +61,7 @@ static time_t mailtime[MAXMBOXES];	/* times of mailboxes */
  * values.
  */
 void
-chkmail(int silent)
+chkmail(bool silent)
 {
 	int i;
 	char *mpath;

@@ -97,14 +97,12 @@ char *nextopt_optptr;		/* used by nextopt */
 
 char *minusc;			/* argument to -c option */
 
-
-static void options(int);
+static void options(bool);
 static void minus_o(char *, int);
 static void setoption(int, int);
 static void setoptionbyindex(int, int);
 static void setparam(int, char **);
 static int getopts(char *, char *, char **, char ***, char **);
-
 
 /*
  * Process the shell command line arguments.
@@ -121,7 +119,7 @@ procargs(int argc, char **argv)
 	for (i = 0; i < NOPTS; i++)
 		optval[i] = 2;
 	privileged = (getuid() != geteuid() || getgid() != getegid());
-	options(1);
+	options(true);
 	if (*argptr == NULL && minusc == NULL)
 		sflag = 1;
 	if (iflag != 0 && sflag == 1 && isatty(0) && isatty(1)) {
@@ -154,7 +152,6 @@ procargs(int argc, char **argv)
 	optschanged();
 }
 
-
 void
 optschanged(void)
 {
@@ -171,9 +168,8 @@ optschanged(void)
  * If cmdline is true, process the shell's argv; otherwise, process arguments
  * to the set special builtin.
  */
-
 static void
-options(int cmdline)
+options(bool cmdline)
 {
 	char *kp, *p;
 	int val;
@@ -305,7 +301,6 @@ minus_o(char *name, int val)
 	}
 }
 
-
 static void
 setoptionbyindex(int idx, int val)
 {
@@ -338,11 +333,9 @@ setoption(int flag, int val)
 	error("Illegal option -%c", flag);
 }
 
-
 /*
  * Set the shell parameters.
  */
-
 static void
 setparam(int argc, char **argv)
 {
@@ -363,11 +356,9 @@ setparam(int argc, char **argv)
 	shellparam.optnext = NULL;
 }
 
-
 /*
  * Free the list of positional parameters.
  */
-
 void
 freeparam(struct shparam *param)
 {
@@ -385,12 +376,9 @@ freeparam(struct shparam *param)
 	}
 }
 
-
-
 /*
  * The shift builtin command.
  */
-
 int
 shiftcmd(int argc, char **argv)
 {
@@ -413,19 +401,16 @@ shiftcmd(int argc, char **argv)
 	return 0;
 }
 
-
-
 /*
  * The set builtin command.
  */
-
 int
 setcmd(int argc, char **argv)
 {
 	if (argc == 1)
 		return showvarscmd(argc, argv);
 	INTOFF;
-	options(0);
+	options(false);
 	optschanged();
 	if (*argptr != NULL) {
 		setparam(argc - (argptr - argv), argptr);
@@ -433,7 +418,6 @@ setcmd(int argc, char **argv)
 	INTON;
 	return 0;
 }
-
 
 void
 getoptsreset(const char *value)
@@ -450,7 +434,6 @@ getoptsreset(const char *value)
  * be processed in the current argument.  If shellparam.optnext is NULL,
  * then it's the first time getopts has been called.
  */
-
 int
 getoptscmd(int argc, char **argv)
 {
@@ -585,7 +568,6 @@ out:
  * other arguments are unnecessary.  It returns the option, or '\0' on
  * end of input.
  */
-
 int
 nextopt(const char *optstring)
 {
