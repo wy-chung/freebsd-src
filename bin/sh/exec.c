@@ -88,7 +88,7 @@ static int cmdtable_cd = 0;	/* cmdtable contains cd-dependent entries */
 
 static void tryexec(char *, char **, char **);
 static void printentry(struct tblentry *, int);
-static struct tblentry *cmdlookup(const char *, int);
+static struct tblentry *cmdlookup(const char *, bool);
 static void delete_cmd_entry(void);
 static void addcmdentry(const char *, struct cmdentry *);
 
@@ -267,14 +267,14 @@ hashcmd(int argc __unused, char **argv __unused)
 		return 0;
 	}
 	while ((name = *argptr) != NULL) {
-		if ((cmdp = cmdlookup(name, 0)) != NULL
+		if ((cmdp = cmdlookup(name, false)) != NULL
 		 && cmdp->cmdtype == CMDNORMAL)
 			delete_cmd_entry();
 		find_command(name, &entry, DO_ERR, pathval());
 		if (entry.cmdtype == CMDUNKNOWN)
 			errors = 1;
 		else if (verbose) {
-			cmdp = cmdlookup(name, 0);
+			cmdp = cmdlookup(name, false);
 			if (cmdp != NULL)
 				printentry(cmdp, verbose);
 			else {
@@ -352,7 +352,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 	cd = 0;
 
 	/* If name is in the table, we're done */
-	if ((cmdp = cmdlookup(name, 0)) != NULL) {
+	if ((cmdp = cmdlookup(name, false)) != NULL) {
 		if (cmdp->cmdtype == CMDFUNCTION && act & DO_NOFUNC)
 			cmdp = NULL;
 		else
@@ -362,7 +362,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 	/* Check for builtin next */
 	if ((i = find_builtin(name, &spec)) >= 0) {
 		INTOFF;
-		cmdp = cmdlookup(name, 1);
+		cmdp = cmdlookup(name, true);
 		if (cmdp->cmdtype == CMDFUNCTION)
 			cmdp = &loc_cmd;
 		cmdp->cmdtype = CMDBUILTIN;
@@ -397,7 +397,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 			continue;
 		if (opt) {		/* this is a %func directory */
 			readcmdfile(fullname, -1 /* verify */);
-			if ((cmdp = cmdlookup(name, 0)) == NULL || cmdp->cmdtype != CMDFUNCTION)
+			if ((cmdp = cmdlookup(name, false)) == NULL || cmdp->cmdtype != CMDFUNCTION)
 				error("%s not defined in %s", name, fullname);
 			stunalloc(fullname); //allocated by padvance
 			goto success;
@@ -416,7 +416,7 @@ find_command(const char *name, struct cmdentry *entry, int act,
 #endif
 		TRACE(("searchexec \"%s\" returns \"%s\"\n", name, fullname));
 		INTOFF;
-		cmdp = cmdlookup(name, 1);
+		cmdp = cmdlookup(name, true);
 		if (cmdp->cmdtype == CMDFUNCTION)
 			cmdp = &loc_cmd;
 		cmdp->cmdtype = CMDNORMAL;
@@ -523,7 +523,7 @@ clearcmdentry(void)
 static struct tblentry **lastcmdentry;
 
 static struct tblentry *
-cmdlookup(const char *name, int add)
+cmdlookup(const char *name, bool add)
 {
 	unsigned int hashval;
 	const char *p;
@@ -579,7 +579,7 @@ addcmdentry(const char *name, struct cmdentry *entry)
 	struct tblentry *cmdp;
 
 	INTOFF;
-	cmdp = cmdlookup(name, 1);
+	cmdp = cmdlookup(name, true);
 	if (cmdp->cmdtype == CMDFUNCTION) {
 		unreffunc(cmdp->param.func);
 	}
@@ -615,7 +615,7 @@ unsetfunc(const char *name)
 {
 	struct tblentry *cmdp;
 
-	if ((cmdp = cmdlookup(name, 0)) != NULL && cmdp->cmdtype == CMDFUNCTION) {
+	if ((cmdp = cmdlookup(name, false)) != NULL && cmdp->cmdtype == CMDFUNCTION) {
 		unreffunc(cmdp->param.func);
 		delete_cmd_entry();
 		return (0);
@@ -630,7 +630,7 @@ int
 isfunc(const char *name)
 {
 	struct tblentry *cmdp;
-	cmdp = cmdlookup(name, 0);
+	cmdp = cmdlookup(name, false);
 	return (cmdp != NULL && cmdp->cmdtype == CMDFUNCTION);
 }
 
@@ -692,7 +692,7 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
 		}
 
 		/* Then check if it is a tracked alias */
-		if ((cmdp = cmdlookup(argv[i], 0)) != NULL) {
+		if ((cmdp = cmdlookup(argv[i], false)) != NULL) {
 			entry.cmdtype = cmdp->cmdtype;
 			entry.u = cmdp->param;
 			entry.special = cmdp->special;
