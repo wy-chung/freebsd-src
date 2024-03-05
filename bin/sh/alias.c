@@ -197,7 +197,7 @@ printaliases(void)
 }
 
 int
-aliascmd(int argc __unused, char **argv __unused)
+aliascmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	char *n, *v;
 	int ret = 0;
@@ -226,7 +226,7 @@ aliascmd(int argc __unused, char **argv __unused)
 }
 
 int
-unaliascmd(int argc __unused, char **argv __unused)
+unaliascmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	int i;
 

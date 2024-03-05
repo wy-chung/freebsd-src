@@ -75,7 +75,7 @@ static char *getpwd2(void);
 static char *curdir = NULL;	/* current working directory */
 
 int
-cdcmd(int argc __unused, char **argv __unused)
+cdcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	const char *dest;
 	const char *path;
@@ -329,7 +329,7 @@ updatepwd(char *dir)
 }
 
 int
-pwdcmd(int argc __unused, char **argv __unused)
+pwdcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	char *p;
 	int ch, phys;

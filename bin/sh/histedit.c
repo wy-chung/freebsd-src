@@ -250,7 +250,7 @@ setterm(const char *term)
 }
 
 int
-histcmd(int argc, char **argv __unused)
+histcmd(int argc, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	const char *editor = NULL;
 	HistEvent he;
@@ -542,7 +542,7 @@ str_to_event(const char *str, int last)
 }
 
 int
-bindcmd(int argc, char **argv)
+bindcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
 	int ret;
 	FILE *old;
@@ -758,7 +758,7 @@ sh_complete(EditLine *sel, int ch __unused)
 		(size_t)100, NULL, &((int) {0}), NULL, NULL, FN_QUOTE_MATCH);
 }
 
-#else
+#else // defined NO_HISTORY
 #include "error.h"
 
 int
@@ -777,4 +777,4 @@ bindcmd(int argc __unused, char **argv __unused)
 	error("not compiled with line editing support");
 	return (0);
 }
-#endif
+#endif // not defined NO_HISTORY

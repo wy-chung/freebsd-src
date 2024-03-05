@@ -379,7 +379,7 @@ freeparam(struct shparam *param)
  * The shift builtin command.
  */
 int
-shiftcmd(int argc, char **argv)
+shiftcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
 	int i, n;
 
@@ -404,7 +404,7 @@ shiftcmd(int argc, char **argv)
  * The set builtin command.
  */
 int
-setcmd(int argc, char **argv)
+setcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
 	if (argc == 1)
 		return showvarscmd(argc, argv);
@@ -434,7 +434,7 @@ getoptsreset(const char *value)
  * then it's the first time getopts has been called.
  */
 int
-getoptscmd(int argc, char **argv)
+getoptscmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
 	char **optbase = NULL, **ap;
 	int i;

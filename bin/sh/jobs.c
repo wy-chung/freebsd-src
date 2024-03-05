@@ -269,7 +269,7 @@ fgcmd(int argc __unused, char **argv __unused)
 
 
 int
-bgcmd(int argc __unused, char **argv __unused)
+bgcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	struct job *jp;
 
@@ -310,9 +310,8 @@ restartjob(struct job *jp)
 }
 #endif
 
-
 int
-jobscmd(int argc __unused, char *argv[] __unused)
+jobscmd(int argc __unused, char *argv[] __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	char *id;
 	int ch, mode;
@@ -530,7 +529,7 @@ freejob(struct job *jp)
 }
 
 int
-waitcmd(int argc __unused, char **argv __unused)
+waitcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	struct job *job;
 	int retval;
@@ -608,7 +607,7 @@ waitcmdloop(struct job *job)
 }
 
 int
-jobidcmd(int argc __unused, char **argv __unused)
+jobidcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	struct job *jp;
 	int i;

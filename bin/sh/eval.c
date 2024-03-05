@@ -111,7 +111,7 @@ reseteval(void)
  * The eval command.
  */
 int
-evalcmd(int argc, char **argv)
+evalcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
         char *p;
         char *concat;
@@ -1174,7 +1174,7 @@ prehash(union node *n)
  * with an invalid name.
  */
 int
-bltincmd(int argc, char **argv)
+bltincmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
 	if (argc > 1) {
 		out2fmt_flush("%s: not found\n", argv[1]);
@@ -1198,7 +1198,7 @@ bltincmd(int argc, char **argv)
  * in the standard shell so we don't make it one here.
  */
 int
-breakcmd(int argc, char **argv)
+breakcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
 	long n;
 	char *end;
@@ -1223,7 +1223,7 @@ breakcmd(int argc, char **argv)
  * The `command' command.
  */
 int
-commandcmd(int argc __unused, char **argv __unused)
+commandcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	const char *path;
 	int ch;
@@ -1264,7 +1264,7 @@ commandcmd(int argc __unused, char **argv __unused)
  * The return command.
  */
 int
-returncmd(int argc, char **argv)
+returncmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
 	int ret = argc > 1 ? number(argv[1]) : oexitstatus;
 
@@ -1274,19 +1274,19 @@ returncmd(int argc, char **argv)
 }
 
 int
-falsecmd(int argc __unused, char **argv __unused)
+falsecmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	return 1;
 }
 
 int
-truecmd(int argc __unused, char **argv __unused)
+truecmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	return 0;
 }
 
 int
-execcmd(int argc, char **argv)
+execcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
 	int i;
 
@@ -1309,7 +1309,7 @@ execcmd(int argc, char **argv)
 }
 
 int
-timescmd(int argc __unused, char **argv __unused)
+timescmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	struct rusage ru;
 	long shumins, shsmins, chumins, chsmins;

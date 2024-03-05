@@ -237,7 +237,7 @@ padvance(const char **path, const char **popt, const char *name)
 
 /*** Command hashing code ***/
 int
-hashcmd(int argc __unused, char **argv __unused)
+hashcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	struct tblentry **pp;
 	struct tblentry *cmdp;
@@ -766,7 +766,7 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
  * Locate and print what a word is...
  */
 int
-typecmd(int argc, char **argv)
+typecmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
 	if (argc > 2 && strcmp(argv[1], "--") == 0)
 		argc--, argv++;

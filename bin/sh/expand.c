@@ -1483,7 +1483,7 @@ cvtnum(int num, char *buf)
  */
 
 int
-wordexpcmd(int argc, char **argv)
+wordexpcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
 	size_t len;
 	int i;
@@ -1502,7 +1502,7 @@ wordexpcmd(int argc, char **argv)
  */
 
 int
-freebsd_wordexpcmd(int argc __unused, char **argv __unused)
+freebsd_wordexpcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
 	struct arglist arglist;
 	union node *args, *n;
