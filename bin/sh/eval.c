@@ -36,7 +36,6 @@ static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-#include <stdbool.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -154,7 +153,7 @@ evalstring(const char *s, int flags)
 	any = 0;
 	setstackmark(&smark);
 	setinputstring(s, 1);
-	while ((n = parsecmd(0)) != NEOF) {
+	while ((n = parsecmd(false)) != NEOF) {
 		if (n != NULL && !nflag) {
 			if (flags_exit && preadateof())
 				evaltree(n, flags | EV_EXIT); /*NOTREACHED*/

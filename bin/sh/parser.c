@@ -43,7 +43,6 @@ static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <stdbool.h>
 
 #include "shell.h"
 #include "parser.h"
@@ -206,7 +205,7 @@ parser_temp_free_all(void)
  * valid parse tree indicating a blank line.)
  */
 union node *
-parsecmd(int interact)
+parsecmd(bool interact)
 {
 	int t;
 

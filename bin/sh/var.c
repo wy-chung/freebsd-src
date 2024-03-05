@@ -40,7 +40,6 @@ static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
 #include <sys/cdefs.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <paths.h>
 
 /*

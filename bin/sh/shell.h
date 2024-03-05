@@ -64,6 +64,7 @@ typedef intmax_t arith_t;
 typedef void *pointer;
 
 #include <sys/cdefs.h>
+#include <stdbool.h>
 
 extern char nullstr[1];		/* null string */
 

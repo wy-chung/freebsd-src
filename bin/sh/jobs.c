@@ -48,7 +48,6 @@ static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdbool.h>
 
 #include "shell.h"
 #if JOBS

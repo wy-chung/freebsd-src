@@ -76,7 +76,7 @@ extern int whichprompt;		/* 1 == PS1, 2 == PS2 */
 extern const char *const parsekwd[];
 
 
-union node *parsecmd(int);
+union node *parsecmd(bool);
 union node *parsewordexp(void);
 void forcealias(void);
 void fixredir(union node *, const char *, int);

@@ -51,7 +51,6 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #include <fcntl.h>
 #include <locale.h>
 #include <errno.h>
-#include <stdbool.h>
 
 #include "shell.h"
 #include "main.h"
@@ -205,7 +204,7 @@ cmdloop(bool top)
 {
 	union node *n;
 	struct stackmark smark;
-	int inter;
+	bool inter;
 	int numeof = 0;
 
 	TRACE(("cmdloop(%d) called\n", top));
@@ -213,9 +212,9 @@ cmdloop(bool top)
 	for (;;) {
 		if (pendingsig)
 			dotrap();
-		inter = 0;
+		inter = false;
 		if (iflag && top) {
-			inter++;
+			inter = true;
 			showjobs(true, SHOWJOBS_DEFAULT);
 			chkmail(false);
 			flushout(&output);

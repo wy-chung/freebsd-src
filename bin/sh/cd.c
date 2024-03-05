@@ -43,7 +43,6 @@ static char sccsid[] = "@(#)cd.c	8.2 (Berkeley) 5/4/95";
 #include <unistd.h>
 #include <errno.h>
 #include <limits.h>
-#include <stdbool.h>
 
 /*
  * The cd and pwd commands.
