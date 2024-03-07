@@ -29,7 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
@@ -70,19 +69,16 @@ static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #include "myhistedit.h"
 #endif
 
-
 int evalskip;			/* set if we are skipping commands */
 int skipcount;			/* number of levels to skip */
 static int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
 static int builtin_flags;	/* evalcommand flags for builtins */
 
-
 char *commandname;
 struct arglist *cmdenviron;
 int exitstatus;			/* exit status of last command */
 int oexitstatus;		/* saved exit status */
-
 
 static void evalloop(union node *, int);
 static void evalfor(union node *, int);
@@ -95,7 +91,6 @@ static void evalpipe(union node *);
 static int is_valid_fast_cmdsubst(union node *n);
 static void evalcommand(union node *, int, struct backcmd *);
 static void prehash(union node *);
-
 
 /*
  * Called to reset things after an exception.

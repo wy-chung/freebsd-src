@@ -960,7 +960,7 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 			setsignal(SIGQUIT);
 			setsignal(SIGTERM);
 		}
-		return pid;
+		return 0;
 	} // pid == 0
 	if (rootshell && mode != FORK_NOJOB && mflag) {
 		if (jp == NULL || jp->nprocs == 0)

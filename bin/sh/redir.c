@@ -31,7 +31,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
@@ -61,10 +60,8 @@ static char sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
 #include "error.h"
 #include "options.h"
 
-
 #define EMPTY -2		/* marks an unused slot in redirtab */
 #define CLOSED -1		/* fd was not open before redir */
-
 
 struct redirtab {
 	struct redirtab *next;
@@ -72,7 +69,6 @@ struct redirtab {
 	bool fd0_redirected;
 	unsigned int empty_redirs;
 };
-
 
 static struct redirtab *redirlist;
 
@@ -88,7 +84,6 @@ static unsigned int empty_redirs = 0;
 
 static void openredirect(union node *, char[10 ]);
 static int openhere(union node *);
-
 
 /*
  * Process a list of redirection commands.  If the REDIR_PUSH flag is set,
@@ -164,7 +159,6 @@ redirect(union node *redir, int flags)
 		out2 = &memout;
 	INTON;
 }
-
 
 static void
 openredirect(union node *redir, char memory[10])
@@ -248,13 +242,11 @@ openredirect(union node *redir, char memory[10])
 	}
 }
 
-
 /*
  * Handle here documents.  Normally we fork off a process to write the
  * data to a pipe.  If the document is short, we can stuff the data in
  * the pipe without forking.
  */
-
 static int
 openhere(union node *redir)
 {
@@ -299,12 +291,9 @@ out:
 	return pip[0];
 }
 
-
-
 /*
  * Undo the effects of the last redirection.
  */
-
 void
 popredir(void)
 {
@@ -344,7 +333,6 @@ fd0_redirected_p(void)
 /*
  * Discard all saved file descriptors.
  */
-
 void
 clearredir(void)
 {
