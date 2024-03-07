@@ -996,11 +996,30 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 	return pid;
 }
 
+static void
+vforkexecshell_child(char **argv, char **envp, const char *path, int idx, int pip[2])
+{
+	struct jmploc jmploc;
+
+	TRACE(("Child shell %d\n", (int)getpid()));
+	if (setjmp(jmploc.loc)) // return from longjmp
+		_exit(exitstatus);
+	if (pip != NULL) {
+		close(pip[0]);
+		if (pip[1] != 1) {
+			dup2(pip[1], 1);
+			close(pip[1]);
+		}
+	}
+	handler = &jmploc;
+	shellexec(argv, envp, path, idx);
+	/*NOTREACHED*/
+}
+
 pid_t
 vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int idx, int pip[2])
 {
 	pid_t pid;
-	struct jmploc jmploc;
 	struct jmploc *savehandler;
 	int inton;
 
@@ -1018,18 +1037,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 		error("%s: Cannot fork: %s", __func__, strerror(errno));
 	}
 	if (pid == 0) { // child
-		TRACE(("Child shell %d\n", (int)getpid()));
-		if (setjmp(jmploc.loc)) // return from longjmp
-			_exit(exitstatus);
-		if (pip != NULL) {
-			close(pip[0]);
-			if (pip[1] != 1) {
-				dup2(pip[1], 1);
-				close(pip[1]);
-			}
-		}
-		handler = &jmploc;
-		shellexec(argv, envp, path, idx);
+		vforkexecshell_child(argv, envp, path, idx, pip);
 		/*NOTREACHED*/
 	}
 	handler = savehandler;
