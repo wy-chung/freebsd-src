@@ -878,7 +878,6 @@ pid_t
 forkshell(struct job *jp, union node *n, enum fork_mode mode)
 {
 	pid_t pid;
-	pid_t pgrp;
 
 	TRACE(("forkshell(%%%td, %p, %d) called\n", jp - jobtab, (void *)n, mode));
 	INTOFF;
@@ -909,6 +908,8 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 #if JOBS
 		jobctl = 0;		/* do job control only in root shell */
 		if (wasroot && mode != FORK_NOJOB && mflag) {
+			pid_t pgrp;
+
 			if (jp == NULL || jp->nprocs == 0)
 				pgrp = getpid();
 			else
@@ -963,6 +964,8 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 		return 0;
 	} // pid == 0
 	if (rootshell && mode != FORK_NOJOB && mflag) {
+		pid_t pgrp;
+
 		if (jp == NULL || jp->nprocs == 0)
 			pgrp = pid;
 		else
