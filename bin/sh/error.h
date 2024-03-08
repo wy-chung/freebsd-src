@@ -49,7 +49,7 @@ struct jmploc {
 	jmp_buf loc;
 };
 
-extern struct jmploc *handler;
+extern __thread struct jmploc *handler;
 extern volatile sig_atomic_t exception;
 
 /* exceptions */

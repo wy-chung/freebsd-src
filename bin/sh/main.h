@@ -35,7 +35,7 @@
  */
 
 extern int rootpid;	/* pid of main shell */
-extern bool rootshell;	/* true if we aren't a child of the main shell */
+extern __thread bool rootshell;	/* true if we aren't a child of the main shell */
 extern struct jmploc main_handler;	/* top level exception handler */
 
 void readcmdfile(const char *, int);

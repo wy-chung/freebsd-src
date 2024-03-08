@@ -860,6 +860,79 @@ getcurjob(struct job *nj)
 }
 #endif
 
+static void
+forkshell_child(struct job *jp, enum fork_mode mode)
+{
+	struct job *p;
+	bool wasroot;
+	int i;
+
+	TRACE(("Child shell %d\n", (int)getpid()));
+	wasroot = rootshell;
+	rootshell = false;
+	handler = &main_handler;
+	closescript();
+	INTON;
+	forcelocal = 0;
+	clear_traps();
+#if JOBS
+	jobctl = 0;		/* do job control only in root shell */
+	if (wasroot && mode != FORK_NOJOB && mflag) {
+		pid_t pgrp;
+
+		if (jp == NULL || jp->nprocs == 0)
+			pgrp = getpid();
+		else
+			pgrp = jp->ps[0].pid;
+		if (setpgid(0, pgrp) == 0 && mode == FORK_FG &&
+		    ttyfd >= 0) {
+			/*
+			 * Each process in a pipeline must have the tty
+			 * pgrp set before running its code.
+			 * Only for pipelines of three or more processes
+			 * could this be reduced to two calls.
+			 */
+			if (tcsetpgrp(ttyfd, pgrp) < 0)
+				error("tcsetpgrp failed, errno=%d", errno);
+		}
+		setsignal(SIGTSTP);
+		setsignal(SIGTTOU);
+	} else if (mode == FORK_BG) {
+		ignoresig(SIGINT);
+		ignoresig(SIGQUIT);
+		if ((jp == NULL || jp->nprocs == 0) &&
+		    ! fd0_redirected_p ()) {
+			close(0);
+			if (open(_PATH_DEVNULL, O_RDONLY) != 0)
+				error("cannot open %s: %s",
+				    _PATH_DEVNULL, strerror(errno));
+		}
+	}
+#else // !JOBS
+	if (mode == FORK_BG) {
+		ignoresig(SIGINT);
+		ignoresig(SIGQUIT);
+		if ((jp == NULL || jp->nprocs == 0) &&
+		    ! fd0_redirected_p ()) {
+			close(0);
+			if (open(_PATH_DEVNULL, O_RDONLY) != 0)
+				error("cannot open %s: %s",
+				    _PATH_DEVNULL, strerror(errno));
+		}
+	}
+#endif
+	INTOFF;
+	for (i = njobs, p = jobtab ; --i >= 0 ; p++)
+		if (p->used)
+			freejob(p);
+	INTON;
+	if (wasroot && iflag) {
+		setsignal(SIGINT);
+		setsignal(SIGQUIT);
+		setsignal(SIGTERM);
+	}
+}
+
 /*
  * Fork of a subshell.  If we are doing job control, give the subshell its
  * own process group.  Jp is a job structure that the job is to be added to.
@@ -893,74 +966,7 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 		/*NOTREACHED*/
 	}
 	if (pid == 0) { // child
-		struct job *p;
-		bool wasroot;
-		int i;
-
-		TRACE(("Child shell %d\n", (int)getpid()));
-		wasroot = rootshell;
-		rootshell = false;
-		handler = &main_handler;
-		closescript();
-		INTON;
-		forcelocal = 0;
-		clear_traps();
-#if JOBS
-		jobctl = 0;		/* do job control only in root shell */
-		if (wasroot && mode != FORK_NOJOB && mflag) {
-			pid_t pgrp;
-
-			if (jp == NULL || jp->nprocs == 0)
-				pgrp = getpid();
-			else
-				pgrp = jp->ps[0].pid;
-			if (setpgid(0, pgrp) == 0 && mode == FORK_FG &&
-			    ttyfd >= 0) {
-				/*
-				 * Each process in a pipeline must have the tty
-				 * pgrp set before running its code.
-				 * Only for pipelines of three or more processes
-				 * could this be reduced to two calls.
-				 */
-				if (tcsetpgrp(ttyfd, pgrp) < 0)
-					error("tcsetpgrp failed, errno=%d", errno);
-			}
-			setsignal(SIGTSTP);
-			setsignal(SIGTTOU);
-		} else if (mode == FORK_BG) {
-			ignoresig(SIGINT);
-			ignoresig(SIGQUIT);
-			if ((jp == NULL || jp->nprocs == 0) &&
-			    ! fd0_redirected_p ()) {
-				close(0);
-				if (open(_PATH_DEVNULL, O_RDONLY) != 0)
-					error("cannot open %s: %s",
-					    _PATH_DEVNULL, strerror(errno));
-			}
-		}
-#else // !JOBS
-		if (mode == FORK_BG) {
-			ignoresig(SIGINT);
-			ignoresig(SIGQUIT);
-			if ((jp == NULL || jp->nprocs == 0) &&
-			    ! fd0_redirected_p ()) {
-				close(0);
-				if (open(_PATH_DEVNULL, O_RDONLY) != 0)
-					error("cannot open %s: %s",
-					    _PATH_DEVNULL, strerror(errno));
-			}
-		}
-#endif
-		INTOFF;
-		for (i = njobs, p = jobtab ; --i >= 0 ; p++)
-			if (p->used)
-				freejob(p);
-		INTON;
-		if (wasroot && iflag) {
-			setsignal(SIGINT);
-			setsignal(SIGQUIT);
-			setsignal(SIGTERM);
-		}
+		forkshell_child(jp, mode);
 		return 0;
 	} // pid == 0
 	if (rootshell && mode != FORK_NOJOB && mflag) {
