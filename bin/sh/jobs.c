@@ -968,7 +968,7 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 	if (pid == 0) { // child
 		forkshell_child(jp, mode);
 		return 0;
-	} // pid == 0
+	} // child
 	if (rootshell && mode != FORK_NOJOB && mflag) {
 		pid_t pgrp;
 
@@ -1041,6 +1041,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 		INTON;
 		//wyc error("Cannot fork: %s", strerror(errno));
 		error("%s: Cannot fork: %s", __func__, strerror(errno));
+		/*NOTREACHED*/
 	}
 	if (pid == 0) { // child
 		vforkexecshell_child(argv, envp, path, idx, pip);

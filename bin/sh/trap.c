@@ -229,16 +229,16 @@ clear_traps(void)
 /*
  * Check if we have any traps enabled.
  */
-int
+bool
 have_traps(void)
 {
 	char *volatile *tp;
 
 	for (tp = trap ; tp <= &trap[NSIG - 1] ; tp++) {
 		if (*tp && **tp)	/* trap not NULL or SIG_IGN */
-			return 1;
+			return true;
 	}
-	return 0;
+	return false;
 }
 
 /*

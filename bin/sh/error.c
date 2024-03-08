@@ -58,7 +58,7 @@ static char sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
  * Code to handle exceptions in C.
  */
 
-__thread struct jmploc *handler;
+struct jmploc *handler;
 volatile sig_atomic_t exception;
 volatile sig_atomic_t suppressint;
 volatile sig_atomic_t intpending;

@@ -78,7 +78,7 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #endif
 
 int rootpid;
-__thread bool rootshell;
+bool rootshell;
 struct jmploc main_handler;
 int localeisutf8, initial_localeisutf8;
 
@@ -107,7 +107,7 @@ sh_main(int argc, char *argv[])
 	volatile int state;
 	char *shinit;
 
-	printf("%s: __thread(rootshell, handler)\n", __func__);
+	printf("%s: remove __thread\n", __func__);
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;

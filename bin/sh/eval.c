@@ -405,12 +405,14 @@ static void
 evalsubshell(union node *n, int flags)
 {
 	struct job *jp;
-	int backgnd = (n->type == NBACKGND);
+	bool backgnd = (n->type == NBACKGND); // background node
 
 	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
-	if ((!backgnd && flags & EV_EXIT && !have_traps()) ||
-			forkshell(jp = makejob(n, 1), n, backgnd) == 0) {
+	if ((!backgnd && flags & EV_EXIT && !have_traps()))
+		goto eval;
+	else if (forkshell(jp = makejob(n, 1), n, backgnd) == 0) {
+eval:
 		if (backgnd)
 			flags &=~ EV_TESTED;
 		redirect(n->nredir.redirect, 0);
@@ -970,6 +972,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		if (forkshell(jp, cmd, mode) != 0)
 			goto parent;	// 1154 /* at end of routine */
+		// child
 		if (flags & EV_BACKCMD) {
 			FORCEINTON;
 			close(pip[0]);
