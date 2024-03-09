@@ -781,6 +781,163 @@ safe_builtin(int idx, int argc, char **argv)
 	return (0);
 }
 
+static void
+evalcommand_execute(union node *cmd, int flags, struct backcmd *backcmd,
+	int argc, char **argv, const char *path,
+	struct job *jp, struct cmdentry *cmdentry,
+	struct arglist *varlist)
+{
+	struct jmploc jmploc;
+	struct jmploc *savehandler;
+
+	if (cmdentry->cmdtype == CMDFUNCTION) {
+		struct shparam saveparam;
+		struct localvar *savelocalvars;
+
+#ifdef DEBUG
+		trputs("Shell function:  ");  trargs(argv);
+#endif
+		saveparam = shellparam;
+		shellparam.malloc = 0;
+		shellparam.reset = 1;
+		shellparam.nparam = argc - 1;
+		shellparam.p = argv + 1;
+		shellparam.optp = NULL;
+		shellparam.optnext = NULL;
+		INTOFF;
+		savelocalvars = localvars;
+		localvars = NULL;
+		reffunc(cmdentry->u.func);
+		savehandler = handler;
+		if (setjmp(jmploc.loc)) { // return from longjmp
+			popredir();
+			unreffunc(cmdentry->u.func);
+			poplocalvars();
+			localvars = savelocalvars;
+			freeparam(&shellparam);
+			shellparam = saveparam;
+			funcnest--;
+			handler = savehandler;
+			longjmp(handler->loc, 1);
+		}
+		handler = &jmploc;
+		funcnest++;
+		redirect(cmd->ncmd.redirect, REDIR_PUSH);
+		INTON;
+		for (int i = 0; i < varlist->count; i++)
+			mklocal(varlist->args[i]);
+		exitstatus = oexitstatus;
+		evaltree(getfuncnode(cmdentry->u.func), flags & (EV_TESTED | EV_EXIT));
+		INTOFF;
+		unreffunc(cmdentry->u.func);
+		poplocalvars();
+		localvars = savelocalvars;
+		freeparam(&shellparam);
+		shellparam = saveparam;
+		handler = savehandler;
+		funcnest--;
+		popredir();
+		INTON;
+		if (evalskip == SKIPRETURN) {
+			evalskip = 0;
+			skipcount = 0;
+		}
+		if (jp)
+			exitshell(exitstatus);
+	} /* CMDFUNCTION */
+	else if (cmdentry->cmdtype == CMDBUILTIN) {
+		enum fork_mode mode;
+		char *savecmdname;
+		struct parsefile *savetopfile;
+		volatile int e;
+
+#ifdef DEBUG
+		trputs("builtin command:  ");  trargs(argv);
+#endif
+		mode = (cmdentry->u.index == EXECCMD)? 0 : REDIR_PUSH;
+		if (flags == EV_BACKCMD) {
+			memout.nextc = memout.buf;
+			mode |= REDIR_BACKQ;
+		}
+		savecmdname = commandname;
+		savetopfile = getcurrentfile();
+		cmdenviron = varlist;
+		e = -1;
+		savehandler = handler;
+		if (setjmp(jmploc.loc)) { // return from longjmp
+			e = exception;
+			if (e == EXINT)
+				exitstatus = SIGINT+128;
+			goto cmddone;
+		}
+		handler = &jmploc;
+		redirect(cmd->ncmd.redirect, mode);
+		outclearerror(out1);
+		/*
+		 * If there is no command word, redirection errors should
+		 * not be fatal but assignment errors should.
+		 */
+		if (argc == 0)
+			cmdentry->special = 1;
+		listsetvar(cmdenviron, cmdentry->special ? 0 : VNOSET);
+		if (argc > 0)
+			bltinsetlocale();
+		commandname = argv[0];
+		argptr = argv + 1;
+		nextopt_optptr = NULL;		/* initialize nextopt */
+		builtin_flags = flags;
+		exitstatus = (*builtinfunc[cmdentry->u.index])(argc, argv);
+		flushall();
+		if (outiserror(out1)) {
+			warning("write error on stdout");
+			if (exitstatus == 0 || exitstatus == 1)
+				exitstatus = 2;
+		}
+cmddone:
+		if (argc > 0)
+			bltinunsetlocale();
+		cmdenviron = NULL;
+		out1 = &output;
+		out2 = &errout;
+		freestdout();
+		handler = savehandler;
+		commandname = savecmdname;
+		if (jp)
+			exitshell(exitstatus);
+		if (flags == EV_BACKCMD) {
+			backcmd->buf = memout.buf;
+			backcmd->nleft = memout.buf != NULL ?
+			    memout.nextc - memout.buf : 0;
+			memout.buf = NULL;
+			memout.nextc = NULL;
+			memout.bufend = NULL;
+			memout.bufsize = 64;
+		}
+		if (cmdentry->u.index != EXECCMD)
+			popredir();
+		if (e != -1) {
+			if (e != EXERROR || cmdentry->special)
+				exraise(e);
+			popfilesupto(savetopfile);
+			if (flags != EV_BACKCMD)
+				FORCEINTON;
+		}
+	} /* CMDBUILTIN */
+	else {
+		char **envp;
+
+#ifdef DEBUG
+		trputs("normal command:  ");  trargs(argv);
+#endif
+		redirect(cmd->ncmd.redirect, 0);
+		for (int i = 0; i < varlist->count; i++)
+			setvareq(varlist->args[i], VEXPORT|VSTACK);
+		envp = environment();
+		shellexec(argv, envp, path, cmdentry->u.index);
+		/*NOTREACHED*/
+	}
+}
+
 /*
  * Execute a simple command.
  * Note: This may or may not return if (flags & EV_EXIT).
@@ -793,24 +950,15 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	struct arglist varlist;
 	char **argv;
 	int argc;
-	char **envp;
 	int varflag;
-	enum fork_mode mode;
 	int pip[2];
 	struct cmdentry cmdentry;
 	struct job *jp;
-	struct jmploc jmploc;
-	struct jmploc *savehandler;
-	char *savecmdname;
-	struct shparam saveparam;
-	struct localvar *savelocalvars;
-	struct parsefile *savetopfile;
-	volatile int e;
 	char *lastarg;
 	int signaled;
 	int do_clearcmdentry;
+	enum fork_mode mode = -1; //wyctodo
 	const char *path = pathval();
-	int i;
 
 	/* First expand the arguments. */
 	TRACE(("evalcommand(%p, %d) called\n", (void *)cmd, flags));
@@ -860,7 +1008,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		 * Modify the command lookup path, if a PATH= assignment
 		 * is present
 		 */
-		for (i = 0; i < varlist.count; i++)
+		for (int i = 0; i < varlist.count; i++)
 			if (strncmp(varlist.args[i], PATH, sizeof(PATH) - 1) == 0) {
 				path = varlist.args[i] + sizeof(PATH) - 1;
 				/*
@@ -968,11 +1116,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		    !disvforkset() && !iflag && !mflag) {
 			vforkexecshell(jp, argv, environment(), path,
 			    cmdentry.u.index, flags & EV_BACKCMD ? pip : NULL);
+			// only parent runs here
 			goto parent;
 		}
-		if (forkshell(jp, cmd, mode) != 0)
+		if (forkshell(jp, cmd, mode) != 0) // parent
 			goto parent;	// 1154 /* at end of routine */
-		// child
+		// only child runs here
 		if (flags & EV_BACKCMD) {
 			FORCEINTON;
 			close(pip[0]);
@@ -984,143 +1133,9 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		flags |= EV_EXIT;
 	}
-
 	/* This is the child process if a fork occurred. */
 	/* Execute the command. */
-	if (cmdentry.cmdtype == CMDFUNCTION) {
-#ifdef DEBUG
-		trputs("Shell function:  ");  trargs(argv);
-#endif
-		saveparam = shellparam;
-		shellparam.malloc = 0;
-		shellparam.reset = 1;
-		shellparam.nparam = argc - 1;
-		shellparam.p = argv + 1;
-		shellparam.optp = NULL;
-		shellparam.optnext = NULL;
-		INTOFF;
-		savelocalvars = localvars;
-		localvars = NULL;
-		reffunc(cmdentry.u.func);
-		savehandler = handler;
-		if (setjmp(jmploc.loc)) { // return from longjmp
-			popredir();
-			unreffunc(cmdentry.u.func);
-			poplocalvars();
-			localvars = savelocalvars;
-			freeparam(&shellparam);
-			shellparam = saveparam;
-			funcnest--;
-			handler = savehandler;
-			longjmp(handler->loc, 1);
-		}
-		handler = &jmploc;
-		funcnest++;
-		redirect(cmd->ncmd.redirect, REDIR_PUSH);
-		INTON;
-		for (i = 0; i < varlist.count; i++)
-			mklocal(varlist.args[i]);
-		exitstatus = oexitstatus;
-		evaltree(getfuncnode(cmdentry.u.func), flags & (EV_TESTED | EV_EXIT));
-		INTOFF;
-		unreffunc(cmdentry.u.func);
-		poplocalvars();
-		localvars = savelocalvars;
-		freeparam(&shellparam);
-		shellparam = saveparam;
-		handler = savehandler;
-		funcnest--;
-		popredir();
-		INTON;
-		if (evalskip == SKIPRETURN) {
-			evalskip = 0;
-			skipcount = 0;
-		}
-		if (jp)
-			exitshell(exitstatus);
-	} /* CMDFUNCTION */ else if (cmdentry.cmdtype == CMDBUILTIN) {
-#ifdef DEBUG
-		trputs("builtin command:  ");  trargs(argv);
-#endif
-		mode = (cmdentry.u.index == EXECCMD)? 0 : REDIR_PUSH;
-		if (flags == EV_BACKCMD) {
-			memout.nextc = memout.buf;
-			mode |= REDIR_BACKQ;
-		}
-		savecmdname = commandname;
-		savetopfile = getcurrentfile();
-		cmdenviron = &varlist;
-		e = -1;
-		savehandler = handler;
-		if (setjmp(jmploc.loc)) { // return from longjmp
-			e = exception;
-			if (e == EXINT)
-				exitstatus = SIGINT+128;
-			goto cmddone;
-		}
-		handler = &jmploc;
-		redirect(cmd->ncmd.redirect, mode);
-		outclearerror(out1);
-		/*
-		 * If there is no command word, redirection errors should
-		 * not be fatal but assignment errors should.
-		 */
-		if (argc == 0)
-			cmdentry.special = 1;
-		listsetvar(cmdenviron, cmdentry.special ? 0 : VNOSET);
-		if (argc > 0)
-			bltinsetlocale();
-		commandname = argv[0];
-		argptr = argv + 1;
-		nextopt_optptr = NULL;		/* initialize nextopt */
-		builtin_flags = flags;
-		exitstatus = (*builtinfunc[cmdentry.u.index])(argc, argv);
-		flushall();
-		if (outiserror(out1)) {
-			warning("write error on stdout");
-			if (exitstatus == 0 || exitstatus == 1)
-				exitstatus = 2;
-		}
-cmddone:
-		if (argc > 0)
-			bltinunsetlocale();
-		cmdenviron = NULL;
-		out1 = &output;
-		out2 = &errout;
-		freestdout();
-		handler = savehandler;
-		commandname = savecmdname;
-		if (jp)
-			exitshell(exitstatus);
-		if (flags == EV_BACKCMD) {
-			backcmd->buf = memout.buf;
-			backcmd->nleft = memout.buf != NULL ?
-			    memout.nextc - memout.buf : 0;
-			memout.buf = NULL;
-			memout.nextc = NULL;
-			memout.bufend = NULL;
-			memout.bufsize = 64;
-		}
-		if (cmdentry.u.index != EXECCMD)
-			popredir();
-		if (e != -1) {
-			if (e != EXERROR || cmdentry.special)
-				exraise(e);
-			popfilesupto(savetopfile);
-			if (flags != EV_BACKCMD)
-				FORCEINTON;
-		}
-	} /* CMDBUILTIN */ else {
-#ifdef DEBUG
-		trputs("normal command:  ");  trargs(argv);
-#endif
-		redirect(cmd->ncmd.redirect, 0);
-		for (i = 0; i < varlist.count; i++)
-			setvareq(varlist.args[i], VEXPORT|VSTACK);
-		envp = environment();
-		shellexec(argv, envp, path, cmdentry.u.index);
-		/*NOTREACHED*/
-	}
+	evalcommand_execute(cmd, flags, backcmd, argc, argv, path, jp, &cmdentry, &varlist);
 	goto out;
 
 parent:	/* parent process gets here (if we forked) */
