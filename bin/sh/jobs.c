@@ -73,7 +73,6 @@ static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #include "builtins.h"
 #include "eval.h"
 
-
 /*
  * A job structure contains information about a job.  A job is either a
  * single process or a set of processes contained in a pipeline.  In the
@@ -87,11 +86,9 @@ struct procstat {
 	char *cmd;		/* text of command being run */
 };
 
-
 /* states */
 #define JOBSTOPPED 1		/* all procs are stopped */
 #define JOBDONE 2		/* all procs are completed */
-
 
 struct job {
 	struct procstat ps0;	/* status of process */
@@ -109,7 +106,6 @@ struct job {
 	struct job *next;	/* job used after this one */
 #endif
 };
-
 
 static struct job *jobtab;	/* array of jobs */
 static int njobs;		/* size of array */
@@ -146,7 +142,6 @@ static struct job *getcurjob(struct job *);
 static int getjobstatus(const struct job *);
 static void printjobcmd(struct job *);
 static void showjob(struct job *, int);
-
 
 /*
  * Turn job control on and off.
@@ -241,7 +236,6 @@ setjobctl(int on)
 }
 #endif
 
-
 #if JOBS
 int
 fgcmd(int argc __unused, char **argv __unused)
@@ -267,7 +261,6 @@ fgcmd(int argc __unused, char **argv __unused)
 	return status;
 }
 
-
 int
 bgcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
@@ -287,7 +280,6 @@ bgcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfu
 	} while (*argptr != NULL && *++argptr != NULL);
 	return 0;
 }
-
 
 static void
 restartjob(struct job *jp)
@@ -560,7 +552,6 @@ waitcmdloop(struct job *job)
 	 * Loop until a process is terminated or stopped, or a SIGINT is
 	 * received.
 	 */
-
 	do {
 		if (job != NULL) {
 			if (job->state == JOBDONE) {
@@ -620,8 +611,6 @@ jobidcmd(int argc __unused, char **argv __unused) // refer to int (*const builti
 	}
 	return 0;
 }
-
-
 
 /*
  * Convert a job name to a job structure.
@@ -967,7 +956,7 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 	}
 	if (pid == 0) { // child
 		forkshell_child(jp, mode);
-		return 0;
+		return 0; //wyctodo
 	} // child
 	if (rootshell && mode != FORK_NOJOB && mflag) {
 		pid_t pgrp;
@@ -1062,7 +1051,6 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	TRACE(("In parent shell:  child = %d\n", (int)pid));
 	return pid;
 }
-
 
 /*
  * Wait for job to finish.

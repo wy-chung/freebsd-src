@@ -212,7 +212,7 @@ popstackmark(struct stackmark *mark)
 	}
 	stacknxt = mark->stacknxt;
 	stacknleft = mark->stacknleft;
-	//if (stacknleft != 0) //wyc??
+	//if (stacknleft != 0) //wyctodo
 		sstrend = stacknxt + stacknleft;
 	//else
 	//	sstrend = stacknxt;

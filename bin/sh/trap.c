@@ -368,7 +368,7 @@ onsig(int signo)
 		if (suppressint)
 			SET_PENDING_INT;
 		else
-			onint();
+			onint(); /*NOTREACHED*/
 		return;
 	}
 
@@ -451,7 +451,7 @@ dotrap(void)
 		} // for i
 		if (i >= NSIG)
 			break;
-	} // forever loop
+	} // for (;;)
 	in_dotrap--;
 }
 

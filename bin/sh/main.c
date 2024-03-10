@@ -242,7 +242,7 @@ cmdloop(bool top)
 				evalskip = 0;
 			break;
 		}
-	}
+	} // for (;;)
 	popstackmark(&smark);
 	if (top && iflag) {
 		out2c('\n');

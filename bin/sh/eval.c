@@ -176,12 +176,12 @@ evalstring(const char *s, int flags)
 void
 evaltree(union node *n, int flags)
 {
-	int do_etest;
+	bool do_etest;
 	union node *next;
 	struct stackmark smark;
 
 	setstackmark(&smark);
-	do_etest = 0;
+	do_etest = false;
 	if (n == NULL) {
 		TRACE(("%s(NULL) called\n", __func__));
 		exitstatus = 0;
@@ -407,18 +407,18 @@ evalsubshell(union node *n, int flags)
 	struct job *jp;
 	bool backgnd = (n->type == NBACKGND); // background node
 
+	if (backgnd)
+		flags &=~ EV_TESTED;
 	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
 	if ((!backgnd && flags & EV_EXIT && !have_traps()))
 		goto eval;
-	else if (forkshell(jp = makejob(n, 1), n, backgnd) == 0) {
+	else if (forkshell(jp = makejob(n, 1), n, backgnd) == 0) { // child
 eval:
-		if (backgnd)
-			flags &=~ EV_TESTED;
 		redirect(n->nredir.redirect, 0);
 		evaltree(n->nredir.n, flags | EV_EXIT);
 		/*NOTREACHED*/
-	} else if (! backgnd) {
+	} else if (!backgnd) {
 		INTOFF;
 		exitstatus = waitforjob(jp, (int *)NULL);
 		INTON;
