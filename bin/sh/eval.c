@@ -846,9 +846,9 @@ evalcommand_execute(union node *cmd, int flags, struct backcmd *backcmd,
 			exitshell(exitstatus);
 	} /* CMDFUNCTION */
 	else if (cmdentry->cmdtype == CMDBUILTIN) {
-		enum fork_mode mode;
 		char *savecmdname;
 		struct parsefile *savetopfile;
+		enum fork_mode mode;
 		volatile int e;
 
 #ifdef DEBUG
@@ -957,7 +957,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	char *lastarg;
 	int signaled;
 	int do_clearcmdentry;
-	enum fork_mode mode = -1; //wyctodo
 	const char *path = pathval();
 
 	/* First expand the arguments. */
@@ -1097,6 +1096,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			cmdentry.special = 0;
 	}
 
+	enum fork_mode mode;
 	/* Fork off a child process if necessary. */
 	if (((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
 	    && ((flags & EV_EXIT) == 0 || have_traps()))
