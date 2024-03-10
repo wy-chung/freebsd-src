@@ -78,8 +78,6 @@ static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
 /* values returned by readtoken */
 #include "token.h"
 
-
-
 struct heredoc {
 	struct heredoc *next;	/* next here document in list */
 	union node *here;		/* redirection node */
@@ -91,7 +89,6 @@ struct parser_temp {
 	struct parser_temp *next;
 	void *data;
 };
-
 
 static struct heredoc *heredoclist;	/* list of here documents to read */
 static int doprompt;		/* if set, prompt the user */
@@ -109,7 +106,6 @@ static int funclinno;		/* line # where the current function started */
 static struct parser_temp *parser_temp;
 
 #define NOEOFMARK ((const char *)&heredoclist)
-
 
 static union node *list(int);
 static union node *andor(void);
@@ -132,7 +128,6 @@ static void setprompt(int);
 static int pgetc_linecont(void);
 static void getusername(char *, size_t);
 
-
 static void *
 parser_temp_alloc(size_t len)
 {
@@ -148,7 +143,6 @@ parser_temp_alloc(size_t len)
 	return t->data;
 }
 
-
 static void *
 parser_temp_realloc(void *ptr, size_t len)
 {
@@ -162,7 +156,6 @@ parser_temp_realloc(void *ptr, size_t len)
 	INTON;
 	return t->data;
 }
-
 
 static void
 parser_temp_free_upto(void *ptr)
@@ -183,7 +176,6 @@ parser_temp_free_upto(void *ptr)
 		error("bug: parser_temp_free_upto misused");
 }
 
-
 static void
 parser_temp_free_all(void)
 {
@@ -198,7 +190,6 @@ parser_temp_free_all(void)
 	}
 	INTON;
 }
-
 
 /*
  * Read and parse a command.  Returns NEOF on end of file.  (NULL is a
@@ -232,7 +223,6 @@ parsecmd(bool interact)
 	return list(1);
 }
 
-
 /*
  * Read and parse words for wordexp.
  * Returns a list of NARG nodes; NULL if there are no words.
@@ -264,7 +254,6 @@ parsewordexp(void)
 	}
 	return first;
 }
-
 
 static union node *
 list(int nlflag)
@@ -338,8 +327,6 @@ list(int nlflag)
 	}
 }
 
-
-
 static union node *
 andor(void)
 {
@@ -359,8 +346,6 @@ andor(void)
 		n = makebinary(t, n, pipeline());
 	}
 }
-
-
 
 static union node *
 pipeline(void)
@@ -407,8 +392,6 @@ pipeline(void)
 	} else
 		return n1;
 }
-
-
 
 static union node *
 command(void)
@@ -620,7 +603,6 @@ command(void)
 	return n1;
 }
 
-
 static union node *
 simplecmd(union node **rpp, union node *redir)
 {
@@ -746,7 +728,6 @@ fixredir(union node *n, const char *text, int err)
 			n->ndup.vname = makename();
 	}
 }
-
 
 static void
 parsefname(void)
@@ -1815,12 +1796,10 @@ parsearith: {
 
 } /* end of readtoken */
 
-
 /*
  * Returns true if the text contains nothing to expand (no dollar signs
  * or backquotes).
  */
-
 static int
 noexpand(char *text)
 {
@@ -1839,12 +1818,10 @@ noexpand(char *text)
 	return 1;
 }
 
-
 /*
  * Return true if the argument is a legal variable name (a letter or
  * underscore followed by zero or more letters, underscores, and digits).
  */
-
 int
 goodname(const char *name)
 {
@@ -1859,7 +1836,6 @@ goodname(const char *name)
 	}
 	return 1;
 }
-
 
 int
 isassignment(const char *p)
@@ -1876,7 +1852,6 @@ isassignment(const char *p)
 	}
 }
 
-
 static void
 consumetoken(int token)
 {
@@ -1884,13 +1859,11 @@ consumetoken(int token)
 		synexpect(token);
 }
 
-
 /*
  * Called when an unexpected token is read during the parse.  The argument
  * is the token that is expected, or -1 if more than one type of token can
  * occur at this point.
  */
-
 static void
 synexpect(int token)
 {
@@ -1904,7 +1877,6 @@ synexpect(int token)
 	}
 	synerror(msg);
 }
-
 
 static void
 synerror(const char *msg)
@@ -1956,7 +1928,6 @@ pgetc_linecont(void)
 	return (c);
 }
 
-
 static struct passwd *
 getpwlogin(void)
 {
@@ -1968,7 +1939,6 @@ getpwlogin(void)
 
 	return (getpwnam(login));
 }
-
 
 static void
 getusername(char *name, size_t namelen)
@@ -2001,7 +1971,6 @@ getusername(char *name, size_t namelen)
 
 	strlcpy(name, cached_name, namelen);
 }
-
 
 /*
  * called by editline -- any expansions to the prompt
@@ -2170,7 +2139,6 @@ getprompt(void *unused __unused)
 	ps[i] = '\0';
 	return (ps);
 }
-
 
 const char *
 expandstr(const char *ps)

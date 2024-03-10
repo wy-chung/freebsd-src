@@ -205,7 +205,7 @@ cmdloop(bool top)
 	union node *n;
 	struct stackmark smark;
 	bool inter;
-	int numeof = 0;
+	int numeof = 0; // number of EOF
 
 	TRACE(("cmdloop(%d) called\n", top));
 	setstackmark(&smark);
@@ -233,7 +233,7 @@ cmdloop(bool top)
 		} else if (n != NULL && nflag == 0) {
 			job_warning = (job_warning == 2) ? 1 : 0;
 			numeof = 0;
-			evaltree(n, 0);
+			evaltree(n, 0/*flags*/);
 		}
 		popstackmark(&smark);
 		setstackmark(&smark);

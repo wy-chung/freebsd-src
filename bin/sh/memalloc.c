@@ -212,10 +212,10 @@ popstackmark(struct stackmark *mark)
 	}
 	stacknxt = mark->stacknxt;
 	stacknleft = mark->stacknleft;
-	if (stacknleft != 0)
+	//if (stacknleft != 0) //wyc??
 		sstrend = stacknxt + stacknleft;
-	else
-		sstrend = stacknxt;
+	//else
+	//	sstrend = stacknxt;
 	INTON;
 }
 

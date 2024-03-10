@@ -76,8 +76,7 @@ volatile sig_atomic_t pendingsig;	/* indicates some signal received */
 volatile sig_atomic_t pendingsig_waitcmd;	/* indicates wait builtin should be interrupted */
 static int in_dotrap;			/* do we execute in a trap handler? */
 static char *volatile trap[NSIG];	/* trap handler commands */
-static volatile sig_atomic_t gotsig[NSIG];
-				/* indicates specified signal received */
+static volatile sig_atomic_t gotsig[NSIG]; /* indicates specified signal received */
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
 static int last_trapsig;
 
@@ -379,7 +378,7 @@ onsig(int signo)
 
 	if (trap[signo] != NULL && trap[signo][0] != '\0' &&
 	    (signo != SIGCHLD || !ignore_sigchld)) {
-		gotsig[signo] = 1;
+		gotsig[signo] = true;
 		pendingsig = signo;
 		pendingsig_waitcmd = signo;
 	}
@@ -402,7 +401,7 @@ dotrap(void)
 		pendingsig_waitcmd = 0;
 		for (i = 1; i < NSIG; i++) {
 			if (gotsig[i]) {
-				gotsig[i] = 0;
+				gotsig[i] = false;
 				if (trap[i]) {
 					/*
 					 * Ignore SIGCHLD to avoid infinite
@@ -446,13 +445,13 @@ dotrap(void)
 
 					if (i == SIGCHLD)
 						ignore_sigchld--;
-				}
+				} // if trap[i]
 				break;
-			}
-		}
+			} // if gotsig[i]
+		} // for i
 		if (i >= NSIG)
 			break;
-	}
+	} // forever loop
 	in_dotrap--;
 }
 
