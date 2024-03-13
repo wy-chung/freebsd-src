@@ -1270,25 +1270,25 @@ dowait(int mode, struct job *job)
  * return 1 if there are stopped jobs, otherwise 0
  */
 int job_warning = 0;
-int
+bool
 stoppedjobs(void)
 {
 	int jobno;
 	struct job *jp;
 
 	if (job_warning)
-		return (0);
+		return (false);
 	for (jobno = 1, jp = jobtab; jobno <= njobs; jobno++, jp++) {
 		if (jp->used == 0)
 			continue;
 		if (jp->state == JOBSTOPPED) {
 			out2fmt_flush("You have stopped jobs.\n");
 			job_warning = 2;
-			return (1);
+			return (true);
 		}
 	}
 
-	return (0);
+	return (false);
 }
 
 static void

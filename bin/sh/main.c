@@ -204,7 +204,7 @@ cmdloop(bool top)
 {
 	union node *n;
 	struct stackmark smark;
-	bool inter;
+	bool inter; // interactive
 	int numeof = 0; // number of EOF
 
 	TRACE(("cmdloop(%d) called\n", top));

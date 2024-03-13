@@ -49,7 +49,7 @@ struct shparam {
 #define Iflag optval[2] // ignoreeof
 #define iflag optval[3] // interactive
 #define mflag optval[4] // monitor: Turn on job control
-#define nflag optval[5] // noexec
+#define nflag optval[5] // noexec, read commands but do not execute them
 #define sflag optval[6] // stdin
 #define xflag optval[7] // xtrace
 #define vflag optval[8] // verbose

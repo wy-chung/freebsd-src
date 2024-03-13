@@ -91,8 +91,8 @@ struct parser_temp {
 };
 
 static struct heredoc *heredoclist;	/* list of here documents to read */
-static int doprompt;		/* if set, prompt the user */
-static int needprompt;		/* true if interactive and at start of line */
+static bool doprompt;		/* if set, prompt the user */
+static bool needprompt;		/* true if interactive and at start of line */
 static int lasttoken;		/* last token read */
 static int tokpushback;		/* last token pushed back */
 static char *wordtext;		/* text of last word returned by readtoken */
@@ -213,7 +213,7 @@ parsecmd(bool interact)
 		setprompt(1);
 	else
 		setprompt(0);
-	needprompt = 0;
+	needprompt = false;
 	t = readtoken();
 	if (t == TEOF)
 		return NEOF;
@@ -241,9 +241,9 @@ parsewordexp(void)
 
 	tokpushback = 0;
 	checkkwd = 0;
-	doprompt = 0;
+	doprompt = false;
 	setprompt(0);
-	needprompt = 0;
+	needprompt = false;
 	pnext = &first;
 	while ((t = readtoken()) != TEOF) {
 		if (t != TWORD)
@@ -778,7 +778,7 @@ parseheredoc(void)
 		heredoclist = here->next;
 		if (needprompt) {
 			setprompt(2);
-			needprompt = 0;
+			needprompt = false;
 		}
 		readtoken1(pgetc(), here->here->type == NHERE? SQSYNTAX : DQSYNTAX,
 				here->eofmark, here->striptabs);
@@ -884,7 +884,7 @@ xxreadtoken(void)
 	}
 	if (needprompt) {
 		setprompt(2);
-		needprompt = 0;
+		needprompt = false;
 	}
 	startlinno = plinno;
 	for (;;) {	/* until token or start of word found */
@@ -1062,7 +1062,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 	char *volatile str;
 	struct jmploc jmploc;
 	size_t savelen;
-	int saveprompt;
+	bool saveprompt;
 	struct jmploc *const savehandler = handler;
 	const int bq_startlinno = plinno;
 	char *volatile ostr = NULL;
@@ -1107,7 +1107,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 		for (;;) {
 			if (needprompt) {
 				setprompt(2);
-				needprompt = 0;
+				needprompt = false;
 			}
 			CHECKSTRSPACE(2, oout);
 			c = pgetc_linecont();
@@ -1152,7 +1152,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 
 	if (oldstyle) {
 		saveprompt = doprompt;
-		doprompt = 0;
+		doprompt = false;
 	}
 
 	n = list(0);
@@ -2146,7 +2146,7 @@ expandstr(const char *ps)
 	union node n;
 	struct jmploc jmploc;
 	struct jmploc *const savehandler = handler;
-	const int saveprompt = doprompt;
+	const bool saveprompt = doprompt;
 	struct parsefile *const savetopfile = getcurrentfile();
 	struct parser_temp *const saveparser_temp = parser_temp;
 	const char *result = NULL;
@@ -2155,7 +2155,7 @@ expandstr(const char *ps)
 		handler = &jmploc;
 		parser_temp = NULL;
 		setinputstring(ps, 1);
-		doprompt = 0;
+		doprompt = false;
 		readtoken1(pgetc(), DQSYNTAX, NOEOFMARK, 0);
 		if (backquotelist != NULL)
 			error("Command substitution not allowed here");
