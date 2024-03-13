@@ -177,7 +177,6 @@ void
 evaltree(union node *n, int flags)
 {
 	bool do_etest;
-	union node *next;
 	struct stackmark smark;
 
 	setstackmark(&smark);
@@ -188,9 +187,9 @@ evaltree(union node *n, int flags)
 		goto out;
 	}
 	do {
-		next = NULL;
+		union node *next = NULL;
 #ifndef NO_HISTORY
-		displayhist = 1;	/* show history substitutions done with fc */
+		displayhist = true;	/* show history substitutions done with fc */
 #endif
 		TRACE(("%s(%p: %d) called\n", __func__, (void *)n, n->type));
 		switch (n->type) {

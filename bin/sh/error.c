@@ -49,6 +49,7 @@ static char sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 #include "nodes.h" /* show.h needs nodes.h */
 #include "show.h"
 #include "trap.h"
+#include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -116,6 +117,28 @@ onint(void)
 		kill(getpid(), SIGINT);
 		_exit(128 + SIGINT);
 	}
+}
+
+/* Obtain a backtrace and print it to stdout. */
+#define BACKTRACE_DEPTH 30
+
+void
+print_trace(void)
+{
+	void *array[BACKTRACE_DEPTH];
+	size_t size;
+	char **strings;
+	size_t i;
+
+	size = backtrace(array, BACKTRACE_DEPTH);
+	strings = backtrace_symbols(array, size);
+
+	printf ("Obtained %zd stack frames.\n", size);
+
+	for (i = 0; i < size; i++)
+		printf ("%s\n", strings[i]);
+
+	free(strings);
 }
 
 static void

@@ -950,7 +950,7 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 	if (pid == -1) {
 		TRACE(("Fork failed, errno=%d\n", errno));
 		INTON;
-		//wyc error("Cannot fork: %s", strerror(errno));
+		//print_trace();
 		error("%s: Cannot fork: %s", __func__, strerror(errno));
 		/*NOTREACHED*/
 	}
@@ -1011,7 +1011,7 @@ vforkexecshell_child(char **argv, char **envp, const char *path, int idx, int pi
 	/*NOTREACHED*/
 }
 
-pid_t
+void
 vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int idx, int pip[2])
 {
 	pid_t pid;
@@ -1028,7 +1028,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	if (pid == -1) {
 		TRACE(("Vfork failed, errno=%d\n", errno));
 		INTON;
-		//wyc error("Cannot fork: %s", strerror(errno));
+		print_trace();
 		error("%s: Cannot fork: %s", __func__, strerror(errno));
 		/*NOTREACHED*/
 	}
@@ -1049,7 +1049,6 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	}
 	SETINTON(inton);
 	TRACE(("In parent shell:  child = %d\n", (int)pid));
-	return pid;
 }
 
 /*

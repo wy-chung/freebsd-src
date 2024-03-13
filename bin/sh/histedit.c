@@ -68,7 +68,7 @@ static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
 
 History *hist;	/* history cookie */
 EditLine *el;	/* editline cookie */
-int displayhist;
+bool displayhist;
 static int savehist;
 static FILE *el_in, *el_out;
 static bool in_command_completion;
@@ -317,7 +317,7 @@ operands:
 		handler = &jmploc;
 		if (++active > MAXHISTLOOPS) {
 			active = 0;
-			displayhist = 0;
+			displayhist = false;
 			error("called recursively too many times");
 		}
 		/*
@@ -457,7 +457,7 @@ operands:
 	if (lflg == 0 && active > 0)
 		--active;
 	if (displayhist)
-		displayhist = 0;
+		displayhist = false;
 	handler = savehandler;
 	return 0;
 }

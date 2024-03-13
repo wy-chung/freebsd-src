@@ -56,7 +56,7 @@ void setjobctl(int);
 void showjobs(bool, int);
 struct job *makejob(union node *, int);
 pid_t forkshell(struct job *, union node *, enum fork_mode);
-pid_t vforkexecshell(struct job *, char **, char **, const char *, int, int [2]);
+void vforkexecshell(struct job *, char **, char **, const char *, int, int [2]);
 int waitforjob(struct job *, int *);
 int stoppedjobs(void);
 int backgndpidset(void);

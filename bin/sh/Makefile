@@ -27,7 +27,7 @@ SRCS= ${SHSRCS} ${GENSRCS} ${GENHDRS}
 
 LIBADD=	edit
 
-CFLAGS+=-DSHELL -I. -I${.CURDIR}
+CFLAGS+=-DSHELL -I. -I${.CURDIR} -lexecinfo
 # for debug:
 # DEBUG_FLAGS+= -g -DDEBUG=2 -fno-inline
 
