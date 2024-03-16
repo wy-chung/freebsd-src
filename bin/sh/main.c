@@ -174,7 +174,7 @@ state3:
 		evalstring(minusc, sflag ? 0 : EV_EXIT);
 	}
 state4:
-	if (sflag || minusc == NULL) {
+	if (sflag || minusc == NULL) { // stdin or -c
 		cmdloop(true);
 	}
 	exitshell(exitstatus);

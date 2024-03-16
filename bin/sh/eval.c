@@ -188,6 +188,7 @@ evaltree(union node *n, int flags)
 	}
 	do {
 		union node *next = NULL;
+
 #ifndef NO_HISTORY
 		displayhist = true;	/* show history substitutions done with fc */
 #endif

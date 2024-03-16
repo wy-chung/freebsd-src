@@ -1654,7 +1654,7 @@ make_main(int argc, char **argv)
 int
 main(int argc, char **argv)
 {
-	make_main(argc, argv);
+	return make_main(argc, argv);
 }
 
 /*

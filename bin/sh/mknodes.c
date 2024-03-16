@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)mknodes.c	8.2 (Berkeley) 5/4/95";
 #endif
 #include <sys/cdefs.h>
 /*
- * This program reads the nodetypes file and nodes.c.pat file.  It generates
+ * This program reads the files nodetypes and nodes.c.pat.  It generates
  * the files nodes.h and nodes.c.
  */
 
@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)mknodes.c	8.2 (Berkeley) 5/4/95";
 #include <string.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #define MAXTYPES 50		/* max number of node types */
 #define MAXFIELDS 20		/* max fields in a structure */
@@ -94,7 +95,7 @@ static void parsenode(void);
 static void parsefield(void);
 static void output(char *);
 static void outsizes(FILE *);
-static void outfunc(FILE *, int);
+static void outfunc(FILE *, bool);
 static void indent(int, FILE *);
 static int nextfield(char *);
 static void skipbl(void);
@@ -102,11 +103,12 @@ static int readline(FILE *);
 static void _error(const char *, ...) __printf0like(1, 2) __dead2;
 static char *savestr(const char *);
 
-int
-main(int argc, char *argv[])
+static int
+mknodes_main(int argc, char *argv[])
 {
 	FILE *infp;
 
+	printf("%s:\n", __func__);
 	if (argc != 3)
 		_error("usage: mknodes file");
 	if ((infp = fopen(argv[1], "r")) == NULL)
@@ -120,6 +122,12 @@ main(int argc, char *argv[])
 	fclose(infp);
 	output(argv[2]);
 	exit(0);
+}
+
+int
+main(int argc, char *argv[])
+{
+	return mknodes_main(argc, argv);
 }
 
 static void
@@ -203,8 +211,12 @@ static const char writer[] = //wyctodo
 " */\n"
 "\n";
 
+/*
+  @file is the input file.
+  The outputs are two files, nodes.h and nodes.c
+*/
 static void
-output(char *file)
+output(char *file/*INFILE*/) // file == "nodes.c.pat"
 {
 	FILE *hfile;
 	FILE *cfile;
@@ -257,9 +269,9 @@ output(char *file)
 		if (strcmp(p, "%SIZES\n") == 0)
 			outsizes(cfile);
 		else if (strcmp(p, "%CALCSIZE\n") == 0)
-			outfunc(cfile, 1);
+			outfunc(cfile, true);
 		else if (strcmp(p, "%COPY\n") == 0)
-			outfunc(cfile, 0);
+			outfunc(cfile, false);
 		else
 			fputs(line, cfile);
 	}
@@ -283,7 +295,7 @@ outsizes(FILE *cfile)
 }
 
 static void
-outfunc(FILE *cfile, int calcsize)
+outfunc(FILE *cfile, bool calcsize)
 {
 	struct str *sp;
 	struct field *fp;
@@ -344,7 +356,9 @@ outfunc(FILE *cfile, int calcsize)
 				break;
 			case T_INT:
 			case T_OTHER:
-				if (! calcsize) {
+				if (calcsize)
+					;
+				else {
 					indent(12, cfile);
 					fprintf(cfile, "new->%s.%s = n->%s.%s;\n",
 						sp->tag, fp->name, sp->tag, fp->name);
