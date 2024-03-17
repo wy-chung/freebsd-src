@@ -174,7 +174,7 @@ evalstring(const char *s, int flags)
  * exitstatus.
  */
 void
-evaltree(union node *n, int flags)
+evaltree(union node *n, int flags) // flags are 0 from cmdloop
 {
 	bool do_etest;
 	struct stackmark smark;
@@ -679,7 +679,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 		result->fd, result->buf, result->nleft, result->jp));
 }
 
-static int
+static bool
 mustexpandto(const char *argtext, const char *mask)
 {
 	for (;;) {
@@ -690,28 +690,28 @@ mustexpandto(const char *argtext, const char *mask)
 		if (*argtext == CTLESC)
 			argtext++;
 		else if (BASESYNTAX[(int)*argtext] == CCTL)
-			return (0);
+			return (false);
 		if (*argtext != *mask)
-			return (0);
+			return (false);
 		if (*argtext == '\0')
-			return (1);
+			return (true);
 		argtext++;
 		mask++;
 	}
 }
 
-static int
+static bool
 isdeclarationcmd(struct narg *arg)
 {
-	int have_command = 0;
+	bool have_command = false;
 
 	if (arg == NULL)
-		return (0);
+		return (false);
 	while (mustexpandto(arg->text, "command")) {
-		have_command = 1;
+		have_command = true;
 		arg = &arg->next->narg;
 		if (arg == NULL)
-			return (0);
+			return (false);
 		/*
 		 * To also allow "command -p" and "command --" as part of
 		 * a declaration command, add code here.
@@ -950,7 +950,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	struct arglist varlist;
 	char **argv;
 	int argc;
-	int varflag;
+	int varflag; //wyc this is not a boolean variable. It's value can be 0, 1 or 2
 	int pip[2];
 	struct cmdentry cmdentry;
 	struct job *jp;

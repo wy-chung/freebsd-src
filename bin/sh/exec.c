@@ -625,7 +625,7 @@ unsetfunc(const char *name)
 /*
  * Check if a function by a certain name exists.
  */
-int
+bool
 isfunc(const char *name)
 {
 	struct tblentry *cmdp;
