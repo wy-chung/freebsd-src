@@ -126,6 +126,7 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 		errorwithstatus(127, "%s: not found", argv[0]);
 	else
 		errorwithstatus(126, "%s: %s", argv[0], strerror(e));
+	// errorwithstatus will call longjmp
 	/*NOTREACHED*/
 }
 

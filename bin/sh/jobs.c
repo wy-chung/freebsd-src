@@ -1008,6 +1008,7 @@ vforkexecshell_child(char **argv, char **envp, const char *path, int idx, int pi
 	}
 	handler = &jmploc;
 	shellexec(argv, envp, path, idx);
+	// will call execve or _exit at #1001
 	/*NOTREACHED*/
 }
 
@@ -1025,30 +1026,30 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	flushall();
 	savehandler = handler;
 	pid = vfork();
-	if (pid == -1) {
+	if (pid == 0) { // child
+		vforkexecshell_child(argv, envp, path, idx, pip); // will call execve or _exit
+		/*NOTREACHED*/
+	} else if (pid == -1) {
 		TRACE(("Vfork failed, errno=%d\n", errno));
 		INTON;
 		print_trace();
-		error("%s: Cannot fork: %s", __func__, strerror(errno));
+		error("%s: Cannot fork: %s", __func__, strerror(errno)); // will call a longjmp
 		/*NOTREACHED*/
-	}
-	if (pid == 0) { // child
-		vforkexecshell_child(argv, envp, path, idx, pip);
-		/*NOTREACHED*/
-	}
-	handler = savehandler;
-	if (jp) {
-		struct procstat *ps = &jp->ps[jp->nprocs++];
-		ps->pid = pid;
-		ps->status = -1;
-		ps->cmd = nullstr;
-		jp->foreground = 1;
+	} else { // parent
+		handler = savehandler;
+		if (jp) {
+			struct procstat *ps = &jp->ps[jp->nprocs++];
+			ps->pid = pid;
+			ps->status = -1;
+			ps->cmd = nullstr;
+			jp->foreground = 1;
 #if JOBS
-		setcurjob(jp);
+			setcurjob(jp);
 #endif
+		}
+		SETINTON(inton);
+		TRACE(("In parent shell:  child = %d\n", (int)pid));
 	}
-	SETINTON(inton);
-	TRACE(("In parent shell:  child = %d\n", (int)pid));
 }
 
 /*

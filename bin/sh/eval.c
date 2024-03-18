@@ -887,6 +887,19 @@ evalcommand_execute(union node *cmd, int flags, struct backcmd *backcmd,
 		nextopt_optptr = NULL;		/* initialize nextopt */
 		builtin_flags = flags;
 		exitstatus = (*builtinfunc[cmdentry->u.index])(argc, argv);
+	#if defined(WYC) // the list of builtin functions
+		bltincmd();	aliascmd();	bgcmd();	bindcmd();
+		breakcmd();	cdcmd();	commandcmd();	dotcmd();
+		echocmd();	evalcmd();	execcmd();	exitcmd();
+		letcmd();	exportcmd();	falsecmd();	fgcmd();
+		getoptscmd();	hashcmd();	histcmd();	jobidcmd();
+		jobscmd();	killcmd();	localcmd();	printfcmd();
+		pwdcmd();	readcmd();	returncmd();	setcmd();
+		setvarcmd();	shiftcmd();	testcmd();	timescmd();
+		trapcmd();	truecmd();	typecmd();	ulimitcmd();
+		umaskcmd();	unaliascmd();	unsetcmd();	waitcmd();
+		wordexpcmd();	freebsd_wordexpcmd();
+	#endif
 		flushall();
 		if (outiserror(out1)) {
 			warning("write error on stdout");
@@ -934,6 +947,7 @@ cmddone:
 			setvareq(varlist->args[i], VEXPORT|VSTACK);
 		envp = environment();
 		shellexec(argv, envp, path, cmdentry->u.index);
+		// will call execve or longjmp
 		/*NOTREACHED*/
 	}
 }
@@ -1067,7 +1081,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 						argv += 2;
 						argc -= 2;
 					}
-					path = _PATH_STDPATH;
+					path = _PATH_STDPATH; // "/usr/bin:/bin:/usr/sbin:/sbin"
 					clearcmdentry();
 					do_clearcmdentry = true;
 				} else if (!strcmp(argv[1], "--")) {
@@ -1085,7 +1099,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				bltinonly = false;
 			} else
 				break;
-		}
+		} // for(;;)
 		/*
 		 * Special builtins lose their special properties when
 		 * called via 'command'.
@@ -1118,7 +1132,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			goto parent;
 		}
 		if (forkshell(jp, cmd, mode) != 0) // parent
-			goto parent;	// 1154 /* at end of routine */
+			goto parent;	/* at end of routine */
 		// only child runs here
 		if (flags & EV_BACKCMD) {
 			FORCEINTON;

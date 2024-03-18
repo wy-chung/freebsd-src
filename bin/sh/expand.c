@@ -59,7 +59,6 @@ static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
  * Routines to expand arguments to commands.  We have to deal with
  * backquotes, shell variables, and file metacharacters.
  */
-
 #include "shell.h"
 #include "main.h"
 #include "nodes.h"
@@ -255,8 +254,6 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 		appendarglist(arglist, grabstackstr(expdest));
 }
 
-
-
 /*
  * Perform parameter expansion, command substitution and arithmetic
  * expansion, and tilde expansion if requested via EXP_TILDE/EXP_VARTILDE.
@@ -406,7 +403,6 @@ exptilde(const char *p, int flag)
 	}
 }
 
-
 /*
  * Expand arithmetic expression.
  */
@@ -449,7 +445,6 @@ expari(const char *p, struct nodelist **restrict argbackq, int flag,
 		    dst);
 	return p;
 }
-
 
 /*
  * Perform command substitution.
@@ -529,8 +524,6 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 	expdest = dest;
 	INTON;
 }
-
-
 
 static void
 recordleft(const char *str, const char *loc, char *startp)
@@ -616,7 +609,6 @@ subevalvar_trim(const char *p, struct nodelist **restrict argbackq, int strloc,
 	return p;
 }
 
-
 static const char *
 subevalvar_misc(const char *p, struct nodelist **restrict argbackq,
     const char *var, int subtype, int startloc, int varflags)
@@ -649,12 +641,10 @@ subevalvar_misc(const char *p, struct nodelist **restrict argbackq,
 	}
 }
 
-
 /*
  * Expand a variable, and return a pointer to the next character in the
  * input string.
  */
-
 static const char *
 evalvar(const char *p, struct nodelist **restrict argbackq, int flag,
     struct worddest *dst)
@@ -824,12 +814,9 @@ evalvar(const char *p, struct nodelist **restrict argbackq, int flag,
 	return p;
 }
 
-
-
 /*
  * Test whether a special or positional parameter is set.
  */
-
 static int
 varisset(const char *name, int nulok)
 {
@@ -926,7 +913,6 @@ reprocess(int startloc, int flag, int subtype, int quoted,
 /*
  * Add the value of a special or positional parameter to the stack string.
  */
-
 static void
 varvalue(const char *name, int quoted, int subtype, int flag,
     struct worddest *dst)
@@ -1020,8 +1006,6 @@ varvalue(const char *name, int quoted, int subtype, int flag,
 	strtodest(buf, flag, subtype, quoted, dst);
 }
 
-
-
 static char expdir[PATH_MAX];
 #define expdir_end (expdir + sizeof(expdir))
 
@@ -1061,11 +1045,9 @@ expandmeta(char *pattern, struct arglist *dstlist)
 	}
 }
 
-
 /*
  * Do metacharacter (i.e. *, ?, [...]) expansion.
  */
-
 static void
 expmeta(char *enddir, char *name, struct arglist *arglist)
 {
@@ -1193,7 +1175,6 @@ expmeta(char *enddir, char *name, struct arglist *arglist)
 		endname[-esc - 1] = esc ? CTLESC : '/';
 }
 
-
 static int
 expsortcmp(const void *p1, const void *p2)
 {
@@ -1202,8 +1183,6 @@ expsortcmp(const void *p1, const void *p2)
 
 	return (strcoll(s1, s2));
 }
-
-
 
 static wchar_t
 get_wc(const char **p)
@@ -1220,7 +1199,6 @@ get_wc(const char **p)
 		*p += chrlen;
 	return c;
 }
-
 
 /*
  * See if a character matches a character class, starting at the first colon
@@ -1252,11 +1230,9 @@ match_charclass(const char *p, wchar_t chr, const char **end)
 	return iswctype(chr, cclass);
 }
 
-
 /*
  * Returns true if the pattern matches the string.
  */
-
 static int
 patmatch(const char *pattern, const char *string)
 {
@@ -1401,12 +1377,9 @@ backtrack:
 	}
 }
 
-
-
 /*
  * Remove any CTLESC and CTLQUOTEMARK characters from a string.
  */
-
 void
 rmescapes(char *str)
 {
@@ -1430,12 +1403,9 @@ rmescapes(char *str)
 	*q = '\0';
 }
 
-
-
 /*
  * See if a pattern matches in a case statement.
  */
-
 int
 casematch(union node *pattern, const char *val)
 {
@@ -1458,7 +1428,6 @@ casematch(union node *pattern, const char *val)
 /*
  * Our own itoa().
  */
-
 static void
 cvtnum(int num, char *buf)
 {
@@ -1481,7 +1450,6 @@ cvtnum(int num, char *buf)
 /*
  * Do most of the work for wordexp(3).
  */
-
 int
 wordexpcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
 {
@@ -1500,7 +1468,6 @@ wordexpcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, ch
 /*
  * Do most of the work for wordexp(3), new version.
  */
-
 int
 freebsd_wordexpcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
 {
