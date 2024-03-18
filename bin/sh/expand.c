@@ -522,7 +522,7 @@ expbackq(union node *cmd, int quoted, int flag, struct worddest *dst)
 		ckfree(in.buf);
 	if (in.jp) {
 		p = grabstackstr(dest);
-		exitstatus = waitforjob(in.jp, (int *)NULL);
+		exitstatus = waitforjob(in.jp, (bool *)NULL);
 		ungrabstackstr(p, dest);
 	}
 	TRACE(("expbackq: done\n"));

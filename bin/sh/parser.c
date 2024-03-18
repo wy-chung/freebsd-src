@@ -1837,17 +1837,17 @@ goodname(const char *name)
 	return 1;
 }
 
-int
+bool
 isassignment(const char *p)
 {
 	if (!is_name(*p))
-		return 0;
+		return false;
 	p++;
 	for (;;) {
 		if (*p == '=')
-			return 1;
+			return true;
 		else if (!is_in_name(*p))
-			return 0;
+			return false;
 		p++;
 	}
 }

@@ -256,7 +256,7 @@ fgcmd(int argc __unused, char **argv __unused)
 	restartjob(jp);
 	jp->foreground = 1;
 	INTOFF;
-	status = waitforjob(jp, (int *)NULL);
+	status = waitforjob(jp, (bool *)NULL);
 	INTON;
 	return status;
 }
@@ -1070,7 +1070,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
  * confuse this approach.
  */
 int
-waitforjob(struct job *jp, int *signaled)
+waitforjob(struct job *jp, bool *signaled)
 {
 #if JOBS
 	int propagate_int = jp->jobctl && jp->foreground;

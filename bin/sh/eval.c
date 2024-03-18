@@ -420,7 +420,7 @@ eval:
 		/*NOTREACHED*/
 	} else if (!backgnd) {
 		INTOFF;
-		exitstatus = waitforjob(jp, (int *)NULL);
+		exitstatus = waitforjob(jp, (bool *)NULL);
 		INTON;
 	} else
 		exitstatus = 0;
@@ -503,10 +503,10 @@ exphere(union node *redir, struct arglist *fn)
 static void
 expredir(union node *n)
 {
-	union node *redir;
 
-	for (redir = n ; redir ; redir = redir->nfile.next) {
+	for (union node *redir = n ; redir ; redir = redir->nfile.next) {
 		struct arglist fn;
+
 		emptyarglist(&fn);
 		switch (redir->type) {
 		case NFROM:
@@ -589,7 +589,7 @@ evalpipe(union node *n)
 	INTON;
 	if (n->npipe.backgnd == 0) {
 		INTOFF;
-		exitstatus = waitforjob(jp, (int *)NULL);
+		exitstatus = waitforjob(jp, (bool *)NULL);
 		TRACE(("evalpipe:  job done exit status %d\n", exitstatus));
 		INTON;
 	} else
@@ -945,7 +945,6 @@ cmddone:
 static void
 evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 {
-	union node *argp;
 	struct arglist arglist;
 	struct arglist varlist;
 	char **argv;
@@ -955,8 +954,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	struct cmdentry cmdentry;
 	struct job *jp;
 	char *lastarg;
-	int signaled;
-	int do_clearcmdentry;
+	bool do_clearcmdentry;
 	const char *path = pathval();
 
 	/* First expand the arguments. */
@@ -965,15 +963,14 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	emptyarglist(&varlist);
 	varflag = 1;
 	jp = NULL;
-	do_clearcmdentry = 0;
+	do_clearcmdentry = false;
 	oexitstatus = exitstatus;
 	exitstatus = 0;
 	/* Add one slot at the beginning for tryexec(). */
 	appendarglist(&arglist, nullstr);
-	for (argp = cmd->ncmd.args ; argp ; argp = argp->narg.next) {
+	for (union node *argp = cmd->ncmd.args ; argp ; argp = argp->narg.next) {
 		if (varflag && isassignment(argp->narg.text)) {
-			expandarg(argp, varflag == 1 ? &varlist : &arglist,
-			    EXP_VARTILDE);
+			expandarg(argp, varflag == 1 ? &varlist : &arglist, EXP_VARTILDE);
 			continue;
 		} else if (varflag == 1)
 			varflag = isdeclarationcmd(&argp->narg) ? 2 : 0;
@@ -1001,7 +998,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		cmdentry.special = 0;
 	} else {
 		static const char PATH[] = "PATH=";
-		int cmd_flags = 0, bltinonly = 0;
+		int cmd_flags = 0;
+		bool bltinonly = false;
 
 		/*
 		 * Modify the command lookup path, if a PATH= assignment
@@ -1029,7 +1027,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				 * directories in front of the new PATH.
 				 */
 				clearcmdentry();
-				do_clearcmdentry = 1;
+				do_clearcmdentry = true;
 			}
 
 		for (;;) {
@@ -1051,7 +1049,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 					break;
 				argv++;
 				argc--;
-				bltinonly = 1;
+				bltinonly = true;
 			} else if (cmdentry.u.index == COMMANDCMD) {
 				if (argc == 1)
 					break;
@@ -1071,7 +1069,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 					}
 					path = _PATH_STDPATH;
 					clearcmdentry();
-					do_clearcmdentry = 1;
+					do_clearcmdentry = true;
 				} else if (!strcmp(argv[1], "--")) {
 					if (argc == 2)
 						break;
@@ -1084,7 +1082,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 					argc--;
 				}
 				cmd_flags |= DO_NOFUNC;
-				bltinonly = 0;
+				bltinonly = false;
 			} else
 				break;
 		}
@@ -1140,6 +1138,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 
 parent:	/* parent process gets here (if we forked) */
 	if (mode == FORK_FG) {	/* argument to fork */
+		bool signaled;
+
 		INTOFF;
 		exitstatus = waitforjob(jp, &signaled);
 		INTON;

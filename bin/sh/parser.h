@@ -81,6 +81,6 @@ union node *parsewordexp(void);
 void forcealias(void);
 void fixredir(union node *, const char *, int);
 int goodname(const char *);
-int isassignment(const char *);
+bool isassignment(const char *);
 char *getprompt(void *);
 const char *expandstr(const char *);
