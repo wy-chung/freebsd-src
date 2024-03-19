@@ -417,6 +417,7 @@ evalsubshell(union node *n, int flags)
 eval:
 		redirect(n->nredir.redirect, 0);
 		evaltree(n->nredir.n, flags | EV_EXIT);
+		// with the flag EV_EXIT, it will call long jump
 		/*NOTREACHED*/
 	} else if (!backgnd) {
 		INTOFF;
@@ -578,6 +579,7 @@ evalpipe(union node *n)
 				}
 			}
 			evaltree(lp->n, EV_EXIT);
+			// with the flag EV_EXIT, it will call long jump
 			/*NOTREACHED*/
 		}
 		if (prevfd >= 0)
@@ -668,6 +670,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 				close(pip[1]);
 			}
 			evaltree(n, EV_EXIT);
+			// with the flag EV_EXIT, it will call long jump
 			/*NOTREACHED*/
 		}
 		close(pip[1]);
@@ -1330,6 +1333,7 @@ execcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char 
 		for (i = 0; i < cmdenviron->count; i++)
 			setvareq(cmdenviron->args[i], VEXPORT|VSTACK);
 		shellexec(argv + 1, environment(), pathval(), 0);
+		// will call execve or longjmp
 		/*NOTREACHED*/
 	}
 	return 0;

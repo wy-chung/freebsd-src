@@ -102,7 +102,6 @@ static int openhere(union node *);
 void
 redirect(union node *redir, int flags)
 {
-	union node *n;
 	struct redirtab *sv = NULL;
 	int i;
 	int fd;
@@ -125,7 +124,7 @@ redirect(union node *redir, int flags)
 			empty_redirs = 0;
 		}
 	}
-	for (n = redir ; n ; n = n->nfile.next) {
+	for (union node *n = redir ; n ; n = n->nfile.next) {
 		fd = n->nfile.fd;
 		if (fd == 0)
 			fd0_redirected = true;

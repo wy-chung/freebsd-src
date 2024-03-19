@@ -852,9 +852,7 @@ getcurjob(struct job *nj)
 static void
 forkshell_child(struct job *jp, enum fork_mode mode)
 {
-	struct job *p;
 	bool wasroot;
-	int i;
 
 	TRACE(("Child shell %d\n", (int)getpid()));
 	wasroot = rootshell;
@@ -893,8 +891,7 @@ forkshell_child(struct job *jp, enum fork_mode mode)
 		    ! fd0_redirected_p ()) {
 			close(0);
 			if (open(_PATH_DEVNULL, O_RDONLY) != 0)
-				error("cannot open %s: %s",
-				    _PATH_DEVNULL, strerror(errno));
+				error("cannot open %s: %s", _PATH_DEVNULL, strerror(errno));
 		}
 	}
 #else // !JOBS
@@ -905,12 +902,13 @@ forkshell_child(struct job *jp, enum fork_mode mode)
 		    ! fd0_redirected_p ()) {
 			close(0);
 			if (open(_PATH_DEVNULL, O_RDONLY) != 0)
-				error("cannot open %s: %s",
-				    _PATH_DEVNULL, strerror(errno));
+				error("cannot open %s: %s", _PATH_DEVNULL, strerror(errno));
 		}
 	}
 #endif
 	INTOFF;
+	struct job *p;
+	int i;
 	for (i = njobs, p = jobtab ; --i >= 0 ; p++)
 		if (p->used)
 			freejob(p);
@@ -947,47 +945,47 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 		checkzombies();
 	flushall();
 	pid = fork();
-	if (pid == -1) {
+	if (pid == 0) { // child
+		forkshell_child(jp, mode);
+	} else if (pid == -1) {
 		TRACE(("Fork failed, errno=%d\n", errno));
 		INTON;
 		//print_trace();
 		error("%s: Cannot fork: %s", __func__, strerror(errno));
+		// will call a long jump
 		/*NOTREACHED*/
-	}
-	if (pid == 0) { // child
-		forkshell_child(jp, mode);
-		return 0; //wyctodo
-	} // child
-	if (rootshell && mode != FORK_NOJOB && mflag) {
-		pid_t pgrp;
+	} else {
+		if (rootshell && mode != FORK_NOJOB && mflag) {
+			pid_t pgrp;
 
-		if (jp == NULL || jp->nprocs == 0)
-			pgrp = pid;
-		else
-			pgrp = jp->ps[0].pid;
-		setpgid(pid, pgrp);
-	}
-	if (mode == FORK_BG) {
-		if (bgjob != NULL && bgjob->state == JOBDONE &&
-		    !bgjob->remembered && !iflag)
-			freejob(bgjob);
-		backgndpid = pid;		/* set $! */
-		bgjob = jp;
-	}
-	if (jp) {
-		struct procstat *ps = &jp->ps[jp->nprocs++];
-		ps->pid = pid;
-		ps->status = -1;
-		ps->cmd = nullstr;
-		if (iflag && rootshell && n)
-			ps->cmd = commandtext(n);
-		jp->foreground = mode == FORK_FG;
+			if (jp == NULL || jp->nprocs == 0)
+				pgrp = pid;
+			else
+				pgrp = jp->ps[0].pid;
+			setpgid(pid, pgrp);
+		}
+		if (mode == FORK_BG) {
+			if (bgjob != NULL && bgjob->state == JOBDONE &&
+			    !bgjob->remembered && !iflag)
+				freejob(bgjob);
+			backgndpid = pid;		/* set $! */
+			bgjob = jp;
+		}
+		if (jp) {
+			struct procstat *ps = &jp->ps[jp->nprocs++];
+			ps->pid = pid;
+			ps->status = -1;
+			ps->cmd = nullstr;
+			if (iflag && rootshell && n)
+				ps->cmd = commandtext(n);
+			jp->foreground = mode == FORK_FG;
 #if JOBS
-		setcurjob(jp);
+			setcurjob(jp);
 #endif
+		}
+		INTON;
+		TRACE(("In parent shell:  child = %d\n", (int)pid));
 	}
-	INTON;
-	TRACE(("In parent shell:  child = %d\n", (int)pid));
 	return pid;
 }
 
