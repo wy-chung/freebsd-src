@@ -80,7 +80,7 @@ static volatile sig_atomic_t gotsig[NSIG]; /* indicates specified signal receive
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
 static int last_trapsig;
 
-static int exiting;		/* exitshell() has been called */
+static bool exiting;		/* exitshell() has been called */
 static int exiting_exitstatus;	/* value passed to exitshell() */
 
 static int getsigaction(int, sig_t *);
@@ -478,7 +478,7 @@ void
 exitshell(int status)
 {
 	TRACE(("exitshell(%d) pid=%d\n", status, getpid()));
-	exiting = 1;
+	exiting = true;
 	exiting_exitstatus = status;
 	exitshell_savedstatus();
 }
