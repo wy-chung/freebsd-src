@@ -108,7 +108,7 @@ sh_main(int argc, char *argv[])
 	volatile int state;
 	char *shinit;
 
-	printf("%s: ALIGN(1) = %lu\n", __func__, ALIGN(1));
+	printf("%s: evalpipe_child\n", __func__);
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;

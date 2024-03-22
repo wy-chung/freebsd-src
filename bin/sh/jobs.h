@@ -36,7 +36,7 @@
 enum fork_mode {
 	FORK_FG, // 0
 	FORK_BG, // 1
-	FORK_NOJOB, // 2
+	FORK_NOJOB, // 2, Like FORK_FG, but don't give the process its own process group even if job control is on
 };
 
 #include <signal.h>		/* for sig_atomic_t */

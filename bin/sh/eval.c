@@ -440,14 +440,7 @@ evalredir(union node *n, int flags)
 	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
 	savehandler = handler;
-	if (setjmp(jmploc.loc) == 0) { // return from setjmp
-		INTOFF;
-		handler = &jmploc;
-		redirect(n->nredir.redirect, REDIR_PUSH);
-		in_redirect = false;
-		INTON;
-		evaltree(n->nredir.n, flags);
-	} else { // return from longjmp
+	if (setjmp(jmploc.loc)) { // return from longjmp
 		int e;
 
 		handler = savehandler;
@@ -458,6 +451,13 @@ evalredir(union node *n, int flags)
 			return;
 		}
 		longjmp(handler->loc, 1);
+	} else { // return from setjmp
+		INTOFF;
+		handler = &jmploc;
+		redirect(n->nredir.redirect, REDIR_PUSH);
+		in_redirect = false;
+		INTON;
+		evaltree(n->nredir.n, flags);
 	}
 	INTOFF;
 	handler = savehandler;
@@ -480,13 +480,13 @@ exphere(union node *redir, struct arglist *fn)
 	saveoptreset = shellparam.reset;
 	forcelocal++;
 	savehandler = handler;
-	if (setjmp(jmploc.loc) == 0) { // return from setjmp
+	if (setjmp(jmploc.loc)) { // return from longjmp
+		need_longjmp = exception != EXERROR;
+	} else { // return from setjmp
 		handler = &jmploc;
 		expandarg(redir->nhere.doc, fn, 0);
 		redir->nhere.expdoc = fn->args[0];
 		INTOFF;
-	} else { // return from longjmp
-		need_longjmp = exception != EXERROR;
 	}
 	handler = savehandler;
 	forcelocal--;
@@ -532,6 +532,27 @@ expredir(union node *n)
 	}
 }
 
+static void
+evalpipe_child(struct nodelist *lp, int pip[], int prevfd)
+{
+	INTON;
+	if (prevfd > 0) {
+		dup2(prevfd, 0);
+		close(prevfd);
+	}
+	if (pip[1] >= 0) {
+		if (!(prevfd >= 0 && pip[0] == 0))
+			close(pip[0]);
+		if (pip[1] != 1) {
+			dup2(pip[1], 1);
+			close(pip[1]);
+		}
+	}
+	evaltree(lp->n, EV_EXIT);
+	// with the flag EV_EXIT, it will call long jump
+	/*NOTREACHED*/
+}
+
 /*
  * Evaluate a pipeline.  All the processes in the pipeline are children
  * of the process creating the pipeline.  (This differs from some versions
@@ -545,7 +566,7 @@ evalpipe(union node *n)
 	struct nodelist *lp;
 	int pipelen;
 	int prevfd;
-	int pip[2];
+	int pip[2]; // conventionly [0]: read end, [1]: write end
 
 	TRACE(("evalpipe(%p) called\n", (void *)n));
 	pipelen = 0;
@@ -565,21 +586,7 @@ evalpipe(union node *n)
 			}
 		}
 		if (forkshell(jp, lp->n, n->npipe.backgnd) == 0) { // child
-			INTON;
-			if (prevfd > 0) {
-				dup2(prevfd, 0);
-				close(prevfd);
-			}
-			if (pip[1] >= 0) {
-				if (!(prevfd >= 0 && pip[0] == 0))
-					close(pip[0]);
-				if (pip[1] != 1) {
-					dup2(pip[1], 1);
-					close(pip[1]);
-				}
-			}
-			evaltree(lp->n, EV_EXIT);
-			// with the flag EV_EXIT, it will call long jump
+			evalpipe_child(lp, pip, prevfd);
 			/*NOTREACHED*/
 		}
 		if (prevfd >= 0)
@@ -638,10 +645,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 		saveoptreset = shellparam.reset;
 		forcelocal++;
 		savehandler = handler;
-		if (setjmp(jmploc.loc) == 0) { // return from setjmp
-			handler = &jmploc;
-			evalcommand(n, EV_BACKCMD, result);
-		} else { // return from longjmp
+		if (setjmp(jmploc.loc)) { // return from longjmp
 			if (exception == EXERROR)
 				/* nothing */;
 			else if (exception != 0) {
@@ -652,6 +656,9 @@ evalbackcmd(union node *n, struct backcmd *result)
 				shellparam.reset = saveoptreset;
 				longjmp(handler->loc, 1);
 			}
+		} else { // return from setjmp
+			handler = &jmploc;
+			evalcommand(n, EV_BACKCMD, result);
 		}
 		handler = savehandler;
 		forcelocal--;
@@ -1190,8 +1197,7 @@ prehash(union node *n)
 
 	if (n && n->type == NCMD && n->ncmd.args)
 		if (goodname(n->ncmd.args->narg.text))
-			find_command(n->ncmd.args->narg.text, &entry, 0,
-				     pathval());
+			find_command(n->ncmd.args->narg.text, &entry, 0, pathval());
 }
 
 /*
