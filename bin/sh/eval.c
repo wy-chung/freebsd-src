@@ -69,7 +69,7 @@ static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #include "myhistedit.h"
 #endif
 
-int evalskip;			/* set if we are skipping commands */
+enum skip_reason evalskip;	/* set if we are skipping commands */
 int skipcount;			/* number of levels to skip */
 static int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
@@ -98,7 +98,7 @@ static void prehash(union node *);
 void
 reseteval(void)
 {
-	evalskip = 0;
+	evalskip = SKIPNONE;
 	loopnest = 0;
 }
 
@@ -141,11 +141,11 @@ evalstring(const char *s, int flags)
 	union node *n;
 	struct stackmark smark;
 	int flags_exit;
-	int any;
+	bool any;
 
 	flags_exit = flags & EV_EXIT;
 	flags &= ~EV_EXIT;
-	any = 0;
+	any = false;
 	setstackmark(&smark);
 	setinputstring(s, 1);
 	while ((n = parsecmd(false)) != NEOF) {
@@ -154,12 +154,12 @@ evalstring(const char *s, int flags)
 				evaltree(n, flags | EV_EXIT); /*NOTREACHED*/
 			else
 				evaltree(n, flags);
-			any = 1;
+			any = true;
 			if (evalskip)
 				break;
 		}
 		popstackmark(&smark);
-		setstackmark(&smark);
+		//setstackmark(&smark);
 	}
 	popfile();
 	popstackmark(&smark);
@@ -282,7 +282,7 @@ evaltree(union node *n, int flags) // flags are 0 from cmdloop
 		}
 		n = next;
 		popstackmark(&smark);
-		setstackmark(&smark);
+		//setstackmark(&smark);
 	} while (n != NULL);
 out:
 	popstackmark(&smark);
@@ -291,7 +291,7 @@ out:
 	if (eflag && exitstatus != 0 && do_etest)
 		exitshell(exitstatus);
 	if (flags & EV_EXIT)
-		exraise(EXEXIT);
+		exraise(EXEXIT); // will call longjmp
 }
 
 static void
@@ -306,11 +306,11 @@ evalloop(union node *n, int flags)
 			evaltree(n->nbinary.ch1, EV_TESTED);
 		if (evalskip) {
 			if (evalskip == SKIPCONT && --skipcount <= 0) {
-				evalskip = 0;
+				evalskip = SKIPNONE;
 				continue;
 			}
 			if (evalskip == SKIPBREAK && --skipcount <= 0)
-				evalskip = 0;
+				evalskip = SKIPNONE;
 			if (evalskip == SKIPRETURN)
 				status = exitstatus;
 			break;
@@ -351,11 +351,11 @@ evalfor(union node *n, int flags)
 		status = exitstatus;
 		if (evalskip) {
 			if (evalskip == SKIPCONT && --skipcount <= 0) {
-				evalskip = 0;
+				evalskip = SKIPNONE;
 				continue;
 			}
 			if (evalskip == SKIPBREAK && --skipcount <= 0)
-				evalskip = 0;
+				evalskip = SKIPNONE;
 			break;
 		}
 	}
@@ -407,14 +407,14 @@ evalsubshell(union node *n, int flags)
 	struct job *jp;
 	bool backgnd = (n->type == NBACKGND); // background node
 
-	if (backgnd)
-		flags &=~ EV_TESTED;
 	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
 	if ((!backgnd && flags & EV_EXIT && !have_traps()))
 		goto eval;
 	else if (forkshell(jp = makejob(n, 1), n, backgnd) == 0) { // child
 eval:
+		if (backgnd)
+			flags &=~ EV_TESTED;
 		redirect(n->nredir.redirect, 0);
 		evaltree(n->nredir.n, flags | EV_EXIT);
 		// with the flag EV_EXIT, it will call long jump
@@ -784,11 +784,10 @@ safe_builtin(int idx, int argc, char **argv)
 	return (0);
 }
 
-static void
-evalcommand_execute(union node *cmd, int flags, struct backcmd *backcmd,
-	int argc, char **argv, const char *path,
-	struct job *jp, struct cmdentry *cmdentry,
-	struct arglist *varlist)
+static void // may execute as either a parent or a child
+evalcommand_execute(struct job *jp, int argc, char **argv, const char *path,
+	union node *cmd, int flags, struct backcmd *backcmd, // EV_EXIT is passed for child process
+	struct cmdentry *cmdentry, struct arglist *varlist)
 {
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
@@ -831,6 +830,7 @@ evalcommand_execute(union node *cmd, int flags, struct backcmd *backcmd,
 			mklocal(varlist->args[i]);
 		exitstatus = oexitstatus;
 		evaltree(getfuncnode(cmdentry->u.func), flags & (EV_TESTED | EV_EXIT));
+		// for child process EV_EXIT is on so evaltree will call a longjmp
 		INTOFF;
 		unreffunc(cmdentry->u.func);
 		poplocalvars();
@@ -842,7 +842,7 @@ evalcommand_execute(union node *cmd, int flags, struct backcmd *backcmd,
 		popredir();
 		INTON;
 		if (evalskip == SKIPRETURN) {
-			evalskip = 0;
+			evalskip = SKIPNONE;
 			skipcount = 0;
 		}
 		if (jp)
@@ -1132,10 +1132,10 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			vforkexecshell(jp, argv, environment(), path,
 			    cmdentry.u.index, flags & EV_BACKCMD ? pip : NULL);
 			// only parent runs here
-			goto parent;
+			goto parent_fork;
 		}
 		if (forkshell(jp, cmd, mode) != 0) // parent
-			goto parent;	/* at end of routine */
+			goto parent_fork;	/* at end of routine */
 		// only child runs here
 		if (flags & EV_BACKCMD) {
 			FORCEINTON;
@@ -1149,11 +1149,11 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		flags |= EV_EXIT;
 	}
 	/* This is the child process if a fork occurred. */
-	/* Execute the command. */
-	evalcommand_execute(cmd, flags, backcmd, argc, argv, path, jp, &cmdentry, &varlist);
+	/* Execute the command, can be either a parent or a child process. */
+	evalcommand_execute(jp, argc, argv, path, cmd, flags, backcmd, &cmdentry, &varlist);
 	goto out;
 
-parent:	/* parent process gets here (if we forked) */
+parent_fork: /* parent process gets here (if we forked) */
 	if (mode == FORK_FG) {	/* argument to fork */
 		bool signaled;
 

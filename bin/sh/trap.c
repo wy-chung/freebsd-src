@@ -366,7 +366,7 @@ onsig(int signo)
 
 	if (signo == SIGINT && trap[SIGINT] == NULL) {
 		if (suppressint)
-			SET_PENDING_INT;
+			intpending = true; // SET_PENDING_INT
 		else
 			onint(); /*NOTREACHED*/
 		return;
@@ -393,7 +393,8 @@ dotrap(void)
 {
 	struct stackmark smark;
 	int i;
-	int savestatus, prev_evalskip, prev_skipcount;
+	int savestatus, prev_skipcount;
+	enum skip_reason prev_evalskip;
 
 	in_dotrap++;
 	for (;;) {
@@ -421,7 +422,7 @@ dotrap(void)
 					 */
 					prev_evalskip  = evalskip;
 					prev_skipcount = skipcount;
-					evalskip = 0;
+					evalskip = SKIPNONE;
 
 					last_trapsig = i;
 					savestatus = exitstatus;
@@ -436,8 +437,8 @@ dotrap(void)
 					 * trap action to have an effect
 					 * outside of it.
 					 */
-					if (evalskip == 0 ||
-					    prev_evalskip != 0) {
+					if (evalskip == SKIPNONE ||
+					    prev_evalskip != SKIPNONE) {
 						evalskip  = prev_evalskip;
 						skipcount = prev_skipcount;
 						exitstatus = savestatus;
@@ -506,7 +507,7 @@ exitshell_savedstatus(void)
 			 * Reset evalskip, or the trap on EXIT could be
 			 * interrupted if the last command was a "return".
 			 */
-			evalskip = 0;
+			evalskip = SKIPNONE;
 			trap[0] = NULL;
 			FORCEINTON;
 			evalstring(p, 0);

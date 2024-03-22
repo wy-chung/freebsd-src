@@ -99,7 +99,7 @@ onint(void)
 {
 	sigset_t sigs;
 
-	intpending = 0;
+	intpending = false;
 	sigemptyset(&sigs);
 	sigprocmask(SIG_SETMASK, &sigs, NULL);
 

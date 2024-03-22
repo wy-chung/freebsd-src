@@ -43,6 +43,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #endif
 #endif /* not lint */
+#include <sys/param.h>
 #include <sys/cdefs.h>
 #include <stdio.h>
 #include <signal.h>
@@ -107,7 +108,7 @@ sh_main(int argc, char *argv[])
 	volatile int state;
 	char *shinit;
 
-	printf("%s: vforkexecshell\n", __func__);
+	printf("%s: ALIGN(1) = %lu\n", __func__, ALIGN(1));
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;
@@ -236,10 +237,10 @@ cmdloop(bool top)
 			evaltree(n, 0/*flags*/);
 		}
 		popstackmark(&smark);
-		setstackmark(&smark);
-		if (evalskip != 0) {
+		//setstackmark(&smark);
+		if (evalskip != SKIPNONE) {
 			if (evalskip == SKIPRETURN)
-				evalskip = 0;
+				evalskip = SKIPNONE;
 			break;
 		}
 	} // for (;;)

@@ -96,7 +96,7 @@ static struct var voptind;
 struct var vdisvfork;
 
 struct localvar *localvars;
-int forcelocal;
+int forcelocal; // not boolean
 
 static const struct varinit varinit[] = {
 #ifndef NO_HISTORY

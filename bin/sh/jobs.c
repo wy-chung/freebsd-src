@@ -785,8 +785,7 @@ makejob(union node *node __unused, int nprocs)
 		jp->ps = &jp->ps0;
 	}
 	INTON;
-	TRACE(("makejob(%p, %d) returns %%%td\n", (void *)node, nprocs,
-	    jp - jobtab + 1));
+	TRACE(("makejob(%p, %d) returns %%%td\n", (void *)node, nprocs, jp - jobtab + 1));
 	return jp;
 }
 
@@ -899,7 +898,7 @@ forkshell_child(struct job *jp, enum fork_mode mode)
 		ignoresig(SIGINT);
 		ignoresig(SIGQUIT);
 		if ((jp == NULL || jp->nprocs == 0) &&
-		    ! fd0_redirected_p ()) {
+		    !fd0_redirected_p()) {
 			close(0);
 			if (open(_PATH_DEVNULL, O_RDONLY) != 0)
 				error("cannot open %s: %s", _PATH_DEVNULL, strerror(errno));
@@ -1025,7 +1024,8 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	savehandler = handler;
 	pid = vfork();
 	if (pid == 0) { // child
-		vforkexecshell_child(argv, envp, path, idx, pip); // will call execve or _exit
+		vforkexecshell_child(argv, envp, path, idx, pip);
+		// will call execve or _exit
 		/*NOTREACHED*/
 	} else if (pid == -1) {
 		TRACE(("Vfork failed, errno=%d\n", errno));

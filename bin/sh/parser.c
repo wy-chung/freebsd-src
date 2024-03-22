@@ -72,7 +72,7 @@ static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
 
 /* values of checkkwd variable */
 #define CHKALIAS	0x1
-#define CHKKWD		0x2
+#define CHKKWD		0x2	// check keyword
 #define CHKNL		0x4
 
 /* values returned by readtoken */

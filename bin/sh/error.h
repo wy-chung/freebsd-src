@@ -41,7 +41,6 @@
  * to an inner scope, set handler to point to a jmploc structure for the
  * inner scope, and restore handler on exit from the scope.
  */
-
 #include <setjmp.h>
 #include <signal.h>
 
@@ -64,7 +63,6 @@ extern volatile sig_atomic_t exception;
  * much more efficient and portable.  (But hacking the kernel is so much
  * more fun than worrying about efficiency and portability. :-))
  */
-
 extern volatile sig_atomic_t suppressint;
 extern volatile sig_atomic_t intpending;
 
@@ -73,8 +71,8 @@ extern volatile sig_atomic_t intpending;
 #define is_int_on() suppressint
 #define SETINTON(s) do { suppressint = (s); if (suppressint == 0 && intpending) onint(); } while (0)
 #define FORCEINTON {suppressint = 0; if (intpending) onint();}
-#define SET_PENDING_INT intpending = 1
-#define CLEAR_PENDING_INT intpending = 0
+#define SET_PENDING_INT intpending = true
+#define CLEAR_PENDING_INT intpending = false
 #define int_pending() intpending
 
 void exraise(int) __dead2;
@@ -88,6 +86,5 @@ void print_trace(void);
  * BSD setjmp saves the signal mask, which violates ANSI C and takes time,
  * so we use _setjmp instead.
  */
-
 #define setjmp(jmploc)	_setjmp(jmploc)
 #define longjmp(jmploc, val)	_longjmp(jmploc, val)

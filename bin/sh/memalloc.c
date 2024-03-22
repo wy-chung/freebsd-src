@@ -73,7 +73,6 @@ ckmalloc(size_t nbytes)
 /*
  * Same for realloc.
  */
-
 pointer
 ckrealloc(pointer p, int nbytes)
 {
@@ -96,7 +95,6 @@ ckfree(pointer p)
 /*
  * Make a copy of a string in safe storage.
  */
-
 char *
 savestr(const char *s)
 {
@@ -131,7 +129,7 @@ int stacknleft;
 char *sstrend;
 
 static void
-stnewblock(int nbytes)
+stnewblock(int nbytes) // allocate at least 496 bytes
 {
 	struct stack_block *sp;
 	int allocsize;
