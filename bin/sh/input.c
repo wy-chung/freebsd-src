@@ -99,7 +99,7 @@ static struct parsefile basepf = {	/* top level input file */
 	.nextc = basebuf,
 	.buf = basebuf
 };
-static struct parsefile *parsefile = &basepf;	/* current input file */
+static struct parsefile *Parsefile = &basepf;	/* current input file */
 int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 static void pushfile(void);
@@ -131,11 +131,11 @@ static int
 preadfd(void)
 {
 	int nr;
-	parsenextc = parsefile->buf;
+	parsenextc = Parsefile->buf;
 
 retry:
 #ifndef NO_HISTORY
-	if (parsefile->fd == 0 && el) {
+	if (Parsefile->fd == 0 && el) {
 		static const char *rl_cp;
 		static int el_len;
 
@@ -149,7 +149,7 @@ retry:
 			nr = el_len;
 			if (nr > BUFSIZ)
 				nr = BUFSIZ;
-			memcpy(parsefile->buf, rl_cp, nr);
+			memcpy(Parsefile->buf, rl_cp, nr);
 			if (nr != el_len) {
 				el_len -= nr;
 				rl_cp += nr;
@@ -158,13 +158,13 @@ retry:
 		}
 	} else
 #endif
-		nr = read(parsefile->fd, parsefile->buf, BUFSIZ);
+		nr = read(Parsefile->fd, Parsefile->buf, BUFSIZ);
 
 	if (nr <= 0) {
                 if (nr < 0) {
                         if (errno == EINTR)
                                 goto retry;
-                        if (parsefile->fd == 0 && errno == EWOULDBLOCK) {
+                        if (Parsefile->fd == 0 && errno == EWOULDBLOCK) {
                                 int flags = fcntl(0, F_GETFL, 0);
                                 if (flags >= 0 && flags & O_NONBLOCK) {
                                         flags &=~ O_NONBLOCK;
@@ -196,19 +196,19 @@ preadbuffer(void)
 	char *p, *q, *r, *end;
 	char savec;
 
-	while (parsefile->strpush) {
+	while (Parsefile->strpush) {
 		/*
 		 * Add a space to the end of an alias to ensure that the
 		 * alias remains in use while parsing its last word.
 		 * This avoids alias recursions.
 		 */
-		if (parsenleft == -1 && parsefile->strpush->ap != NULL)
+		if (parsenleft == -1 && Parsefile->strpush->ap != NULL)
 			return ' ';
 		popstring();
 		if (--parsenleft >= 0)
 			return (*parsenextc++);
 	}
-	if (parsenleft == EOF_NLEFT || parsefile->buf == NULL)
+	if (parsenleft == EOF_NLEFT || Parsefile->buf == NULL)
 		return PEOF;
 
 again:
@@ -219,7 +219,7 @@ again:
 		}
 	}
 
-	p = parsefile->buf + (parsenextc - parsefile->buf);
+	p = Parsefile->buf + (parsenextc - Parsefile->buf);
 	end = p + parselleft;
 	*end = '\0';
 	q = strchrnul(p, '\n');
@@ -250,7 +250,7 @@ again:
 	*q = '\0';
 
 #ifndef NO_HISTORY
-	if (parsefile->fd == 0 && hist &&
+	if (Parsefile->fd == 0 && hist &&
 	    parsenextc[strspn(parsenextc, " \t\n")] != '\0') {
 		HistEvent he;
 		INTOFF;
@@ -280,9 +280,9 @@ preadateof(void)
 {
 	if (parsenleft > 0)
 		return 0;
-	if (parsefile->strpush)
+	if (Parsefile->strpush)
 		return 0;
-	if (parsenleft == EOF_NLEFT || parsefile->buf == NULL)
+	if (parsenleft == EOF_NLEFT || Parsefile->buf == NULL)
 		return 1;
 	return 0;
 }
@@ -310,12 +310,12 @@ pushstring(const char *s, int len, struct alias *ap)
 
 	INTOFF;
 /*out2fmt_flush("*** calling pushstring: %s, %d\n", s, len);*/
-	if (parsefile->strpush) {
+	if (Parsefile->strpush) {
 		sp = ckmalloc(sizeof (struct strpush));
-		sp->prev = parsefile->strpush;
-		parsefile->strpush = sp;
+		sp->prev = Parsefile->strpush;
+		Parsefile->strpush = sp;
 	} else
-		sp = parsefile->strpush = &(parsefile->basestrpush);
+		sp = Parsefile->strpush = &(Parsefile->basestrpush);
 	sp->prevstring = parsenextc;
 	sp->prevnleft = parsenleft;
 	sp->prevlleft = parselleft;
@@ -330,7 +330,7 @@ pushstring(const char *s, int len, struct alias *ap)
 static void
 popstring(void)
 {
-	struct strpush *sp = parsefile->strpush;
+	struct strpush *sp = Parsefile->strpush;
 
 	INTOFF;
 	if (sp->ap) {
@@ -343,8 +343,8 @@ popstring(void)
 	parsenleft = sp->prevnleft;
 	parselleft = sp->prevlleft;
 /*out2fmt_flush("*** calling popstring: restoring to '%s'\n", parsenextc);*/
-	parsefile->strpush = sp->prev;
-	if (sp != &(parsefile->basestrpush))
+	Parsefile->strpush = sp->prev;
+	if (sp != &(Parsefile->basestrpush))
 		ckfree(sp);
 	INTON;
 }
@@ -397,13 +397,13 @@ setinputfd(int fd, int push)
 {
 	if (push) {
 		pushfile();
-		parsefile->buf = ckmalloc(BUFSIZ + 1);
+		Parsefile->buf = ckmalloc(BUFSIZ + 1);
 	}
-	if (parsefile->fd > 0)
-		close(parsefile->fd);
-	parsefile->fd = fd;
-	if (parsefile->buf == NULL)
-		parsefile->buf = ckmalloc(BUFSIZ + 1);
+	if (Parsefile->fd > 0)
+		close(Parsefile->fd);
+	Parsefile->fd = fd;
+	if (Parsefile->buf == NULL)
+		Parsefile->buf = ckmalloc(BUFSIZ + 1);
 	parselleft = parsenleft = 0;
 	plinno = 1;
 }
@@ -421,7 +421,7 @@ setinputstring(const char *string, int push)
 		pushfile();
 	parsenextc = string;
 	parselleft = parsenleft = strlen(string);
-	parsefile->buf = NULL;
+	Parsefile->buf = NULL;
 	plinno = 1;
 	INTON;
 }
@@ -438,23 +438,23 @@ pushfile(void)
 {
 	struct parsefile *pf;
 
-	parsefile->nleft = parsenleft;
-	parsefile->lleft = parselleft;
-	parsefile->nextc = parsenextc;
-	parsefile->linno = plinno;
+	Parsefile->nleft = parsenleft;
+	Parsefile->lleft = parselleft;
+	Parsefile->nextc = parsenextc;
+	Parsefile->linno = plinno;
 	pf = (struct parsefile *)ckmalloc(sizeof (struct parsefile));
-	pf->prev = parsefile;
+	pf->prev = Parsefile;
 	pf->fd = -1;
 	pf->strpush = NULL;
 	pf->basestrpush.prev = NULL;
-	parsefile = pf;
+	Parsefile = pf;
 }
 
 
 void
 popfile(void)
 {
-	struct parsefile *pf = parsefile;
+	struct parsefile *pf = Parsefile;
 
 	INTOFF;
 	if (pf->fd >= 0)
@@ -463,12 +463,12 @@ popfile(void)
 		ckfree(pf->buf);
 	while (pf->strpush)
 		popstring();
-	parsefile = pf->prev;
+	Parsefile = pf->prev;
 	ckfree(pf);
-	parsenleft = parsefile->nleft;
-	parselleft = parsefile->lleft;
-	parsenextc = parsefile->nextc;
-	plinno = parsefile->linno;
+	parsenleft = Parsefile->nleft;
+	parselleft = Parsefile->lleft;
+	parsenextc = Parsefile->nextc;
+	plinno = Parsefile->linno;
 	INTON;
 }
 
@@ -480,7 +480,7 @@ popfile(void)
 struct parsefile *
 getcurrentfile(void)
 {
-	return parsefile;
+	return Parsefile;
 }
 
 
@@ -493,9 +493,9 @@ getcurrentfile(void)
 void
 popfilesupto(struct parsefile *file)
 {
-	while (parsefile != file && parsefile != &basepf)
+	while (Parsefile != file && Parsefile != &basepf)
 		popfile();
-	if (parsefile != file)
+	if (Parsefile != file)
 		error("popfilesupto() misused");
 }
 
@@ -506,7 +506,7 @@ popfilesupto(struct parsefile *file)
 void
 popallfiles(void)
 {
-	while (parsefile != &basepf)
+	while (Parsefile != &basepf)
 		popfile();
 }
 
@@ -521,8 +521,8 @@ void
 closescript(void)
 {
 	popallfiles();
-	if (parsefile->fd > 0) {
-		close(parsefile->fd);
-		parsefile->fd = 0;
+	if (Parsefile->fd > 0) {
+		close(Parsefile->fd);
+		Parsefile->fd = 0;
 	}
 }

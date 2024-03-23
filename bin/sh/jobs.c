@@ -897,8 +897,7 @@ forkshell_child(struct job *jp, enum fork_mode mode)
 	if (mode == FORK_BG) {
 		ignoresig(SIGINT);
 		ignoresig(SIGQUIT);
-		if ((jp == NULL || jp->nprocs == 0) &&
-		    !fd0_redirected_p()) {
+		if ((jp == NULL || jp->nprocs == 0) && !fd0_redirected_p()) {
 			close(0);
 			if (open(_PATH_DEVNULL, O_RDONLY) != 0)
 				error("cannot open %s: %s", _PATH_DEVNULL, strerror(errno));
@@ -906,9 +905,8 @@ forkshell_child(struct job *jp, enum fork_mode mode)
 	}
 #endif
 	INTOFF;
-	struct job *p;
-	int i;
-	for (i = njobs, p = jobtab ; --i >= 0 ; p++)
+	struct job *p = jobtab;
+	for (int i = njobs; --i >= 0 ; p++)
 		if (p->used)
 			freejob(p);
 	INTON;

@@ -126,8 +126,10 @@ sh_main(int argc, char *argv[])
 			goto state2;
 		else if (state == 3)
 			goto state3;
-		else
+		else if (state == 4) //wyc
 			goto state4;
+		else //wyc
+			goto state5;
 	}
 	handler = &main_handler;
 #ifdef DEBUG
@@ -175,9 +177,11 @@ state3:
 		evalstring(minusc, sflag ? 0 : EV_EXIT);
 	}
 state4:
+	state = 5; //wyc
 	if (sflag || minusc == NULL) { // stdin or -c
 		cmdloop(true);
 	}
+state5: //wyc
 	exitshell(exitstatus);
 	/*NOTREACHED*/
 	return 0;

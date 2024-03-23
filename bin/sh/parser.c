@@ -255,6 +255,7 @@ parsewordexp(void)
 	return first;
 }
 
+// nlflag??
 static union node *
 list(bool nlflag) // the only list(true) is called by parsecmd()
 {

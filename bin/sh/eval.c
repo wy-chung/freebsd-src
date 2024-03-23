@@ -417,7 +417,7 @@ eval:
 			flags &=~ EV_TESTED;
 		redirect(n->nredir.redirect, 0);
 		evaltree(n->nredir.n, flags | EV_EXIT);
-		// with the flag EV_EXIT, it will call long jump
+		// with the flag EV_EXIT, it will call longjmp and jump to sh_main
 		/*NOTREACHED*/
 	} else if (!backgnd) {
 		INTOFF;
@@ -549,7 +549,7 @@ evalpipe_child(struct nodelist *lp, int pip[], int prevfd)
 		}
 	}
 	evaltree(lp->n, EV_EXIT);
-	// with the flag EV_EXIT, it will call long jump
+	// with the flag EV_EXIT, it will call longjmp
 	/*NOTREACHED*/
 }
 
@@ -587,6 +587,7 @@ evalpipe(union node *n)
 		}
 		if (forkshell(jp, lp->n, n->npipe.backgnd) == 0) { // child
 			evalpipe_child(lp, pip, prevfd);
+			// it will call longjmp and jump to sh_main()
 			/*NOTREACHED*/
 		}
 		if (prevfd >= 0)
@@ -677,7 +678,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 				close(pip[1]);
 			}
 			evaltree(n, EV_EXIT);
-			// with the flag EV_EXIT, it will call long jump
+			// with the flag EV_EXIT, it will call longjmp and jump to sh_main
 			/*NOTREACHED*/
 		}
 		close(pip[1]);
