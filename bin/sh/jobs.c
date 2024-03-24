@@ -99,7 +99,7 @@ struct job {
 	short nprocs;		/* number of processes */
 	pid_t pgrp;		/* process group of this job */
 	char state;		/* true if job is finished */
-	char used;		/* true if this entry is in used */
+	bool used;		/* true if this entry is in used */
 	char changed;		/* true if status has changed */
 	char foreground;	/* true if running in the foreground */
 	char remembered;	/* true if $! referenced */
@@ -512,7 +512,7 @@ freejob(struct job *jp)
 	}
 	if (jp->ps != &jp->ps0)
 		ckfree(jp->ps);
-	jp->used = 0;
+	jp->used = false;
 #if JOBS
 	deljob(jp);
 #endif
@@ -634,7 +634,7 @@ getjob_nonotfound(const char *name)
 		if (is_digit(name[1])) {
 			jobno = number(name + 1);
 			if (jobno > 0 && jobno <= njobs
-			 && jobtab[jobno - 1].used != 0)
+			 && jobtab[jobno - 1].used)
 				return &jobtab[jobno - 1];
 #if JOBS
 		} else if ((name[1] == '%' || name[1] == '+') &&
@@ -758,17 +758,17 @@ makejob(int nprocs)
 				jobtab = jp;
 			}
 			jp = jobtab + njobs;
-			for (i = 4 ; --i >= 0 ; jobtab[njobs++].used = 0)
+			for (i = 4 ; --i >= 0 ; jobtab[njobs++].used = false)
 				;
 			INTON;
 			break;
 		}
-		if (jp->used == 0)
+		if (!jp->used)
 			break;
 	}
 	INTOFF;
 	jp->state = JOBRUNNING;
-	jp->used = 1;
+	jp->used = true;
 	jp->changed = 0;
 	jp->nprocs = 0;
 	jp->foreground = 0;
@@ -1280,7 +1280,7 @@ stoppedjobs(void)
 	if (job_warning)
 		return (false);
 	for (jobno = 1, jp = jobtab; jobno <= njobs; jobno++, jp++) {
-		if (jp->used == 0)
+		if (!jp->used)
 			continue;
 		if (jp->state == JOBSTOPPED) {
 			out2fmt_flush("You have stopped jobs.\n");
