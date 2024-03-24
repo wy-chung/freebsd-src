@@ -1871,10 +1871,10 @@ synexpect(int token)
 	char msg[64];
 
 	if (token >= 0) {
-		fmtstr(msg, 64, "%s unexpected (expecting %s)",
+		fmtstr(msg, sizeof(msg), "%s unexpected (expecting %s)", //wyctodo
 			tokname[lasttoken], tokname[token]);
 	} else {
-		fmtstr(msg, 64, "%s unexpected", tokname[lasttoken]);
+		fmtstr(msg, sizeof(msg), "%s unexpected", tokname[lasttoken]); //wyctodo
 	}
 	synerror(msg);
 }

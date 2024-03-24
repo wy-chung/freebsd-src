@@ -284,17 +284,15 @@ bgcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfu
 static void
 restartjob(struct job *jp)
 {
-	struct procstat *ps;
-	int i;
 
 	if (jp->state == JOBDONE)
 		return;
 	setcurjob(jp);
 	INTOFF;
 	kill(-jp->ps[0].pid, SIGCONT);
-	for (ps = jp->ps, i = jp->nprocs ; --i >= 0 ; ps++) {
-		if (WIFSTOPPED(ps->status)) {
-			ps->status = -1;
+	for (int i = 0; i < jp->nprocs; ++i ) {
+		if (WIFSTOPPED(jp->ps[i].status)) {
+			jp->ps[i].status = -1;
 			jp->state = 0;
 		}
 	}
@@ -334,12 +332,11 @@ jobscmd(int argc __unused, char *argv[] __unused) // refer to int (*const builti
 
 static int getjobstatus(const struct job *jp)
 {
-	int i, status;
 
 	if (!jp->pipefail)
 		return (jp->ps[jp->nprocs - 1].status);
-	for (i = jp->nprocs - 1; i >= 0; i--) {
-		status = jp->ps[i].status;
+	for (int i = jp->nprocs - 1; i >= 0; i--) {
+		int status = jp->ps[i].status;
 		if (status != 0)
 			return (status);
 	}
@@ -349,12 +346,10 @@ static int getjobstatus(const struct job *jp)
 static void
 printjobcmd(struct job *jp)
 {
-	struct procstat *ps;
-	int i;
 
-	for (ps = jp->ps, i = jp->nprocs ; --i >= 0 ; ps++) {
-		out1str(ps->cmd);
-		if (i > 0)
+	for (int i = 0; i < jp->nprocs; ++i) {
+		out1str(jp->ps[i].cmd);
+		if (i != jp->nprocs - 1)
 			out1str(" | ");
 	}
 	out1c('\n');
@@ -363,18 +358,14 @@ printjobcmd(struct job *jp)
 static void
 showjob(struct job *jp, int mode)
 {
-	char s[64];
-	char statebuf[16];
 	const char *statestr, *coredump;
-	struct procstat *ps;
-	struct job *j;
-	int col, curr, i, jobno, prev, procno, status;
-	char c;
+	int curr, jobno, prev, nprocs, status;
 
-	procno = (mode == SHOWJOBS_PGIDS) ? 1 : jp->nprocs;
+	nprocs = (mode == SHOWJOBS_PGIDS) ? 1 : jp->nprocs;
 	jobno = jp - jobtab + 1;
 	curr = prev = 0;
 #if JOBS
+	struct job *j;
 	if ((j = getcurjob(NULL)) != NULL) {
 		curr = j - jobtab + 1;
 		if ((j = getcurjob(j)) != NULL)
@@ -387,14 +378,16 @@ showjob(struct job *jp, int mode)
 		statestr = "Running";
 #if JOBS
 	} else if (jp->state == JOBSTOPPED) {
-		ps = jp->ps + jp->nprocs - 1;
+		int sig;
+		struct procstat *ps = &jp->ps[jp->nprocs - 1];
+
 		while (!WIFSTOPPED(ps->status) && ps > jp->ps)
 			ps--;
 		if (WIFSTOPPED(ps->status))
-			i = WSTOPSIG(ps->status);
+			sig = WSTOPSIG(ps->status);
 		else
-			i = -1;
-		statestr = strsignal(i);
+			sig = -1;
+		statestr = strsignal(sig);
 		if (statestr == NULL)
 			statestr = "Suspended";
 #endif
@@ -402,44 +395,49 @@ showjob(struct job *jp, int mode)
 		if (WEXITSTATUS(status) == 0)
 			statestr = "Done";
 		else {
+			char statebuf[16];
 			fmtstr(statebuf, sizeof(statebuf), "Done(%d)",
 			    WEXITSTATUS(status));
 			statestr = statebuf;
 		}
 	} else {
-		i = WTERMSIG(status);
-		statestr = strsignal(i);
+		int sig = WTERMSIG(status);
+		statestr = strsignal(sig);
 		if (statestr == NULL)
 			statestr = "Unknown signal";
 		if (WCOREDUMP(status))
 			coredump = " (core dumped)";
 	}
 
-	for (ps = jp->ps ; procno > 0 ; ps++, procno--) { /* for each process */
+	for (int i = 0; i< nprocs; ++i ) { /* for each process */
+		int col;
+		char c;
+		char s[63];
+
 		if (mode == SHOWJOBS_PIDS || mode == SHOWJOBS_PGIDS) {
-			out1fmt("%d\n", (int)ps->pid);
+			out1fmt("%d\n", (int)jp->ps[i].pid);
 			continue;
 		}
-		if (mode != SHOWJOBS_VERBOSE && ps != jp->ps)
+		if (mode != SHOWJOBS_VERBOSE && i != 0)
 			continue;
-		if (jobno == curr && ps == jp->ps)
+		if (jobno == curr && i == 0)
 			c = '+';
-		else if (jobno == prev && ps == jp->ps)
+		else if (jobno == prev && i == 0)
 			c = '-';
 		else
 			c = ' ';
-		if (ps == jp->ps)
-			fmtstr(s, 64, "[%d] %c ", jobno, c);
+		if (i == 0)
+			fmtstr(s, sizeof(s), "[%d] %c ", jobno, c); //wyctodo
 		else
-			fmtstr(s, 64, "    %c ", c);
+			fmtstr(s, sizeof(s), "    %c ", c); //wyctodo
 		out1str(s);
 		col = strlen(s);
 		if (mode == SHOWJOBS_VERBOSE) {
-			fmtstr(s, 64, "%d ", (int)ps->pid);
+			fmtstr(s, sizeof(s), "%d ", (int)jp->ps[i].pid); //wyctodo
 			out1str(s);
 			col += strlen(s);
 		}
-		if (ps == jp->ps) {
+		if (i == 0) {
 			out1str(statestr);
 			out1str(coredump);
 			col += strlen(statestr) + strlen(coredump);
@@ -449,7 +447,7 @@ showjob(struct job *jp, int mode)
 			col++;
 		} while (col < 30);
 		if (mode == SHOWJOBS_VERBOSE) {
-			out1str(ps->cmd);
+			out1str(jp->ps[i].cmd);
 			out1c('\n');
 		} else
 			printjobcmd(jp);
@@ -467,29 +465,27 @@ showjob(struct job *jp, int mode)
 void
 showjobs(bool change, int mode)
 {
-	int jobno;
-	struct job *jp;
 
 	TRACE(("showjobs(%d) called\n", change));
 	checkzombies();
-	for (jobno = 1, jp = jobtab ; jobno <= njobs ; jobno++, jp++) {
-		if (! jp->used)
+	for (int i = 0; i < njobs ; ++i) {
+		if (! jobtab[i].used)
 			continue;
-		if (jp->nprocs == 0) {
-			freejob(jp);
+		if (jobtab[i].nprocs == 0) {
+			freejob(&jobtab[i]);
 			continue;
 		}
-		if (change && ! jp->changed)
+		if (change && !jobtab[i].changed)
 			continue;
-		showjob(jp, mode);
+		showjob(&jobtab[i], mode);
 		if (mode == SHOWJOBS_DEFAULT || mode == SHOWJOBS_VERBOSE) {
-			jp->changed = 0;
+			jobtab[i].changed = 0;
 			/* Hack: discard jobs for which $! has not been
 			 * referenced in interactive mode when they terminate.
 			 */
-			if (jp->state == JOBDONE && !jp->remembered &&
-					(iflag || jp != bgjob)) {
-				freejob(jp);
+			if (jobtab[i].state == JOBDONE && !jobtab[i].remembered &&
+					(iflag || &jobtab[i] != bgjob)) {
+				freejob(&jobtab[i]);
 			}
 		}
 	}
@@ -848,6 +844,11 @@ getcurjob(struct job *nj)
 }
 #endif
 
+/*
+struct jmploc jmploc;
+
+exitshell(exitstatus);
+*/
 static void
 forkshell_child(struct job *jp, enum fork_mode mode)
 {

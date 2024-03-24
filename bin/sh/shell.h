@@ -49,7 +49,6 @@
  * a quit signal will generate a core dump.
  */
 
-
 #define	JOBS 1
 /* #define DEBUG 1 */
 
