@@ -87,8 +87,11 @@ struct procstat {
 };
 
 /* states */
-#define JOBSTOPPED 1		/* all procs are stopped */
-#define JOBDONE 2		/* all procs are completed */
+enum job_state {
+	JOBRUNNING,
+	JOBSTOPPED,	/* all procs are stopped */
+	JOBDONE,	/* all procs are completed */
+};
 
 struct job {
 	struct procstat ps0;	/* status of process */
@@ -293,7 +296,7 @@ restartjob(struct job *jp)
 	for (int i = 0; i < jp->nprocs; ++i ) {
 		if (WIFSTOPPED(jp->ps[i].status)) {
 			jp->ps[i].status = -1;
-			jp->state = 0;
+			jp->state = JOBRUNNING;
 		}
 	}
 	INTON;
@@ -374,7 +377,7 @@ showjob(struct job *jp, int mode)
 #endif
 	coredump = "";
 	status = getjobstatus(jp);
-	if (jp->state == 0) {
+	if (jp->state == JOBRUNNING) {
 		statestr = "Running";
 #if JOBS
 	} else if (jp->state == JOBSTOPPED) {
@@ -582,7 +585,7 @@ waitcmdloop(struct job *job)
 				if (jp >= jobtab + njobs) {	/* no running procs */
 					return 0;
 				}
-				if (jp->used && jp->state == 0)
+				if (jp->used && jp->state == JOBRUNNING)
 					break;
 			}
 		}
@@ -764,7 +767,7 @@ makejob(int nprocs)
 			break;
 	}
 	INTOFF;
-	jp->state = 0;
+	jp->state = JOBRUNNING;
 	jp->used = 1;
 	jp->changed = 0;
 	jp->nprocs = 0;
@@ -1079,9 +1082,8 @@ waitforjob(struct job *jp, bool *signaled)
 
 	INTOFF;
 	TRACE(("waitforjob(%%%td) called\n", jp - jobtab + 1));
-	while (jp->state == 0)
-		if (dowait(DOWAIT_BLOCK | (Tflag ? DOWAIT_SIG |
-		    DOWAIT_SIG_TRAP : 0), jp) == -1)
+	while (jp->state == JOBRUNNING)
+		if (dowait(DOWAIT_BLOCK | (Tflag ? DOWAIT_SIG | DOWAIT_SIG_TRAP : 0), jp) == -1)
 			dotrap();
 #if JOBS
 	if (jp->jobctl) {
@@ -1207,7 +1209,7 @@ dowait(int mode, struct job *job)
 						   status));
 					if (WIFCONTINUED(status)) {
 						sp->status = -1;
-						jp->state = 0;
+						jp->state = JOBRUNNING;
 					} else
 						sp->status = status;
 					thisjob = jp;
@@ -1236,7 +1238,7 @@ dowait(int mode, struct job *job)
 		}
 	}
 	INTON;
-	if (!thisjob || thisjob->state == 0)
+	if (!thisjob || thisjob->state == JOBRUNNING)
 		;
 	else if ((!rootshell || !iflag || thisjob == job) &&
 	    thisjob->foreground && thisjob->state != JOBSTOPPED) {
