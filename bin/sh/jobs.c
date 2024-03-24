@@ -720,7 +720,7 @@ killjob(const char *name, int sig)
  * Return a new job structure,
  */
 struct job *
-makejob(union node *node __unused, int nprocs)
+makejob(int nprocs)
 {
 	int i;
 	struct job *jp;
@@ -781,7 +781,7 @@ makejob(union node *node __unused, int nprocs)
 		jp->ps = &jp->ps0;
 	}
 	INTON;
-	TRACE(("makejob(%p, %d) returns %%%td\n", (void *)node, nprocs, jp - jobtab + 1));
+	TRACE(("%s(%d) returns %%%td\n", __func__, nprocs, jp - jobtab + 1));
 	return jp;
 }
 
@@ -1030,7 +1030,8 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 		TRACE(("Vfork failed, errno=%d\n", errno));
 		INTON;
 		print_trace();
-		error("%s: Cannot fork: %s", __func__, strerror(errno)); // will call a longjmp
+		error("%s: Cannot fork: %s", __func__, strerror(errno));
+		// will call a longjmp
 		/*NOTREACHED*/
 	} else { // parent
 		handler = savehandler;

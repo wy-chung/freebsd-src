@@ -411,7 +411,7 @@ evalsubshell(union node *n, int flags)
 	expredir(n->nredir.redirect);
 	if ((!backgnd && flags & EV_EXIT && !have_traps()))
 		goto eval;
-	else if (forkshell(jp = makejob(n, 1), n, backgnd) == 0) { // child
+	else if (forkshell(jp = makejob(1), n, backgnd) == 0) { // child
 eval:
 		if (backgnd)
 			flags &=~ EV_TESTED;
@@ -573,7 +573,7 @@ evalpipe(union node *n)
 	for (lp = n->npipe.cmdlist ; lp ; lp = lp->next)
 		pipelen++;
 	INTOFF;
-	jp = makejob(n, pipelen);
+	jp = makejob(pipelen);
 	prevfd = -1;
 	for (lp = n->npipe.cmdlist ; lp ; lp = lp->next) {
 		prehash(lp->n);
@@ -669,7 +669,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 	} else {
 		if (pipe(pip) < 0)
 			error("Pipe call failed: %s", strerror(errno));
-		jp = makejob(n, 1);
+		jp = makejob(1);
 		if (forkshell(jp, n, FORK_NOJOB) == 0) { // child
 			FORCEINTON;
 			close(pip[0]);
@@ -1119,16 +1119,16 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			cmdentry.special = 0;
 	}
 
-	enum fork_mode mode;
 	/* Fork off a child process if necessary. */
+	enum fork_mode mode;
 	if (((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
 	    && ((flags & EV_EXIT) == 0 || have_traps()))
 	 || ((flags & EV_BACKCMD) != 0
 	    && (cmdentry.cmdtype != CMDBUILTIN || !safe_builtin(cmdentry.u.index, argc, argv)))) {
-		jp = makejob(cmd, 1);
+		jp = makejob(1);
 		mode = FORK_FG;
 		if (flags & EV_BACKCMD) {
-			mode = FORK_NOJOB;
+			mode = FORK_NOJOB; // like FORK_FG but without job ontrol
 			if (pipe(pip) < 0)
 				error("Pipe call failed: %s", strerror(errno));
 		}
