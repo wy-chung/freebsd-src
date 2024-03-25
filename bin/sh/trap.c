@@ -518,7 +518,7 @@ exitshell_savedstatus(void)
 		FORCEINTON;
 		flushall();
 #if JOBS
-		setjobctl(0);
+		setjobctl(false);
 #endif
 #ifndef NO_HISTORY
 		histsave();

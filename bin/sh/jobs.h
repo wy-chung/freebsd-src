@@ -52,7 +52,7 @@ enum {
 
 extern int job_warning;		/* user was warned about stopped jobs */
 
-void setjobctl(int);
+void setjobctl(bool);
 void showjobs(bool, int);
 struct job *makejob(int);
 pid_t forkshell(struct job *, union node *, enum fork_mode);

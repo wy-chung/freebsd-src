@@ -108,7 +108,7 @@ sh_main(int argc, char *argv[])
 	volatile int state;
 	char *shinit;
 
-	printf("%s: evalpipe_child\n", __func__);
+	printf("%s: struct job\n", __func__);
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;

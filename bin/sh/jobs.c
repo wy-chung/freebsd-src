@@ -98,14 +98,14 @@ struct job {
 	struct procstat *ps;	/* status or processes when more than one */
 	short nprocs;		/* number of processes */
 	pid_t pgrp;		/* process group of this job */
-	char state;		/* true if job is finished */
+	char state;		// see enum job_state
 	bool used;		/* true if this entry is in used */
-	char changed;		/* true if status has changed */
-	char foreground;	/* true if running in the foreground */
-	char remembered;	/* true if $! referenced */
+	bool changed;		/* true if status has changed */
+	bool foreground;	/* true if running in the foreground */
+	bool remembered;	/* true if $! referenced */
 	char pipefail;		/* pass any non-zero status */
 #if JOBS
-	char jobctl;		/* job running under job control */
+	bool jobctl;		/* job running under job control */
 	struct job *next;	/* job used after this one */
 #endif
 };
@@ -150,7 +150,7 @@ static void showjob(struct job *, int);
  * Turn job control on and off.
  */
 
-static int jobctl;
+static bool jobctl;
 
 #if JOBS
 static void
@@ -164,7 +164,7 @@ jobctl_notty(void)
 		setsignal(SIGTSTP);
 		setsignal(SIGTTOU);
 		setsignal(SIGTTIN);
-		jobctl = 1;
+		jobctl = true;
 		return;
 	}
 	out2fmt_flush("sh: can't access tty; job control turned off\n");
@@ -172,7 +172,7 @@ jobctl_notty(void)
 }
 
 void
-setjobctl(int on)
+setjobctl(bool on)
 {
 	int i;
 
@@ -249,7 +249,7 @@ fgcmd(int argc __unused, char **argv __unused)
 
 	nextopt("");
 	jp = getjob(*argptr);
-	if (jp->jobctl == 0)
+	if (!jp->jobctl)
 		error("job not created under job control");
 	printjobcmd(jp);
 	flushout(&output);
@@ -257,7 +257,7 @@ fgcmd(int argc __unused, char **argv __unused)
 	if (ttyfd >= 0)
 		tcsetpgrp(ttyfd, pgrp);
 	restartjob(jp);
-	jp->foreground = 1;
+	jp->foreground = true;
 	INTOFF;
 	status = waitforjob(jp, (bool *)NULL);
 	INTON;
@@ -272,12 +272,12 @@ bgcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfu
 	nextopt("");
 	do {
 		jp = getjob(*argptr);
-		if (jp->jobctl == 0)
+		if (!jp->jobctl)
 			error("job not created under job control");
 		if (jp->state == JOBDONE)
 			continue;
 		restartjob(jp);
-		jp->foreground = 0;
+		jp->foreground = false;
 		out1fmt("[%td] ", jp - jobtab + 1);
 		printjobcmd(jp);
 	} while (*argptr != NULL && *++argptr != NULL);
@@ -482,7 +482,7 @@ showjobs(bool change, int mode)
 			continue;
 		showjob(&jobtab[i], mode);
 		if (mode == SHOWJOBS_DEFAULT || mode == SHOWJOBS_VERBOSE) {
-			jobtab[i].changed = 0;
+			jobtab[i].changed = false;
 			/* Hack: discard jobs for which $! has not been
 			 * referenced in interactive mode when they terminate.
 			 */
@@ -562,7 +562,7 @@ waitcmdloop(struct job *job)
 				if (! iflag || ! job->changed)
 					freejob(job);
 				else {
-					job->remembered = 0;
+					job->remembered = false;
 					if (job == bgjob)
 						bgjob = NULL;
 				}
@@ -576,7 +576,7 @@ waitcmdloop(struct job *job)
 					if (! iflag || ! jp->changed)
 						freejob(jp);
 					else {
-						jp->remembered = 0;
+						jp->remembered = false;
 						if (jp == bgjob)
 							bgjob = NULL;
 					}
@@ -767,12 +767,12 @@ makejob(int nprocs)
 			break;
 	}
 	INTOFF;
+	jp->nprocs = 0;
 	jp->state = JOBRUNNING;
 	jp->used = true;
-	jp->changed = 0;
-	jp->nprocs = 0;
-	jp->foreground = 0;
-	jp->remembered = 0;
+	jp->changed = false;
+	jp->foreground = false;
+	jp->remembered = false;
 	jp->pipefail = pipefailflag;
 #if JOBS
 	jp->jobctl = jobctl;
@@ -866,7 +866,7 @@ forkshell_child(struct job *jp, enum fork_mode mode)
 	forcelocal = 0;
 	clear_traps();
 #if JOBS
-	jobctl = 0;		/* do job control only in root shell */
+	jobctl = false;		/* do job control only in root shell */
 	if (wasroot && mode != FORK_NOJOB && mflag) {
 		pid_t pgrp;
 
@@ -1043,7 +1043,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 			ps->pid = pid;
 			ps->status = -1;
 			ps->cmd = nullstr;
-			jp->foreground = 1;
+			jp->foreground = true;
 #if JOBS
 			setcurjob(jp);
 #endif
@@ -1075,7 +1075,7 @@ int
 waitforjob(struct job *jp, bool *signaled)
 {
 #if JOBS
-	int propagate_int = jp->jobctl && jp->foreground;
+	bool propagate_int = jp->jobctl && jp->foreground;
 #endif
 	int status;
 	int st;
@@ -1262,7 +1262,7 @@ dowait(int mode, struct job *job)
 		}
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=%p\n", rootshell, job));
-		thisjob->changed = 1;
+		thisjob->changed = true;
 	}
 	return pid;
 }
@@ -1309,7 +1309,7 @@ pid_t
 backgndpidval(void)
 {
 	if (bgjob != NULL && !forcelocal)
-		bgjob->remembered = 1;
+		bgjob->remembered = true;
 	return backgndpid;
 }
 
