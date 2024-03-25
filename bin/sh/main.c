@@ -79,7 +79,7 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #endif
 
 int rootpid;
-bool rootshell;
+_Thread_local bool rootshell;
 struct jmploc main_handler;
 int localeisutf8, initial_localeisutf8;
 
@@ -108,7 +108,7 @@ sh_main(int argc, char *argv[])
 	volatile int state;
 	char *shinit;
 
-	printf("%s: struct job\n", __func__);
+	printf("%s: _Thread_local\n", __func__);
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;

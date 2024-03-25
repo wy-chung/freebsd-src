@@ -150,7 +150,7 @@ static void showjob(struct job *, int);
  * Turn job control on and off.
  */
 
-static bool jobctl;
+static _Thread_local bool jobctl;
 
 #if JOBS
 static void
@@ -500,15 +500,13 @@ showjobs(bool change, int mode)
 static void
 freejob(struct job *jp)
 {
-	struct procstat *ps;
-	int i;
 
 	INTOFF;
 	if (bgjob == jp)
 		bgjob = NULL;
-	for (i = jp->nprocs, ps = jp->ps ; --i >= 0 ; ps++) {
-		if (ps->cmd != nullstr)
-			ckfree(ps->cmd);
+	for (int i = 0; i < jp->nprocs; ++i) {
+		if (jp->ps[i].cmd != nullstr)
+			ckfree(jp->ps[i].cmd);
 	}
 	if (jp->ps != &jp->ps0)
 		ckfree(jp->ps);
@@ -620,8 +618,6 @@ getjob_nonotfound(const char *name)
 	int jobno;
 	struct job *found, *jp;
 	size_t namelen;
-	pid_t pid;
-	int i;
 
 	if (name == NULL) {
 #if JOBS
@@ -650,7 +646,8 @@ getjob_nonotfound(const char *name)
 #endif
 		} else if (name[1] == '?') {
 			found = NULL;
-			for (jp = jobtab, i = njobs ; --i >= 0 ; jp++) {
+			for (int i = 0; i < njobs; ++i) {
+				jp = &jobtab[i];
 				if (jp->used && jp->nprocs > 0
 				 && strstr(jp->ps[0].cmd, name + 2) != NULL) {
 					if (found)
@@ -663,7 +660,8 @@ getjob_nonotfound(const char *name)
 		} else {
 			namelen = strlen(name);
 			found = NULL;
-			for (jp = jobtab, i = njobs ; --i >= 0 ; jp++) {
+			for (int i = 0; i < njobs; ++i ) {
+				jp = &jobtab[i];
 				if (jp->used && jp->nprocs > 0
 				 && strncmp(jp->ps[0].cmd, name + 1,
 				 namelen - 1) == 0) {
@@ -676,8 +674,9 @@ getjob_nonotfound(const char *name)
 				return found;
 		}
 	} else if (is_number(name)) {
-		pid = (pid_t)number(name);
-		for (jp = jobtab, i = njobs ; --i >= 0 ; jp++) {
+		pid_t pid = (pid_t)number(name);
+		for (int i = 0; i < njobs; ++i ) {
+			jp = &jobtab[i];
 			if (jp->used && jp->nprocs > 0
 			 && jp->ps[jp->nprocs - 1].pid == pid)
 				return jp;
@@ -728,43 +727,43 @@ makejob(int nprocs)
 	int i;
 	struct job *jp;
 
-	for (i = njobs, jp = jobtab ; ; jp++) {
-		if (--i < 0) {
-			INTOFF;
-			if (njobs == 0) {
-				jobtab = ckmalloc(4 * sizeof jobtab[0]);
-#if JOBS
-				jobmru = NULL;
-#endif
-			} else {
-				jp = ckmalloc((njobs + 4) * sizeof jobtab[0]);
-				memcpy(jp, jobtab, njobs * sizeof jp[0]);
-#if JOBS
-				/* Relocate `next' pointers and list head */
-				if (jobmru != NULL)
-					jobmru = &jp[jobmru - jobtab];
-				for (i = 0; i < njobs; i++)
-					if (jp[i].next != NULL)
-						jp[i].next = &jp[jp[i].next -
-						    jobtab];
-#endif
-				if (bgjob != NULL)
-					bgjob = &jp[bgjob - jobtab];
-				/* Relocate `ps' pointers */
-				for (i = 0; i < njobs; i++)
-					if (jp[i].ps == &jobtab[i].ps0)
-						jp[i].ps = &jp[i].ps0;
-				ckfree(jobtab);
-				jobtab = jp;
-			}
-			jp = jobtab + njobs;
-			for (i = 4 ; --i >= 0 ; jobtab[njobs++].used = false)
-				;
-			INTON;
-			break;
-		}
+	for (i = 0; i < njobs; ++i) {
+		jp = &jobtab[i];
 		if (!jp->used)
 			break;
+	}
+	if (i == njobs) { // didn't find an unused entry
+		INTOFF;
+		if (njobs == 0) {
+			jobtab = ckmalloc(4 * sizeof jobtab[0]);
+#if JOBS
+			jobmru = NULL;
+#endif
+		} else {
+			jp = ckrealloc(jobtab, (njobs + 4) * sizeof jobtab[0]);
+			//memcpy(jp, jobtab, njobs * sizeof jp[0]);
+#if JOBS
+			/* Relocate `next' pointers and list head */
+			if (jobmru != NULL)
+				jobmru = &jp[jobmru - jobtab];
+			for (i = 0; i < njobs; i++)
+				if (jp[i].next != NULL)
+					jp[i].next = &jp[jp[i].next -
+					    jobtab];
+#endif
+			if (bgjob != NULL)
+				bgjob = &jp[bgjob - jobtab];
+			/* Relocate `ps' pointers */
+			for (i = 0; i < njobs; i++)
+				if (jp[i].ps == &jobtab[i].ps0)
+					jp[i].ps = &jp[i].ps0;
+			//ckfree(jobtab);
+			jobtab = jp;
+		}
+		jp = jobtab + njobs;
+		for (i = 4 ; --i >= 0 ; jobtab[njobs++].used = false)
+			;
+		INTON;
 	}
 	INTOFF;
 	jp->nprocs = 0;
@@ -849,8 +848,8 @@ getcurjob(struct job *nj)
 
 /*
 struct jmploc jmploc;
-
 exitshell(exitstatus);
+args: rootshell
 */
 static void
 forkshell_child(struct job *jp, enum fork_mode mode)
@@ -864,7 +863,7 @@ forkshell_child(struct job *jp, enum fork_mode mode)
 	closescript();
 	INTON;
 	forcelocal = 0;
-	clear_traps();
+	clear_traps(); //wyc may not be needed
 #if JOBS
 	jobctl = false;		/* do job control only in root shell */
 	if (wasroot && mode != FORK_NOJOB && mflag) {
@@ -874,8 +873,7 @@ forkshell_child(struct job *jp, enum fork_mode mode)
 			pgrp = getpid();
 		else
 			pgrp = jp->ps[0].pid;
-		if (setpgid(0, pgrp) == 0 && mode == FORK_FG &&
-		    ttyfd >= 0) {
+		if (setpgid(0, pgrp) == 0 && mode == FORK_FG && ttyfd >= 0) {
 			/*
 			 * Each process in a pipeline must have the tty
 			 * pgrp set before running its code.
