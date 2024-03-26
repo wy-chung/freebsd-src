@@ -108,7 +108,7 @@ sh_main(int argc, char *argv[])
 	volatile int state;
 	char *shinit;
 
-	printf("%s: _Thread_local\n", __func__);
+	printf("%s: revert makejob\n", __func__);
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;

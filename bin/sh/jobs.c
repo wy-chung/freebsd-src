@@ -740,8 +740,8 @@ makejob(int nprocs)
 			jobmru = NULL;
 #endif
 		} else {
-			jp = ckrealloc(jobtab, (njobs + 4) * sizeof jobtab[0]);
-			//memcpy(jp, jobtab, njobs * sizeof jp[0]);
+			jp = ckmalloc((njobs + 4) * sizeof jobtab[0]);
+			memcpy(jp, jobtab, njobs * sizeof jp[0]);
 #if JOBS
 			/* Relocate `next' pointers and list head */
 			if (jobmru != NULL)
@@ -757,7 +757,7 @@ makejob(int nprocs)
 			for (i = 0; i < njobs; i++)
 				if (jp[i].ps == &jobtab[i].ps0)
 					jp[i].ps = &jp[i].ps0;
-			//ckfree(jobtab);
+			ckfree(jobtab);
 			jobtab = jp;
 		}
 		jp = jobtab + njobs;
