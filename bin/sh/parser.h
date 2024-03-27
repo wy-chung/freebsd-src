@@ -66,13 +66,17 @@
 #define VSLENGTH	0xa		/* ${#var} */
 #define VSERROR		0xb		/* Syntax error, issue when expanded */
 
-
+enum prompt {
+	NOPROMPT,
+	PS1,
+	PS2,
+};
 /*
  * NEOF is returned by parsecmd when it encounters an end of file.  It
  * must be distinct from NULL.
  */
 #define NEOF ((union node *)-1)
-extern int whichprompt;		/* 1 == PS1, 2 == PS2 */
+extern enum prompt whichprompt;		/* 1 == PS1, 2 == PS2 */
 extern const char *const parsekwd[];
 
 

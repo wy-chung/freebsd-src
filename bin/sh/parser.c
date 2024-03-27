@@ -124,7 +124,7 @@ static int noexpand(char *);
 static void consumetoken(int);
 static void synexpect(int) __dead2;
 static void synerror(const char *) __dead2;
-static void setprompt(int);
+static void setprompt(enum prompt);
 static int pgetc_linecont(void);
 static void getusername(char *, size_t);
 
@@ -210,9 +210,9 @@ parsecmd(bool interact)
 	checkkwd = 0;
 	doprompt = interact;
 	if (doprompt)
-		setprompt(1); // PS1
+		setprompt(PS1);
 	else
-		setprompt(0); // no prompt
+		setprompt(NOPROMPT);
 	needprompt = false;
 	t = readtoken();
 	if (t == TEOF)
@@ -242,7 +242,7 @@ parsewordexp(void)
 	tokpushback = 0;
 	checkkwd = 0;
 	doprompt = false;
-	setprompt(0); // no prompt
+	setprompt(NOPROMPT);
 	needprompt = false;
 	pnext = &first;
 	while ((t = readtoken()) != TEOF) {
@@ -778,7 +778,7 @@ parseheredoc(void)
 		here = heredoclist;
 		heredoclist = here->next;
 		if (needprompt) {
-			setprompt(2); // PS2
+			setprompt(PS2);
 			needprompt = false;
 		}
 		readtoken1(pgetc(), here->here->type == NHERE? SQSYNTAX : DQSYNTAX,
@@ -884,7 +884,7 @@ xxreadtoken(void)
 		return lasttoken;
 	}
 	if (needprompt) {
-		setprompt(2); // PS2
+		setprompt(PS2);
 		needprompt = false;
 	}
 	startlinno = plinno;
@@ -901,9 +901,9 @@ xxreadtoken(void)
 			if (pgetc() == '\n') {
 				startlinno = ++plinno;
 				if (doprompt)
-					setprompt(2); // PS2
+					setprompt(PS2);
 				else
-					setprompt(0); // no prompt
+					setprompt(NOPROMPT);
 				continue;
 			}
 			pungetc();
@@ -1107,7 +1107,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
                 STARTSTACKSTR(oout);
 		for (;;) {
 			if (needprompt) {
-				setprompt(2); // PS2
+				setprompt(PS2);
 				needprompt = false;
 			}
 			CHECKSTRSPACE(2, oout);
@@ -1220,9 +1220,9 @@ readcstyleesc(char *out)
 	case '\n':
 		plinno++;
 		if (doprompt)
-			setprompt(2); // PS2
+			setprompt(PS2);
 		else
-			setprompt(0); // no prompt
+			setprompt(NOPROMPT);
 		return out;
 	case '\\':
 	case '\'':
@@ -1340,9 +1340,9 @@ readcstyleesc(char *out)
 			if (c == '\n') {
 				plinno++;
 				if (doprompt)
-					setprompt(2); // PS2
+					setprompt(PS2);
 				else
-					setprompt(0); // no prompt
+					setprompt(NOPROMPT);
 			}
 		}
 		pungetc();
@@ -1413,9 +1413,9 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 				USTPUTC(c, out);
 				plinno++;
 				if (doprompt)
-					setprompt(2); // PS2
+					setprompt(PS2);
 				else
-					setprompt(0); // no prompt
+					setprompt(NOPROMPT);
 				c = pgetc();
 				goto loop;		/* continue outer loop */
 			case CSBACK:
@@ -1440,9 +1440,9 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 				} else if (c == '\n') {
 					plinno++;
 					if (doprompt)
-						setprompt(2); // PS2
+						setprompt(PS2);
 					else
-						setprompt(0); // no prompt
+						setprompt(NOPROMPT);
 				} else {
 					if (state[level].syntax == DQSYNTAX &&
 					    c != '\\' && c != '`' && c != '$' &&
@@ -1891,10 +1891,10 @@ synerror(const char *msg)
 }
 
 static void
-setprompt(int which)
+setprompt(enum prompt which)
 {
 	whichprompt = which;
-	if (which == 0)
+	if (which == NOPROMPT)
 		return;
 
 #ifndef NO_HISTORY
@@ -1916,9 +1916,9 @@ pgetc_linecont(void)
 		if (c == '\n') {
 			plinno++;
 			if (doprompt)
-				setprompt(2); // PS2
+				setprompt(PS2);
 			else
-				setprompt(0); // no prompt
+				setprompt(NOPROMPT);
 		} else {
 			pungetc();
 			/* Allow the backslash to be pushed back. */
@@ -1992,13 +1992,13 @@ getprompt(void *unused __unused)
 	 * Select prompt format.
 	 */
 	switch (whichprompt) {
-	case 0:
+	case NOPROMPT:
 		fmt = "";
 		break;
-	case 1:
+	case PS1:
 		fmt = ps1val();
 		break;
-	case 2:
+	case PS2:
 		fmt = ps2val();
 		break;
 	default:

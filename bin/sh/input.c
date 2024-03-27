@@ -99,7 +99,7 @@ static struct _parsefile basepf = {	/* top level input file */
 	.buf = basebuf
 };
 static struct _parsefile *parsefile = &basepf;	/* current input file */
-int whichprompt;		/* 1 == PS1, 2 == PS2 */
+enum prompt whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 static void pushfile(void);
 static int preadfd(void);
