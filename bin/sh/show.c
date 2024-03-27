@@ -50,7 +50,6 @@ static char sccsid[] = "@(#)show.c	8.3 (Berkeley) 5/4/95";
 #include "mystring.h"
 #include "show.h"
 
-
 #ifdef DEBUG
 static void shtree(union node *, int, char *, FILE*);
 static void shcmd(union node *, FILE *);
@@ -58,14 +57,12 @@ static void sharg(union node *, FILE *);
 static void indent(int, char *, FILE *);
 static void trstring(char *);
 
-
 void
 showtree(union node *n)
 {
 	trputs("showtree called\n");
 	shtree(n, 1, NULL, stdout);
 }
-
 
 static void
 shtree(union node *n, int ind, char *pfx, FILE *fp)
@@ -116,8 +113,6 @@ binop:
 	}
 }
 
-
-
 static void
 shcmd(union node *cmd, FILE *fp)
 {
@@ -166,8 +161,6 @@ shcmd(union node *cmd, FILE *fp)
 		first = 0;
 	}
 }
-
-
 
 static void
 sharg(union node *arg, FILE *fp)
@@ -253,7 +246,6 @@ sharg(union node *arg, FILE *fp)
 	}
 }
 
-
 static void
 indent(int amount, char *pfx, FILE *fp)
 {
@@ -266,19 +258,15 @@ indent(int amount, char *pfx, FILE *fp)
 	}
 }
 
-
 /*
  * Debugging stuff.
  */
-
-
 static FILE *tracefile;
 #if DEBUG >= 2
 int debug = 1;
 #else
 int debug = 0;
 #endif
-
 
 void
 trputc(int c)
@@ -289,7 +277,6 @@ trputc(int c)
 	if (c == '\n')
 		fflush(tracefile);
 }
-
 
 void
 sh_trace(const char *fmt, ...)
@@ -304,7 +291,6 @@ sh_trace(const char *fmt, ...)
 	va_end(va);
 }
 
-
 void
 trputs(const char *s)
 {
@@ -314,7 +300,6 @@ trputs(const char *s)
 	if (strchr(s, '\n'))
 		fflush(tracefile);
 }
-
 
 static void
 trstring(char *s)
@@ -355,7 +340,6 @@ backslash:	  putc('\\', tracefile);
 	putc('"', tracefile);
 }
 
-
 void
 trargs(char **ap)
 {
@@ -370,7 +354,6 @@ trargs(char **ap)
 	}
 	fflush(tracefile);
 }
-
 
 void
 opentrace(void)

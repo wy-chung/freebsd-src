@@ -858,7 +858,7 @@ evalcommand_execute(struct job *jp, int argc, char **argv, const char *path,
 	} /* CMDFUNCTION */
 	else if (cmdentry->cmdtype == CMDBUILTIN) {
 		char *savecmdname;
-		struct parsefile *savetopfile;
+		struct _parsefile *savetopfile;
 		enum fork_mode mode;
 		volatile int e;
 

@@ -77,8 +77,8 @@ struct strpush {
  * contains information about the current file being read.
  */
 
-struct parsefile {
-	struct parsefile *prev;	/* preceding file on stack */
+struct _parsefile {
+	struct _parsefile *prev;	/* preceding file on stack */
 	int linno;		/* current line */
 	int fd;			/* file descriptor (or -1 if string) */
 	int nleft;		/* number of chars left in this line */
@@ -89,17 +89,16 @@ struct parsefile {
 	struct strpush basestrpush; /* so pushing one is fast */
 };
 
-
 int plinno = 1;			/* input line number */
 int parsenleft;			/* copy of parsefile->nleft */
 static int parselleft;		/* copy of parsefile->lleft */
 const char *parsenextc;		/* copy of parsefile->nextc */
 static char basebuf[BUFSIZ + 1];/* buffer for top level input file */
-static struct parsefile basepf = {	/* top level input file */
+static struct _parsefile basepf = {	/* top level input file */
 	.nextc = basebuf,
 	.buf = basebuf
 };
-static struct parsefile *Parsefile = &basepf;	/* current input file */
+static struct _parsefile *parsefile = &basepf;	/* current input file */
 int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 static void pushfile(void);
@@ -113,29 +112,25 @@ resetinput(void)
 	parselleft = parsenleft = 0;	/* clear input buffer */
 }
 
-
-
 /*
  * Read a character from the script, returning PEOF on end of file.
  * Nul characters in the input are silently discarded.
  */
-
 int
 pgetc(void)
 {
 	return pgetc_macro();
 }
 
-
 static int
 preadfd(void)
 {
 	int nr;
-	parsenextc = Parsefile->buf;
+	parsenextc = parsefile->buf;
 
 retry:
 #ifndef NO_HISTORY
-	if (Parsefile->fd == 0 && el) {
+	if (parsefile->fd == 0 && el) {
 		static const char *rl_cp;
 		static int el_len;
 
@@ -149,7 +144,7 @@ retry:
 			nr = el_len;
 			if (nr > BUFSIZ)
 				nr = BUFSIZ;
-			memcpy(Parsefile->buf, rl_cp, nr);
+			memcpy(parsefile->buf, rl_cp, nr);
 			if (nr != el_len) {
 				el_len -= nr;
 				rl_cp += nr;
@@ -158,13 +153,13 @@ retry:
 		}
 	} else
 #endif
-		nr = read(Parsefile->fd, Parsefile->buf, BUFSIZ);
+		nr = read(parsefile->fd, parsefile->buf, BUFSIZ);
 
 	if (nr <= 0) {
                 if (nr < 0) {
                         if (errno == EINTR)
                                 goto retry;
-                        if (Parsefile->fd == 0 && errno == EWOULDBLOCK) {
+                        if (parsefile->fd == 0 && errno == EWOULDBLOCK) {
                                 int flags = fcntl(0, F_GETFL, 0);
                                 if (flags >= 0 && flags & O_NONBLOCK) {
                                         flags &=~ O_NONBLOCK;
@@ -189,26 +184,25 @@ retry:
  * 3) If there is more in this buffer, use it else call read to fill it.
  * 4) Process input up to the next newline, deleting nul characters.
  */
-
 int
 preadbuffer(void)
 {
 	char *p, *q, *r, *end;
 	char savec;
 
-	while (Parsefile->strpush) {
+	while (parsefile->strpush) {
 		/*
 		 * Add a space to the end of an alias to ensure that the
 		 * alias remains in use while parsing its last word.
 		 * This avoids alias recursions.
 		 */
-		if (parsenleft == -1 && Parsefile->strpush->ap != NULL)
+		if (parsenleft == -1 && parsefile->strpush->ap != NULL)
 			return ' ';
 		popstring();
 		if (--parsenleft >= 0)
 			return (*parsenextc++);
 	}
-	if (parsenleft == EOF_NLEFT || Parsefile->buf == NULL)
+	if (parsenleft == EOF_NLEFT || parsefile->buf == NULL)
 		return PEOF;
 
 again:
@@ -219,7 +213,7 @@ again:
 		}
 	}
 
-	p = Parsefile->buf + (parsenextc - Parsefile->buf);
+	p = parsefile->buf + (parsenextc - parsefile->buf);
 	end = p + parselleft;
 	*end = '\0';
 	q = strchrnul(p, '\n');
@@ -250,7 +244,7 @@ again:
 	*q = '\0';
 
 #ifndef NO_HISTORY
-	if (Parsefile->fd == 0 && hist &&
+	if (parsefile->fd == 0 && hist &&
 	    parsenextc[strspn(parsenextc, " \t\n")] != '\0') {
 		HistEvent he;
 		INTOFF;
@@ -274,15 +268,14 @@ again:
  * Returns if we are certain we are at EOF. Does not cause any more input
  * to be read from the outside world.
  */
-
 int
 preadateof(void)
 {
 	if (parsenleft > 0)
 		return 0;
-	if (Parsefile->strpush)
+	if (parsefile->strpush)
 		return 0;
-	if (parsenleft == EOF_NLEFT || Parsefile->buf == NULL)
+	if (parsenleft == EOF_NLEFT || parsefile->buf == NULL)
 		return 1;
 	return 0;
 }
@@ -291,7 +284,6 @@ preadateof(void)
  * Undo the last call to pgetc.  Only one character may be pushed back.
  * PEOF may be pushed back.
  */
-
 void
 pungetc(void)
 {
@@ -310,12 +302,12 @@ pushstring(const char *s, int len, struct alias *ap)
 
 	INTOFF;
 /*out2fmt_flush("*** calling pushstring: %s, %d\n", s, len);*/
-	if (Parsefile->strpush) {
+	if (parsefile->strpush) {
 		sp = ckmalloc(sizeof (struct strpush));
-		sp->prev = Parsefile->strpush;
-		Parsefile->strpush = sp;
+		sp->prev = parsefile->strpush;
+		parsefile->strpush = sp;
 	} else
-		sp = Parsefile->strpush = &(Parsefile->basestrpush);
+		sp = parsefile->strpush = &(parsefile->basestrpush);
 	sp->prevstring = parsenextc;
 	sp->prevnleft = parsenleft;
 	sp->prevlleft = parselleft;
@@ -330,7 +322,7 @@ pushstring(const char *s, int len, struct alias *ap)
 static void
 popstring(void)
 {
-	struct strpush *sp = Parsefile->strpush;
+	struct strpush *sp = parsefile->strpush;
 
 	INTOFF;
 	if (sp->ap) {
@@ -343,8 +335,8 @@ popstring(void)
 	parsenleft = sp->prevnleft;
 	parselleft = sp->prevlleft;
 /*out2fmt_flush("*** calling popstring: restoring to '%s'\n", parsenextc);*/
-	Parsefile->strpush = sp->prev;
-	if (sp != &(Parsefile->basestrpush))
+	parsefile->strpush = sp->prev;
+	if (sp != &(parsefile->basestrpush))
 		ckfree(sp);
 	INTON;
 }
@@ -357,7 +349,6 @@ popstring(void)
  *    0: Do not verify
  *    1: Do verify
  */
-
 void
 setinputfile(const char *fname, int push, int verify)
 {
@@ -386,24 +377,22 @@ setinputfile(const char *fname, int push, int verify)
 	INTON;
 }
 
-
 /*
  * Like setinputfile, but takes an open file descriptor (which should have
  * its FD_CLOEXEC flag already set).  Call this with interrupts off.
  */
-
 void
 setinputfd(int fd, int push)
 {
 	if (push) {
 		pushfile();
-		Parsefile->buf = ckmalloc(BUFSIZ + 1);
+		parsefile->buf = ckmalloc(BUFSIZ + 1);
 	}
-	if (Parsefile->fd > 0)
-		close(Parsefile->fd);
-	Parsefile->fd = fd;
-	if (Parsefile->buf == NULL)
-		Parsefile->buf = ckmalloc(BUFSIZ + 1);
+	if (parsefile->fd > 0)
+		close(parsefile->fd);
+	parsefile->fd = fd;
+	if (parsefile->buf == NULL)
+		parsefile->buf = ckmalloc(BUFSIZ + 1);
 	parselleft = parsenleft = 0;
 	plinno = 1;
 }
@@ -412,7 +401,6 @@ setinputfd(int fd, int push)
 /*
  * Like setinputfile, but takes input from a string.
  */
-
 void
 setinputstring(const char *string, int push)
 {
@@ -421,40 +409,36 @@ setinputstring(const char *string, int push)
 		pushfile();
 	parsenextc = string;
 	parselleft = parsenleft = strlen(string);
-	Parsefile->buf = NULL;
+	parsefile->buf = NULL;
 	plinno = 1;
 	INTON;
 }
-
-
 
 /*
  * To handle the "." command, a stack of input files is used.  Pushfile
  * adds a new entry to the stack and popfile restores the previous level.
  */
-
 static void
 pushfile(void)
 {
-	struct parsefile *pf;
+	struct _parsefile *pf;
 
-	Parsefile->nleft = parsenleft;
-	Parsefile->lleft = parselleft;
-	Parsefile->nextc = parsenextc;
-	Parsefile->linno = plinno;
-	pf = (struct parsefile *)ckmalloc(sizeof (struct parsefile));
-	pf->prev = Parsefile;
+	parsefile->nleft = parsenleft;
+	parsefile->lleft = parselleft;
+	parsefile->nextc = parsenextc;
+	parsefile->linno = plinno;
+	pf = (struct _parsefile *)ckmalloc(sizeof (struct _parsefile));
+	pf->prev = parsefile;
 	pf->fd = -1;
 	pf->strpush = NULL;
 	pf->basestrpush.prev = NULL;
-	Parsefile = pf;
+	parsefile = pf;
 }
-
 
 void
 popfile(void)
 {
-	struct parsefile *pf = Parsefile;
+	struct _parsefile *pf = parsefile;
 
 	INTOFF;
 	if (pf->fd >= 0)
@@ -463,66 +447,58 @@ popfile(void)
 		ckfree(pf->buf);
 	while (pf->strpush)
 		popstring();
-	Parsefile = pf->prev;
+	parsefile = pf->prev;
 	ckfree(pf);
-	parsenleft = Parsefile->nleft;
-	parselleft = Parsefile->lleft;
-	parsenextc = Parsefile->nextc;
-	plinno = Parsefile->linno;
+	parsenleft = parsefile->nleft;
+	parselleft = parsefile->lleft;
+	parsenextc = parsefile->nextc;
+	plinno = parsefile->linno;
 	INTON;
 }
-
 
 /*
  * Return current file (to go back to it later using popfilesupto()).
  */
-
-struct parsefile *
+struct _parsefile *
 getcurrentfile(void)
 {
-	return Parsefile;
+	return parsefile;
 }
-
 
 /*
  * Pop files until the given file is on top again. Useful for regular
  * builtins that read shell commands from files or strings.
  * If the given file is not an active file, an error is raised.
  */
-
 void
-popfilesupto(struct parsefile *file)
+popfilesupto(struct _parsefile *file)
 {
-	while (Parsefile != file && Parsefile != &basepf)
+	while (parsefile != file && parsefile != &basepf)
 		popfile();
-	if (Parsefile != file)
+	if (parsefile != file)
 		error("popfilesupto() misused");
 }
 
 /*
  * Return to top level.
  */
-
 void
 popallfiles(void)
 {
-	while (Parsefile != &basepf)
+	while (parsefile != &basepf)
 		popfile();
 }
-
-
 
 /*
  * Close the file(s) that the shell is reading commands from.  Called
  * after a fork is done.
  */
-
 void
 closescript(void)
 {
 	popallfiles();
-	if (Parsefile->fd > 0) {
-		close(Parsefile->fd);
-		Parsefile->fd = 0;
+	if (parsefile->fd > 0) {
+		close(parsefile->fd);
+		parsefile->fd = 0;
 	}
 }

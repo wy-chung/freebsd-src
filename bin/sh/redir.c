@@ -103,19 +103,17 @@ void
 redirect(union node *redir, int flags)
 {
 	struct redirtab *sv = NULL;
-	int i;
-	int fd;
 	char memory[10];	/* file descriptors to write to memory */
 
 	INTOFF;
-	for (i = 10 ; --i >= 0 ; )
+	for (int i = 0 ; i < 10 ; ++i)
 		memory[i] = 0;
 	memory[1] = flags & REDIR_BACKQ;
 	if (flags & REDIR_PUSH) {
 		empty_redirs++;
 		if (redir != NULL) {
 			sv = ckmalloc(sizeof (struct redirtab));
-			for (i = 0 ; i < 10 ; i++)
+			for (int i = 0 ; i < 10 ; i++)
 				sv->renamed[i] = EMPTY;
 			sv->fd0_redirected = fd0_redirected;
 			sv->empty_redirs = empty_redirs - 1;
@@ -125,7 +123,7 @@ redirect(union node *redir, int flags)
 		}
 	}
 	for (union node *n = redir ; n ; n = n->nfile.next) {
-		fd = n->nfile.fd;
+		int fd = n->nfile.fd;
 		if (fd == 0)
 			fd0_redirected = true;
 		if ((n->nfile.type == NTOFD || n->nfile.type == NFROMFD) &&
@@ -134,6 +132,7 @@ redirect(union node *redir, int flags)
 
 		if ((flags & REDIR_PUSH) && sv->renamed[fd] == EMPTY) {
 			INTOFF;
+			int i;
 			if ((i = fcntl(fd, F_DUPFD_CLOEXEC, 10)) == -1) {
 				switch (errno) {
 				case EBADF:

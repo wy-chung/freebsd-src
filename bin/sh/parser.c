@@ -85,8 +85,8 @@ struct heredoc {
 	int striptabs;		/* if set, strip leading tabs */
 };
 
-struct parser_temp {
-	struct parser_temp *next;
+struct _parser_temp {
+	struct _parser_temp *next;
 	void *data;
 };
 
@@ -103,7 +103,7 @@ static struct heredoc *heredoc;
 static int quoteflag;		/* set if (part of) last token was quoted */
 static int startlinno;		/* line # where last token started */
 static int funclinno;		/* line # where the current function started */
-static struct parser_temp *parser_temp;
+static struct _parser_temp *parser_temp;
 
 #define NOEOFMARK ((const char *)&heredoclist)
 
@@ -131,7 +131,7 @@ static void getusername(char *, size_t);
 static void *
 parser_temp_alloc(size_t len)
 {
-	struct parser_temp *t;
+	struct _parser_temp *t;
 
 	INTOFF;
 	t = ckmalloc(sizeof(*t));
@@ -146,7 +146,7 @@ parser_temp_alloc(size_t len)
 static void *
 parser_temp_realloc(void *ptr, size_t len)
 {
-	struct parser_temp *t;
+	struct _parser_temp *t;
 
 	INTOFF;
 	t = parser_temp;
@@ -160,7 +160,7 @@ parser_temp_realloc(void *ptr, size_t len)
 static void
 parser_temp_free_upto(void *ptr)
 {
-	struct parser_temp *t;
+	struct _parser_temp *t;
 	int done = 0;
 
 	INTOFF;
@@ -179,7 +179,7 @@ parser_temp_free_upto(void *ptr)
 static void
 parser_temp_free_all(void)
 {
-	struct parser_temp *t;
+	struct _parser_temp *t;
 
 	INTOFF;
 	while (parser_temp != NULL) {
@@ -210,9 +210,9 @@ parsecmd(bool interact)
 	checkkwd = 0;
 	doprompt = interact;
 	if (doprompt)
-		setprompt(1);
+		setprompt(1); // PS1
 	else
-		setprompt(0);
+		setprompt(0); // no prompt
 	needprompt = false;
 	t = readtoken();
 	if (t == TEOF)
@@ -242,7 +242,7 @@ parsewordexp(void)
 	tokpushback = 0;
 	checkkwd = 0;
 	doprompt = false;
-	setprompt(0);
+	setprompt(0); // no prompt
 	needprompt = false;
 	pnext = &first;
 	while ((t = readtoken()) != TEOF) {
@@ -353,9 +353,9 @@ pipeline(void)
 {
 	union node *n1, *n2, *pipenode;
 	struct nodelist *lp, *prev;
-	int negate, t;
+	bool negate;
 
-	negate = 0;
+	negate = false;
 	checkkwd = CHKNL | CHKKWD | CHKALIAS;
 	TRACE(("pipeline: entered\n"));
 	while (readtoken() == TNOT)
@@ -373,7 +373,7 @@ pipeline(void)
 			prev = lp;
 			lp = (struct nodelist *)stalloc(sizeof (struct nodelist));
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
-			t = readtoken();
+			int t = readtoken();
 			tokpushback++;
 			if (t == TNOT)
 				lp->n = pipeline();
@@ -778,7 +778,7 @@ parseheredoc(void)
 		here = heredoclist;
 		heredoclist = here->next;
 		if (needprompt) {
-			setprompt(2);
+			setprompt(2); // PS2
 			needprompt = false;
 		}
 		readtoken1(pgetc(), here->here->type == NHERE? SQSYNTAX : DQSYNTAX,
@@ -807,7 +807,7 @@ readtoken(void)
 	int alreadyseen = tokpushback;
 #endif
 
-	top:
+top:
 	t = xxreadtoken();
 
 	/*
@@ -884,7 +884,7 @@ xxreadtoken(void)
 		return lasttoken;
 	}
 	if (needprompt) {
-		setprompt(2);
+		setprompt(2); // PS2
 		needprompt = false;
 	}
 	startlinno = plinno;
@@ -901,9 +901,9 @@ xxreadtoken(void)
 			if (pgetc() == '\n') {
 				startlinno = ++plinno;
 				if (doprompt)
-					setprompt(2);
+					setprompt(2); // PS2
 				else
-					setprompt(0);
+					setprompt(0); // no prompt
 				continue;
 			}
 			pungetc();
@@ -1067,7 +1067,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 	struct jmploc *const savehandler = handler;
 	const int bq_startlinno = plinno;
 	char *volatile ostr = NULL;
-	struct parsefile *const savetopfile = getcurrentfile();
+	struct _parsefile *const savetopfile = getcurrentfile();
 	struct heredoc *const saveheredoclist = heredoclist;
 	struct heredoc *here;
 
@@ -1107,7 +1107,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
                 STARTSTACKSTR(oout);
 		for (;;) {
 			if (needprompt) {
-				setprompt(2);
+				setprompt(2); // PS2
 				needprompt = false;
 			}
 			CHECKSTRSPACE(2, oout);
@@ -1220,9 +1220,9 @@ readcstyleesc(char *out)
 	case '\n':
 		plinno++;
 		if (doprompt)
-			setprompt(2);
+			setprompt(2); // PS2
 		else
-			setprompt(0);
+			setprompt(0); // no prompt
 		return out;
 	case '\\':
 	case '\'':
@@ -1340,9 +1340,9 @@ readcstyleesc(char *out)
 			if (c == '\n') {
 				plinno++;
 				if (doprompt)
-					setprompt(2);
+					setprompt(2); // PS2
 				else
-					setprompt(0);
+					setprompt(0); // no prompt
 			}
 		}
 		pungetc();
@@ -1413,9 +1413,9 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 				USTPUTC(c, out);
 				plinno++;
 				if (doprompt)
-					setprompt(2);
+					setprompt(2); // PS2
 				else
-					setprompt(0);
+					setprompt(0); // no prompt
 				c = pgetc();
 				goto loop;		/* continue outer loop */
 			case CSBACK:
@@ -1440,9 +1440,9 @@ readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
 				} else if (c == '\n') {
 					plinno++;
 					if (doprompt)
-						setprompt(2);
+						setprompt(2); // PS2
 					else
-						setprompt(0);
+						setprompt(0); // no prompt
 				} else {
 					if (state[level].syntax == DQSYNTAX &&
 					    c != '\\' && c != '`' && c != '$' &&
@@ -1916,9 +1916,9 @@ pgetc_linecont(void)
 		if (c == '\n') {
 			plinno++;
 			if (doprompt)
-				setprompt(2);
+				setprompt(2); // PS2
 			else
-				setprompt(0);
+				setprompt(0); // no prompt
 		} else {
 			pungetc();
 			/* Allow the backslash to be pushed back. */
@@ -2148,8 +2148,8 @@ expandstr(const char *ps)
 	struct jmploc jmploc;
 	struct jmploc *const savehandler = handler;
 	const bool saveprompt = doprompt;
-	struct parsefile *const savetopfile = getcurrentfile();
-	struct parser_temp *const saveparser_temp = parser_temp;
+	struct _parsefile *const savetopfile = getcurrentfile();
+	struct _parser_temp *const saveparser_temp = parser_temp;
 	const char *result = NULL;
 
 	if (setjmp(jmploc.loc) == 0) { // return from setjmp
