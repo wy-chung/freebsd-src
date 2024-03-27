@@ -94,7 +94,7 @@ static struct heredoc *heredoclist;	/* list of here documents to read */
 static bool doprompt;		/* if set, prompt the user */
 static bool needprompt;		/* true if interactive and at start of line */
 static int lasttoken;		/* last token read */
-static int tokpushback;		/* last token pushed back */
+static bool tokpushback;		/* last token pushed back */
 static char *wordtext;		/* text of last word returned by readtoken */
 static int checkkwd;
 static struct nodelist *backquotelist;
@@ -206,7 +206,7 @@ parsecmd(bool interact)
 	parser_temp_free_all();
 	heredoclist = NULL;
 
-	tokpushback = 0;
+	tokpushback = false;
 	checkkwd = 0;
 	doprompt = interact;
 	if (doprompt)
@@ -219,7 +219,7 @@ parsecmd(bool interact)
 		return NEOF;
 	if (t == TNL)
 		return NULL;
-	tokpushback++;
+	tokpushback = true;
 	return list(true); // the only place 'true' is passed to list()
 }
 
@@ -239,7 +239,7 @@ parsewordexp(void)
 	parser_temp_free_all();
 	heredoclist = NULL;
 
-	tokpushback = 0;
+	tokpushback = false;
 	checkkwd = 0;
 	doprompt = false;
 	setprompt(NOPROMPT);
@@ -307,7 +307,7 @@ list(bool nlflag) // the only list(true) is called by parsecmd()
 				parseheredoc();
 				return ntop;
 			} else {
-				tokpushback++;
+				tokpushback = true;
 			}
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
 			if (!nlflag && tokendlist[peektoken()])
@@ -322,7 +322,7 @@ list(bool nlflag) // the only list(true) is called by parsecmd()
 		default:
 			if (nlflag)
 				synexpect(-1);
-			tokpushback++;
+			tokpushback = true;
 			return ntop;
 		}
 	}
@@ -341,7 +341,7 @@ andor(void)
 		} else if (t == TOR) {
 			t = NOR;
 		} else {
-			tokpushback++;
+			tokpushback = true;
 			return n;
 		}
 		n = makebinary(t, n, pipeline());
@@ -360,7 +360,7 @@ pipeline(void)
 	TRACE(("pipeline: entered\n"));
 	while (readtoken() == TNOT)
 		negate = !negate;
-	tokpushback++;
+	tokpushback = true;
 	n1 = command();
 	if (readtoken() == TPIPE) {
 		pipenode = (union node *)stalloc(sizeof (struct npipe));
@@ -374,7 +374,7 @@ pipeline(void)
 			lp = (struct nodelist *)stalloc(sizeof (struct nodelist));
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
 			int t = readtoken();
-			tokpushback++;
+			tokpushback = true;
 			if (t == TNOT)
 				lp->n = pipeline();
 			else
@@ -384,7 +384,7 @@ pipeline(void)
 		lp->next = NULL;
 		n1 = pipenode;
 	}
-	tokpushback++;
+	tokpushback = true;
 	if (negate) {
 		n2 = (union node *)stalloc(sizeof (struct nnot));
 		n2->type = NNOT;
@@ -416,7 +416,7 @@ command(void)
 		rpp = &n2->nfile.next;
 		parsefname();
 	}
-	tokpushback++;
+	tokpushback = true;
 
 	switch (readtoken()) {
 	case TIF:
@@ -440,7 +440,7 @@ command(void)
 			n2->nif.elsepart = list(false);
 		else {
 			n2->nif.elsepart = NULL;
-			tokpushback++;
+			tokpushback = true;
 		}
 		consumetoken(TFI);
 		checkkwd = CHKKWD | CHKALIAS;
@@ -473,7 +473,7 @@ command(void)
 			*app = NULL;
 			n1->nfor.args = ap;
 			if (lasttoken == TNL)
-				tokpushback++;
+				tokpushback = true;
 			else if (lasttoken != TSEMI)
 				synexpect(-1);
 		} else {
@@ -491,7 +491,7 @@ command(void)
 			 * that the original Bourne shell only allowed NL).
 			 */
 			if (lasttoken != TSEMI)
-				tokpushback++;
+				tokpushback = true;
 		}
 		checkkwd = CHKNL | CHKKWD | CHKALIAS;
 		if ((t = readtoken()) == TDO)
@@ -576,7 +576,7 @@ command(void)
 		if (!redir)
 			synexpect(-1);
 	case TWORD:
-		tokpushback++;
+		tokpushback = true;
 		n1 = simplecmd(rpp, redir);
 		return n1;
 	default:
@@ -589,7 +589,7 @@ command(void)
 		rpp = &n2->nfile.next;
 		parsefname();
 	}
-	tokpushback++;
+	tokpushback = true;
 	*rpp = NULL;
 	if (redir) {
 		if (!is_subshell) {
@@ -666,7 +666,7 @@ simplecmd(union node **rpp, union node *redir)
 			funclinno = 0;
 			return n;
 		} else {
-			tokpushback++;
+			tokpushback = true;
 			break;
 		}
 	}
@@ -794,7 +794,7 @@ peektoken(void)
 	int t;
 
 	t = readtoken();
-	tokpushback++;
+	tokpushback = true;
 	return (t);
 }
 
@@ -804,7 +804,7 @@ readtoken(void)
 	int t;
 	struct alias *ap;
 #ifdef DEBUG
-	int alreadyseen = tokpushback;
+	bool alreadyseen = tokpushback;
 #endif
 
 top:
@@ -880,7 +880,7 @@ xxreadtoken(void)
 	int c;
 
 	if (tokpushback) {
-		tokpushback = 0;
+		tokpushback = false;
 		return lasttoken;
 	}
 	if (needprompt) {
@@ -1172,7 +1172,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 		 * tokens left from the backquote parsing
 		 */
                 popfile();
-		tokpushback = 0;
+		tokpushback = false;
 	}
 	STARTSTACKSTR(out);
 	CHECKSTRSPACE(savelen + 1, out);
