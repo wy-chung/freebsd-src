@@ -846,11 +846,6 @@ getcurjob(struct job *nj)
 }
 #endif
 
-/*
-struct jmploc jmploc;
-exitshell(exitstatus);
-args: rootshell
-*/
 static void
 forkshell_child(struct job *jp, enum fork_mode mode)
 {
@@ -933,6 +928,8 @@ forkshell_child(struct job *jp, enum fork_mode mode)
  * input redirected to /dev/null (except for the second and later processes
  * in a pipeline).
  */
+static volatile bool ischild;
+
 pid_t
 forkshell(struct job *jp, union node *n, enum fork_mode mode)
 {
@@ -943,8 +940,14 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 	if (mode == FORK_BG && (jp == NULL || jp->nprocs == 0))
 		checkzombies();
 	flushall();
+	if (ischild) {
+		print_trace(__func__);
+		exit(1);
+	}
 	pid = fork();
 	if (pid == 0) { // child
+		print_trace("child fork");
+		ischild = true;
 		forkshell_child(jp, mode);
 	} else if (pid == -1) {
 		TRACE(("Fork failed, errno=%d\n", errno));
@@ -1022,15 +1025,23 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	INTOFF;
 	flushall();
 	savehandler = handler;
+	if (ischild) {
+		print_trace(__func__);
+		exit(1);
+	}
 	pid = vfork();
 	if (pid == 0) { // child
+		printf("child: vfork called\n");
+		ischild = true;
 		vforkexecshell_child(argv, envp, path, idx, pip);
 		// will call execve or _exit
 		/*NOTREACHED*/
-	} else if (pid == -1) {
+	}
+	ischild = false;
+	if (pid == -1) {
 		TRACE(("Vfork failed, errno=%d\n", errno));
 		INTON;
-		print_trace();
+		//print_trace();
 		error("%s: Cannot fork: %s", __func__, strerror(errno));
 		// will call a longjmp
 		/*NOTREACHED*/

@@ -120,10 +120,10 @@ onint(void)
 }
 
 /* Obtain a backtrace and print it to stdout. */
-#define BACKTRACE_DEPTH 30
+#define BACKTRACE_DEPTH 60
 
 void
-print_trace(void)
+print_trace(const char *fn)
 {
 	void *array[BACKTRACE_DEPTH];
 	size_t size;
@@ -133,10 +133,10 @@ print_trace(void)
 	size = backtrace(array, BACKTRACE_DEPTH);
 	strings = backtrace_symbols(array, size);
 
-	printf ("Obtained %zd stack frames.\n", size);
-
+	printf ("%s: Obtained %zd stack frames.\n", fn, size);
 	for (i = 0; i < size; i++)
 		printf ("%s\n", strings[i]);
+	printf("\n");
 
 	free(strings);
 }

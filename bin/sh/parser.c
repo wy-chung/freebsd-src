@@ -255,7 +255,10 @@ parsewordexp(void)
 	return first;
 }
 
-// nlflag??
+/*
+nlflag??
+
+*/
 static union node *
 list(bool nlflag) // the only list(true) is called by parsecmd()
 {
@@ -575,6 +578,7 @@ command(void)
 	case TRP:
 		if (!redir)
 			synexpect(-1);
+		/* FALLTHROUGH */
 	case TWORD:
 		tokpushback = true;
 		n1 = simplecmd(rpp, redir);

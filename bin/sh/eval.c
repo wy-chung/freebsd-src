@@ -187,8 +187,9 @@ evaltree(union node *n, int flags) // flags are 0 from cmdloop
 		goto out;
 	}
 	do {
-		union node *next = NULL;
+		union node *next;
 
+		next = NULL;
 #ifndef NO_HISTORY
 		displayhist = true;	/* show history substitutions done with fc */
 #endif
@@ -398,6 +399,12 @@ evalcase(union node *n)
 	return (NULL);
 }
 
+static void
+evalsubshell_thread(void)
+{
+	//pthread_create(&threads[t], NULL, foo, (void *)(intptr_t)t);
+}
+
 /*
  * Kick off a subshell to evaluate a tree.
  */
@@ -411,20 +418,25 @@ evalsubshell(union node *n, int flags)
 	expredir(n->nredir.redirect);
 	if ((!backgnd && flags & EV_EXIT && !have_traps()))
 		goto eval;
-	else if (forkshell(jp = makejob(1), n, backgnd) == 0) { // child
+	else {
+		printf("%s: call forkshell\n", __func__);
+		pid_t pid = forkshell(jp = makejob(1), n, backgnd);
+		evalsubshell_thread();
+		if (pid == 0) { // child
 eval:
-		if (backgnd)
-			flags &=~ EV_TESTED;
-		redirect(n->nredir.redirect, 0);
-		evaltree(n->nredir.n, flags | EV_EXIT);
-		// with the flag EV_EXIT, it will call longjmp and jump to sh_main
-		/*NOTREACHED*/
-	} else if (!backgnd) {
-		INTOFF;
-		exitstatus = waitforjob(jp, (bool *)NULL);
-		INTON;
-	} else
-		exitstatus = 0;
+			if (backgnd)
+				flags &=~ EV_TESTED;
+			redirect(n->nredir.redirect, 0);
+			evaltree(n->nredir.n, flags | EV_EXIT);
+			// with the flag EV_EXIT, it will call longjmp and jump to sh_main
+			/*NOTREACHED*/
+		} else if (!backgnd) {
+			INTOFF;
+			exitstatus = waitforjob(jp, (bool *)NULL);
+			INTON;
+		} else
+			exitstatus = 0;
+	}
 }
 
 /*
@@ -585,6 +597,7 @@ evalpipe(union node *n)
 				error("Pipe call failed: %s", strerror(errno));
 			}
 		}
+		printf("%s: call forkshell\n", __func__);
 		if (forkshell(jp, lp->n, n->npipe.backgnd) == 0) { // child
 			evalpipe_child(lp, pip, prevfd);
 			// it will call longjmp and jump to sh_main()
@@ -670,6 +683,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 		if (pipe(pip) < 0)
 			error("Pipe call failed: %s", strerror(errno));
 		jp = makejob(1);
+		printf("%s: call forkshell\n", __func__);
 		if (forkshell(jp, n, FORK_NOJOB) == 0) { // child
 			FORCEINTON;
 			close(pip[0]);
@@ -859,16 +873,16 @@ evalcommand_execute(struct job *jp, int argc, char **argv, const char *path,
 	else if (cmdentry->cmdtype == CMDBUILTIN) {
 		char *savecmdname;
 		struct _parsefile *savetopfile;
-		enum fork_mode mode;
+		int redir_flags;
 		volatile int e;
 
 #ifdef DEBUG
 		trputs("builtin command:  ");  trargs(argv);
 #endif
-		mode = (cmdentry->u.index == EXECCMD)? 0 : REDIR_PUSH;
+		redir_flags = (cmdentry->u.index == EXECCMD)? 0 : REDIR_PUSH;
 		if (flags == EV_BACKCMD) {
 			memout.nextc = memout.buf;
-			mode |= REDIR_BACKQ;
+			redir_flags |= REDIR_BACKQ;
 		}
 		savecmdname = commandname;
 		savetopfile = getcurrentfile();
@@ -882,7 +896,7 @@ evalcommand_execute(struct job *jp, int argc, char **argv, const char *path,
 			goto cmddone;
 		}
 		handler = &jmploc;
-		redirect(cmd->ncmd.redirect, mode);
+		redirect(cmd->ncmd.redirect, redir_flags);
 		outclearerror(out1);
 		/*
 		 * If there is no command word, redirection errors should
@@ -1142,6 +1156,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			// only parent runs here
 			goto parent_fork;
 		}
+		printf("%s: call forkshell\n", __func__);
 		if (forkshell(jp, cmd, mode) != 0) // parent
 			goto parent_fork;	/* at end of routine */
 		// only child runs here

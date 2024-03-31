@@ -373,7 +373,6 @@ find_command(const char *name, struct cmdentry *entry, int act,
 	}
 
 	/* We have to search path. */
-
 	e = ENOENT;
 	idx = -1;
 	for (;(fullname = padvance(&path, &opt, name)) != NULL; stunalloc(fullname)) {
@@ -592,7 +591,6 @@ addcmdentry(const char *name, struct cmdentry *entry)
 /*
  * Define a shell function.
  */
-
 void
 defun(const char *name, union node *func)
 {

@@ -123,10 +123,10 @@ struct stack_block {
 };
 #define SPACE(sp)	((char*)(sp) + ALIGN(sizeof(struct stack_block)))
 
-static struct stack_block *stackp;
-char *stacknxt;
-int stacknleft;
-char *sstrend;
+_Thread_local static struct stack_block *stackp;
+_Thread_local char *stacknxt;
+_Thread_local int stacknleft;
+_Thread_local char *sstrend;
 
 static void
 stnewblock(int nbytes) // allocate at least 496 bytes
@@ -163,6 +163,9 @@ stalloc(int nbytes)
 	return p;
 }
 
+/*
+NOTE: can only unalloc recently allocated memory buffer
+*/
 void
 stunalloc(pointer p)
 {
@@ -193,7 +196,7 @@ setstackmark(struct stackmark *mark)
 	mark->stacknxt = stacknxt;
 	mark->stacknleft = stacknleft;
 	/* Ensure this block stays in place. */
-	if (stackp != NULL && stacknxt == SPACE(stackp))
+	if (stackp != NULL && stacknxt == SPACE(stackp)) //wyc??
 		stalloc(1);
 }
 
@@ -214,6 +217,21 @@ popstackmark(struct stackmark *mark)
 		sstrend = stacknxt + stacknleft;
 	//else
 	//	sstrend = stacknxt;
+	INTON;
+}
+
+//wyc: free all the stack blocks
+void
+stfree(void)
+{
+	struct stack_block *sp;
+
+	INTOFF;
+	while (stackp != NULL) {
+		sp = stackp;
+		stackp = stackp->prev;
+		ckfree(sp);
+	}
 	INTON;
 }
 

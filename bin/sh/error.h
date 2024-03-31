@@ -80,7 +80,7 @@ void onint(void) __dead2;
 void warning(const char *, ...) __printflike(1, 2);
 void error(const char *, ...) __printf0like(1, 2) __dead2;
 void errorwithstatus(int, const char *, ...) __printf0like(2, 3) __dead2;
-void print_trace(void);
+void print_trace(const char *fn);
 
 /*
  * BSD setjmp saves the signal mask, which violates ANSI C and takes time,
