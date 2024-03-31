@@ -322,7 +322,7 @@ find_dot_file(char *basename)
 }
 
 int
-dotcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+dotcmd(int argc, char **argv) // refer to builtins.def
 {
 	char *filename, *fullname;
 
@@ -346,7 +346,7 @@ dotcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char *
 }
 
 int
-exitcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+exitcmd(int argc, char **argv) // refer to builtins.def
 {
 	if (stoppedjobs())
 		return 0;

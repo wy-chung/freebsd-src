@@ -145,7 +145,7 @@ printsignals(void)
  * The trap builtin.
  */
 int
-trapcmd(int argc __unused, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+trapcmd(int argc __unused, char **argv) // refer to builtins.def
 {
 	char *action;
 	int signo;

@@ -250,7 +250,7 @@ setterm(const char *term)
 }
 
 int
-histcmd(int argc, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
+histcmd(int argc, char **argv __unused) // refer to builtins.def
 {
 	const char *editor = NULL;
 	HistEvent he;
@@ -542,7 +542,7 @@ str_to_event(const char *str, int last)
 }
 
 int
-bindcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+bindcmd(int argc, char **argv) // refer to builtins.def
 {
 	int ret;
 	FILE *old;

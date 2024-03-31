@@ -1451,7 +1451,7 @@ cvtnum(int num, char *buf)
  * Do most of the work for wordexp(3).
  */
 int
-wordexpcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+wordexpcmd(int argc, char **argv) // refer to builtins.def
 {
 	size_t len;
 	int i;
@@ -1469,7 +1469,7 @@ wordexpcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, ch
  * Do most of the work for wordexp(3), new version.
  */
 int
-freebsd_wordexpcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
+freebsd_wordexpcmd(int argc __unused, char **argv __unused) // refer to builtins.def
 {
 	struct arglist arglist;
 	union node *args, *n;

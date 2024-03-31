@@ -624,7 +624,7 @@ showvarscmd(int argc __unused, char **argv __unused)
  * The export and readonly commands.
  */
 int
-exportcmd(int argc __unused, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+exportcmd(int argc __unused, char **argv) // refer to builtins.def
 {
 	struct var **vpp;
 	struct var *vp;
@@ -700,7 +700,7 @@ exportcmd(int argc __unused, char **argv) // refer to int (*const builtinfunc[])
  * The "local" command.
  */
 int
-localcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
+localcmd(int argc __unused, char **argv __unused) // refer to builtins.def
 {
 	char *name;
 
@@ -799,7 +799,7 @@ poplocalvars(void)
 }
 
 int
-setvarcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+setvarcmd(int argc, char **argv) // refer to builtins.def
 {
 	if (argc <= 2)
 		return unsetcmd(argc, argv);
@@ -814,7 +814,7 @@ setvarcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, cha
  * The unset builtin command.
  */
 int
-unsetcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
+unsetcmd(int argc __unused, char **argv __unused) // refer to builtins.def
 {
 	char **ap;
 	int i;

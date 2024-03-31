@@ -106,7 +106,7 @@ reseteval(void)
  * The eval command.
  */
 int
-evalcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+evalcmd(int argc, char **argv) // refer to builtins.def
 {
         char *p;
         char *concat;
@@ -1226,7 +1226,7 @@ prehash(union node *n)
  * with an invalid name.
  */
 int
-bltincmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+bltincmd(int argc, char **argv) // refer to builtins.def
 {
 	if (argc > 1) {
 		out2fmt_flush("%s: not found\n", argv[1]);
@@ -1250,7 +1250,7 @@ bltincmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char
  * in the standard shell so we don't make it one here.
  */
 int
-breakcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+breakcmd(int argc, char **argv) // refer to builtins.def
 {
 	long n;
 	char *end;
@@ -1275,7 +1275,7 @@ breakcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char
  * The `command' command.
  */
 int
-commandcmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
+commandcmd(int argc __unused, char **argv __unused) // refer to builtins.def
 {
 	const char *path;
 	int ch;
@@ -1316,7 +1316,7 @@ commandcmd(int argc __unused, char **argv __unused) // refer to int (*const buil
  * The return command.
  */
 int
-returncmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+returncmd(int argc, char **argv) // refer to builtins.def
 {
 	int ret = argc > 1 ? number(argv[1]) : oexitstatus;
 
@@ -1326,19 +1326,19 @@ returncmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, cha
 }
 
 int
-falsecmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
+falsecmd(int argc __unused, char **argv __unused) // refer to builtins.def
 {
 	return 1;
 }
 
 int
-truecmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
+truecmd(int argc __unused, char **argv __unused) // refer to builtins.def
 {
 	return 0;
 }
 
 int
-execcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+execcmd(int argc, char **argv) // refer to builtins.def
 {
 	int i;
 
@@ -1362,7 +1362,7 @@ execcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char 
 }
 
 int
-timescmd(int argc __unused, char **argv __unused) // refer to int (*const builtinfunc[])(int, char **)
+timescmd(int argc __unused, char **argv __unused) // refer to builtins.def
 {
 	struct rusage ru;
 	long shumins, shsmins, chumins, chsmins;

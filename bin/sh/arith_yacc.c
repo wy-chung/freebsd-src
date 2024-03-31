@@ -344,7 +344,7 @@ arith_t arith(const char *s)
  *  The exp(1) builtin.
  */
 int
-letcmd(int argc, char **argv) // refer to int (*const builtinfunc[])(int, char **)
+letcmd(int argc, char **argv) // refer to builtins.def
 {
 	const char *p;
 	char *concat;
