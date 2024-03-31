@@ -108,7 +108,7 @@ mknodes_main(int argc, char *argv[])
 {
 	FILE *infp;
 
-	printf("%s:\n", __func__);
+	fprintf(stderr, "%s:\n", __func__);
 	if (argc != 3)
 		_error("usage: mknodes file");
 	if ((infp = fopen(argv[1], "r")) == NULL)

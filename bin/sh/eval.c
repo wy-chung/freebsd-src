@@ -419,7 +419,7 @@ evalsubshell(union node *n, int flags)
 	if ((!backgnd && flags & EV_EXIT && !have_traps()))
 		goto eval;
 	else {
-		printf("%s: call forkshell\n", __func__);
+		fprintf(stderr, "%s: call forkshell\n", __func__);
 		pid_t pid = forkshell(jp = makejob(1), n, backgnd);
 		evalsubshell_thread();
 		if (pid == 0) { // child
@@ -597,7 +597,7 @@ evalpipe(union node *n)
 				error("Pipe call failed: %s", strerror(errno));
 			}
 		}
-		printf("%s: call forkshell\n", __func__);
+		fprintf(stderr, "%s: call forkshell\n", __func__);
 		if (forkshell(jp, lp->n, n->npipe.backgnd) == 0) { // child
 			evalpipe_child(lp, pip, prevfd);
 			// it will call longjmp and jump to sh_main()
@@ -683,7 +683,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 		if (pipe(pip) < 0)
 			error("Pipe call failed: %s", strerror(errno));
 		jp = makejob(1);
-		printf("%s: call forkshell\n", __func__);
+		fprintf(stderr, "%s: call forkshell\n", __func__);
 		if (forkshell(jp, n, FORK_NOJOB) == 0) { // child
 			FORCEINTON;
 			close(pip[0]);
@@ -1156,7 +1156,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			// only parent runs here
 			goto parent_fork;
 		}
-		printf("%s: call forkshell\n", __func__);
+		fprintf(stderr, "%s: call forkshell\n", __func__);
 		if (forkshell(jp, cmd, mode) != 0) // parent
 			goto parent_fork;	/* at end of routine */
 		// only child runs here

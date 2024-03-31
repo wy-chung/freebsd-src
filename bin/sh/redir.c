@@ -274,7 +274,7 @@ openhere(union node *redir)
 		fcntl(pip[1], F_SETFL, flags);
 	}
 
-	printf("%s: call forkshell\n", __func__);
+	fprintf(stderr, "%s: call forkshell\n", __func__);
 	if (forkshell((struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) { // child
 		close(pip[0]);
 		signal(SIGINT, SIG_IGN);

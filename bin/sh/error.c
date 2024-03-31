@@ -133,10 +133,10 @@ print_trace(const char *fn)
 	size = backtrace(array, BACKTRACE_DEPTH);
 	strings = backtrace_symbols(array, size);
 
-	printf ("%s: Obtained %zd stack frames.\n", fn, size);
+	fprintf (stderr, "%s: Obtained %zd stack frames.\n", fn, size);
 	for (i = 0; i < size; i++)
-		printf ("%s\n", strings[i]);
-	printf("\n");
+		fprintf (stderr, "%s\n", strings[i]);
+	fprintf(stderr, "\n");
 
 	free(strings);
 }

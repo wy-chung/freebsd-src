@@ -941,12 +941,12 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 		checkzombies();
 	flushall();
 	if (ischild) {
-		print_trace(__func__);
-		exit(1);
+		//print_trace(__func__);
+		//exit(1);
 	}
 	pid = fork();
 	if (pid == 0) { // child
-		print_trace("child fork");
+		//print_trace("child fork");
 		ischild = true;
 		forkshell_child(jp, mode);
 	} else if (pid == -1) {
@@ -1026,12 +1026,12 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	flushall();
 	savehandler = handler;
 	if (ischild) {
-		print_trace(__func__);
-		exit(1);
+		//print_trace(__func__);
+		//exit(1);
 	}
 	pid = vfork();
 	if (pid == 0) { // child
-		printf("child: vfork called\n");
+		fprintf(stderr, "child: vfork called\n");
 		ischild = true;
 		vforkexecshell_child(argv, envp, path, idx, pip);
 		// will call execve or _exit
