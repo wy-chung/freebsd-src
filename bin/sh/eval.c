@@ -201,14 +201,14 @@ evaltree(union node *n, int flags) // flags are 0 from cmdloop
 				goto out;
 			next = n->nbinary.ch2;
 			break;
-		case NAND:
+		case NAND: // &&
 			evaltree(n->nbinary.ch1, EV_TESTED);
 			if (evalskip || exitstatus != 0) {
 				goto out;
 			}
 			next = n->nbinary.ch2;
 			break;
-		case NOR:
+		case NOR: // ||
 			evaltree(n->nbinary.ch1, EV_TESTED);
 			if (evalskip || exitstatus == 0)
 				goto out;
@@ -399,10 +399,21 @@ evalcase(union node *n)
 	return (NULL);
 }
 
-static void
-evalsubshell_thread(void)
+void *
+evalsubshell_thread(void *arg __unused)
 {
-	//pthread_create(&threads[t], NULL, foo, (void *)(intptr_t)t);
+	struct job *jp = NULL;
+	enum fork_mode mode = 0;
+	union node *n = NULL;
+	int flags = 0;
+
+	forkshell_child(jp, mode);
+
+	redirect(n->nredir.redirect, 0);
+	evaltree(n->nredir.n, flags | EV_EXIT);
+	// with the flag EV_EXIT, it will call longjmp and jump to sh_main
+	/*NOTREACHED*/
+	return NULL;
 }
 
 /*
@@ -416,16 +427,19 @@ evalsubshell(union node *n, int flags)
 
 	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
-	if ((!backgnd && flags & EV_EXIT && !have_traps()))
-		goto eval;
-	else {
+	if (backgnd)
+		flags &= ~EV_TESTED;
+	if ((!backgnd && flags & EV_EXIT && !have_traps())) {
+		redirect(n->nredir.redirect, 0);
+		evaltree(n->nredir.n, flags | EV_EXIT);
+		// with the flag EV_EXIT, it will call longjmp and jump to sh_main
+		/*NOTREACHED*/
+	} else {
 		fprintf(stderr, "%s: call forkshell\n", __func__);
 		pid_t pid = forkshell(jp = makejob(1), n, backgnd);
-		evalsubshell_thread();
+		evalsubshell_thread(NULL);
+		threadsubshell(jp, n, backgnd);
 		if (pid == 0) { // child
-eval:
-			if (backgnd)
-				flags &=~ EV_TESTED;
 			redirect(n->nredir.redirect, 0);
 			evaltree(n->nredir.n, flags | EV_EXIT);
 			// with the flag EV_EXIT, it will call longjmp and jump to sh_main
@@ -808,8 +822,8 @@ safe_builtin(int idx, int argc, char **argv)
 
 static void // may execute as either a parent or a child
 evalcommand_execute(struct job *jp, int argc, char **argv, const char *path,
-	union node *cmd, int flags, struct backcmd *backcmd, // EV_EXIT is passed for child process
-	struct cmdentry *cmdentry, struct arglist *varlist)
+	union node *cmd, int flags, // EV_EXIT is passed for child process
+	struct backcmd *backcmd, struct cmdentry *cmdentry, struct arglist *varlist)
 {
 	struct jmploc jmploc;
 	struct jmploc *savehandler;

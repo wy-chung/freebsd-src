@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include "shell.h"
 #if JOBS
@@ -88,7 +89,7 @@ struct procstat {
 
 /* states */
 enum job_state {
-	JOBRUNNING,
+	JOBRUNNING,	//wyc
 	JOBSTOPPED,	/* all procs are stopped */
 	JOBDONE,	/* all procs are completed */
 };
@@ -98,7 +99,7 @@ struct job {
 	struct procstat *ps;	/* status or processes when more than one */
 	short nprocs;		/* number of processes */
 	pid_t pgrp;		/* process group of this job */
-	char state;		// see enum job_state
+	enum job_state state;	//wyc
 	bool used;		/* true if this entry is in used */
 	bool changed;		/* true if status has changed */
 	bool foreground;	/* true if running in the foreground */
@@ -144,7 +145,7 @@ static struct job *getcurjob(struct job *);
 #endif
 static int getjobstatus(const struct job *);
 static void printjobcmd(struct job *);
-static void showjob(struct job *, int);
+static void showjob(struct job *, enum showjobs_mode);
 
 /*
  * Turn job control on and off.
@@ -215,7 +216,7 @@ setjobctl(bool on)
 					jobctl_notty();
 					return;
 				}
-				kill(0, SIGTTIN);
+				kill(0, SIGTTIN); // 0 means sent to all processes whose group ID is equal to the process group ID of the sender
 				continue;
 			}
 		} while (0);
@@ -241,7 +242,7 @@ setjobctl(bool on)
 
 #if JOBS
 int
-fgcmd(int argc __unused, char **argv __unused)
+fgcmd(int argc __unused, char **argv __unused) // refer to builtins.def
 {
 	struct job *jp;
 	pid_t pgrp;
@@ -292,7 +293,7 @@ restartjob(struct job *jp)
 		return;
 	setcurjob(jp);
 	INTOFF;
-	kill(-jp->ps[0].pid, SIGCONT);
+	kill(-jp->ps[0].pid, SIGCONT);	// send signal to a process
 	for (int i = 0; i < jp->nprocs; ++i ) {
 		if (WIFSTOPPED(jp->ps[i].status)) {
 			jp->ps[i].status = -1;
@@ -307,7 +308,8 @@ int
 jobscmd(int argc __unused, char *argv[] __unused) // refer to builtins.def
 {
 	char *id;
-	int ch, mode;
+	int ch;
+	enum showjobs_mode mode;
 
 	mode = SHOWJOBS_DEFAULT;
 	while ((ch = nextopt("lps")) != '\0') {
@@ -347,19 +349,23 @@ static int getjobstatus(const struct job *jp)
 }
 
 static void
-printjobcmd(struct job *jp)
+printjobcmd(struct job *jp) //wyc
 {
 
-	for (int i = 0; i < jp->nprocs; ++i) {
-		out1str(jp->ps[i].cmd);
-		if (i != jp->nprocs - 1)
+	if (jp->nprocs > 0 ) {
+		int i = 0;
+		for (;;) {
+			out1str(jp->ps[i].cmd);
+			if (++i == jp->nprocs) // it's the last job
+				break;
 			out1str(" | ");
+		}
 	}
 	out1c('\n');
 }
 
 static void
-showjob(struct job *jp, int mode)
+showjob(struct job *jp, enum showjobs_mode mode)
 {
 	const char *statestr, *coredump;
 	int curr, jobno, prev, nprocs, status;
@@ -390,7 +396,7 @@ showjob(struct job *jp, int mode)
 			sig = WSTOPSIG(ps->status);
 		else
 			sig = -1;
-		statestr = strsignal(sig);
+		statestr = strsignal(sig); // convert @sig number to a message string
 		if (statestr == NULL)
 			statestr = "Suspended";
 #endif
@@ -412,7 +418,7 @@ showjob(struct job *jp, int mode)
 			coredump = " (core dumped)";
 	}
 
-	for (int i = 0; i< nprocs; ++i ) { /* for each process */
+	for (int i = 0; i < nprocs; ++i ) { /* for each process */
 		int col;
 		char c;
 		char s[63];
@@ -466,10 +472,10 @@ showjob(struct job *jp, int mode)
  * will be freed here.
  */
 void
-showjobs(bool change, int mode)
+showjobs(bool change, enum showjobs_mode mode)
 {
 
-	TRACE(("showjobs(%d) called\n", change));
+	TRACE(("%s(%d) called\n", __func__, change));
 	checkzombies();
 	for (int i = 0; i < njobs ; ++i) {
 		if (! jobtab[i].used)
@@ -543,7 +549,6 @@ static int
 waitcmdloop(struct job *job)
 {
 	int status, retval, sig;
-	struct job *jp;
 
 	/*
 	 * Loop until a process is terminated or stopped, or a SIGINT is
@@ -569,21 +574,21 @@ waitcmdloop(struct job *job)
 		} else {
 			if (njobs == 0)
 				return 0;
-			for (jp = jobtab ; jp < jobtab + njobs; jp++)
-				if (jp->used && jp->state == JOBDONE) {
-					if (! iflag || ! jp->changed)
-						freejob(jp);
+			for (int i = 0; i < njobs; ++i)
+				if (jobtab[i].used && jobtab[i].state == JOBDONE) {
+					if (! iflag || ! jobtab[i].changed)
+						freejob(&jobtab[i]);
 					else {
-						jp->remembered = false;
-						if (jp == bgjob)
+						jobtab[i].remembered = false;
+						if (&jobtab[i] == bgjob)
 							bgjob = NULL;
 					}
 				}
-			for (jp = jobtab ; ; jp++) {
-				if (jp >= jobtab + njobs) {	/* no running procs */
+			for (int i = 0; ; ++i) {
+				if (i == njobs) {	/* no running procs */
 					return 0;
 				}
-				if (jp->used && jp->state == JOBRUNNING)
+				if (jobtab[i].used && jobtab[i].state == JOBRUNNING)
 					break;
 			}
 		}
@@ -748,8 +753,7 @@ makejob(int nprocs)
 				jobmru = &jp[jobmru - jobtab];
 			for (i = 0; i < njobs; i++)
 				if (jp[i].next != NULL)
-					jp[i].next = &jp[jp[i].next -
-					    jobtab];
+					jp[i].next = &jp[jp[i].next - jobtab];
 #endif
 			if (bgjob != NULL)
 				bgjob = &jp[bgjob - jobtab];
@@ -788,19 +792,21 @@ makejob(int nprocs)
 }
 
 #if JOBS
+//wyc set @cj as the head of the mru list
 static void
-setcurjob(struct job *cj)
+setcurjob(struct job *cj) //wyc c means current
 {
 	struct job *jp, *prev;
 
 	for (prev = NULL, jp = jobmru; jp != NULL; prev = jp, jp = jp->next) {
-		if (jp == cj) {
-			if (prev != NULL)
-				prev->next = jp->next;
-			else
-				jobmru = jp->next;
-			jp->next = jobmru;
-			jobmru = cj;
+		if (cj == jp) {
+			if (prev == NULL) // @cj already at the head of the mru list
+				;
+			else {
+				prev->next = cj->next;
+				cj->next = jobmru;
+				jobmru = cj;
+			}
 			return;
 		}
 	}
@@ -829,7 +835,7 @@ deljob(struct job *j)
  * that is stopped.
  */
 static struct job *
-getcurjob(struct job *nj)
+getcurjob(struct job *nj) // n means not
 {
 	struct job *jp;
 
@@ -846,7 +852,7 @@ getcurjob(struct job *nj)
 }
 #endif
 
-static void
+void
 forkshell_child(struct job *jp, enum fork_mode mode)
 {
 	bool wasroot;
@@ -989,6 +995,51 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 		TRACE(("In parent shell:  child = %d\n", (int)pid));
 	}
 	return pid;
+}
+
+void
+threadsubshell(struct job *jp, union node *n, enum fork_mode mode)
+{
+	pthread_t thread;
+	int rc;
+
+	TRACE(("%s(%%%td, %p, %d) called\n", __func__, jp - jobtab, (void *)n, mode));
+	INTOFF;
+	if (mode == FORK_BG && (jp == NULL || jp->nprocs == 0))
+		checkzombies();
+	flushall();
+	//pid = fork();
+	rc = pthread_create(&thread, NULL, evalsubshell_thread, NULL);
+	if (rc != 0) {
+		TRACE(("pthread_create failed, errno=%d\n", rc));
+		INTON;
+		//print_trace();
+		error("%s: Cannot pthread_create: %s", __func__, strerror(rc));
+		// will call a long jump
+		/*NOTREACHED*/
+	} else {
+		if (mode == FORK_BG) {
+			if (bgjob != NULL && bgjob->state == JOBDONE &&
+			    !bgjob->remembered && !iflag)
+				freejob(bgjob);
+			//backgndpid = pid;		/* set $! */
+			bgjob = jp;
+		}
+		if (jp) {
+			struct procstat *ps = &jp->ps[jp->nprocs++];
+			//ps->pid = pid;
+			ps->status = -1;
+			ps->cmd = nullstr;
+			if (iflag && rootshell && n)
+				ps->cmd = commandtext(n);
+			jp->foreground = mode == FORK_FG;
+#if JOBS
+			setcurjob(jp);
+#endif
+		}
+		INTON;
+		TRACE(("In parent shell:  child = %d\n", (int)pid));
+	}
 }
 
 static void
@@ -1214,8 +1265,7 @@ dowait(int mode, struct job *job)
 				if (sp->pid == pid && (sp->status == -1 ||
 				    WIFSTOPPED(sp->status))) {
 					TRACE(("Changing status of proc %d from 0x%x to 0x%x\n",
-						   (int)pid, sp->status,
-						   status));
+						   (int)pid, sp->status, status));
 					if (WIFCONTINUED(status)) {
 						sp->status = -1;
 						jp->state = JOBRUNNING;
@@ -1229,7 +1279,7 @@ dowait(int mode, struct job *job)
 					done = 0;
 			}
 			if (stopped) {		/* stopped or done */
-				int state = done? JOBDONE : JOBSTOPPED;
+				enum job_state state = done? JOBDONE : JOBSTOPPED;
 				if (jp->state != state) {
 					TRACE(("Job %td: changing state from %d to %d\n", jp - jobtab + 1, jp->state, state));
 					jp->state = state;

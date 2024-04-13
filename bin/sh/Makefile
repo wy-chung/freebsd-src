@@ -25,9 +25,9 @@ SRCS= ${SHSRCS} ${GENSRCS} ${GENHDRS}
 # utilities of the same name are handled with the associated manpage,
 # builtin.1 in share/man/man1/.
 
-LIBADD=	edit
+LIBADD=	edit execinfo pthread
 
-CFLAGS+=-DSHELL -I. -I${.CURDIR} -lexecinfo
+CFLAGS+=-DSHELL -I. -I${.CURDIR}
 # for debug:
 # DEBUG_FLAGS+= -g -DDEBUG=2 -fno-inline
 

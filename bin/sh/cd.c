@@ -88,13 +88,13 @@ cdcmd(int argc __unused, char **argv __unused) // refer to builtins.def
 	phys = Pflag;
 	while ((ch = nextopt("eLP")) != '\0') {
 		switch (ch) {
-		case 'e':
+		case 'e': // return exit status 1 if the directory does not exit
 			getcwderr = 1;
 			break;
-		case 'L':
+		case 'L': // handle symbolic link logically
 			phys = 0;
 			break;
-		case 'P':
+		case 'P': // handle symbolic link physically
 			phys = 1;
 			break;
 		}

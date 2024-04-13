@@ -63,9 +63,6 @@ void
 chkmail(bool silent)
 {
 	int i;
-	char *mpath;
-	char *p;
-	char *msg;
 	struct stackmark smark;
 	struct stat statb;
 
@@ -74,9 +71,9 @@ chkmail(bool silent)
 	if (nmboxes == 0)
 		return;
 	setstackmark(&smark);
-	mpath = stsavestr(mpathset()? mpathval() : mailval());
+	char *mpath = stsavestr(mpathset()? mpathval() : mailval());
 	for (i = 0 ; i < nmboxes ; i++) {
-		p = mpath;
+		char *p = mpath;
 		if (*p == '\0')
 			break;
 		mpath = strchrnul(mpath, ':');
@@ -85,7 +82,7 @@ chkmail(bool silent)
 			if (p == mpath - 1)
 				continue;
 		}
-		msg = strchr(p, '%');
+		char *msg = strchr(p, '%');
 		if (msg != NULL)
 			*msg++ = '\0';
 #ifdef notdef /* this is what the System V shell claims to do (it lies) */

@@ -360,7 +360,7 @@ pipeline(void)
 
 	negate = false;
 	checkkwd = CHKNL | CHKKWD | CHKALIAS;
-	TRACE(("pipeline: entered\n"));
+	TRACE(("%s: entered\n", __func__));
 	while (readtoken() == TNOT)
 		negate = !negate;
 	tokpushback = true;

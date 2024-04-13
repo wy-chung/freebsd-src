@@ -106,7 +106,6 @@ sh_main(int argc, char *argv[])
 	 */
 	static struct stackmark smark, smark2;
 	volatile int state;
-	char *shinit;
 
 	fprintf(stderr, "%s: ischild\n", __func__);
 	(void) setlocale(LC_ALL, "");
@@ -148,7 +147,7 @@ sh_main(int argc, char *argv[])
 	INTON;
 	if (iflag)
 		chkmail(true);
-	if (argv[0] && argv[0][0] == '-') {
+	if (argv[0] && argv[0][0] == '-') { // run during login
 		state = 1;
 		read_profile("/etc/profile");
 state1:
@@ -161,6 +160,7 @@ state1:
 state2:
 	state = 3;
 	if (!privileged && iflag) {
+		char *shinit;
 		if ((shinit = lookupvar("ENV")) != NULL && *shinit != '\0') {
 			state = 3;
 			read_profile(shinit);
@@ -205,14 +205,14 @@ reset(void)
  * loop; it turns on prompting if the shell is interactive.
  */
 static void
-cmdloop(bool top)
+cmdloop(bool top) // top is true only when called from sh_main
 {
 	union node *n;
 	struct stackmark smark;
 	bool inter; // interactive
 	int numeof = 0; // number of EOF
 
-	TRACE(("cmdloop(%d) called\n", top));
+	TRACE(("%s(%d) called\n", __func__, top));
 	setstackmark(&smark);
 	for (;;) {
 		if (pendingsig)

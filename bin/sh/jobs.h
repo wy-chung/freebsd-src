@@ -43,17 +43,17 @@ enum fork_mode {
 
 struct job;
 
-enum {
+enum showjobs_mode {
 	SHOWJOBS_DEFAULT,	/* job number, status, command */
 	SHOWJOBS_VERBOSE,	/* job number, PID, status, command */
 	SHOWJOBS_PIDS,		/* PID only */
-	SHOWJOBS_PGIDS		/* PID of the group leader only */
+	SHOWJOBS_PGIDS,		/* PID of the group leader only */
 };
 
 extern int job_warning;		/* user was warned about stopped jobs */
 
 void setjobctl(bool);
-void showjobs(bool, int);
+void showjobs(bool, enum showjobs_mode);
 struct job *makejob(int);
 pid_t forkshell(struct job *, union node *, enum fork_mode);
 void vforkexecshell(struct job *, char **, char **, const char *, int, int [2]);
@@ -62,6 +62,9 @@ bool stoppedjobs(void);
 int backgndpidset(void);
 pid_t backgndpidval(void);
 char *commandtext(union node *);
+
+void forkshell_child(struct job *jp, enum fork_mode mode);
+void threadsubshell(struct job *jp, union node *n, enum fork_mode mode);
 
 #if ! JOBS
 #define setjobctl(on)	/* do nothing */

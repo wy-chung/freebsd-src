@@ -257,7 +257,7 @@ openhere(union node *redir)
 	if (pipe(pip) < 0)
 		error("Pipe call failed: %s", strerror(errno));
 
-	if (redir->type == NXHERE)
+	if (redir->type == NXHERE) // node of expand here
 		p = redir->nhere.expdoc;
 	else
 		p = redir->nhere.doc->narg.text;
