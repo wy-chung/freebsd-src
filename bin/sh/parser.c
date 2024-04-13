@@ -1146,7 +1146,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 		INTOFF;
 		ostr = ckmalloc(olen);
 		memcpy(ostr, stackblock(), olen);
-		setinputstring(ostr, 1);
+		setinputstring(ostr, true);
 		INTON;
         }
 	nlpp = pbqlist;
@@ -2159,7 +2159,7 @@ expandstr(const char *ps)
 	if (setjmp(jmploc.loc) == 0) { // return from setjmp
 		handler = &jmploc;
 		parser_temp = NULL;
-		setinputstring(ps, 1);
+		setinputstring(ps, true);
 		doprompt = false;
 		readtoken1(pgetc(), DQSYNTAX, NOEOFMARK, 0);
 		if (backquotelist != NULL)

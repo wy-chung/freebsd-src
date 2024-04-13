@@ -1494,7 +1494,7 @@ freebsd_wordexpcmd(int argc __unused, char **argv __unused) // refer to builtins
 	if (fd < 0)
 		error("missing fd");
 	INTOFF;
-	setinputfd(fd, 1);
+	setinputfd(fd, true);
 	INTON;
 	args = parsewordexp();
 	popfile(); /* will also close fd */

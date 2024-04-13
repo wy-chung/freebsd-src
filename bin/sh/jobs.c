@@ -1333,15 +1333,13 @@ int job_warning = 0;
 bool
 stoppedjobs(void)
 {
-	int jobno;
-	struct job *jp;
 
 	if (job_warning)
 		return (false);
-	for (jobno = 1, jp = jobtab; jobno <= njobs; jobno++, jp++) {
-		if (!jp->used)
+	for (int i = 0; i < njobs; ++i) {
+		if (!jobtab[i].used)
 			continue;
-		if (jp->state == JOBSTOPPED) {
+		if (jobtab[i].state == JOBSTOPPED) {
 			out2fmt_flush("You have stopped jobs.\n");
 			job_warning = 2;
 			return (true);

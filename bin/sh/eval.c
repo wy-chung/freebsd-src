@@ -147,7 +147,7 @@ evalstring(const char *s, int flags)
 	flags &= ~EV_EXIT;
 	any = false;
 	setstackmark(&smark);
-	setinputstring(s, 1);
+	setinputstring(s, true);
 	while ((n = parsecmd(false)) != NEOF) {
 		if (n != NULL && !nflag) {
 			if (flags_exit && preadateof())

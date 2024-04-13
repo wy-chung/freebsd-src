@@ -350,7 +350,7 @@ popstring(void)
  *    1: Do verify
  */
 void
-setinputfile(const char *fname, int push, int verify)
+setinputfile(const char *fname, bool push, int verify)
 {
 	int e;
 	int fd;
@@ -382,7 +382,7 @@ setinputfile(const char *fname, int push, int verify)
  * its FD_CLOEXEC flag already set).  Call this with interrupts off.
  */
 void
-setinputfd(int fd, int push)
+setinputfd(int fd, bool push)
 {
 	if (push) {
 		pushfile();
@@ -402,7 +402,7 @@ setinputfd(int fd, int push)
  * Like setinputfile, but takes input from a string.
  */
 void
-setinputstring(const char *string, int push)
+setinputstring(const char *string, bool push) // @push are true from all callers
 {
 	INTOFF;
 	if (push)

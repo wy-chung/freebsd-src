@@ -273,7 +273,7 @@ read_profile(const char *name)
 		return;
 	INTOFF;
 	if ((fd = open(expandedname, oflags)) >= 0)
-		setinputfd(fd, 1);
+		setinputfd(fd, true);
 	INTON;
 	if (fd < 0)
 		return;
@@ -287,7 +287,7 @@ read_profile(const char *name)
 void
 readcmdfile(const char *name, int verify)
 {
-	setinputfile(name, 1, verify);
+	setinputfile(name, true, verify);
 	cmdloop(false);
 	popfile();
 }
@@ -338,7 +338,7 @@ dotcmd(int argc, char **argv) // refer to builtins.def
 	filename = argc > 2 && strcmp(argv[1], "--") == 0 ? argv[2] : argv[1];
 
 	fullname = find_dot_file(filename);
-	setinputfile(fullname, 1, -1 /* verify */);
+	setinputfile(fullname, true, -1 /* verify */);
 	commandname = fullname;
 	cmdloop(false);
 	popfile();
