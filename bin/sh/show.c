@@ -117,16 +117,16 @@ static void
 shcmd(union node *cmd, FILE *fp)
 {
 	union node *np;
-	int first;
+	bool first;
 	const char *s;
 	int dftfd;
 
-	first = 1;
+	first = true;
 	for (np = cmd->ncmd.args ; np ; np = np->narg.next) {
 		if (! first)
 			putchar(' ');
 		sharg(np, fp);
-		first = 0;
+		first = false;
 	}
 	for (np = cmd->ncmd.redirect ; np ; np = np->nfile.next) {
 		if (! first)
@@ -158,7 +158,7 @@ shcmd(union node *cmd, FILE *fp)
 		} else {
 			sharg(np->nfile.fname, fp);
 		}
-		first = 0;
+		first = false;
 	}
 }
 

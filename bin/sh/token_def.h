@@ -1,0 +1,33 @@
+// this file is not part of the sh source code
+// this is added here for source insight
+
+//            enmu, end_of_list, tokname
+sh_define_token(TEOF,	1,	"end of file")
+sh_define_token(TNL,	0,	"newline")
+sh_define_token(TSEMI,	0,	"\";\"")
+sh_define_token(TBACKGND, 0,	"\"&\"")
+sh_define_token(TAND,	0,	"\"&&\"")
+sh_define_token(TOR,	0,	"\"||\"")
+sh_define_token(TPIPE,	0,	"\"|\"")
+sh_define_token(TLP,	0,	"\"(\"")
+sh_define_token(TRP,	1,	"\")\"")
+sh_define_token(TENDCASE, 1,	"\";;\"")
+sh_define_token(TFALLTHRU, 1,	"\";&\"")
+sh_define_token(TREDIR,	0,	"redirection")
+sh_define_token(TWORD,	0,	"word")
+sh_define_token(TIF,	0,	"\"if\"")
+sh_define_token(TTHEN,	1,	"\"then\"")
+sh_define_token(TELSE,	1,	"\"else\"")
+sh_define_token(TELIF,	1,	"\"elif\"")
+sh_define_token(TFI,	1,	"\"fi\"")
+sh_define_token(TWHILE,	0,	"\"while\"")
+sh_define_token(TUNTIL,	0,	"\"until\"")
+sh_define_token(TFOR,	0,	"\"for\"")
+sh_define_token(TDO,	1,	"\"do\"")
+sh_define_token(TDONE,	1,	"\"done\"")
+sh_define_token(TBEGIN,	0,	"\"{\"")
+sh_define_token(TEND,	1,	"\"}\"")
+sh_define_token(TCASE,	0,	"\"case\"")
+sh_define_token(TESAC,	1,	"\"esac\"")
+sh_define_token(TNOT,	0,	"\"!\"")
+
