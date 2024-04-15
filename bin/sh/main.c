@@ -87,6 +87,13 @@ static void reset(void);
 static void cmdloop(bool);
 static void read_profile(const char *);
 static char *find_dot_file(char *);
+static int sh_main(int argc, char *argv[]);
+
+int
+main(int argc, char *argv[])
+{
+	return sh_main(argc, argv);
+}
 
 /*
  * Main routine.  We initialize things, parse the arguments, execute
@@ -186,12 +193,6 @@ state5: //wyc
 	/*NOTREACHED*/
 	return 0;
 } // sh_main
-
-int
-main(int argc, char *argv[])
-{
-	return sh_main(argc, argv);
-}
 
 static void
 reset(void)
