@@ -114,7 +114,7 @@ sh_main(int argc, char *argv[])
 	static struct stackmark smark, smark2;
 	volatile int state;
 
-	fprintf(stderr, "%s: ischild\n", __func__);
+	fprintf(stderr, "%s: revert eval.c and jobs.c\n", __func__);
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;

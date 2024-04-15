@@ -852,7 +852,7 @@ getcurjob(struct job *nj) // n means not
 }
 #endif
 
-void
+static void
 forkshell_child(struct job *jp, enum fork_mode mode)
 {
 	bool wasroot;
@@ -995,51 +995,6 @@ forkshell(struct job *jp, union node *n, enum fork_mode mode)
 		TRACE(("In parent shell:  child = %d\n", (int)pid));
 	}
 	return pid;
-}
-
-void
-threadsubshell(struct job *jp, union node *n, enum fork_mode mode)
-{
-	pthread_t thread;
-	int rc;
-
-	TRACE(("%s(%%%td, %p, %d) called\n", __func__, jp - jobtab, (void *)n, mode));
-	INTOFF;
-	if (mode == FORK_BG && (jp == NULL || jp->nprocs == 0))
-		checkzombies();
-	flushall();
-	//pid = fork();
-	rc = pthread_create(&thread, NULL, evalsubshell_thread, NULL);
-	if (rc != 0) {
-		TRACE(("pthread_create failed, errno=%d\n", rc));
-		INTON;
-		//print_trace();
-		error("%s: Cannot pthread_create: %s", __func__, strerror(rc));
-		// will call a long jump
-		/*NOTREACHED*/
-	} else {
-		if (mode == FORK_BG) {
-			if (bgjob != NULL && bgjob->state == JOBDONE &&
-			    !bgjob->remembered && !iflag)
-				freejob(bgjob);
-			//backgndpid = pid;		/* set $! */
-			bgjob = jp;
-		}
-		if (jp) {
-			struct procstat *ps = &jp->ps[jp->nprocs++];
-			//ps->pid = pid;
-			ps->status = -1;
-			ps->cmd = nullstr;
-			if (iflag && rootshell && n)
-				ps->cmd = commandtext(n);
-			jp->foreground = mode == FORK_FG;
-#if JOBS
-			setcurjob(jp);
-#endif
-		}
-		INTON;
-		TRACE(("In parent shell:  child = %d\n", (int)pid));
-	}
 }
 
 static void

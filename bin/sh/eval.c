@@ -399,23 +399,6 @@ evalcase(union node *n)
 	return (NULL);
 }
 
-void *
-evalsubshell_thread(void *arg __unused)
-{
-	struct job *jp = NULL;
-	enum fork_mode mode = 0;
-	union node *n = NULL;
-	int flags = 0;
-
-	forkshell_child(jp, mode);
-
-	redirect(n->nredir.redirect, 0);
-	evaltree(n->nredir.n, flags | EV_EXIT);
-	// with the flag EV_EXIT, it will call longjmp and jump to sh_main
-	/*NOTREACHED*/
-	return NULL;
-}
-
 /*
  * Kick off a subshell to evaluate a tree.
  */
@@ -427,19 +410,15 @@ evalsubshell(union node *n, int flags)
 
 	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
-	if (backgnd)
-		flags &= ~EV_TESTED;
-	if ((!backgnd && flags & EV_EXIT && !have_traps())) {
-		redirect(n->nredir.redirect, 0);
-		evaltree(n->nredir.n, flags | EV_EXIT);
-		// with the flag EV_EXIT, it will call longjmp and jump to sh_main
-		/*NOTREACHED*/
-	} else {
+	if ((!backgnd && flags & EV_EXIT && !have_traps()))
+		goto eval;
+	else {
 		fprintf(stderr, "%s: call forkshell\n", __func__);
 		pid_t pid = forkshell(jp = makejob(1), n, backgnd);
-		evalsubshell_thread(NULL);
-		threadsubshell(jp, n, backgnd);
 		if (pid == 0) { // child
+eval:
+			if (backgnd)
+				flags &=~ EV_TESTED;
 			redirect(n->nredir.redirect, 0);
 			evaltree(n->nredir.n, flags | EV_EXIT);
 			// with the flag EV_EXIT, it will call longjmp and jump to sh_main

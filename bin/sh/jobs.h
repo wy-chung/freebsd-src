@@ -63,9 +63,6 @@ int backgndpidset(void);
 pid_t backgndpidval(void);
 char *commandtext(union node *);
 
-void forkshell_child(struct job *jp, enum fork_mode mode);
-void threadsubshell(struct job *jp, union node *n, enum fork_mode mode);
-
 #if ! JOBS
 #define setjobctl(on)	/* do nothing */
 #endif
