@@ -164,7 +164,7 @@
  * Needs to be aligned at 2MB superpage boundary.
  */
 #ifndef KERNLOAD
-#define	KERNLOAD	0x200000
+#define	KERNLOAD	0x200000 //wyc 2M
 #endif
 
 /* //wyc virtual address space is 48 bits == 256T

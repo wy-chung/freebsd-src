@@ -636,7 +636,7 @@ static bool pmap_not_in_di_u(void);
 #if !defined(WYC)
 DEFINE_IFUNC(, bool, pmap_not_in_di, (void))
 #else
-bool pmap_not_in_di(void)
+bool pmap_not_in_di(void);
 #endif
 {
 
@@ -1192,7 +1192,7 @@ pmap_delayed_invl_wait_u(vm_page_t m)
 #if !defined(WYC)
 DEFINE_IFUNC(, void, pmap_thread_init_invl_gen, (struct thread *))
 #else
-void pmap_thread_init_invl_gen(struct thread *)
+void pmap_thread_init_invl_gen(struct thread *);
 #endif
 {
 
@@ -1203,7 +1203,7 @@ void pmap_thread_init_invl_gen(struct thread *)
 #if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_delayed_invl_start, (void))
 #else
-static void pmap_delayed_invl_start(void)
+static void pmap_delayed_invl_start(void);
 #endif
 {
 
@@ -1214,7 +1214,7 @@ static void pmap_delayed_invl_start(void)
 #if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_delayed_invl_finish, (void))
 #else
-static void pmap_delayed_invl_finish(void)
+static void pmap_delayed_invl_finish(void);
 #endif
 {
 
@@ -1225,7 +1225,7 @@ static void pmap_delayed_invl_finish(void)
 #if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_delayed_invl_wait, (vm_page_t))
 #else
-static void pmap_delayed_invl_wait(vm_page_t)
+static void pmap_delayed_invl_wait(vm_page_t);
 #endif
 {
 
@@ -3131,7 +3131,7 @@ pmap_invalidate_preipi_nopcid(pmap_t pmap __unused)
 #if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_invalidate_preipi, (pmap_t))
 #else
-static void pmap_invalidate_preipi(pmap_t)
+static void pmap_invalidate_preipi(pmap_t);
 #endif
 {
 	return (pmap_pcid_enabled ? pmap_invalidate_preipi_pcid :
@@ -3196,7 +3196,7 @@ pmap_invalidate_page_nopcid_cb(pmap_t pmap __unused, vm_offset_t va __unused)
 #if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_invalidate_page_cb, (pmap_t, vm_offset_t))
 #else
-static void pmap_invalidate_page_cb(pmap_t, vm_offset_t)
+static void pmap_invalidate_page_cb(pmap_t, vm_offset_t);
 #endif
 {
 	if (pmap_pcid_enabled)
@@ -3287,7 +3287,7 @@ pmap_invalidate_range_nopcid_cb(pmap_t pmap __unused, vm_offset_t sva __unused,
 DEFINE_IFUNC(static, void, pmap_invalidate_range_cb, (pmap_t, vm_offset_t,
     vm_offset_t))
 #else
-static void pmap_invalidate_range_cb(pmap_t, vm_offset_t, vm_offset_t)
+static void pmap_invalidate_range_cb(pmap_t, vm_offset_t, vm_offset_t);
 #endif
 {
 	if (pmap_pcid_enabled)
@@ -3394,7 +3394,7 @@ pmap_invalidate_all_nopcid_cb(pmap_t pmap)
 #if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_invalidate_all_cb, (pmap_t))
 #else
-static void pmap_invalidate_all_cb(pmap_t)
+static void pmap_invalidate_all_cb(pmap_t);
 #endif
 {
 	if (pmap_pcid_enabled)
@@ -3696,7 +3696,7 @@ pmap_invalidate_pde_page(pmap_t pmap, vm_offset_t va, pd_entry_t pde)
 DEFINE_IFUNC(, void, pmap_invalidate_cache_range,
     (vm_offset_t sva, vm_offset_t eva))
 #else
-void pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
+void pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva);
 #endif
 {
 
@@ -10220,7 +10220,7 @@ pmap_activate_sw_nopcid_pti(struct thread *td, pmap_t pmap,
 DEFINE_IFUNC(static, void, pmap_activate_sw_mode, (struct thread *, pmap_t,
     u_int))
 #else
-static void pmap_activate_sw_mode(struct thread *, pmap_t, u_int)
+static void pmap_activate_sw_mode(struct thread *, pmap_t, u_int);
 #endif
 {
 	//wyc pti: page table isolation
@@ -10976,7 +10976,7 @@ pmap_large_map_wb_fence_nop(void)
 #if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_large_map_wb_fence, (void))
 #else
-static void pmap_large_map_wb_fence(void)
+static void pmap_large_map_wb_fence(void);
 #endif
 {
 
@@ -11025,7 +11025,7 @@ pmap_large_map_flush_range_nop(vm_offset_t sva __unused, vm_size_t len __unused)
 #if !defined(WYC)
 DEFINE_IFUNC(static, void, pmap_large_map_flush_range, (vm_offset_t, vm_size_t))
 #else
-static void pmap_large_map_flush_range(vm_offset_t, vm_size_t)
+static void pmap_large_map_flush_range(vm_offset_t, vm_size_t);
 #endif
 {
 

@@ -780,7 +780,7 @@ DEFINE_IFUNC(, uint32_t, calculate_crc32c,
 DEFINE_IFUNC(, uint32_t, calculate_crc32c,
     (uint32_t crc32c, const unsigned char *buffer, unsigned int length))
   #else
-uint32_t calculate_crc32c(uint32_t crc32c, const unsigned char *buffer, unsigned int length)
+uint32_t calculate_crc32c(uint32_t crc32c, const unsigned char *buffer, unsigned int length);
   #endif
 {
 	if ((cpu_feature2 & CPUID2_SSE42) != 0)

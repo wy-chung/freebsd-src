@@ -1831,7 +1831,7 @@ set_pcb_flags_fsgsbase(struct pcb *pcb, const u_int flags)
 #if !defined(WYC)
 DEFINE_IFUNC(, void, set_pcb_flags, (struct pcb *, const u_int))
 #else
-void set_pcb_flags(struct pcb *, const u_int)
+void set_pcb_flags(struct pcb *, const u_int);
 #endif
 {
 
@@ -1916,7 +1916,7 @@ memcpy(void * _Nonnull dst, const void * _Nonnull src, size_t len)
 #if !defined(WYC)
 DEFINE_IFUNC(, void *, memset, (void *, int, size_t))
 #else
-void * memset(void *, int, size_t)
+void * memset(void *, int, size_t);
 #endif
 {
 
@@ -1928,7 +1928,7 @@ void * memset(void *, int, size_t)
 DEFINE_IFUNC(, void *, memmove, (void * _Nonnull, const void * _Nonnull,
     size_t))
 #else
-void * memmove(void * _Nonnull, const void * _Nonnull,size_t)
+void * memmove(void * _Nonnull, const void * _Nonnull,size_t);
 #endif
 {
 
@@ -1939,7 +1939,7 @@ void * memmove(void * _Nonnull, const void * _Nonnull,size_t)
 #if !defined(WYC)
 DEFINE_IFUNC(, void *, memcpy, (void * _Nonnull, const void * _Nonnull,size_t))
 #else
-void * memcpy(void * _Nonnull, const void * _Nonnull,size_t)
+void * memcpy(void * _Nonnull, const void * _Nonnull,size_t);
 #endif
 {
 
@@ -1953,7 +1953,7 @@ void	pagezero_erms(void *addr);
 #if !defined(WYC)
 DEFINE_IFUNC(, void , pagezero, (void *))
 #else
-void  pagezero(void *)
+void  pagezero(void *);
 #endif
 {
 

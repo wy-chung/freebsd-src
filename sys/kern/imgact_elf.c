@@ -894,11 +894,9 @@ fail:
  */
 static int
 #if !defined(WYC)
-__CONCAT(rnd_, __elfN(base))(vm_map_t map, u_long minv, u_long maxv,
-    u_int align, u_long *resp)
+__CONCAT(rnd_, __elfN(base))(vm_map_t map, u_long minv, u_long maxv, u_int align, u_long *resp)
 #else
-rnd_elf64_base(vm_map_t map, u_long minv, u_long maxv,
-    u_int align, u_long *resp)
+rnd_elf64_base(vm_map_t map, u_long minv, u_long maxv, u_int align, u_long *resp)
 #endif
 {
 	u_long rbase, res;

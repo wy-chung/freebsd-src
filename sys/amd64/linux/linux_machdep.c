@@ -177,7 +177,7 @@ int futex_xchgl_smap(int oparg, uint32_t *uaddr, int *oldval);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, futex_xchgl, (int, uint32_t *, int *))
 #else
-int futex_xchgl(int, uint32_t *, int *)
+int futex_xchgl(int, uint32_t *, int *);
 #endif
 {
 
@@ -190,7 +190,7 @@ int futex_addl_smap(int oparg, uint32_t *uaddr, int *oldval);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, futex_addl, (int, uint32_t *, int *))
 #else
-int futex_addl(int, uint32_t *, int *)
+int futex_addl(int, uint32_t *, int *);
 #endif
 {
 
@@ -203,7 +203,7 @@ int futex_orl_smap(int oparg, uint32_t *uaddr, int *oldval);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, futex_orl, (int, uint32_t *, int *))
 #else
-int futex_orl(int, uint32_t *, int *)
+int futex_orl(int, uint32_t *, int *);
 #endif
 {
 
@@ -216,7 +216,7 @@ int futex_andl_smap(int oparg, uint32_t *uaddr, int *oldval);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, futex_andl, (int, uint32_t *, int *))
 #else
-int futex_andl(int, uint32_t *, int *)
+int futex_andl(int, uint32_t *, int *);
 #endif
 {
 
@@ -229,7 +229,7 @@ int futex_xorl_smap(int oparg, uint32_t *uaddr, int *oldval);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, futex_xorl, (int, uint32_t *, int *))
 #else
-int futex_xorl(int, uint32_t *, int *)
+int futex_xorl(int, uint32_t *, int *);
 #endif
 {
 

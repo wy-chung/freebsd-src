@@ -237,7 +237,7 @@ fpurestore_fxrstor(void *addr)
 #if !defined(WYC)
 DEFINE_IFUNC(, void, fpusave, (void *))
 #else
-void fpusave(void *)
+void fpusave(void *);
 #endif
 {
 	u_int cp[4];
@@ -256,7 +256,7 @@ void fpusave(void *)
 #if !defined(WYC)
 DEFINE_IFUNC(, void, fpurestore, (void *))
 #else
-void fpurestore(void *)
+void fpurestore(void *);
 #endif
 {
 	if (!use_xsave)

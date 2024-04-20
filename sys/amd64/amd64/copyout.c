@@ -45,7 +45,7 @@ int fubyte_smap(volatile const void *base);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, fubyte, (volatile const void *))
 #else
-int fubyte(volatile const void *)
+int fubyte(volatile const void *);
 #endif
 {
 
@@ -58,7 +58,7 @@ int fuword16_smap(volatile const void *base);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, fuword16, (volatile const void *))
 #else
-int fuword16(volatile const void *)
+int fuword16(volatile const void *);
 #endif
 {
 
@@ -71,7 +71,7 @@ int fueword_smap(volatile const void *base, long *val);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, fueword, (volatile const void *, long *))
 #else
-int fueword(volatile const void *, long *)
+int fueword(volatile const void *, long *);
 #endif
 {
 
@@ -81,7 +81,7 @@ int fueword(volatile const void *, long *)
 #if !defined(WYC)
 DEFINE_IFUNC(, int, fueword64, (volatile const void *, int64_t *))
 #else
-int fueword64(volatile const void *, int64_t *)
+int fueword64(volatile const void *, int64_t *);
 #endif
 {
 
@@ -94,7 +94,7 @@ int	fueword32_smap(volatile const void *base, int32_t *val);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, fueword32, (volatile const void *, int32_t *))
 #else
-int fueword32(volatile const void *, int32_t *)
+int fueword32(volatile const void *, int32_t *);
 #endif
 {
 
@@ -107,7 +107,7 @@ int	subyte_smap(volatile void *base, int byte);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, subyte, (volatile void *, int))
 #else
-int subyte(volatile void *, int)
+int subyte(volatile void *, int);
 #endif
 {
 
@@ -120,7 +120,7 @@ int	suword16_smap(volatile void *base, int word);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, suword16, (volatile void *, int))
 #else
-int suword16(volatile void *, int)
+int suword16(volatile void *, int);
 #endif
 {
 
@@ -133,7 +133,7 @@ int	suword32_smap(volatile void *base, int32_t word);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, suword32, (volatile void *, int32_t))
 #else
-int suword32(volatile void *, int32_t)
+int suword32(volatile void *, int32_t);
 #endif
 {
 
@@ -146,7 +146,7 @@ int	suword_smap(volatile void *base, long word);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, suword, (volatile void *, long))
 #else
-int suword(volatile void *, long)
+int suword(volatile void *, long);
 #endif
 {
 
@@ -157,7 +157,7 @@ int suword(volatile void *, long)
 #if !defined(WYC)
 DEFINE_IFUNC(, int, suword64, (volatile void *, int64_t))
 #else
-int suword64(volatile void *, int64_t)
+int suword64(volatile void *, int64_t);
 #endif
 {
 
@@ -173,7 +173,7 @@ int	casueword32_smap(volatile uint32_t *base, uint32_t oldval,
 DEFINE_IFUNC(, int, casueword32, (volatile uint32_t *, uint32_t, uint32_t *,
     uint32_t))
 #else
-int casueword32(volatile uint32_t *, uint32_t, uint32_t *, uint32_t)
+int casueword32(volatile uint32_t *, uint32_t, uint32_t *, uint32_t);
 #endif
 {
 
@@ -188,7 +188,7 @@ int	casueword_smap(volatile u_long *p, u_long oldval, u_long *oldvalp,
 #if !defined(WYC)
 DEFINE_IFUNC(, int, casueword, (volatile u_long *, u_long, u_long *, u_long))
 #else
-int casueword(volatile u_long *, u_long, u_long *, u_long)
+int casueword(volatile u_long *, u_long, u_long *, u_long);
 #endif
 {
 
@@ -203,7 +203,7 @@ int	copyinstr_smap(const void *udaddr, void *kaddr, size_t len,
 #if !defined(WYC)
 DEFINE_IFUNC(, int, copyinstr, (const void *, void *, size_t, size_t *))
 #else
-int copyinstr(const void *, void *, size_t, size_t *)
+int copyinstr(const void *, void *, size_t, size_t *);
 #endif
 {
 
@@ -218,7 +218,7 @@ int	copyin_smap_erms(const void *udaddr, void *kaddr, size_t len);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, copyin, (const void *, void *, size_t))
 #else
-int copyin(const void *, void *, size_t)
+int copyin(const void *, void *, size_t);
 #endif
 {
 
@@ -241,7 +241,7 @@ int	copyout_smap_erms(const void *kaddr, void *udaddr, size_t len);
 #if !defined(WYC)
 DEFINE_IFUNC(, int, copyout, (const void *, void *, size_t))
 #else
-int copyout(const void *, void *, size_t)
+int copyout(const void *, void *, size_t);
 #endif
 {
 
