@@ -779,6 +779,7 @@ struct proc {
 
 	TAILQ_HEAD(, kq_timer_cb_data)	p_kqtim_stop;	/* (c) */
 	LIST_ENTRY(proc) p_jaillist;	/* (d) Jail process linkage. */
+	int		p_asid;		//wyc
 };
 
 #define	p_session	p_pgrp->pg_session

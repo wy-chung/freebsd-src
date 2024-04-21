@@ -504,7 +504,8 @@ interpret:
 				imgp->execpath = args->fname;
 			vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		}
-	} else if (imgp->interpreter_vp) {
+	}
+	else if (imgp->interpreter_vp) {
 		/*
 		 * An image activator has already provided an open vnode
 		 */

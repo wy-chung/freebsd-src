@@ -555,6 +555,7 @@ panic("%s", __func__); //wyctest success, never reached
 	if (flags & RFMEM) { //wyc for vfork
 		p2->p_vmspace = p1->p_vmspace;
 		refcount_acquire(&p1->p_vmspace->vm_refcnt);
+		p2->p_asid = p1->p_asid; //wyc
 	}
 	dset = td2->td_domain.dr_policy;
 	while (vm_page_count_severe_set(&dset->ds_mask)) {
@@ -565,6 +566,7 @@ panic("%s", __func__); //wyctest success, never reached
 		p2->p_vmspace = vm2;
 		if (p1->p_vmspace->vm_shm)
 			shmfork(p1, p2);
+		p2->p_asid = p2->p_pid; //wyc
 	}
 
 	/*

@@ -446,7 +446,7 @@ static int pat_index[PAT_INDEX_SIZE];	/* cache mode to PAT index conversion */
 
 static u_int64_t	KPTphys;	/* phys addr of kernel level 1 */
 static u_int64_t	KPDphys;	/* phys addr of kernel level 2 */
-static u_int64_t	KPDPphys;	/* phys addr of kernel level 3 */
+static u_int64_t	KPML3phys;	/* phys addr of kernel level 3 */
 u_int64_t		KPML4phys;	/* phys addr of kernel level 4 */
 u_int64_t		KPML5phys;	/* phys addr of kernel level 5,
 					   if supported */
@@ -1744,7 +1744,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 
 	/* Allocate pages. */
 	KPML4phys = allocpages(firstaddr, 1);
-	KPDPphys = allocpages(firstaddr, NKPML4E);
+	KPML3phys = allocpages(firstaddr, NKPML4E);
 #ifdef KASAN
 	KASANPDPphys = allocpages(firstaddr, NKASANPML4E);
 	KASANPDphys = allocpages(firstaddr, 1);
@@ -1812,7 +1812,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 		*firstaddr = round_2mpage(KERNend);
 
 	/* And connect up the PD to the PDP (leaving room for L4 pages) */
-	pdp_p = (pdp_entry_t *)(KPDPphys + ptoa(KPML4I - KPML4BASE));
+	pdp_p = (pdp_entry_t *)(KPML3phys + ptoa(KPML4I - KPML4BASE));
 	for (i = 0; i < nkpdpe; i++)
 		pdp_p[i + KPDPI] = (KPDphys + ptoa(i)) | X86_PG_RW | X86_PG_V;
 
@@ -1916,7 +1916,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 
 	/* Connect the KVA slots up to the PML4 */
 	for (i = 0; i < NKPML4E; i++) {
-		p4_p[KPML4BASE + i] = KPDPphys + ptoa(i);
+		p4_p[KPML4BASE + i] = KPML3phys + ptoa(i);
 		p4_p[KPML4BASE + i] |= X86_PG_RW | X86_PG_V;
 	}
 
@@ -4353,7 +4353,7 @@ pmap_pinit_pml4(vm_page_t pml4pg)
 
 	/* Wire in kernel global address entries. */
 	for (i = 0; i < NKPML4E; i++) {
-		pm_pml4[KPML4BASE + i] = (KPDPphys + ptoa(i)) | X86_PG_RW |
+		pm_pml4[KPML4BASE + i] = (KPML3phys + ptoa(i)) | X86_PG_RW |
 		    X86_PG_V;
 	}
 #ifdef KASAN

@@ -171,7 +171,7 @@
  * Virtual addresses of things.  Derived from the page directory and
  * page table indexes from pmap.h for precision.
  *
- * 0x0000000000000000 - 0x00007fffffffffff   user map //wyc == 128T
+ * 0x0000000000000000 - 0x00007fffffffffff   user map //wyc == 2^47 == 128T
  * 0x0000800000000000 - 0xffff7fffffffffff   does not exist (hole)
  * 0xffff800000000000 - 0xffff804020100fff   recursive page table (512GB slot)
  * 0xffff804020100fff - 0xffff807fffffffff   unused

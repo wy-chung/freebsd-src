@@ -109,10 +109,7 @@ struct pcb {
 
 	//wyc
 	register_t	pcb_csbase;
-	register_t	pcb_dsbase;
-	register_t	pcb_esbase;
-	register_t	pcb_ssbase;
-	uint64_t	pcb_pad[1];
+	uint64_t	pcb_pad[4];
 };
 
 /* Per-CPU state saved during suspend and resume. */
