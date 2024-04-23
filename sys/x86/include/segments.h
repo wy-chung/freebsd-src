@@ -47,6 +47,7 @@
  */
 #define	SEL_RPL_MASK	3		/* requester priv level */
 #define	ISPL(s)		((s)&3)		/* priority level of a selector */
+#define	SEL_PL(s)	((s)&3)		/* priority level of a selector */
 #define	SEL_KPL		0		/* kernel priority level */
 #define	SEL_UPL		3		/* user priority level */
 #define	ISLDT(s)	((s)&SEL_LDT)	/* is it local or global */

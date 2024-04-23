@@ -298,8 +298,8 @@
 
 #include <vm/_vm_radix.h>
 
-typedef u_int64_t pd_entry_t;
 typedef u_int64_t pt_entry_t;
+typedef u_int64_t pd_entry_t;
 typedef u_int64_t pdp_entry_t;
 typedef u_int64_t pml4_entry_t;
 typedef u_int64_t pml5_entry_t;

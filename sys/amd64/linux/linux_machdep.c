@@ -376,7 +376,7 @@ static inline bool
 linux_invalid_selector(u_short val)
 {
 
-	return (val != 0 && ISPL(val) != SEL_UPL);
+	return (val != 0 && SEL_PL(val) != SEL_UPL);
 }
 
 struct linux_segreg_off {
