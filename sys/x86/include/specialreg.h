@@ -158,7 +158,7 @@
 
 #define	CPUID2_SSE3	0x00000001
 #define	CPUID2_PCLMULQDQ 0x00000002
-#define	CPUID2_DTES64	0x00000004
+#define	CPUID2_DTES64	0x00000004 // DS area using 64-bit layout
 #define	CPUID2_MON	0x00000008
 #define	CPUID2_DS_CPL	0x00000010
 #define	CPUID2_VMX	0x00000020
@@ -167,12 +167,12 @@
 #define	CPUID2_TM2	0x00000100
 #define	CPUID2_SSSE3	0x00000200
 #define	CPUID2_CNXTID	0x00000400
-#define	CPUID2_SDBG	0x00000800
-#define	CPUID2_FMA	0x00001000
-#define	CPUID2_CX16	0x00002000
+#define	CPUID2_SDBG	0x00000800 // IA32_DEBUG_INTERFACE MSR for silicon debug
+#define	CPUID2_FMA	0x00001000 // FMA extensions using YMM state
+#define	CPUID2_CX16	0x00002000 // CMPXCHG16B Available
 #define	CPUID2_XTPR	0x00004000
-#define	CPUID2_PDCM	0x00008000
-#define	CPUID2_PCID	0x00020000
+#define	CPUID2_PDCM	0x00008000 // the performance and debug feature indication MSR IA32_PERF_CAPABILITIES
+#define	CPUID2_PCID	0x00020000 // Process-context Identifiers
 #define	CPUID2_DCA	0x00040000
 #define	CPUID2_SSE41	0x00080000
 #define	CPUID2_SSE42	0x00100000
@@ -181,11 +181,11 @@
 #define	CPUID2_POPCNT	0x00800000
 #define	CPUID2_TSCDLT	0x01000000
 #define	CPUID2_AESNI	0x02000000
-#define	CPUID2_XSAVE	0x04000000
+#define	CPUID2_XSAVE	0x04000000 // the XSAVE/XRSTOR processor extended states feature, the XSETBV/XGETBV instructions, and XCR0
 #define	CPUID2_OSXSAVE	0x08000000
-#define	CPUID2_AVX	0x10000000
-#define	CPUID2_F16C	0x20000000
-#define	CPUID2_RDRAND	0x40000000
+#define	CPUID2_AVX	0x10000000 // the AVX instruction extensions
+#define	CPUID2_F16C	0x20000000 // 16-bit floating-point conversion instructions
+#define	CPUID2_RDRAND	0x40000000 // RDRAND instruction
 #define	CPUID2_HV	0x80000000
 
 /* Intel Processor Trace CPUID. */

@@ -120,9 +120,9 @@
 #define	EPT_PG_EMUL_V	X86_PG_AVAIL(52)
 #define	EPT_PG_EMUL_RW	X86_PG_AVAIL(53)
 #define	PG_PROMOTED	X86_PG_AVAIL(54)	/* PDE only */
-#define	PG_FRAME	(0x000ffffffffff000ul)
-#define	PG_PS_FRAME	(0x000fffffffe00000ul)
-#define	PG_PS_PDP_FRAME	(0x000fffffc0000000ul)
+#define	PG_FRAME	(0x000ffffffffff000ul) // 4K
+#define	PG_PS_FRAME	(0x000fffffffe00000ul) // 2M
+#define	PG_PS_PDP_FRAME	(0x000fffffc0000000ul) // 1G
 
 /*
  * Promotion to a 2MB (PDE) page mapping requires that the corresponding 4KB
@@ -404,7 +404,11 @@ typedef struct pmap	*pmap_t;
 
 #ifdef _KERNEL
 extern struct pmap	kernel_pmap_store;
+#if !defined(WYC)
 #define kernel_pmap	(&kernel_pmap_store)
+#else
+extern struct pmap	*kernel_pmap;
+#endif
 
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
 #define	PMAP_LOCK_ASSERT(pmap, type) \

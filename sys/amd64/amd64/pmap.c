@@ -1197,7 +1197,7 @@ void pmap_thread_init_invl_gen(struct thread *);
 {
 
 	return (pmap_di_locked() ? pmap_thread_init_invl_gen_l :
-	    pmap_thread_init_invl_gen_u);
+				   pmap_thread_init_invl_gen_u);
 }
 
 #if !defined(WYC)
@@ -1208,7 +1208,7 @@ static void pmap_delayed_invl_start(void);
 {
 
 	return (pmap_di_locked() ? pmap_delayed_invl_start_l :
-	    pmap_delayed_invl_start_u);
+				   pmap_delayed_invl_start_u);
 }
 
 #if !defined(WYC)
@@ -1219,7 +1219,7 @@ static void pmap_delayed_invl_finish(void);
 {
 
 	return (pmap_di_locked() ? pmap_delayed_invl_finish_l :
-	    pmap_delayed_invl_finish_u);
+				   pmap_delayed_invl_finish_u);
 }
 
 #if !defined(WYC)
@@ -1230,7 +1230,7 @@ static void pmap_delayed_invl_wait(vm_page_t);
 {
 
 	return (pmap_di_locked() ? pmap_delayed_invl_wait_l :
-	    pmap_delayed_invl_wait_u);
+				   pmap_delayed_invl_wait_u);
 }
 
 /*

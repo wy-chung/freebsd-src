@@ -1972,7 +1972,7 @@ link_elf_ireloc(caddr_t kmdp)
 	ef->modptr = kmdp;
 	ef->dynamic = (Elf_Dyn *)&_DYNAMIC;
 
-#ifdef RELOCATABLE_KERNEL
+#ifdef RELOCATABLE_KERNEL // only defined in powerpc
 	ef->address = (caddr_t) (__startkernel - KERNBASE);
 #else
 	ef->address = 0;

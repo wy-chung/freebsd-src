@@ -59,7 +59,7 @@
 /*
  * User segment descriptors (%cs, %ds etc for i386 apps. 64 bit wide)
  * For long-mode apps, %cs only has the conforming bit in sd_type, the sd_dpl,
- * sd_p, sd_l and sd_def32 which must be zero).  %ds only has sd_p.
+ * sd_p, sd_long and sd_def32 which must be zero).  %ds only has sd_p.
  */
 struct segment_descriptor {
 	unsigned sd_lolimit:16;		/* segment extent (lsb) */
@@ -257,7 +257,7 @@ union descriptor {
 /*
  * Entries in the Global Descriptor Table (GDT)
  */
-enum { // struct soft_segment_descriptor gdt_segs[]
+enum global_sel { // struct soft_segment_descriptor gdt_segs[]
  GNULL_SEL,	// 0 /* Null Descriptor */
  GNULL2_SEL,	// 1 /* Null Descriptor */ // not referenced
  GUFS32_SEL,	// 2 /* User 32 bit %fs Descriptor */	// _ufssel

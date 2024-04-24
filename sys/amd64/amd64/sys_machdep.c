@@ -67,6 +67,7 @@
 
 #include <security/audit/audit.h>
 
+#if !defined(WYC_NO_LDT)
 static void user_ldt_deref(struct proc_ldt *pldt);
 static void user_ldt_derefl(struct proc_ldt *pldt);
 
@@ -87,6 +88,7 @@ max_ldt_segment_init(void *arg __unused)
 		max_ldt_segment = MAX_LD;
 }
 SYSINIT(maxldt, SI_SUB_VM_CONF, SI_ORDER_ANY, max_ldt_segment_init, NULL);
+#endif // !defined(WYC_NO_LDT)
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -174,10 +176,10 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 	}
 #endif
-
+#if 1 //wyc this cannot be removed
 	if (uap->op == I386_GET_LDT || uap->op == I386_SET_LDT)
 		return (sysarch_ldt(td, uap, UIO_USERSPACE));
-
+#endif
 	error = 0;
 	pcb = td->td_pcb;
 
@@ -235,11 +237,18 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case I386_SET_IOPERM:
 		error = amd64_set_ioperm(td, &iargs);
 		break;
+
 	case I386_GET_FSBASE:
 		update_pcb_bases(pcb);
 		i386base = pcb->pcb_fsbase;
 		error = copyout(&i386base, uap->parms, sizeof(i386base));
 		break;
+	case AMD64_GET_FSBASE:
+		update_pcb_bases(pcb);
+		error = copyout(&pcb->pcb_fsbase, uap->parms,
+		    sizeof(pcb->pcb_fsbase));
+		break;
+
 	case I386_SET_FSBASE:
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
 		if (!error) {
@@ -249,26 +258,6 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 			update_gdt_fsbase(td, i386base);
 		}
 		break;
-	case I386_GET_GSBASE:
-		update_pcb_bases(pcb);
-		i386base = pcb->pcb_gsbase;
-		error = copyout(&i386base, uap->parms, sizeof(i386base));
-		break;
-	case I386_SET_GSBASE:
-		error = copyin(uap->parms, &i386base, sizeof(i386base));
-		if (!error) {
-			set_pcb_flags(pcb, PCB_FULL_IRET);
-			pcb->pcb_gsbase = i386base;
-			td->td_frame->tf_gs = _ugssel;
-			update_gdt_gsbase(td, i386base);
-		}
-		break;
-	case AMD64_GET_FSBASE:
-		update_pcb_bases(pcb);
-		error = copyout(&pcb->pcb_fsbase, uap->parms,
-		    sizeof(pcb->pcb_fsbase));
-		break;
-		
 	case AMD64_SET_FSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
 		if (!error) {
@@ -281,12 +270,26 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		}
 		break;
 
+	case I386_GET_GSBASE:
+		update_pcb_bases(pcb);
+		i386base = pcb->pcb_gsbase;
+		error = copyout(&i386base, uap->parms, sizeof(i386base));
+		break;
 	case AMD64_GET_GSBASE:
 		update_pcb_bases(pcb);
 		error = copyout(&pcb->pcb_gsbase, uap->parms,
 		    sizeof(pcb->pcb_gsbase));
 		break;
 
+	case I386_SET_GSBASE:
+		error = copyin(uap->parms, &i386base, sizeof(i386base));
+		if (!error) {
+			set_pcb_flags(pcb, PCB_FULL_IRET);
+			pcb->pcb_gsbase = i386base;
+			td->td_frame->tf_gs = _ugssel;
+			update_gdt_gsbase(td, i386base);
+		}
+		break;
 	case AMD64_SET_GSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
 		if (!error) {
@@ -428,8 +431,6 @@ done:
 	return (0);
 }
 
-#define WYC_NO_LDT 1
-
 int
 sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space) //wyc cannot remove. Link error
 {
@@ -479,7 +480,6 @@ sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space) //wyc ca
 #endif // !WYC_NO_LDT
 }
 
-#if 0 //wyc
 #if !defined(WYC_NO_LDT)
 /*
  * Update the GDT entry pointing to the LDT to point to the LDT of the
@@ -618,7 +618,7 @@ user_ldt_deref(struct proc_ldt *pldt)
 	user_ldt_derefl(pldt);
 	mtx_unlock(&dt_lock);
 }
-#endif
+#endif // !defined(WYC_NO_LDT)
 
 /*
  * Note for the authors of compat layers (linux, etc): copyout() in
@@ -843,4 +843,3 @@ amd64_set_ldt_data(struct thread *td, int start, int num,
 	return (0);
 #endif
 }
-#endif // #if 0

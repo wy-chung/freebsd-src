@@ -98,12 +98,6 @@ extern void	uma_startup1(vm_offset_t);
 long physmem;
 
 /*
- * System initialization
- */
-static void vm_mem_init(void *);
-SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL);
-
-/*
  *	vm_init initializes the virtual memory system.
  *	This is done only by the first cpu up.
  */
@@ -144,6 +138,7 @@ vm_mem_init(void *dummy)
 	pmap_init();
 	vm_pager_init();
 }
+SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL);
 
 void
 vm_ksubmap_init(struct kva_md_info *kmi)

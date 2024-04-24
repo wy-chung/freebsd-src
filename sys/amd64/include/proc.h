@@ -104,7 +104,7 @@ int amd64_set_ldt_data(struct thread *td, int start, int num,
     struct user_segment_descriptor *descs);
 
 extern struct mtx dt_lock;
-extern int max_ldt_segment;
+//extern int max_ldt_segment;
 
 #define	NARGREGS	6
 

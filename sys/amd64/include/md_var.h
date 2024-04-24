@@ -38,6 +38,8 @@
 
 #include <x86/x86_var.h>
 
+#define WYC_NO_LDT 1
+
 extern char	ctx_switch_xsave[];
 extern char	ctx_switch_xsave32[];
 extern int	hw_lower_amd64_sharedpage;

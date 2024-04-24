@@ -263,7 +263,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags) // 
 	/* New segment registers. */
 	set_pcb_flags_raw(pcb2, PCB_FULL_IRET);
 
-#if 0 //wyc
+#if !defined(WYC_NO_LDT)
 	/* Copy the LDT, if necessary. */
 	mdp1 = &td1->td_proc->p_md;
 	mdp2 = &p2->p_md;
@@ -301,7 +301,7 @@ panic("%s: wyctest", __func__); //wyctest success, mdp1->md_ldt is always NULL
 	 * will set up a stack to call fork_return(p, frame); to complete
 	 * the return to user-mode.
 	 */
-#endif // #if 0
+#endif // !defined(WYC_NO_LDT)
 }
 
 void

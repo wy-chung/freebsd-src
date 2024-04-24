@@ -1402,7 +1402,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	pmap_thread_init_invl_gen(&thread0);
 
 	pc = &temp_bsp_pcpu;
-	pcpu_init(pc, 0, sizeof(struct pcpu));
+	pcpu_init(pc, /*cpuid*/0, sizeof(struct pcpu));
 	gdt = &temp_bsp_pcpu.pc_gdt[0];
 
 	/*

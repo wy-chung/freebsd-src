@@ -219,8 +219,8 @@
  * KERNSTART is where the first actual kernel page is mapped, after
  * the compatibility mapping.
  */
-#define	KERNBASE		KV4ADDR(KPML4I, KPDPI, 0, 0)
-#define	KERNSTART		(KERNBASE + NBPDR)
+#define	KERNBASE		KV4ADDR(KPML4I, KPDPI, 0, 0) // kernbase at -2GB
+#define	KERNSTART		(KERNBASE + NBPDR) // -2GB + 2MB
 
 #define	UPT_MAX_ADDRESS		KV4ADDR(PML4PML4I, PML4PML4I, PML4PML4I, PML4PML4I)
 #define	UPT_MIN_ADDRESS		KV4ADDR(PML4PML4I, 0, 0, 0)
