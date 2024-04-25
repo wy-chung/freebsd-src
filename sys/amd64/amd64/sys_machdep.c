@@ -67,7 +67,7 @@
 
 #include <security/audit/audit.h>
 
-#if !defined(WYC_NO_LDT)
+#if 0 //!defined(WYC_NO_LDT)
 static void user_ldt_deref(struct proc_ldt *pldt);
 static void user_ldt_derefl(struct proc_ldt *pldt);
 
@@ -176,7 +176,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 	}
 #endif
-#if 1 //wyc this cannot be removed
+#if 0
 	if (uap->op == I386_GET_LDT || uap->op == I386_SET_LDT)
 		return (sysarch_ldt(td, uap, UIO_USERSPACE));
 #endif
@@ -434,7 +434,7 @@ done:
 int
 sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space) //wyc cannot remove. Link error
 {
-#if defined(WYC_NO_LDT)
+#if 1 //defined(WYC_NO_LDT)
 	panic("%s", __func__);
 	return EOPNOTSUPP;
 #else
@@ -480,7 +480,7 @@ sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space) //wyc ca
 #endif // !WYC_NO_LDT
 }
 
-#if !defined(WYC_NO_LDT)
+#if 0 //!defined(WYC_NO_LDT)
 /*
  * Update the GDT entry pointing to the LDT to point to the LDT of the
  * current process.
@@ -513,7 +513,7 @@ set_user_ldt_rv(void *arg)
 struct proc_ldt *
 user_ldt_alloc(struct proc *p, int force)
 {
-#if defined(WYC_NO_LDT)
+#if 1 //defined(WYC_NO_LDT)
 	panic("%s", __func__);
 	return NULL;
 #else
@@ -570,7 +570,7 @@ user_ldt_alloc(struct proc *p, int force)
 void
 user_ldt_free(struct thread *td)
 {
-#if defined(WYC_NO_LDT)
+#if 1 //defined(WYC_NO_LDT)
 	panic("%s: EOPNOTSUPP", __func__);
 #else
 	struct proc *p = td->td_proc;
@@ -594,7 +594,7 @@ user_ldt_free(struct thread *td)
 #endif // !WYC_NO_LDT
 }
 
-#if !defined(WYC_NO_LDT)
+#if 0 //!defined(WYC_NO_LDT)
 static void
 user_ldt_derefl(struct proc_ldt *pldt)
 {
@@ -629,7 +629,7 @@ user_ldt_deref(struct proc_ldt *pldt)
 int
 amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 {
-#if defined(WYC_NO_LDT)
+#if 1 //defined(WYC_NO_LDT)
 	panic("%s", __func__);
 	return EOPNOTSUPP;
 #else
@@ -670,7 +670,7 @@ int
 amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
     struct user_segment_descriptor *descs)
 {
-#if defined(WYC_NO_LDT)
+#if 1 //defined(WYC_NO_LDT)
 	panic("%s", __func__);
 	return EOPNOTSUPP;
 #else
@@ -823,7 +823,7 @@ int
 amd64_set_ldt_data(struct thread *td, int start, int num,
     struct user_segment_descriptor *descs)
 {
-#if defined(WYC_NO_LDT)
+#if 1 //defined(WYC_NO_LDT)
 	panic("%s", __func__);
 	return EOPNOTSUPP;
 #else

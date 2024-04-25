@@ -33,6 +33,7 @@ struct thread;
 #define	PADR_(t)	0
 #endif
 
+#if !defined(WYC)
 struct exit_args {
 	char rval_l_[PADL_(int)]; int rval; char rval_r_[PADR_(int)];
 };
@@ -1883,6 +1884,7 @@ struct kcmp_args {
 	char idx1_l_[PADL_(uintptr_t)]; uintptr_t idx1; char idx1_r_[PADR_(uintptr_t)];
 	char idx2_l_[PADL_(uintptr_t)]; uintptr_t idx2; char idx2_r_[PADR_(uintptr_t)];
 };
+#endif // !defined(WYC)
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);

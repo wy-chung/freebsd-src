@@ -263,7 +263,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags) // 
 	/* New segment registers. */
 	set_pcb_flags_raw(pcb2, PCB_FULL_IRET);
 
-#if !defined(WYC_NO_LDT)
+#if 0 //!defined(WYC_NO_LDT)
 	/* Copy the LDT, if necessary. */
 	mdp1 = &td1->td_proc->p_md;
 	mdp2 = &p2->p_md;
