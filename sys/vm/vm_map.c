@@ -888,12 +888,12 @@ vmspace_resident_count(struct vmspace *vmspace)
  * such as that in the vmspace structure.
  */
 static void
-_vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
+_vm_map_init(struct vm_map *map, struct pmap *pmap, vm_offset_t min, vm_offset_t max)
 {
 
 	map->header.eflags = MAP_ENTRY_HEADER;
 	map->needs_wakeup = FALSE;
-	map->system_map = 0;
+	map->system_map = FALSE;
 	map->pmap = pmap;
 	map->header.end = min;
 	map->header.start = max;
@@ -909,7 +909,7 @@ _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 }
 
 void
-vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
+vm_map_init(struct vm_map *map, struct pmap *pmap, vm_offset_t min, vm_offset_t max)
 {
 
 	_vm_map_init(map, pmap, min, max);
@@ -1847,7 +1847,7 @@ charged:
  *	prior to making call to account for the new entry.
  */
 int
-vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+vm_map_insert(struct vm_map *map, struct vm_object *object, vm_ooffset_t offset,
     vm_offset_t start, vm_offset_t end, vm_prot_t prot, vm_prot_t max, int cow)
 {
 	vm_map_entry_t res;

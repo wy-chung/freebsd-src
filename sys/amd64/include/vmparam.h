@@ -171,27 +171,27 @@
  * Virtual addresses of things.  Derived from the page directory and
  * page table indexes from pmap.h for precision.
  *
- * 0x0000000000000000 - 0x00007fffffffffff   user map //wyc == 2^47 == 128T
- * 0x0000800000000000 - 0xffff7fffffffffff   does not exist (hole)
- * 0xffff800000000000 - 0xffff804020100fff   recursive page table (512GB slot)
- * 0xffff804020100fff - 0xffff807fffffffff   unused
- * 0xffff808000000000 - 0xffff847fffffffff   large map (can be tuned up)
- * 0xffff848000000000 - 0xfffff77fffffffff   unused (large map extends there)
- * 0xfffff60000000000 - 0xfffff7ffffffffff   2TB KMSAN origin map, optional
- * 0xfffff78000000000 - 0xfffff7bfffffffff   512GB KASAN shadow map, optional
- * 0xfffff80000000000 - 0xfffffbffffffffff   4TB direct map
- * 0xfffffc0000000000 - 0xfffffdffffffffff   2TB KMSAN shadow map, optional
- * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
+ * 0x0000,0000,0000,0000 - 0x0000,7fff,ffff,ffff   user map //wyc == 2^47 == 128T
+ * 0x0000,8000,0000,0000 - 0xffff,7fff,ffff,ffff   does not exist (hole)
+ * 0xffff,8000,0000,0000 - 0xffff,8040,2010,0fff   recursive page table (512GB slot)
+ * 0xffff,8040,2010,0fff - 0xffff,807f,ffff,ffff   unused
+ * 0xffff,8080,0000,0000 - 0xffff,847f,ffff,ffff   large map (can be tuned up)
+ * 0xffff,8480,0000,0000 - 0xffff,f77f,ffff,ffff   unused (large map extends there)
+ * 0xffff,f600,0000,0000 - 0xffff,f7ff,ffff,ffff   2TB KMSAN origin map, optional
+ * 0xffff,f780,0000,0000 - 0xffff,f7bf,ffff,ffff   512GB KASAN shadow map, optional
+ * 0xffff,f800,0000,0000 - 0xffff,fbff,ffff,ffff   4TB direct map
+ * 0xffff,fc00,0000,0000 - 0xffff,fdff,ffff,ffff   2TB KMSAN shadow map, optional
+ * 0xffff,fe00,0000,0000 - 0xffff,ffff,ffff,ffff   2TB kernel map (VM_MIN_KERNEL_ADDRESS - VM_MAX_KERNEL_ADDRESS)
  *
  * Within the kernel map:
  *
- * 0xfffffe0000000000                        vm_page_array
- * 0xffffffff80000000                        KERNBASE
+ * 0xffff,fe00,0000,0000                        vm_page_array
+ * 0xffff,ffff,8000,0000                        KERNBASE
  */
 
-#define	VM_MIN_KERNEL_ADDRESS	KV4ADDR(KPML4BASE, 0, 0, 0)
-#define	VM_MAX_KERNEL_ADDRESS	KV4ADDR(KPML4BASE + NKPML4E - 1, \
-					NPDPEPG-1, NPDEPG-1, NPTEPG-1)
+#define	VM_MIN_KERNEL_ADDRESS	KV4ADDR(KPML4BASE, 0, 0, 0) // == vm_page_array
+#define	VM_MAX_KERNEL_ADDRESS	KV4ADDR(/*KPML4BASE + NKPML4E*/NPML4EPG-1, \
+					NPDPEPG-1, NPDEPG-1, NPTEPG-1) // == -1
 
 #define	DMAP_MIN_ADDRESS	KV4ADDR(DMPML4I, 0, 0, 0)
 #define	DMAP_MAX_ADDRESS	KV4ADDR(DMPML4I + NDMPML4E, 0, 0, 0)

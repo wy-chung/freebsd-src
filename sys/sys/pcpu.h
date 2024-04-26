@@ -254,7 +254,7 @@ struct pcpu {
 	u_int	pc_pcid_invlpg_workaround;
 	struct pmap_pcid pc_kpmap_store;
 	struct user_segment_descriptor pc_gdt[NGDT];
-	char	__pad[2900];		/* pad to UMA_PCPU_ALLOC_SIZE */
+	char	__pad[2900];		/* pad to UMA_PCPU_ALLOC_SIZE == PAGE_SIZE */
 #endif
 } __aligned(CACHE_LINE_SIZE);
 

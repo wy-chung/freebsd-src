@@ -471,8 +471,10 @@ invltlb(void)
 	load_cr3(rcr3());
 }
 
+#if !defined(WYC)
 #ifndef CR4_PGE
 #define	CR4_PGE	0x00000080	/* Page global enable */
+#endif
 #endif
 
 /*

@@ -2023,6 +2023,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 * Reserve some special page table entries/VA space for temporary
 	 * mapping of pages.
 	 */
+// c: cast, p(out): pte, v(out): virtual, n(in): number
 #define	SYSMAP(c, p, v, n)	\
 	v = (c)va; va += ((n)*PAGE_SIZE); p = pte; pte += (n);
 
@@ -2055,13 +2056,13 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	 */
 	STAILQ_INIT(&cpuhead);
 	wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[0]);
-	pcpu_init(&__pcpu[0], 0, sizeof(struct pcpu));
+	pcpu_init(&__pcpu[0], 0, sizeof(struct pcpu)); // size == 4096
 	amd64_bsp_pcpu_init1(&__pcpu[0]);
 	amd64_bsp_ist_init(&__pcpu[0]);
 	__pcpu[0].pc_common_tss.tss_iobase = sizeof(struct amd64tss) +
 	    IOPERM_BITMAP_SIZE;
 	memcpy(__pcpu[0].pc_gdt, temp_bsp_pcpu.pc_gdt, NGDT *
-	    sizeof(struct user_segment_descriptor));
+	    sizeof(struct user_segment_descriptor)); // to, from, len
 	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&__pcpu[0].pc_common_tss;
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
 	    (struct system_segment_descriptor *)&__pcpu[0].pc_gdt[GPROC0_SEL]);
@@ -2324,7 +2325,7 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, allow_2m_x_ept, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
     "Allow executable superpage mappings in EPT");
 
 void
-pmap_allow_2m_x_ept_recalculate(void)
+pmap_allow_2m_x_ept_recalculate(void) // ept: enhanced page table
 {
 	/*
 	 * SKL002, SKL012S.  Since the EPT format is only used by
@@ -2477,9 +2478,7 @@ pmap_init_pv_table(void)
 void
 pmap_init(void)
 {
-	struct pmap_preinit_mapping *ppim;
-	vm_page_t m, mpte;
-	int error, i, ret, skz63;
+	int error;
 
 	/* L1TF, reserve page @0 unconditionally */
 	vm_page_blacklist_add(0, bootverbose);
@@ -2496,14 +2495,14 @@ pmap_init(void)
 		 * seems to be impossible to distinguish between
 		 * Skylake Server and Skylake X.
 		 */
-		skz63 = 1;
+		int skz63 = 1;
 		TUNABLE_INT_FETCH("hw.skz63_enable", &skz63);
 		if (skz63 != 0) {
 			if (bootverbose)
 				printf("SKZ63: skipping 4M RAM starting "
 				    "at physical 1G\n");
-			for (i = 0; i < atop(0x400000); i++) {
-				ret = vm_page_blacklist_add(0x40000000 +
+			for (int i = 0; i < atop(0x400000); i++) {
+				int ret = vm_page_blacklist_add(0x40000000 +
 				    ptoa(i), FALSE);
 				if (!ret && bootverbose)
 					printf("page at %#lx already used\n",
@@ -2520,8 +2519,8 @@ pmap_init(void)
 	 * page table pages.
 	 */ 
 	PMAP_LOCK(kernel_pmap);
-	for (i = 0; i < nkpt; i++) {
-		mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
+	for (int i = 0; i < nkpt; i++) {
+		struct vm_page *mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
 		    ("pmap_init: page table page is out of range"));
@@ -2574,15 +2573,15 @@ pmap_init(void)
 	/*
 	 * Initialize pv chunk lists.
 	 */
-	for (i = 0; i < PMAP_MEMDOM; i++) {
+	for (int i = 0; i < PMAP_MEMDOM; i++) {
 		mtx_init(&pv_chunks[i].pvc_lock, "pmap pv chunk list", NULL, MTX_DEF);
 		TAILQ_INIT(&pv_chunks[i].pvc_list);
 	}
 	pmap_init_pv_table();
 
 	pmap_initialized = 1;
-	for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
-		ppim = pmap_preinit_mapping + i;
+	for (int i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
+		struct pmap_preinit_mapping *ppim = pmap_preinit_mapping + i;
 		if (ppim->va == 0)
 			continue;
 		/* Make the direct map consistent */
@@ -2624,8 +2623,8 @@ pmap_init(void)
 			printf("pmap: cannot create large map\n");
 			lm_ents = 0;
 		}
-		for (i = 0; i < lm_ents; i++) {
-			m = pmap_large_map_getptp_unlocked();
+		for (int i = 0; i < lm_ents; i++) {
+			struct vm_page *m = pmap_large_map_getptp_unlocked();
 			/* XXXKIB la57 */
 			kernel_pml4[LMSPML4I + i] = X86_PG_V |
 			    X86_PG_RW | X86_PG_A | X86_PG_M | pg_nx |

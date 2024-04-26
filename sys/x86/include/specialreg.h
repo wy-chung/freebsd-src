@@ -1172,8 +1172,9 @@
 #define	MSR_CSTAR	0xc0000083	/* compat mode SYSCALL target rip */
 #define	MSR_SF_MASK	0xc0000084	/* syscall flags mask */
 #define	MSR_FSBASE	0xc0000100	/* base address of the %fs "segment", for TLS */
-#define	MSR_GSBASE	0xc0000101	/* base address of the %gs "segment" */
-#define	MSR_KGSBASE	0xc0000102	/* base address of the kernel %gs, User value while in the kernel */
+#define	MSR_GSBASE	0xc0000101	/* base address of the %gs "segment", for pcpu */
+#define	MSR_KGSBASE	0xc0000102	// in user mode, the base address of the kgs;
+					// in kernel mode, the base address of ugs is backuped here */
 #define	MSR_TSC_AUX	0xc0000103
 //wyc
 #define MSC_CSBASE	0xc000010c
