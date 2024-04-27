@@ -173,7 +173,7 @@
 #ifdef NUMA
 #define	PMAP_MEMDOM	MAXMEMDOM
 #else
-#define	PMAP_MEMDOM	1
+#define	PMAP_MEMDOM	1	// memory domain
 #endif
 
 static __inline boolean_t
@@ -5713,8 +5713,8 @@ reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
 	struct pv_chunks_list *pvc;
 	struct pch new_tail[PMAP_MEMDOM];
 	struct pv_chunk *pc;
-	vm_page_t m;
-	int avail, free, i;
+	struct vm_page *m;
+	int avail, free;
 	bool reclaimed;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -5726,7 +5726,7 @@ reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
 	 * reclaim_pv_chunk() could recycle one of these chunks.  In
 	 * contrast, these chunks must be added to the pmap upon allocation.
 	 */
-	for (i = 0; i < PMAP_MEMDOM; i++)
+	for (int i = 0; i < PMAP_MEMDOM; i++)
 		TAILQ_INIT(&new_tail[i]);
 retry:
 	avail = 0;
@@ -5773,7 +5773,7 @@ retry:
 		if (reclaimed)
 			goto retry;
 	}
-	for (i = 0; i < vm_ndomains; i++) {
+	for (int i = 0; i < vm_ndomains; i++) {
 		if (TAILQ_EMPTY(&new_tail[i]))
 			continue;
 		pvc = &pv_chunks[i];
@@ -8543,14 +8543,14 @@ pmap_remove_pages(pmap_t pmap)
 	pt_entry_t PG_M, PG_RW, PG_V;
 	struct spglist free;
 	struct pv_chunklist free_chunks[PMAP_MEMDOM];
-	vm_page_t m, mpte, mt;
+	struct vm_page *m, *mpte, *mt;
 	pv_entry_t pv;
 	struct md_page *pvh;
 	struct pv_chunk *pc, *npc;
 	struct rwlock *lock;
 	int64_t bit;
 	uint64_t inuse, bitmask;
-	int allfree, field, i, idx;
+	int idx;
 #ifdef PV_STATS
 	int freed;
 #endif
@@ -8581,16 +8581,16 @@ pmap_remove_pages(pmap_t pmap)
 	PG_V = pmap_valid_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
 
-	for (i = 0; i < PMAP_MEMDOM; i++)
+	for (int i = 0; i < PMAP_MEMDOM; i++)
 		TAILQ_INIT(&free_chunks[i]);
 	SLIST_INIT(&free);
 	PMAP_LOCK(pmap);
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
-		allfree = 1;
+		bool allfree = TRUE;
 #ifdef PV_STATS
 		freed = 0;
 #endif
-		for (field = 0; field < _NPCM; field++) {
+		for (int field = 0; field < _NPCM; field++) {
 			inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
 				bit = bsfq(inuse);
@@ -8633,7 +8633,7 @@ pmap_remove_pages(pmap_t pmap)
  * We cannot remove wired pages from a process' mapping at this time
  */
 				if (tpte & PG_W) {
-					allfree = 0;
+					allfree = FALSE;
 					continue;
 				}
 

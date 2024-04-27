@@ -420,8 +420,8 @@ bool
 cpu_exec_vmspace_reuse(struct proc *p, vm_map_t map)
 {
 
-	return (((curproc->p_md.md_flags & P_MD_KPTI) != 0) ==
-	    (vm_map_pmap(map)->pm_ucr3 != PMAP_NO_CR3));
+	return	((curproc->p_md.md_flags & P_MD_KPTI) != 0) ==
+		(vm_map_pmap(map)->pm_ucr3 != PMAP_NO_CR3);
 }
 
 static void

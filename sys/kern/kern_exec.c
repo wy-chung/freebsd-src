@@ -1138,7 +1138,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 {
 	int error;
 	vm_offset_t sv_minuser;
-	vm_map_t map;
+	struct vm_map *map;
 	struct proc *p = imgp->proc;
 	struct vmspace *vmspace = p->p_vmspace;
 	struct thread *td = curthread;
@@ -1187,7 +1187,8 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	}
 	map->flags |= imgp->map_flags;
 
-	return (sv->sv_onexec != NULL ? sv->sv_onexec(p, imgp) : 0);
+	return (sv->sv_onexec != NULL ? sv->sv_onexec(p, imgp) : 0); // return 0
+	// sv->sv_onexec == NULL
 }
 
 /*
