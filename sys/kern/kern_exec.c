@@ -1138,7 +1138,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 {
 	int error;
 	vm_offset_t sv_minuser;
-	struct vm_map *map;
+	struct _vm_map *map;
 	struct proc *p = imgp->proc;
 	struct vmspace *vmspace = p->p_vmspace;
 	struct thread *td = curthread;

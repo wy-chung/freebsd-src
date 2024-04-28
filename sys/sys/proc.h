@@ -196,7 +196,7 @@ struct td_sched;
 struct thread;
 struct trapframe;
 struct turnstile;
-struct vm_map;
+struct _vm_map;
 struct vm_map_entry;
 struct epoch_tracker;
 
@@ -1186,7 +1186,7 @@ void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
 void	itimer_proc_continue(struct proc *p);
 void	kqtimer_proc_continue(struct proc *p);
-void	kern_proc_vmmap_resident(struct vm_map *map, struct vm_map_entry *entry,
+void	kern_proc_vmmap_resident(struct _vm_map *map, struct vm_map_entry *entry,
 	    int *resident_count, bool *super);
 void	kern_yield(int);
 void 	kick_proc0(void);
@@ -1249,7 +1249,7 @@ void	userret(struct thread *, struct trapframe *);
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int, int) __dead2;
 void	cpu_copy_thread(struct thread *td, struct thread *td0);
-bool	cpu_exec_vmspace_reuse(struct proc *p, struct vm_map *map);
+bool	cpu_exec_vmspace_reuse(struct proc *p, struct _vm_map *map);
 int	cpu_fetch_syscall_args(struct thread *td);
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_fork_kthread_handler(struct thread *, void (*)(void *), void *);

@@ -325,10 +325,17 @@ struct vmspace *
 vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 {
 	struct vmspace *vm;
+	int ret;
 
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
 	KASSERT(vm->vm_map.pmap == NULL, ("vm_map.pmap must be NULL"));
-	if (!pinit(vmspace_pmap(vm))) {
+	if (pinit != pmap_pinit) //wyc
+		panic("%s", __func__);
+	ret = pinit(vmspace_pmap(vm));
+#if defined(WYC)
+	ret = pmap_pinit_type(vmspace_pmap(vm), PT_X86, pmap_flags);
+#endif
+	if (!ret) {
 		uma_zfree(vmspace_zone, vm);
 		return (NULL);
 	}
@@ -888,7 +895,7 @@ vmspace_resident_count(struct vmspace *vmspace)
  * such as that in the vmspace structure.
  */
 static void
-_vm_map_init(struct vm_map *map, struct pmap *pmap, vm_offset_t min, vm_offset_t max)
+_vm_map_init(struct _vm_map *map, struct pmap *pmap, vm_offset_t min, vm_offset_t max)
 {
 
 	map->header.eflags = MAP_ENTRY_HEADER;
@@ -909,7 +916,7 @@ _vm_map_init(struct vm_map *map, struct pmap *pmap, vm_offset_t min, vm_offset_t
 }
 
 void
-vm_map_init(struct vm_map *map, struct pmap *pmap, vm_offset_t min, vm_offset_t max)
+vm_map_init(struct _vm_map *map, struct pmap *pmap, vm_offset_t min, vm_offset_t max)
 {
 
 	_vm_map_init(map, pmap, min, max);
@@ -1847,7 +1854,7 @@ charged:
  *	prior to making call to account for the new entry.
  */
 int
-vm_map_insert(struct vm_map *map, struct vm_object *object, vm_ooffset_t offset,
+vm_map_insert(struct _vm_map *map, struct vm_object *object, vm_ooffset_t offset,
     vm_offset_t start, vm_offset_t end, vm_prot_t prot, vm_prot_t max, int cow)
 {
 	vm_map_entry_t res;
@@ -4330,8 +4337,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge /*OUT*/)
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm2 = vmspace_alloc(vm_map_min(old_map), vm_map_max(old_map),
-	    pmap_pinit);
+	vm2 = vmspace_alloc(vm_map_min(old_map), vm_map_max(old_map), pmap_pinit);
 	if (vm2 == NULL)
 		return (NULL);
 
@@ -5269,14 +5275,14 @@ vm_map_lookup_done(vm_map_t map, vm_map_entry_t entry)
 }
 
 vm_offset_t
-vm_map_max_KBI(const struct vm_map *map)
+vm_map_max_KBI(const struct _vm_map *map)
 {
 
 	return (vm_map_max(map));
 }
 
 vm_offset_t
-vm_map_min_KBI(const struct vm_map *map)
+vm_map_min_KBI(const struct _vm_map *map)
 {
 
 	return (vm_map_min(map));

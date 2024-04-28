@@ -153,7 +153,7 @@ zbuf_free(struct zbuf *zb)
  * deadlock and use SFB_NOWAIT.
  */
 static struct sf_buf *
-zbuf_sfbuf_get(struct vm_map *map, vm_offset_t uaddr)
+zbuf_sfbuf_get(struct _vm_map *map, vm_offset_t uaddr)
 {
 	struct sf_buf *sf;
 	vm_page_t pp;
@@ -178,7 +178,7 @@ zbuf_setup(struct thread *td, vm_offset_t uaddr, size_t len,
     struct zbuf **zbp)
 {
 	struct zbuf *zb;
-	struct vm_map *map;
+	struct _vm_map *map;
 	int error, i;
 
 	*zbp = NULL;

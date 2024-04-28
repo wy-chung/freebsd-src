@@ -98,9 +98,9 @@
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-struct vm_map kernel_map_store;
-struct vm_map exec_map_store;
-struct vm_map pipe_map_store;
+struct _vm_map kernel_map_store;
+struct _vm_map exec_map_store;
+struct _vm_map pipe_map_store;
 
 const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);

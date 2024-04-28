@@ -4479,9 +4479,9 @@ _Static_assert(sizeof(struct pmap_pcid) == 8, "Fix pcpu zone for pm_pcidp");
  * such as one in a vmspace structure.
  */
 int
-pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
+pmap_pinit_type(struct pmap *pmap, enum pmap_type pm_type, int flags)
 {
-	vm_page_t pmltop_pg, pmltop_pgu;
+	struct vm_page *pmltop_pg, *pmltop_pgu;
 	vm_paddr_t pmltop_phys;
 
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -4569,7 +4569,7 @@ pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags)
 }
 
 int
-pmap_pinit(pmap_t pmap)
+pmap_pinit(struct pmap *pmap)
 {
 
 	return (pmap_pinit_type(pmap, PT_X86, pmap_flags));

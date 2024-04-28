@@ -83,7 +83,7 @@ SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation_via_cow, CTLFLAG_RW,
     "copy-on-write semantics, or by removing all write access");
 
 static void	mac_proc_vm_revoke_recurse(struct thread *td,
-		    struct ucred *cred, struct vm_map *map);
+		    struct ucred *cred, struct _vm_map *map);
 
 static struct label *
 mac_proc_label_alloc(void)
@@ -248,7 +248,7 @@ prot2str(vm_prot_t prot)
 
 static void
 mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
-    struct vm_map *map)
+    struct _vm_map *map)
 {
 	vm_map_entry_t prev, vme;
 	int result;

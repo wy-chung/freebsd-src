@@ -1584,7 +1584,7 @@ vm_handle_paging(struct vcpu *vcpu, bool *retu)
 {
 	struct vm *vm = vcpu->vm;
 	int rv, ftype;
-	struct vm_map *map;
+	struct _vm_map *map;
 	struct vm_exit *vme;
 
 	vme = &vcpu->exitinfo;

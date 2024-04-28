@@ -131,7 +131,7 @@ int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	struct pcb *pcb;
-	struct vm_map *map;
+	struct _vm_map *map;
 	uint32_t i386base;
 	uint64_t a64base;
 	struct i386_ioperm_args iargs;

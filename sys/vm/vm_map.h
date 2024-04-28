@@ -87,7 +87,7 @@ typedef u_int vm_eflags_t;
  */
 union vm_map_object {
 	struct vm_object *vm_object;	/* object object */
-	struct vm_map *sub_map;		/* belongs to another map */
+	struct _vm_map *sub_map;		/* belongs to another map */
 };
 
 /*
@@ -203,7 +203,7 @@ vm_map_entry_system_wired_count(vm_map_entry_t entry)
  *	List of locks
  *	(c)	const until freed
  */
-struct vm_map {
+struct _vm_map {
 	struct vm_map_entry header;	/* List of entries */
 	struct sx lock;			/* Lock for map data */
 	struct mtx system_mtx;
@@ -243,14 +243,14 @@ struct vm_map {
 	vm_map_range_valid_KBI((map), (start), (end))
 #else
 static __inline vm_offset_t
-vm_map_max(const struct vm_map *map)
+vm_map_max(const struct _vm_map *map)
 {
 
 	return (map->header.start);
 }
 
 static __inline vm_offset_t
-vm_map_min(const struct vm_map *map)
+vm_map_min(const struct _vm_map *map)
 {
 
 	return (map->header.end);
@@ -288,7 +288,7 @@ vm_map_range_valid(vm_map_t map, vm_offset_t start, vm_offset_t end)
  *	(c)	const until freed
  */
 struct vmspace {
-	struct vm_map vm_map;	/* VM address map */
+	struct _vm_map vm_map;	/* VM address map */
 	struct shmmap_state *vm_shm;	/* SYS5 shared memory private data XXX */
 	segsz_t vm_swrss;	/* resident set size before last swap */
 	segsz_t vm_tsize;	/* text size (pages) XXX */
@@ -341,8 +341,8 @@ void vm_map_wakeup(vm_map_t map);
 void vm_map_busy(vm_map_t map);
 void vm_map_unbusy(vm_map_t map);
 void vm_map_wait_busy(vm_map_t map);
-vm_offset_t vm_map_max_KBI(const struct vm_map *map);
-vm_offset_t vm_map_min_KBI(const struct vm_map *map);
+vm_offset_t vm_map_max_KBI(const struct _vm_map *map);
+vm_offset_t vm_map_min_KBI(const struct _vm_map *map);
 pmap_t vm_map_pmap_KBI(vm_map_t map);
 bool vm_map_range_valid_KBI(vm_map_t map, vm_offset_t start, vm_offset_t end);
 
