@@ -255,6 +255,7 @@
     (va) < (DMAP_MIN_ADDRESS + dmaplimit))
 
 #define	PMAP_HAS_DMAP	1
+#if !defined(WYC)
 #define	PHYS_TO_DMAP(x)	({						\
 	KASSERT(PHYS_IN_DMAP(x),					\
 	    ("physical address %#jx not covered by the DMAP",		\
@@ -266,7 +267,20 @@
 	    ("virtual address %#jx not covered by the DMAP",		\
 	    (uintmax_t)x));						\
 	(x) & ~DMAP_MIN_ADDRESS; })
-
+#else
+static inline vm_offset_t PHYS_TO_DMAP(vm_paddr_t x) {
+	KASSERT(PHYS_IN_DMAP(x),
+	    ("physical address %#jx not covered by the DMAP",
+	    (uintmax_t)x));
+	return (x | DMAP_MIN_ADDRESS);
+}
+static inline vm_paddr_t DMAP_TO_PHYS(vm_offset_t x) {						\
+	KASSERT(VIRT_IN_DMAP(x),					\
+	    ("virtual address %#jx not covered by the DMAP",		\
+	    (uintmax_t)x));						\
+	return (x & ~DMAP_MIN_ADDRESS);
+}
+#endif
 /*
  * amd64 maps the page array into KVA so that it can be more easily
  * allocated on the correct memory domains.

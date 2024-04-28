@@ -446,7 +446,7 @@ static int pat_index[PAT_INDEX_SIZE];	/* cache mode to PAT index conversion */
 
 static u_int64_t	KPTphys;	/* phys addr of kernel level 1 */
 static u_int64_t	KPDphys;	/* phys addr of kernel level 2 */
-static u_int64_t	KPML3phys;	/* phys addr of kernel level 3 */
+static u_int64_t	KPML3phys;	// phys addr of kernel level 3, KPDPphys
 u_int64_t		KPML4phys;	/* phys addr of kernel level 4 */
 u_int64_t		KPML5phys;	/* phys addr of kernel level 5,
 					   if supported */
@@ -542,11 +542,11 @@ static struct mtx qframe_mtx;
 static int pmap_flags = PMAP_PDE_SUPERPAGE;	/* flags for x86 pmaps */
 
 static vmem_t *large_vmem;
-static u_int lm_ents;
+static u_int lm_ents; //wyc set to 0 in pmap_init()
 #define	PMAP_ADDRESS_IN_LARGEMAP(va)	((va) >= LARGEMAP_MIN_ADDRESS && \
 	(va) < LARGEMAP_MIN_ADDRESS + NBPML4 * (u_long)lm_ents)
 
-int pmap_pcid_enabled = 1; //wyc set to 0 in hammer_time
+int pmap_pcid_enabled = 1; //wyc set to 0 in hammer_time, Process Context IDentifiers
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pmap_pcid_enabled, 0, "Is TLB Context ID enabled ?");
 int invpcid_works = 0;
@@ -2603,6 +2603,7 @@ pmap_init(void)
 
 	lm_ents = 8;
 	TUNABLE_INT_FETCH("vm.pmap.large_map_pml4_entries", &lm_ents);
+	lm_ents = 0; //wyc disable large map
 	if (lm_ents > LMEPML4I - LMSPML4I + 1)
 		lm_ents = LMEPML4I - LMSPML4I + 1;
 #ifdef KMSAN
@@ -4343,7 +4344,7 @@ pmap_pinit0(pmap_t pmap)
 }
 
 void
-pmap_pinit_pml4(vm_page_t pml4pg)
+pmap_pinit_pml4(struct vm_page *pml4pg)
 {
 	pml4_entry_t *pm_pml4;
 	int i;
@@ -4388,6 +4389,7 @@ pmap_pinit_pml4(vm_page_t pml4pg)
 void
 pmap_pinit_pml5(vm_page_t pml5pg)
 {
+	panic("%s", __func__); //wyc make sure that this function is not called
 	pml5_entry_t *pm_pml5;
 
 	pm_pml5 = (pml5_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml5pg));
@@ -4524,6 +4526,8 @@ pmap_pinit_type(struct pmap *pmap, enum pmap_type pm_type, int flags)
 	 * address space.
 	 * Install minimal kernel mappings in PTI case.
 	 */
+	if (pm_type != PT_X86)
+		panic("%s", __func__);
 	switch (pm_type) {
 	case PT_X86:
 		pmap->pm_cr3 = pmltop_phys;
