@@ -75,7 +75,7 @@ static TAILQ_HEAD(, dpcpu_free) dpcpu_head = TAILQ_HEAD_INITIALIZER(dpcpu_head);
 static struct sx dpcpu_lock;
 uintptr_t dpcpu_off[MAXCPU];
 struct pcpu *cpuid_to_pcpu[MAXCPU];
-struct cpuhead cpuhead = STAILQ_HEAD_INITIALIZER(cpuhead);
+cpuhead_t cpuhead = STAILQ_HEAD_INITIALIZER(cpuhead);
 
 /*
  * Initialize the MI portions of a struct pcpu.
@@ -108,7 +108,7 @@ dpcpu_init(void *dpcpu, int cpuid)
 	/*
 	 * Initialize defaults from our linker section.
 	 */
-	memcpy(dpcpu, (void *)DPCPU_START, DPCPU_BYTES);
+	memcpy(dpcpu, (void *)DPCPU_START, DPCPU_BYTES); // to, from, len
 
 	/*
 	 * Place it in the global pcpu offset array.

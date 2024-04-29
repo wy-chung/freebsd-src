@@ -260,9 +260,9 @@ struct pcpu {
 
 #ifdef _KERNEL
 
-STAILQ_HEAD(cpuhead, pcpu);
+typedef STAILQ_HEAD(_cpuhead, pcpu) cpuhead_t;
 
-extern struct cpuhead cpuhead;
+extern cpuhead_t cpuhead;
 extern struct pcpu *cpuid_to_pcpu[];
 
 #define	curcpu		PCPU_GET(pc_cpuid)
