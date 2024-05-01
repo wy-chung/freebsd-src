@@ -254,7 +254,7 @@
 #define	PML5PML5I	(NPML5EPG / 2)	/* Index of recursive pml5 mapping */
 
 #define	KPML4BASE	(NPML4EPG-NKPML4E) /* KVM at highest addresses */
-#define	DMPML4I		rounddown(KPML4BASE-NDMPML4E, NDMPML4E) /* Below KVM */
+#define	DMPML4I		rounddown(KPML4BASE-NDMPML4E, NDMPML4E) /* Below KVM */ //wyc direct map pml4 entries start index
 
 #define	KPML4I		(NPML4EPG-1)
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
@@ -404,10 +404,13 @@ typedef struct pmap	*pmap_t;
 
 #ifdef _KERNEL
 extern struct pmap	kernel_pmap_store;
+extern struct pmap	user_pmap_store; //wyc
 #if !defined(WYC)
 #define kernel_pmap	(&kernel_pmap_store)
+#define user_pmap	(&user_pmap_store) //wyc
 #else
 extern struct pmap	*kernel_pmap;
+extern struct pmap	*user_pmap; //wyc
 #endif
 
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)

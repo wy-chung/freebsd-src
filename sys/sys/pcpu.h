@@ -260,9 +260,9 @@ struct pcpu {
 
 #ifdef _KERNEL
 
-typedef STAILQ_HEAD(_cpuhead, pcpu) cpuhead_t;
+STAILQ_HEAD(cpu_head, pcpu);
 
-extern cpuhead_t cpuhead;
+extern struct cpu_head cpuhead;
 extern struct pcpu *cpuid_to_pcpu[];
 
 #define	curcpu		PCPU_GET(pc_cpuid)
@@ -276,6 +276,10 @@ extern struct pcpu *cpuid_to_pcpu[];
 #define	curthread	PCPU_GET(pc_curthread)
 #endif
 #define	curproc		(curthread->td_proc)
+#if defined(WYC)
+struct proc *curproc;
+struct thread *curthread;
+#endif
 
 #ifndef ZPCPU_ASSERT_PROTECTED
 #define ZPCPU_ASSERT_PROTECTED() MPASS(curthread->td_critnest > 0)

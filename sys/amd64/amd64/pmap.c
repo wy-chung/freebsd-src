@@ -408,6 +408,9 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 struct pmap kernel_pmap_store = {
 	.pm_pcidp = (void *)0xdeadbeefdeadbeef,
 };
+struct pmap user_pmap_store = { //wyc
+	.pm_pcidp = (void *)0xdeadbeefdeadbeef,
+};
 
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
@@ -4372,7 +4375,7 @@ pmap_pinit_pml4(struct vm_page *pml4pg)
 		    X86_PG_RW | X86_PG_V | pg_nx;
 	}
 #endif
-	for (i = 0; i < ndmpdpphys; i++) {
+	for (i = 0; i < ndmpdpphys; i++) { // number of level 3 page table pages
 		pm_pml4[DMPML4I + i] = (DMPDPphys + ptoa(i)) | X86_PG_RW |
 		    X86_PG_V;
 	}
@@ -4480,7 +4483,7 @@ _Static_assert(sizeof(struct pmap_pcid) == 8, "Fix pcpu zone for pm_pcidp");
  * Initialize a preallocated and zeroed pmap structure,
  * such as one in a vmspace structure.
  */
-int
+int	//wyc always return 1
 pmap_pinit_type(struct pmap *pmap, enum pmap_type pm_type, int flags)
 {
 	struct vm_page *pmltop_pg, *pmltop_pgu;

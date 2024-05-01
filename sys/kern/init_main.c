@@ -759,7 +759,7 @@ start_init(void *dummy)
 
 	while ((path = strsep(&tmp_init_path, ":")) != NULL) {
 		if (bootverbose)
-			printf("start_init: trying %s\n", path);
+			printf("%s: trying %s\n", __func__, path);
 
 		memset(&args, 0, sizeof(args));
 		error = exec_alloc_args(&args);
@@ -818,6 +818,8 @@ create_init(const void *udata __unused) // init process has pid 1
 	struct ucred *newcred, *oldcred;
 	struct thread *td;
 	int error;
+
+	pmap_pinit(user_pmap); //wyc: init user pmap before fork init proc
 
 	bzero(&fr, sizeof(fr));
 	fr.fr_flags = RFFDG | RFPROC | RFSTOPPED;

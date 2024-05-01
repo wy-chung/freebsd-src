@@ -321,6 +321,9 @@ vmspace_zdtor(void *mem, int size, void *arg)
  * Allocate a vmspace structure, including a vm_map and pmap,
  * and initialize those structures.  The refcnt is set to 1.
  */
+// @pinit: is ept_pinit     when called from ept_vmspace_alloc()
+//         is arm_vmm_pinit when called from vmmops_vmspace_alloc()
+//         is npt_pinit     when called from in svm_npt_alloc()
 struct vmspace *
 vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 {
@@ -328,17 +331,21 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 	int ret;
 
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
+#if !defined(WYC)
 	KASSERT(vm->vm_map.pmap == NULL, ("vm_map.pmap must be NULL"));
 	if (pinit != pmap_pinit) //wyc
 		panic("%s", __func__);
 	ret = pinit(vmspace_pmap(vm));
 #if defined(WYC)
-	ret = pmap_pinit_type(vmspace_pmap(vm), PT_X86, pmap_flags);
+	ret = pmap_pinit_type(vmspace_pmap(vm), PT_X86, pmap_flags); //wyc always returns 1
 #endif
-	if (!ret) {
+	if (!ret) { //wyc always false
 		uma_zfree(vmspace_zone, vm);
 		return (NULL);
 	}
+#else
+	vm->vm_pmap = user_pmap;
+#endif
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
 	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), min, max);
 	refcount_init(&vm->vm_refcnt, 1);

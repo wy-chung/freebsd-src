@@ -1626,9 +1626,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	_ufssel = GSEL(GUFS32_SEL, SEL_UPL);
 	_ugssel = GSEL(GUGS32_SEL, SEL_UPL);
 
-	load_ds(_udatasel);	//wyctest
-	load_es(_udatasel);	//wyctest
-	load_fs(_ufssel);	//wyctest
+	load_ds(_udatasel);
+	load_es(_udatasel);
+	load_fs(_ufssel);
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;

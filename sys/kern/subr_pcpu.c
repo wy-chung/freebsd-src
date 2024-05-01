@@ -75,7 +75,7 @@ static TAILQ_HEAD(, dpcpu_free) dpcpu_head = TAILQ_HEAD_INITIALIZER(dpcpu_head);
 static struct sx dpcpu_lock;
 uintptr_t dpcpu_off[MAXCPU];
 struct pcpu *cpuid_to_pcpu[MAXCPU];
-cpuhead_t cpuhead = STAILQ_HEAD_INITIALIZER(cpuhead);
+struct cpu_head cpuhead = STAILQ_HEAD_INITIALIZER(cpuhead);
 
 /*
  * Initialize the MI portions of a struct pcpu.
