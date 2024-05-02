@@ -1358,8 +1358,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	pti = 0;		//wyc always disable pti
 	pmap_pcid_enabled = 0;	//wyc always disable pcid
 	if ((cpu_feature2 & CPUID2_PCID) != 0 && pmap_pcid_enabled) {
-		invpcid_works = (cpu_stdext_feature &
-		    CPUID_STDEXT_INVPCID) != 0;
+		invpcid_works =
+		    (cpu_stdext_feature & CPUID_STDEXT_INVPCID) != 0;
 	} else {
 		pmap_pcid_enabled = 0;
 	}
@@ -1410,7 +1410,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	for (x = 0; x < NGDT; x++) {
 		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1) &&
-		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL + 1)) //wyctodo ')' moved
+		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL + 1)) //wycpull ')' moved
 			ssdtosd(&gdt_segs[x], &gdt[x]);
 	}
 	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&pc->pc_common_tss;

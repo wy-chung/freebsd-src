@@ -408,9 +408,8 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 struct pmap kernel_pmap_store = {
 	.pm_pcidp = (void *)0xdeadbeefdeadbeef,
 };
-struct pmap user_pmap_store = { //wyc
-	.pm_pcidp = (void *)0xdeadbeefdeadbeef,
-};
+
+struct pmap user_pmap_store; //wyc
 
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
@@ -2274,9 +2273,9 @@ pmap_bootstrap_la57(void *arg __unused)
 	 */
 	lgdt(&r_gdt);
 	wrmsr(MSR_GSBASE, (uint64_t)&__pcpu[0]);
-	load_ds(_udatasel);	//wyctest
-	load_es(_udatasel);	//wyctest
-	load_fs(_ufssel);	//wyctest
+	load_ds(_udatasel);
+	load_es(_udatasel);
+	load_fs(_ufssel);
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
 	    (struct system_segment_descriptor *)&__pcpu[0].pc_gdt[GPROC0_SEL]);
 	ltr(GSEL(GPROC0_SEL, SEL_KPL));
@@ -4513,8 +4512,7 @@ pmap_pinit_type(struct pmap *pmap, enum pmap_type pm_type, int flags)
 
 	if (pmap_pcid_enabled) {
 		if (pmap->pm_pcidp == NULL)
-			pmap->pm_pcidp = uma_zalloc_pcpu(pcpu_zone_8,
-			    M_WAITOK);
+			pmap->pm_pcidp = uma_zalloc_pcpu(pcpu_zone_8, M_WAITOK);
 		pmap_pinit_pcids(pmap, PMAP_PCID_NONE, 0);
 	}
 	pmap->pm_cr3 = PMAP_NO_CR3;	/* initialize to an invalid value */

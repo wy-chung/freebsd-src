@@ -788,7 +788,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 			td2->td_dbgflags |= TDB_STOPATFORK;
 			proc_set_traced(p2, true);
 			CTR3(KTR_PTRACE,
-			    "%s: attaching to new child pid %d: oppid %d", __func__, //wyctodo
+			    "%s: attaching to new child pid %d: oppid %d", __func__, //wyc
 			    p2->p_pid, p2->p_oppid);
 			proc_reparent(p2, p1->p_pptr, false);
 		}
@@ -867,7 +867,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	struct ucred *cred;
 	struct file *fp_procdesc;
 	struct pgrp *pg;
-	//vm_ooffset_t mem_charged; //wyctodo moved into a block
+	//vm_ooffset_t mem_charged; //wyc moved into a block
 	int error, nprocs_new;
 	static int curfail;
 	static struct timeval lastfail;
@@ -964,7 +964,7 @@ fork1(struct thread *td, struct fork_req *fr)
 				    td->td_ucred->cr_ruid, p1->p_pid);
 			}
 			sx_xunlock(&allproc_lock);
-			goto fail3;
+			goto fail3; //wyc org fail2
 		}
 	}
 
@@ -984,7 +984,7 @@ fork1(struct thread *td, struct fork_req *fr)
 			if (thread_single(p1, SINGLE_BOUNDARY)) {
 				PROC_UNLOCK(p1);
 				error = ERESTART;
-				goto fail3;
+				goto fail3; //wyc org fail2
 			}
 			PROC_UNLOCK(p1);
 			singlethreaded = true;
@@ -997,7 +997,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	 */
 	if (!killsx_locked && sx_slock_sig(&pg->pg_killsx) != 0) {
 		error = ERESTART;
-		goto fail3;
+		goto fail3; //wyc org fail2
 	}
 	if (__predict_false(p1->p_pgrp != pg || sig_intr() != 0)) {
 		/*
@@ -1009,7 +1009,7 @@ fork1(struct thread *td, struct fork_req *fr)
 		sx_sunlock(&pg->pg_killsx);
 		killsx_locked = false;
 		error = ERESTART;
-		goto fail3;
+		goto fail3; //wyc org fail2
 	} else {
 		killsx_locked = true;
 	}
@@ -1023,11 +1023,11 @@ fork1(struct thread *td, struct fork_req *fr)
 		error = procdesc_falloc(td, &fp_procdesc, fr->fr_pd_fd,
 		    fr->fr_pd_flags, fr->fr_pd_fcaps);
 		if (error != 0)
-			goto fail3;
+			goto fail3; //wyc org fail2
 		AUDIT_ARG_FD(*fr->fr_pd_fd);
 	}
 
-	//mem_charged = 0; //wyctodo moved below
+	//mem_charged = 0; //wyc moved below
 	if (pages == 0) //wyc always true
 		pages = kstack_pages;
 	/* Allocate new proc. */
@@ -1126,7 +1126,7 @@ fail2:
 		vmspace_free(vm2);
 	proc_id_clear(PROC_ID_PID ,newproc->p_pid);
 	uma_zfree(proc_zone, newproc);
-fail3: //wyctodo
+fail3: //wycpull
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
 		fdclose(td, fp_procdesc, *fr->fr_pd_fd);
 		fdrop(fp_procdesc, td);

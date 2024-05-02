@@ -187,8 +187,6 @@ static int vm_page_zone_import(void *arg, void **store, int cnt, int domain,
     int flags);
 static void vm_page_zone_release(void *arg, void **store, int cnt);
 
-SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
-
 static void
 vm_page_init(void *dummy)
 {
@@ -197,6 +195,7 @@ vm_page_init(void *dummy)
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	bogus_page = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 }
+SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
 
 static int pgcache_zone_max_pcpu;
 SYSCTL_INT(_vm, OID_AUTO, pgcache_zone_max_pcpu,

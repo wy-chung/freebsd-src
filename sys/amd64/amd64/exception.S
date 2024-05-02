@@ -1198,7 +1198,7 @@ ld_fsbase:
 	movl	%edx,%r13d
 	.globl	ld_gs
 ld_gs:
-	movw	%si,%gs //wyctest
+	movw	%si,%gs
 	/* Save user %gs base into %r14d:%r15d */
 	rdmsr
 	movl	%eax,%r14d

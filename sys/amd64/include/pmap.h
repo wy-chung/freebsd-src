@@ -276,7 +276,7 @@
 
 #define	PMAP_PCID_NONE		0xffffffff
 #define	PMAP_PCID_KERN		0
-#define	PMAP_PCID_OVERMAX	0x1000
+#define	PMAP_PCID_OVERMAX	0x1000	// PCID has only 12 bits
 #define	PMAP_PCID_OVERMAX_KERN	0x800
 #define	PMAP_PCID_USER_PT	0x800
 
@@ -542,7 +542,7 @@ pmap_invlpg(pmap_t pmap, vm_offset_t va)
 #if defined(_SYS_PCPU_H_)
 /* Return pcid for the pmap pmap on current cpu */
 static __inline uint32_t
-pmap_get_pcid(pmap_t pmap)
+pmap_get_pcid(struct pmap *pmap)
 {
 	struct pmap_pcid *pcidp;
 
