@@ -518,7 +518,7 @@ proc0_init(void *dummy __unused) // kernel process
 	p->p_klist = knlist_alloc(&p->p_mtx);
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
-	td->td_tid = THREAD0_TID;
+	td->td_tid = THREAD0_TID; // == NO_PID
 	tidhash_add(td);
 	TD_SET_STATE(td, TDS_RUNNING);
 	td->td_pri_class = PRI_TIMESHARE;
@@ -827,7 +827,7 @@ create_init(const void *udata __unused) // init process has pid 1
 	error = fork1(&thread0, &fr);
 	if (error)
 		panic("cannot fork init: %d\n", error);
-	KASSERT(initproc->p_pid == 1, ("create_init: initproc->p_pid != 1"));
+	KASSERT(initproc->p_pid == 1, ("%s: initproc->p_pid != 1", __func__));
 	/* divorce init's credentials from the kernel's */
 	newcred = crget();
 	sx_xlock(&proctree_lock);

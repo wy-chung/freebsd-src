@@ -284,7 +284,7 @@ retry:
 	if (trypid >= pid_max)
 		trypid = 2;
 
-	bit_ffc_at(&proc_id_pidmap, trypid, pid_max, &result);
+	bit_ffc_at(&proc_id_pidmap, trypid, pid_max, &result); // find first clear
 	if (result == -1) {
 		KASSERT(trypid != 2, ("unexpectedly ran out of IDs"));
 		trypid = 2;
@@ -400,6 +400,10 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = fork_findpid(fr->fr_flags);
+	if (fr->fr_flags & RFMEM) //wyc
+		p2->p_asid = p1->p_asid;
+	else
+		p2->p_asid = p2->p_pid;
 	AUDIT_ARG_PID(p2->p_pid);
 	TSFORK(p2->p_pid, p1->p_pid);
 
@@ -1075,9 +1079,9 @@ fork1(struct thread *td, struct fork_req *fr)
 			error = ENOMEM;
 			goto fail2;
 		}
-	} else
+	} else {
 		vm2 = NULL;
-
+	}
 	/*
 	 * XXX: This is ugly; when we copy resource usage, we need to bump
 	 *      per-cred resource counters.
@@ -1122,11 +1126,10 @@ fail0:
 fail1:
 	proc_unset_cred(newproc);
 fail2:
-	if (vm2 != NULL)
-		vmspace_free(vm2);
-	proc_id_clear(PROC_ID_PID ,newproc->p_pid);
 	uma_zfree(proc_zone, newproc);
 fail3: //wycpull
+	if (vm2 != NULL)
+		vmspace_free(vm2);
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
 		fdclose(td, fp_procdesc, *fr->fr_pd_fd);
 		fdrop(fp_procdesc, td);

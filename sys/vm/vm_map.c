@@ -420,7 +420,7 @@ vmspace_exitfree(struct proc *p)
 	vm = p->p_vmspace;
 	p->p_vmspace = NULL;
 	PROC_VMSPACE_UNLOCK(p);
-	KASSERT(vm == &vmspace0, ("vmspace_exitfree: wrong vmspace"));
+	KASSERT(vm == &vmspace0, ("%s: wrong vmspace", __func__));
 	vmspace_free(vm);
 }
 

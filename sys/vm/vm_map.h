@@ -306,6 +306,7 @@ struct vmspace {
 	 * variations of the machine-independent fields in the vmspace.
 	 */
 	struct pmap vm_pmap;	/* private physical map */
+	vm_offset_t vm_base; //wyc base address of this vmspace
 };
 
 #ifdef	_KERNEL
