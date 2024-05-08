@@ -498,7 +498,7 @@ vm_page_domain_init(int domain)
  * lists.
  */
 void
-vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
+vm_page_init_page(struct vm_page *m, vm_paddr_t pa, int segind)
 {
 
 	m->object = NULL;
@@ -553,7 +553,7 @@ vm_page_startup(vm_offset_t vaddr)
 {
 	struct vm_phys_seg *seg;
 	struct vm_domain *vmd;
-	vm_page_t m;
+	struct vm_page *m;
 	char *list, *listend;
 	vm_paddr_t end, high_avail, low_avail, new_end, size;
 	vm_paddr_t page_range __unused;

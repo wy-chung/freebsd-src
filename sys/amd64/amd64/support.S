@@ -1601,7 +1601,7 @@ ENTRY(pmap_pti_pcid_invlpg)
 	pushfq
 	cli
 	movq	%rdi,%cr3	/* to user page table */
-	invlpg	(%rdx)
+	invlpg	(%rdx)		// @va
 	movq	%rsi,%cr3	/* back to kernel */
 	popfq
 	retq

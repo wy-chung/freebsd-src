@@ -2203,6 +2203,7 @@ pmap_bootstrap_la57(void *arg __unused)
 	if ((cpu_stdext_feature2 & CPUID_STDEXT2_LA57) == 0)
 		return;
 	TUNABLE_INT_FETCH("vm.pmap.la57", &la57);
+	la57 = 0; //wyc make sure that la57 is disabled
 	if (!la57)
 		return;
 
@@ -4485,7 +4486,7 @@ _Static_assert(sizeof(struct pmap_pcid) == 8, "Fix pcpu zone for pm_pcidp");
 int	//wyc always return 1
 pmap_pinit_type(struct pmap *pmap, enum pmap_type pm_type, int flags)
 {
-	struct vm_page *pmltop_pg, *pmltop_pgu;
+	struct vm_page *pmltop_pg;
 	vm_paddr_t pmltop_phys;
 
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -4536,13 +4537,13 @@ pmap_pinit_type(struct pmap *pmap, enum pmap_type pm_type, int flags)
 			pmap_pinit_pml5(pmltop_pg);
 		else
 			pmap_pinit_pml4(pmltop_pg);
-		if ((curproc->p_md.md_flags & P_MD_KPTI) != 0) {
+		if ((curproc->p_md.md_flags & P_MD_KPTI) != 0) { // false if pti is disabled
 			/*
 			 * As with pmltop_pg, pass NULL instead of a
 			 * pointer to the pmap to ensure that the PTI
 			 * page counted explicitly.
 			 */
-			pmltop_pgu = pmap_alloc_pt_page(NULL, 0,
+			struct vm_page *pmltop_pgu = pmap_alloc_pt_page(NULL, 0,
 			    VM_ALLOC_WIRED | VM_ALLOC_WAITOK);
 			pmap_pt_page_count_pinit(pmap, 1);
 			pmap->pm_pmltopu = (pml4_entry_t *)PHYS_TO_DMAP(
@@ -4993,8 +4994,7 @@ pmap_release(pmap_t pmap)
 	pmap_pt_page_count_pinit(pmap, -1);
 
 	if (pmap->pm_pmltopu != NULL) {
-		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->
-		    pm_pmltopu));
+		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pmap->pm_pmltopu));
 		pmap_free_pt_page(NULL, m, false);
 		pmap_pt_page_count_pinit(pmap, -1);
 	}
