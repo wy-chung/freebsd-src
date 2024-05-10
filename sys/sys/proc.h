@@ -959,9 +959,10 @@ MALLOC_DECLARE(M_SUBPROC);
  * We use process IDs <= pid_max <= PID_MAX; PID_MAX + 1 must also fit
  * in a pid_t, as it is used to represent "no process group".
  */
-#define	PID_MAX		32767	//wyc bc there are only 15 bits for process ID
+#define	PID_MAX		 32767	//wyc bc there are only 15 bits (128T/4G) available for process ID
 #define	NO_PID		100000
-#define	THREAD0_TID	NO_PID
+#define TID_START	NO_PID
+#define	THREAD0_TID	TID_START
 extern pid_t pid_max;
 
 #define	SESS_LEADER(p)	((p)->p_session->s_leader == (p))
@@ -1130,10 +1131,10 @@ void	pidhash_sunlockall(void);	/* Shared unlock all pid hash lists. */
 struct	fork_req {
 	int		fr_flags;
 	int		fr_pages;	//wyc number of pages for kernel stack
-	int 		*fr_pidp;
-	struct proc 	**fr_procp;
-	int 		*fr_pd_fd;
-	int 		fr_pd_flags;
+	int 		*fr_pidp;	// output: process id
+	struct proc 	**fr_procp;	// output: struct *proc
+	int 		*fr_pd_fd;	// output: process descriptor
+	int 		fr_pd_flags;	// input:  processor descriptor flags
 	struct filecaps	*fr_pd_fcaps;
 	int 		fr_flags2;	//wyc see FR2_xxx above
 };

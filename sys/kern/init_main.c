@@ -460,7 +460,7 @@ struct sysentvec null_sysvec = {
  */
 /* ARGSUSED*/
 static void
-proc0_init(void *dummy __unused) // kernel process
+proc0_init(void *dummy __unused) // kernel swapper
 {
 	struct proc *p;
 	struct thread *td;
@@ -518,7 +518,7 @@ proc0_init(void *dummy __unused) // kernel process
 	p->p_klist = knlist_alloc(&p->p_mtx);
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
-	td->td_tid = THREAD0_TID; // == NO_PID
+	td->td_tid = THREAD0_TID;
 	tidhash_add(td);
 	TD_SET_STATE(td, TDS_RUNNING);
 	td->td_pri_class = PRI_TIMESHARE;
@@ -575,7 +575,7 @@ proc0_init(void *dummy __unused) // kernel process
 	p->p_sigacts = sigacts_alloc();
 
 	/* Initialize signal state for process 0. */
-	siginit(&proc0);
+	siginit(p); //wyc ori &proc0
 
 	/* Create the file descriptor table. */
 	p->p_pd = pdinit(NULL, false);
@@ -622,7 +622,11 @@ proc0_init(void *dummy __unused) // kernel process
 	 * handling for sv_minuser here, like is done for exec_new_vmspace().
 	 */
 	vm_map_init(&vmspace0.vm_map, vmspace_pmap(&vmspace0),
-	    p->p_sysent->sv_minuser, p->p_sysent->sv_maxuser);
+	    p->p_sysent->sv_minuser, p->p_sysent->sv_maxuser // null_sysvec
+#if defined(WYC)
+	    , VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS
+#endif
+	    );
 
 	/*
 	 * Call the init and ctor for the new thread and proc.  We wait
@@ -668,11 +672,11 @@ proc0_post(void *dummy __unused)
 		}
 		microuptime(&p->p_stats->p_start);
 		PROC_STATLOCK(p);
-		rufetch(p, &ru);	/* Clears thread stats */
-		p->p_rux.rux_runtime = 0;
-		p->p_rux.rux_uticks = 0;
-		p->p_rux.rux_sticks = 0;
-		p->p_rux.rux_iticks = 0;
+		 rufetch(p, &ru);	/* Clears thread stats */
+		 p->p_rux.rux_runtime = 0;
+		 p->p_rux.rux_uticks = 0;
+		 p->p_rux.rux_sticks = 0;
+		 p->p_rux.rux_iticks = 0;
 		PROC_STATUNLOCK(p);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			td->td_runtime = 0;

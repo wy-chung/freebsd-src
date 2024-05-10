@@ -148,7 +148,7 @@ struct sysentvec { // elf64_freebsd_sysvec_la48
 	const char	*(*sv_machine_arch)(struct proc *);
 	vm_offset_t	sv_fxrng_gen_offset;
 	void		(*sv_onexec_old)(struct thread *td); // exec_onexec_old
-	int		(*sv_onexec)(struct proc *, struct image_params *);
+	int		(*sv_onexec)(struct proc *, struct image_params *); // NULL
 	void		(*sv_onexit)(struct proc *); // exit_onexit
 	void		(*sv_ontdexit)(struct thread *td);
 	int		(*sv_setid_allowed)(struct thread *td,

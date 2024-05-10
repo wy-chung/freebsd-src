@@ -886,7 +886,7 @@
 #define	IA32_PKG_THERM_INTERRUPT_HFI_ENABLE		(0x1ULL << 25)
 
 /*
- * PAT modes.
+ * PAT(Page Attribute Table) modes. related: MSR_PAT
  */
 #define	PAT_UNCACHEABLE		0x00
 #define	PAT_WRITE_COMBINING	0x01

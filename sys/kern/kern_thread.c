@@ -248,7 +248,7 @@ tid_alloc(void)
 	bit_set(tid_bitmap, tid);
 	trytid = tid + 1;
 	mtx_unlock(&tid_lock);
-	return (tid + NO_PID);
+	return (tid + TID_START);
 }
 
 static void

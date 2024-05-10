@@ -272,13 +272,14 @@ extern struct pcpu *cpuid_to_pcpu[];
 
 #include <machine/pcpu_aux.h>
 
+#if !defined(WYC)
 #ifndef curthread
 #define	curthread	PCPU_GET(pc_curthread)
 #endif
 #define	curproc		(curthread->td_proc)
-#if defined(WYC)
-struct proc *curproc;
+#else
 struct thread *curthread;
+struct proc *curproc;
 #endif
 
 #ifndef ZPCPU_ASSERT_PROTECTED
