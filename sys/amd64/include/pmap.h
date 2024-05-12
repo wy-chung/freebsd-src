@@ -103,7 +103,7 @@
 #define	PG_NC_PCD	X86_PG_NC_PCD
 #define	PG_A		X86_PG_A
 #define	PG_M		X86_PG_M
-#define	PG_PS		X86_PG_PS
+#define	PG_PS		X86_PG_PS	// page size
 #define	PG_PTE_PAT	X86_PG_PTE_PAT
 #define	PG_G		X86_PG_G
 #define	PG_AVAIL1	X86_PG_AVAIL1

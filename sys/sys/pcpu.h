@@ -205,8 +205,9 @@ struct pcpu {
 	 * reason not to keep the offsets of the MI fields constant
 	 * if only to make kernel debugging easier.
 	 */
+#if !defined(WYC)
 	PCPU_MD_FIELDS;
-#if defined(WYC)
+#else
 	struct monitorbuf pc_monitorbuf __aligned(128);	/* cache line */
 	struct	pcpu *pc_prvspace;	/* Self-reference */
 	struct	pmap *pc_curpmap;

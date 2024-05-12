@@ -1028,7 +1028,7 @@ invlop_handler_one_req(enum invl_op_codes smp_tlb_op, pmap_t smp_tlb_pmap,
 }
 
 void
-invlop_handler(void)
+invlop_handler(void) // <- spuriousint(apic_vector.S)
 {
 	struct pcpu *initiator_pc;
 	pmap_t smp_tlb_pmap;

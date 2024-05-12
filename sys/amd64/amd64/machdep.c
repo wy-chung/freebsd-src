@@ -1369,7 +1369,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 * CPU features and user knobs are evaluated.
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.pcid_invlpg_workaround",
-	    &pmap_pcid_invlpg_workaround_uena);
+	    &pmap_pcid_invlpg_workaround_uena); // == 0
 	cpu_init_small_core();
 
 	if ((cpu_feature2 & CPUID2_XSAVE) != 0) {

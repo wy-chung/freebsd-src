@@ -53,6 +53,7 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
  * to each CPU's data can be set up for things like "check curproc on all
  * other processors"
  */
+#if !defined(WYC)
 #define	PCPU_MD_FIELDS							\
 	struct monitorbuf pc_monitorbuf __aligned(128);	/* cache line */\
 	struct	pcpu *pc_prvspace;	/* Self-reference */		\
@@ -102,6 +103,7 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	struct pmap_pcid pc_kpmap_store;				\
 	struct user_segment_descriptor pc_gdt[NGDT];			\
 	char	__pad[2900]		/* pad to UMA_PCPU_ALLOC_SIZE */
+#endif
 
 #define	PC_DBREG_CMD_NONE	0
 #define	PC_DBREG_CMD_LOAD	1

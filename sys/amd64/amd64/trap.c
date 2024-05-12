@@ -492,12 +492,9 @@ trap(struct trapframe *frame)
 				KASSERT((read_rflags() & PSL_I) == 0,
 				    ("interrupts enabled"));
 				frame->tf_rip = (long)doreti_iret_fault;
-				if ((PCPU_GET(pc_curpmap)->pm_ucr3 !=
-				    PMAP_NO_CR3) &&
-				    (frame->tf_rsp == (uintptr_t)PCPU_GET(
-				    pc_pti_rsp0) - 5 * sizeof(register_t))) {
-					frame->tf_rsp = PCPU_GET(pc_rsp0) - 5 *
-					    sizeof(register_t);
+				if ((PCPU_GET(pc_curpmap)->pm_ucr3 != PMAP_NO_CR3) &&
+				    (frame->tf_rsp == (uintptr_t)PCPU_GET(pc_pti_rsp0) - 5 * sizeof(register_t))) {
+					frame->tf_rsp = PCPU_GET(pc_rsp0) - 5 * sizeof(register_t);
 				}
 				return;
 			}

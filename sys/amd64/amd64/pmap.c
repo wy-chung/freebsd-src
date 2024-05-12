@@ -551,10 +551,10 @@ static u_int lm_ents; //wyc set to 0 in pmap_init()
 int pmap_pcid_enabled = 1; //wyc set to 0 in hammer_time, Process Context IDentifiers
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pmap_pcid_enabled, 0, "Is TLB Context ID enabled ?");
-int invpcid_works = 0;
+int invpcid_works = 0; // == 0
 SYSCTL_INT(_vm_pmap, OID_AUTO, invpcid_works, CTLFLAG_RD, &invpcid_works, 0,
     "Is the invpcid instruction available ?");
-int pmap_pcid_invlpg_workaround = 0;
+int pmap_pcid_invlpg_workaround = 0; // == 0
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_invlpg_workaround,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pmap_pcid_invlpg_workaround, 0,
@@ -610,7 +610,7 @@ static bool pmap_invl_callout_inited;
     KASSERT(pmap_not_in_di(), ("DI already started"))
 
 static bool
-pmap_di_locked(void)
+pmap_di_locked(void) // false I guess
 {
 	int tun;
 
@@ -2183,7 +2183,7 @@ pmap_page_alloc_below_4g(bool zeroed)
 	return (vm_page_alloc_noobj_contig((zeroed ? VM_ALLOC_ZERO : 0),
 	    1, 0, (1ULL << 32), PAGE_SIZE, 0, VM_MEMATTR_DEFAULT));
 }
-
+#if !defined(WYC)
 extern const char la57_trampoline[], la57_trampoline_gdt_desc[],
     la57_trampoline_gdt[], la57_trampoline_end[];
 
@@ -2310,7 +2310,7 @@ pmap_bootstrap_la57(void *arg __unused)
 	pmap_pt_page_count_adj(kernel_pmap, 1);
 }
 SYSINIT(la57, SI_SUB_KMEM, SI_ORDER_ANY, pmap_bootstrap_la57, NULL);
-
+#endif
 /*
  *	Initialize a vm_page's machine-dependent fields.
  */
@@ -2522,7 +2522,7 @@ pmap_init(void)
 	 * page table pages.
 	 */ 
 	PMAP_LOCK(kernel_pmap);
-	for (int i = 0; i < nkpt; i++) {
+	for (int i = 0; i < nkpt; i++) { // machdep.nkpt == 50
 		struct vm_page *mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
@@ -2535,10 +2535,9 @@ pmap_init(void)
 		 * Collect the page table pages that were replaced by a 2MB
 		 * page in create_pagetables().  They are zero filled.
 		 */
-		if ((i == 0 ||
-		    kernphys + ((vm_paddr_t)(i - 1) << PDRSHIFT) < KERNend) &&
+		if ((i == 0 || kernphys + ((vm_paddr_t)(i - 1) << PDRSHIFT) < KERNend) &&
 		    pmap_insert_pt_page(kernel_pmap, mpte, false, false))
-			panic("pmap_init: pmap_insert_pt_page failed");
+			panic("%s: pmap_insert_pt_page failed", __func__);
 	}
 	PMAP_UNLOCK(kernel_pmap);
 	vm_wire_add(nkpt);
