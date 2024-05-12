@@ -2078,7 +2078,7 @@ LibAliasInit(struct libalias *la)
 	if (la == NULL) {
 #ifdef _KERNEL
 #undef malloc	/* XXX: ugly */
-		la = malloc(sizeof *la, M_ALIAS, M_WAITOK | M_ZERO);
+		la = _malloc(sizeof *la, M_ALIAS, M_WAITOK | M_ZERO);
 #else
 		la = calloc(sizeof *la, 1);
 		if (la == NULL)
