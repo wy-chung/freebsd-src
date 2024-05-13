@@ -331,10 +331,12 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 	int ret;
 
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
-#if !defined(WYC)
 	KASSERT(vm->vm_map.pmap == NULL, ("vm_map.pmap must be NULL"));
+#if 1 //wyc
 	if (pinit != pmap_pinit) //wyc
 		panic("%s", __func__);
+	struct pmap *pmap = malloc(sizeof(*pmap), M_PMAP, M_WAITOK);
+	ret = pinit(pmap);
 	ret = pinit(vmspace_pmap(vm));
 #if defined(WYC)
 	ret = pmap_pinit_type(vmspace_pmap(vm), PT_X86, pmap_flags); //wyc always returns 1
@@ -344,7 +346,8 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 		return (NULL);
 	}
 #else
-	vm->vm_pmap = user_pmap;
+	vm->vm_pmap = pmap;
+	//vm->vm_pmap = user_pmap;
 #endif
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
 	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), min, max);

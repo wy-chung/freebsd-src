@@ -170,6 +170,8 @@
 #include <machine/sysarch.h>
 #include <machine/tss.h>
 
+MALLOC_DEFINE(M_PMAP, "pmap", "pmap structures");
+
 #ifdef NUMA
 #define	PMAP_MEMDOM	MAXMEMDOM
 #else
@@ -1570,7 +1572,7 @@ pmap_pt_page_count_adj(pmap_t pmap, int count)
 
 pt_entry_t vtoptem __read_mostly = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT +
     NPDPEPGSHIFT + NPML4EPGSHIFT)) - 1) << 3;
-vm_offset_t PTmap __read_mostly = (vm_offset_t)P4Tmap;
+vm_offset_t PTmap __read_mostly = (vm_offset_t)P4Tmap; // page table map
 
 pt_entry_t *
 vtopte(vm_offset_t va)
@@ -1582,7 +1584,7 @@ vtopte(vm_offset_t va)
 
 pd_entry_t vtopdem __read_mostly = ((1ul << (NPDEPGSHIFT + NPDPEPGSHIFT +
     NPML4EPGSHIFT)) - 1) << 3;
-vm_offset_t PDmap __read_mostly = (vm_offset_t)P4Dmap;
+vm_offset_t PDmap __read_mostly = (vm_offset_t)P4Dmap; // page directory map
 
 static __inline pd_entry_t *
 vtopde(vm_offset_t va)
@@ -3968,6 +3970,7 @@ out:
 	return (m);
 }
 
+//wyc kernel virtual address space is always mapped
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
@@ -3976,7 +3979,7 @@ pmap_kextract(vm_offset_t va)
 
 	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS) {
 		pa = DMAP_TO_PHYS(va);
-	} else if (PMAP_ADDRESS_IN_LARGEMAP(va)) {
+	} else if (PMAP_ADDRESS_IN_LARGEMAP(va)) { // large map is disabled
 		pa = pmap_large_map_kextract(va);
 	} else {
 		pde = *vtopde(va);
@@ -4443,10 +4446,10 @@ pmap_pinit_pml5_pti(vm_page_t pml5pgu)
 }
 
 /* Allocate a page table page and do related bookkeeping */
-static vm_page_t
+static struct vm_page *
 pmap_alloc_pt_page(pmap_t pmap, vm_pindex_t pindex, int flags)
 {
-	vm_page_t m;
+	struct vm_page *m;
 
 	m = vm_page_alloc_noobj(flags);
 	if (__predict_false(m == NULL))
@@ -4527,7 +4530,7 @@ pmap_pinit_type(struct pmap *pmap, enum pmap_type pm_type, int flags)
 	 * address space.
 	 * Install minimal kernel mappings in PTI case.
 	 */
-	if (pm_type != PT_X86)
+	if (pm_type != PT_X86) //wyc
 		panic("%s", __func__);
 	switch (pm_type) {
 	case PT_X86:

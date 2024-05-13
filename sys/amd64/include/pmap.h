@@ -295,6 +295,7 @@
 #include <sys/_pv_entry.h>
 #include <sys/_rangeset.h>
 #include <sys/_smr.h>
+#include <sys/malloc.h> //wyc
 
 #include <vm/_vm_radix.h>
 
@@ -308,6 +309,8 @@ typedef u_int64_t pml5_entry_t;
  * Address of current address space page table maps and directories.
  */
 #ifdef _KERNEL
+MALLOC_DECLARE(M_PMAP);
+
 #define	addr_P4Tmap	(KV4ADDR(PML4PML4I, 0, 0, 0))
 #define	addr_P4Dmap	(KV4ADDR(PML4PML4I, PML4PML4I, 0, 0))
 #define	addr_P4DPmap	(KV4ADDR(PML4PML4I, PML4PML4I, PML4PML4I, 0))
