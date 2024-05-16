@@ -181,8 +181,11 @@ MALLOC_DEFINE(M_PMAP, "pmap", "pmap structures");
 static __inline boolean_t
 pmap_type_guest(pmap_t pmap)
 {
-
-	return ((pmap->pm_type == PT_EPT) || (pmap->pm_type == PT_RVI));
+	boolean_t is_guest;
+	is_guest = (pmap->pm_type == PT_EPT) || (pmap->pm_type == PT_RVI);
+	if (is_guest)
+		panic("%s", __func__);
+	return (is_guest);
 }
 
 static __inline boolean_t
@@ -364,8 +367,12 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 	_lock;							\
 })
 #else
+#if !defined(WYC)
 #define	pa_index(pa)	((pa) >> PDRSHIFT)
 #define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
+#else
+struct md_page *pa_to_pvh(vm_paddr_t pa) { return &pv_table[pa >> PDRSHIFT]; }
+#endif
 
 #define	NPV_LIST_LOCKS	MAXCPU
 
@@ -398,8 +405,16 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 	}						\
 } while (0)
 
+#if !defined(WYC)
 #define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
 			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
+#else
+struct rwlock *VM_PAGE_TO_PV_LIST_LOCK(struct vm_page *m)
+{
+	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
+	return &pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS];
+}
+#endif
 
 /*
  * Statically allocate kernel pmap memory.  However, memory for
@@ -516,7 +531,7 @@ struct pv_chunks_list {
 	int active_reclaims;
 } __aligned(CACHE_LINE_SIZE);
 
-struct pv_chunks_list __exclusive_cache_line pv_chunks[PMAP_MEMDOM];
+struct pv_chunks_list __exclusive_cache_line pv_chunks[PMAP_MEMDOM]; // PMAP_MEMDOM == 1
 
 #ifdef	NUMA
 struct pmap_large_md_page {
@@ -2461,7 +2476,7 @@ pmap_init_pv_table(void)
 	/*
 	 * Calculate the size of the pv head table for superpages.
 	 */
-	pv_npg = howmany(vm_phys_segs[vm_phys_nsegs - 1].end, NBPDR);
+	pv_npg = howmany(vm_phys_segs[vm_phys_nsegs - 1].end, NBPDR); // 2M
 
 	/*
 	 * Allocate memory for the pv head table for superpages.
@@ -2577,7 +2592,7 @@ pmap_init(void)
 	/*
 	 * Initialize pv chunk lists.
 	 */
-	for (int i = 0; i < PMAP_MEMDOM; i++) {
+	for (int i = 0; i < PMAP_MEMDOM; i++) { // PMAP_MEMDOM == 1
 		mtx_init(&pv_chunks[i].pvc_lock, "pmap pv chunk list", NULL, MTX_DEF);
 		TAILQ_INIT(&pv_chunks[i].pvc_list);
 	}
@@ -3052,7 +3067,7 @@ pmap_invalidate_ept(pmap_t pmap)
 
 	sched_pin();
 	KASSERT(!CPU_ISSET(curcpu, &pmap->pm_active),
-	    ("pmap_invalidate_ept: absurd pm_active"));
+	    ("%s: absurd pm_active", __func__));
 
 	/*
 	 * The TLB mappings associated with a vcpu context are not
@@ -4313,15 +4328,15 @@ pmap_pinit_pcids(pmap_t pmap, uint32_t pcid, int gen)
 }
 
 void
-pmap_pinit0(pmap_t pmap)
+pmap_pinit0(pmap_t pmap) // &vmspace0.vm_pmap
 {
 	struct proc *p;
 	struct thread *td;
 
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pmltop = kernel_pmap->pm_pmltop;
-	pmap->pm_pmltopu = NULL;
 	pmap->pm_cr3 = kernel_pmap->pm_cr3;
+	pmap->pm_pmltopu = NULL;
 	/* hack to keep pmap_pti_pcid_invalidate() alive */
 	pmap->pm_ucr3 = PMAP_NO_CR3;
 	vm_radix_init(&pmap->pm_root);
@@ -5624,7 +5639,7 @@ get_pv_entry(pmap_t pmap, struct rwlock **lockp)
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PV_STAT(counter_u64_add(pv_entry_allocs, 1));
-retry:
+retry: // unlikely
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 	if (pc != NULL) {
 		for (field = 0; field < _NPCM; field++) {
@@ -9343,7 +9358,7 @@ maybe_invlrng:
  *	Clear the modify bits on the specified physical page.
  */
 void
-pmap_clear_modify(vm_page_t m)
+pmap_clear_modify(struct vm_page * const m)
 {
 	struct md_page *pvh;
 	pmap_t pmap;
@@ -9352,16 +9367,17 @@ pmap_clear_modify(vm_page_t m)
 	pt_entry_t *pte, PG_M, PG_RW;
 	struct rwlock *lock;
 	vm_offset_t va;
+	vm_paddr_t pa;
 	int md_gen, pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_clear_modify: page %p is not managed", m));
+	    ("%s: page %p is not managed", __func__, m));
 	vm_page_assert_busied(m);
 
 	if (!pmap_page_is_write_mapped(m))
 		return;
-	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
-	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
+	pa = VM_PAGE_TO_PHYS(m);
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : pa_to_pvh(pa);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_wlock(lock);
 restart:
@@ -9385,12 +9401,12 @@ restart:
 		/* If oldpde has PG_RW set, then it also has PG_M set. */
 		if ((oldpde & PG_RW) != 0 &&
 		    pmap_demote_pde_locked(pmap, pde, va, &lock) &&
-		    (oldpde & PG_W) == 0) {
+		    (oldpde & PG_W) == 0) { // W means wired
 			/*
 			 * Write protect the mapping to a single page so that
 			 * a subsequent write access may repromote.
 			 */
-			va += VM_PAGE_TO_PHYS(m) - (oldpde & PG_PS_FRAME);
+			va += pa - (oldpde & PG_PS_FRAME);
 			pte = pmap_pde_to_pte(pde, va);
 			atomic_clear_long(pte, PG_M | PG_RW);
 			vm_page_dirty(m);
@@ -9413,13 +9429,14 @@ restart:
 		}
 		PG_M = pmap_modified_bit(pmap);
 		PG_RW = pmap_rw_bit(pmap);
-		pde = pmap_pde(pmap, pv->pv_va);
-		KASSERT((*pde & PG_PS) == 0, ("pmap_clear_modify: found"
-		    " a 2mpage in page %p's pv list", m));
-		pte = pmap_pde_to_pte(pde, pv->pv_va);
+		va = pv->pv_va;
+		pde = pmap_pde(pmap, va);
+		KASSERT((*pde & PG_PS) == 0, ("%s: found"
+		    " a 2mpage in page %p's pv list", __func__, m));
+		pte = pmap_pde_to_pte(pde, va);
 		if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 			atomic_clear_long(pte, PG_M);
-			pmap_invalidate_page(pmap, pv->pv_va);
+			pmap_invalidate_page(pmap, va);
 		}
 		PMAP_UNLOCK(pmap);
 	}
@@ -10150,6 +10167,7 @@ pmap_activate_sw_pcid_pti(struct thread *td, pmap_t pmap, u_int cpuid)
 	struct pmap_pcid *pcidp, *old_pcidp;
 	uint64_t cached, cr3, kcr3, ucr3;
 
+panic("%s", __func__);
 	KASSERT((read_rflags() & PSL_I) == 0,
 	    ("PCID needs interrupts disabled in pmap_activate_sw()"));
 
@@ -10189,6 +10207,7 @@ pmap_activate_sw_pcid_nopti(struct thread *td __unused, pmap_t pmap,
 	struct pmap_pcid *pcidp;
 	uint64_t cached, cr3;
 
+panic("%s", __func__);
 	KASSERT((read_rflags() & PSL_I) == 0,
 	    ("PCID needs interrupts disabled in pmap_activate_sw()"));
 
@@ -10215,7 +10234,7 @@ static void
 pmap_activate_sw_nopcid_pti(struct thread *td, pmap_t pmap,
     u_int cpuid __unused)
 {
-
+panic("%s", __func__);
 	pmap_activate_sw_nopcid_nopti(td, pmap, cpuid);
 	PCPU_SET(pc_kcr3, pmap->pm_cr3);
 	PCPU_SET(pc_ucr3, pmap->pm_ucr3);
@@ -10260,6 +10279,9 @@ pmap_activate_sw(struct thread *td)
 	CPU_SET(cpuid, &pmap->pm_active);
 #endif
 	pmap_activate_sw_mode(td, pmap, cpuid);
+#if defined(WYC)
+	pmap_activate_sw_nopcid_nopti(td, pmap, cpuid);
+#endif
 #ifdef SMP
 	CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
 #else

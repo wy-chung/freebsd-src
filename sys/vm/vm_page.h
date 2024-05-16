@@ -353,7 +353,7 @@ extern struct mtx_padalign pa_lock[];
 #endif
 #endif
 
-#define	pa_index(pa)	((pa) >> PDRSHIFT)
+#define	pa_index(pa)	((pa) >> PDRSHIFT) // index for 2M page
 #define	PA_LOCKPTR(pa)	((struct mtx *)(&pa_lock[pa_index(pa) % PA_LOCK_COUNT]))
 #define	PA_LOCKOBJPTR(pa)	((struct lock_object *)PA_LOCKPTR((pa)))
 #define	PA_LOCK(pa)	mtx_lock(PA_LOCKPTR(pa))
@@ -503,9 +503,12 @@ extern vm_page_t vm_page_array;		/* First resident page in table */
 extern long vm_page_array_size;		/* number of vm_page_t's */
 extern long first_page;			/* first physical page number */
 
-//#define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
-static inline vm_paddr_t VM_PAGE_TO_PHYS(struct vm_page *entry)
+#if !defined(WYC)
+#define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
+#else
+vm_paddr_t VM_PAGE_TO_PHYS(struct vm_page *entry)
 { return entry->phys_addr; }
+#endif
 
 /*
  * PHYS_TO_VM_PAGE() returns the vm_page_t object that represents a memory

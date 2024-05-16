@@ -84,7 +84,7 @@ SYSCTL_INT(_vm_numa, OID_AUTO, disabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &numa_disabled, 0, "NUMA-awareness in the allocators is disabled");
 #endif
 
-int __read_mostly vm_ndomains = 1;
+int __read_mostly vm_ndomains = 1; // sysctl == 1
 domainset_t __read_mostly all_domains = DOMAINSET_T_INITIALIZER(0x1);
 
 struct vm_phys_seg __read_mostly vm_phys_segs[VM_PHYSSEG_MAX];

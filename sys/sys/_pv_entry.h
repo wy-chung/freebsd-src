@@ -91,8 +91,8 @@ typedef struct pv_entry {
 #define	PV_CHUNK_HEADER							\
 	struct pmap		*pc_pmap;				\
 	TAILQ_ENTRY(pv_chunk)	pc_list;				\
-	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */	\
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
+	TAILQ_ENTRY(pv_chunk)	pc_lru;					\
+	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 
 struct pv_chunk_header {
 #if !defined(WYC)
@@ -100,8 +100,8 @@ struct pv_chunk_header {
 #else
 	struct pmap		*pc_pmap;
 	TAILQ_ENTRY(pv_chunk)	pc_list;
-	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 	TAILQ_ENTRY(pv_chunk)	pc_lru;
+	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 #endif
 };
 
@@ -110,9 +110,9 @@ struct pv_chunk {
 	PV_CHUNK_HEADER
 #else
 	struct pmap		*pc_pmap;
-	TAILQ_ENTRY(pv_chunk)	pc_list;
+	TAILQ_ENTRY(pv_chunk)	pc_list; // for pmap.pm_pvchunk list
+	TAILQ_ENTRY(pv_chunk)	pc_lru;  // for pv_chunks[0] list
 	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
 #endif
 	struct pv_entry		pc_pventry[_NPCPV];
 	unsigned long		pc_pad[_NPAD];
@@ -152,8 +152,8 @@ pv_to_chunk(pv_entry_t pv)
 #else
 struct pmap *PV_PMAP(pv_entry_t pv)
 {
-	struct pv_chunk *pvc = pv_to_chunk(pv);
-	return pvc->pc_pmap;
+	struct pv_chunk *chunk = pv_to_chunk(pv);
+	return chunk->pc_pmap;
 }
 #endif
 #endif
