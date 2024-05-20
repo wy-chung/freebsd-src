@@ -99,8 +99,8 @@
 #define	PG_V		X86_PG_V
 #define	PG_RW		X86_PG_RW
 #define	PG_U		X86_PG_U
-#define	PG_NC_PWT	X86_PG_NC_PWT
-#define	PG_NC_PCD	X86_PG_NC_PCD
+#define	PG_NC_PWT	X86_PG_NC_PWT	// write through
+#define	PG_NC_PCD	X86_PG_NC_PCD	// cache disable
 #define	PG_A		X86_PG_A
 #define	PG_M		X86_PG_M
 #define	PG_PS		X86_PG_PS	// page size
@@ -152,17 +152,17 @@
  * The appropriate bitmask will be calculated at runtime based on the pmap
  * type.
  */
-#ifdef AMD64_NPT_AWARE
+#ifdef AMD64_NPT_AWARE // true
 #undef PG_AVAIL1		/* X86_PG_AVAIL1 aliases with EPT_PG_M */
-#undef PG_G
-#undef PG_A
-#undef PG_M
+#undef PG_G	// ref pmap_global_bit
+#undef PG_A	// ref pmap_accessed_bit
+#undef PG_M	// ref pmap_modified_bit
 #undef PG_PDE_PAT
 #undef PG_PDE_CACHE
 #undef PG_PTE_PAT
 #undef PG_PTE_CACHE
-#undef PG_RW
-#undef PG_V
+#undef PG_RW	// ref pmap_rw_bit
+#undef PG_V	// ref pmap_valid_bit
 #endif
 
 /*

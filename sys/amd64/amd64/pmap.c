@@ -198,6 +198,9 @@ pmap_emulate_ad_bits(pmap_t pmap)
 static __inline pt_entry_t
 pmap_valid_bit(pmap_t pmap)
 {
+	if (pmap->pm_type != PT_X86)
+		panic("%s", __func__);
+
 	pt_entry_t mask;
 
 	switch (pmap->pm_type) {
@@ -221,6 +224,9 @@ pmap_valid_bit(pmap_t pmap)
 static __inline pt_entry_t
 pmap_rw_bit(pmap_t pmap)
 {
+	if (pmap->pm_type != PT_X86)
+		panic("%s", __func__);
+
 	pt_entry_t mask;
 
 	switch (pmap->pm_type) {
@@ -246,6 +252,9 @@ static pt_entry_t pg_g;
 static __inline pt_entry_t
 pmap_global_bit(pmap_t pmap)
 {
+	if (pmap->pm_type != PT_X86)
+		panic("%s", __func__);
+
 	pt_entry_t mask;
 
 	switch (pmap->pm_type) {
@@ -266,6 +275,9 @@ pmap_global_bit(pmap_t pmap)
 static __inline pt_entry_t
 pmap_accessed_bit(pmap_t pmap)
 {
+	if (pmap->pm_type != PT_X86)
+		panic("%s", __func__);
+
 	pt_entry_t mask;
 
 	switch (pmap->pm_type) {
@@ -289,6 +301,9 @@ pmap_accessed_bit(pmap_t pmap)
 static __inline pt_entry_t
 pmap_modified_bit(pmap_t pmap)
 {
+	if (pmap->pm_type != PT_X86)
+		panic("%s", __func__);
+
 	pt_entry_t mask;
 
 	switch (pmap->pm_type) {
@@ -371,7 +386,7 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 #define	pa_index(pa)	((pa) >> PDRSHIFT)
 #define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
 #else
-struct md_page *pa_to_pvh(vm_paddr_t pa) { return &pv_table[pa >> PDRSHIFT]; }
+struct md_page *pa_to_pvh(vm_paddr_t pa) { return &pv_table[pa >> PDRSHIFT]; } // for 2MB super page
 #endif
 
 #define	NPV_LIST_LOCKS	MAXCPU
@@ -546,7 +561,7 @@ __read_mostly vm_paddr_t pmap_last_pa;
 #else
 static struct rwlock __exclusive_cache_line pv_list_locks[NPV_LIST_LOCKS];
 static u_long pv_invl_gen[NPV_LIST_LOCKS];
-static struct md_page *pv_table;
+static struct md_page *pv_table; // for 2MB super page
 static struct md_page pv_dummy;
 #endif
 
@@ -2339,7 +2354,7 @@ pmap_page_init(vm_page_t m)
 	m->md.pat_mode = PAT_WRITE_BACK;
 }
 
-static int pmap_allow_2m_x_ept;
+static int pmap_allow_2m_x_ept; // qemu: 0, virtualbox: 1
 SYSCTL_INT(_vm_pmap, OID_AUTO, allow_2m_x_ept, CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
     &pmap_allow_2m_x_ept, 0,
     "Allow executable superpage mappings in EPT");
@@ -2395,7 +2410,7 @@ pmap_init_pv_table(void)
 	vm_size_t s;
 	long start, end, highest, pv_npg;
 	int domain, i, j, pages;
-
+panic("%s", __func__); //wyctest passed. NUMA is disabled in MYKERNEL
 	/*
 	 * For correctness we depend on the size being evenly divisible into a
 	 * page. As a tradeoff between performance and total memory use, the
@@ -2496,11 +2511,11 @@ pmap_init_pv_table(void)
  *	system needs to map virtual memory.
  */
 void
-pmap_init(void)
+pmap_init(void) // < vm_mem_init < SYSINIT(SI_SUB_VM, SI_ORDER_FIRST)
 {
 	int error;
 
-	/* L1TF, reserve page @0 unconditionally */
+	/* L1TF, reserve page @0 unconditionally */ // L1 Terminal Falut
 	vm_page_blacklist_add(0, bootverbose);
 
 	/* Detect bare-metal Skylake Server and Skylake-X. */
@@ -2543,7 +2558,7 @@ pmap_init(void)
 		struct vm_page *mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
-		    ("pmap_init: page table page is out of range"));
+		    ("%s: page table page is out of range", __func__));
 		mpte->pindex = pmap_pde_pindex(KERNBASE) + i;
 		mpte->phys_addr = KPTphys + (i << PAGE_SHIFT);
 		mpte->ref_count = 1;
@@ -2580,11 +2595,11 @@ pmap_init(void)
 	TUNABLE_INT_FETCH("vm.pmap.pg_ps_enabled", &pg_ps_enabled);
 	if (pg_ps_enabled) {
 		KASSERT(MAXPAGESIZES > 1 && pagesizes[1] == 0,
-		    ("pmap_init: can't assign to pagesizes[1]"));
+		    ("%s: can't assign to pagesizes[1]", __func__));
 		pagesizes[1] = NBPDR;
 		if ((amd_feature & AMDID_PAGE1GB) != 0) {
 			KASSERT(MAXPAGESIZES > 2 && pagesizes[2] == 0,
-			    ("pmap_init: can't assign to pagesizes[2]"));
+			    ("%s: can't assign to pagesizes[2]", __func__));
 			pagesizes[2] = NBPDP;
 		}
 	}
@@ -3938,13 +3953,13 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
  *		with the given pmap and virtual address pair
  *		if that mapping permits the given protection.
  */
-vm_page_t
+struct vm_page *
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	pdp_entry_t pdpe, *pdpep;
 	pd_entry_t pde, *pdep;
 	pt_entry_t pte, PG_RW, PG_V;
-	vm_page_t m;
+	struct vm_page *m;
 
 	m = NULL;
 	PG_RW = pmap_rw_bit(pmap);
@@ -5214,7 +5229,7 @@ pmap_growkernel(vm_offset_t addr)
 			    pmap_pdpe_pindex(end), VM_ALLOC_WIRED |
 			    VM_ALLOC_INTERRUPT | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
-				panic("pmap_growkernel: no memory to grow kernel");
+				panic("%s: no memory to grow kernel", __func__);
 			paddr = VM_PAGE_TO_PHYS(nkpg);
 			*pdpe = (pdp_entry_t)(paddr | X86_PG_V | X86_PG_RW |
 			    X86_PG_A | X86_PG_M);
@@ -5233,7 +5248,7 @@ pmap_growkernel(vm_offset_t addr)
 		nkpg = pmap_alloc_pt_page(kernel_pmap, pmap_pde_pindex(end),
 		    VM_ALLOC_WIRED | VM_ALLOC_INTERRUPT | VM_ALLOC_ZERO);
 		if (nkpg == NULL)
-			panic("pmap_growkernel: no memory to grow kernel");
+			panic("%s: no memory to grow kernel", __func__);
 		paddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = paddr | X86_PG_V | X86_PG_RW | X86_PG_A | X86_PG_M;
 		pde_store(pde, newpdir);
@@ -5650,7 +5665,7 @@ retry: // unlikely
 		}
 		if (field < _NPCM) {
 			pv = &pc->pc_pventry[field * 64 + bit];
-			pc->pc_map[field] &= ~(1ul << bit);
+			pc->pc_map[field] &= ~(1ul << bit); // set to "not free"
 			/* If this was the last item, move it to tail */
 			if (pc->pc_map[0] == 0 && pc->pc_map[1] == 0 &&
 			    pc->pc_map[2] == 0) {
@@ -5730,7 +5745,7 @@ popcnt_pc_map_pq(uint64_t *map)
  * The given PV list lock may be released.
  */
 static void
-reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
+reserve_pv_entries(struct pmap *pmap, int needed, struct rwlock **lockp)
 {
 	struct pv_chunks_list *pvc;
 	struct pch new_tail[PMAP_MEMDOM];
@@ -7214,7 +7229,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, struct vm_page *m, vm_prot_t prot,
 	pt_entry_t newpte, origpte;
 	pv_entry_t pv;
 	vm_paddr_t opa, pa;
-	vm_page_t mpte, om;
+	struct vm_page *mpte, *om;
 	int rv;
 	boolean_t nosleep;
 
@@ -7540,14 +7555,14 @@ pmap_every_pte_zero(vm_paddr_t pa)
  * The parameter "m" is only used when creating a managed, writeable mapping.
  */
 static int
-pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
-    vm_page_t m, struct rwlock **lockp)
+pmap_enter_pde(struct pmap *pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
+    struct vm_page *m, struct rwlock **lockp)
 {
 	struct spglist free;
 	pd_entry_t oldpde, *pde;
 	pt_entry_t PG_G, PG_RW, PG_V;
-	vm_page_t mt, pdpg;
-	vm_page_t uwptpg;
+	struct vm_page *mt, *pdpg;
+	struct vm_page *uwptpg;
 
 	PG_G = pmap_global_bit(pmap);
 	PG_RW = pmap_rw_bit(pmap);
@@ -8030,13 +8045,13 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	for (; sva < eva; sva = va_next) {
 		pml4e = pmap_pml4e(pmap, sva);
 		if (pml4e == NULL || (*pml4e & PG_V) == 0) {
-			va_next = (sva + NBPML4) & ~PML4MASK;
+			va_next = (sva + NBPML4) & ~PML4MASK; // 0.5T
 			if (va_next < sva)
 				va_next = eva;
 			continue;
 		}
 
-		va_next = (sva + NBPDP) & ~PDPMASK;
+		va_next = (sva + NBPDP) & ~PDPMASK; // 1G
 		if (va_next < sva)
 			va_next = eva;
 		pdpe = pmap_pml4e_to_pdpe(pml4e, sva);
@@ -8049,20 +8064,20 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			    *pdpe, sva, eva, va_next));
 			MPASS(pmap != kernel_pmap); /* XXXKIB */
 			MPASS((*pdpe & (PG_MANAGED | PG_G)) == 0);
-			atomic_clear_long(pdpe, PG_W);
+			atomic_clear_long(pdpe, PG_W); // wired
 			pmap->pm_stats.wired_count -= NBPDP / PAGE_SIZE;
 			continue;
 		}
 
-		va_next = (sva + NBPDR) & ~PDRMASK;
+		va_next = (sva + NBPDR) & ~PDRMASK; // 2M
 		if (va_next < sva)
 			va_next = eva;
 		pde = pmap_pdpe_to_pde(pdpe, sva);
 		if ((*pde & PG_V) == 0)
 			continue;
 		if ((*pde & PG_PS) != 0) {
-			if ((*pde & PG_W) == 0)
-				panic("pmap_unwire: pde %#jx is missing PG_W",
+			if ((*pde & PG_W) == 0) // if not wired
+				panic("%s: pde %#jx is missing PG_W", __func__,
 				    (uintmax_t)*pde);
 
 			/*
@@ -8075,7 +8090,7 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 				    PAGE_SIZE;
 				continue;
 			} else if (!pmap_demote_pde(pmap, pde, sva))
-				panic("pmap_unwire: demotion failed");
+				panic("%s: demotion failed", __func__);
 		}
 		if (va_next > eva)
 			va_next = eva;
@@ -8083,8 +8098,8 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		    sva += PAGE_SIZE) {
 			if ((*pte & PG_V) == 0)
 				continue;
-			if ((*pte & PG_W) == 0)
-				panic("pmap_unwire: pte %#jx is missing PG_W",
+			if ((*pte & PG_W) == 0) // if not wired
+				panic("%s: pte %#jx is missing PG_W", __func__,
 				    (uintmax_t)*pte);
 
 			/*
@@ -9380,8 +9395,8 @@ pmap_clear_modify(struct vm_page * const m)
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : pa_to_pvh(pa);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_wlock(lock);
-restart:
-	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
+restart: // unlikely
+	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) { // for 2MB super page
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
 			pvh_gen = pvh->pv_gen;
@@ -9414,7 +9429,7 @@ restart:
 		}
 		PMAP_UNLOCK(pmap);
 	}
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) { // for 4K page
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
 			md_gen = m->md.pv_gen;

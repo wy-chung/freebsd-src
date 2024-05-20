@@ -61,12 +61,12 @@ breakpoint(void)
 	__asm __volatile("int $3");
 }
 
+// __builtin_ctz: Returns the number of trailing 0-bits, starting at the least significant bit position
 #define	bsfl(mask)	__builtin_ctz(mask)
-
 #define	bsfq(mask)	__builtin_ctzl(mask)
 
+// __builtin_clz: Returns the number of leading 0-bits, starting at the most significant bit position
 #define	bsrl(mask)	(__builtin_clz(mask) ^ 0x1f)
-
 #define	bsrq(mask)	(__builtin_clzl(mask) ^ 0x3f)
 
 static __inline void
