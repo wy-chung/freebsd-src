@@ -446,7 +446,7 @@ struct pmap user_pmap_store; //wyc
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
-int nkpt;
+int nkpt; // kernel uses 2MB page
 SYSCTL_INT(_machdep, OID_AUTO, nkpt, CTLFLAG_RD, &nkpt, 0,
     "Number of kernel page table pages allocated on bootup");
 
@@ -1414,13 +1414,13 @@ static void pmap_free_pt_page(pmap_t, vm_page_t, bool);
 static __inline vm_pindex_t
 pmap_pde_pindex(vm_offset_t va)
 {
-	return (va >> PDRSHIFT);
+	return (va >> PDRSHIFT); // 2MB
 }
 
 static __inline vm_pindex_t
 pmap_pdpe_pindex(vm_offset_t va)
 {
-	return (NUPDE + (va >> PDPSHIFT));
+	return (NUPDE + (va >> PDPSHIFT)); // 1GB
 }
 
 static __inline vm_pindex_t
@@ -1723,7 +1723,7 @@ bootaddr_rwx(vm_paddr_t pa)
 }
 
 static void
-create_pagetables(vm_paddr_t *firstaddr)
+create_pagetables(vm_paddr_t *firstaddr) // < pmap_bootstrap < getmemsize < hammer_time < btext
 {
 	pd_entry_t *pd_p;
 	pdp_entry_t *pdp_p;
@@ -1969,7 +1969,7 @@ create_pagetables(vm_paddr_t *firstaddr)
  *	(physical) address starting relative to 0]
  */
 void
-pmap_bootstrap(vm_paddr_t *firstaddr)
+pmap_bootstrap(vm_paddr_t *firstaddr) // < getmemsize < hammer_time < btext
 {
 	vm_offset_t va;
 	pt_entry_t *pte, *pcpu_pte;
@@ -2554,7 +2554,7 @@ pmap_init(void) // < vm_mem_init < SYSINIT(SI_SUB_VM, SI_ORDER_FIRST)
 	 * page table pages.
 	 */ 
 	PMAP_LOCK(kernel_pmap);
-	for (int i = 0; i < nkpt; i++) { // machdep.nkpt == 50
+	for (int i = 0; i < nkpt; i++) { // machdep.nkpt == 50 entries of 2MB page
 		struct vm_page *mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
@@ -2568,7 +2568,7 @@ pmap_init(void) // < vm_mem_init < SYSINIT(SI_SUB_VM, SI_ORDER_FIRST)
 		 * page in create_pagetables().  They are zero filled.
 		 */
 		if ((i == 0 || kernphys + ((vm_paddr_t)(i - 1) << PDRSHIFT) < KERNend) &&
-		    pmap_insert_pt_page(kernel_pmap, mpte, false, false))
+		    pmap_insert_pt_page(kernel_pmap, mpte, false, false) != ESUCCESS)
 			panic("%s: pmap_insert_pt_page failed", __func__);
 	}
 	PMAP_UNLOCK(kernel_pmap);
@@ -4183,8 +4183,9 @@ pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
  * valid mappings with identical attributes including PG_A; "mpte"'s valid
  * field will be set to VM_PAGE_BITS_ALL.
  */
+//wyc returns ESUCCESS if no error
 static __inline int
-pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte, bool promoted,
+pmap_insert_pt_page(pmap_t pmap, struct vm_page *mpte, bool promoted,
     bool allpte_PG_A_set)
 {
 

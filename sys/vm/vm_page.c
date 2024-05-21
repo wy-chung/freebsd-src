@@ -1223,12 +1223,12 @@ PHYS_TO_VM_PAGE(vm_paddr_t pa)
 {
 	vm_page_t m;
 
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // false
 	m = vm_phys_paddr_to_vm_page(pa);
 	if (m == NULL)
 		m = vm_phys_fictitious_to_vm_page(pa);
 	return (m);
-#elif defined(VM_PHYSSEG_DENSE)
+#elif defined(VM_PHYSSEG_DENSE) // true
 	long pi;
 
 	pi = atop(pa);

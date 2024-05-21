@@ -87,8 +87,7 @@ _Static_assert(OFFSETOF_MONITORBUF == offsetof(struct pcpu, pc_monitorbuf),
 void
 set_top_of_stack_td(struct thread *td)
 {
-	td->td_md.md_stack_base = td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE;
+	td->td_md.md_stack_base = td->td_kstack + td->td_kstack_pages * PAGE_SIZE;
 }
 
 struct savefpu *

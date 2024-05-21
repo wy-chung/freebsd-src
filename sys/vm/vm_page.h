@@ -198,7 +198,7 @@
  */
 
 #if PAGE_SIZE == 4096
-#define VM_PAGE_BITS_ALL 0xffu
+#define VM_PAGE_BITS_ALL 0xffu	// 4096 = DEV_BSIZE(512) * 8
 typedef uint8_t vm_page_bits_t;
 #elif PAGE_SIZE == 8192
 #define VM_PAGE_BITS_ALL 0xffffu

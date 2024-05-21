@@ -97,8 +97,8 @@
  * Define the PG_xx macros in terms of the bits on x86 PTEs.
  */
 #define	PG_V		X86_PG_V
-#define	PG_RW		X86_PG_RW
-#define	PG_U		X86_PG_U
+#define	PG_RW		X86_PG_RW	// 0: read-only 1: read/write
+#define	PG_U		X86_PG_U	// 0: supervisor access only, 1: both user and supervisor
 #define	PG_NC_PWT	X86_PG_NC_PWT	// write through
 #define	PG_NC_PCD	X86_PG_NC_PCD	// cache disable
 #define	PG_A		X86_PG_A
@@ -215,14 +215,10 @@
  * We use the same numbering of the page table pages for 5-level and
  * 4-level paging structures.
  */
-#define	NUPML5E		(NPML5EPG / 2)		/* number of userland PML5
-						   pages */
-#define	NUPML4E		(NUPML5E * NPML4EPG)	/* number of userland PML4
-						   pages */
-#define	NUPDPE		(NUPML4E * NPDPEPG)	/* number of userland PDP
-						   pages */
-#define	NUPDE		(NUPDPE * NPDEPG)	/* number of userland PD
-						   entries */
+#define	NUPML5E		(NPML5EPG / 2)		/* number of userland PML5 pages */
+#define	NUPML4E		(NUPML5E * NPML4EPG)	/* number of userland PML4 pages */
+#define	NUPDPE		(NUPML4E * NPDPEPG)	/* number of userland PDP pages */
+#define	NUPDE		(NUPDPE * NPDEPG)	/* number of userland PD entries */
 #define	NUP4ML4E	(NPML4EPG / 2)
 
 /*
@@ -232,7 +228,7 @@
  * value is 64; using 128 will make the direct map intrude into
  * the recursive page table map.
  */
-#define	NDMPML4E	8
+#define	NDMPML4E	8	// 0.5T * 8 = 4T
 
 /*
  * These values control the layout of virtual memory.  The starting address

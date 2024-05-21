@@ -1970,7 +1970,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
     vm_prot_t prot, vm_page_t *ma, int max_count)
 {
 	vm_offset_t end, va;
-	vm_page_t *mp;
+	struct vm_page **mp;
 	int count;
 	boolean_t pmap_failed;
 

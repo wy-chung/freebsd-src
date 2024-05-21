@@ -864,7 +864,7 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
  * XXX first should be vm_paddr_t.
  */
 static void
-getmemsize(caddr_t kmdp, u_int64_t first)
+getmemsize(caddr_t kmdp, u_int64_t first) // < hammer_time < btext
 {
 	int i, physmap_idx, pa_indx, da_indx;
 	vm_paddr_t pa, physmap[PHYS_AVAIL_ENTRIES];
@@ -883,7 +883,9 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	bzero(physmap, sizeof(physmap));
 	physmap_idx = 0;
 
-	init_ops.parse_memmap(kmdp, physmap, &physmap_idx);
+	if(init_ops.parse_memmap != native_parse_memmap)
+		panic("%s: wyctest", __func__); // pass
+	native_parse_memmap(kmdp, physmap, &physmap_idx);
 	physmap_idx -= 2;
 
 	/*
@@ -1309,8 +1311,9 @@ amd64_loadaddr(void)
 	return (*pde & PG_FRAME);
 }
 
+// returns the stack base of thread0
 u_int64_t
-hammer_time(u_int64_t modulep, u_int64_t physfree)
+hammer_time(u_int64_t modulep, u_int64_t physfree) // < btext
 {
 	caddr_t kmdp;
 	int gsel_tss, x;
@@ -1327,7 +1330,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	physfree += kernphys;
 
-	kmdp = init_ops.parse_preload_data(modulep);
+	if (init_ops.parse_preload_data != native_parse_preload_data)
+		panic("%s: wyctest", __func__); // pass
+	kmdp = native_parse_preload_data(modulep);
 
 	efi_boot = preload_search_info(kmdp, MODINFO_METADATA |
 	    MODINFOMD_EFI_MAP) != NULL;
