@@ -321,17 +321,33 @@ vmspace_zdtor(void *mem, int size, void *arg)
  * Allocate a vmspace structure, including a vm_map and pmap,
  * and initialize those structures.  The refcnt is set to 1.
  */
+// @pinit: is ept_pinit     when called from ept_vmspace_alloc()
+//         is arm_vmm_pinit when called from vmmops_vmspace_alloc()
+//         is npt_pinit     when called from in svm_npt_alloc()
 struct vmspace *
 vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 {
 	struct vmspace *vm;
+	int ret;
 
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
 	KASSERT(vm->vm_map.pmap == NULL, ("vm_map.pmap must be NULL"));
-	if (!pinit(vmspace_pmap(vm))) {
+	if (pinit != pmap_pinit) //wyc
+		panic("%s", __func__);
+#if 1 //wyc
+	ret = pinit(vmspace_pmap(vm));
+#if defined(WYC)
+	ret = pmap_pinit_type(vmspace_pmap(vm), PT_X86, pmap_flags); //wyc always returns 1
+#endif
+	if (!ret) { //wyc always false
 		uma_zfree(vmspace_zone, vm);
 		return (NULL);
 	}
+#else
+	struct pmap *pmap = malloc(sizeof(*pmap), M_PMAP, M_WAITOK);
+	ret = pinit(pmap);
+	vm->vm_pmap = pmap;
+#endif
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
 	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), min, max);
 	refcount_init(&vm->vm_refcnt, 1);
@@ -406,7 +422,7 @@ vmspace_exitfree(struct proc *p)
 	vm = p->p_vmspace;
 	p->p_vmspace = NULL;
 	PROC_VMSPACE_UNLOCK(p);
-	KASSERT(vm == &vmspace0, ("vmspace_exitfree: wrong vmspace"));
+	KASSERT(vm == &vmspace0, ("%s: wrong vmspace", __func__));
 	vmspace_free(vm);
 }
 
@@ -888,12 +904,12 @@ vmspace_resident_count(struct vmspace *vmspace)
  * such as that in the vmspace structure.
  */
 static void
-_vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
+_vm_map_init(struct _vm_map *map, struct pmap *pmap, vm_offset_t min, vm_offset_t max)
 {
 
 	map->header.eflags = MAP_ENTRY_HEADER;
 	map->needs_wakeup = FALSE;
-	map->system_map = 0;
+	map->system_map = FALSE;
 	map->pmap = pmap;
 	map->header.end = min;
 	map->header.start = max;
@@ -909,7 +925,7 @@ _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 }
 
 void
-vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
+vm_map_init(struct _vm_map *map, struct pmap *pmap, vm_offset_t min, vm_offset_t max)
 {
 
 	_vm_map_init(map, pmap, min, max);
@@ -1847,13 +1863,14 @@ charged:
  *	prior to making call to account for the new entry.
  */
 int
-vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+vm_map_insert(struct _vm_map *map, struct vm_object *object, vm_ooffset_t offset,
     vm_offset_t start, vm_offset_t end, vm_prot_t prot, vm_prot_t max, int cow)
 {
 	vm_map_entry_t res;
+	int ret; //wyc
 
-	return (vm_map_insert1(map, object, offset, start, end, prot, max,
-	    cow, &res));
+	ret = vm_map_insert1(map, object, offset, start, end, prot, max, cow, &res);
+	return ret;
 }
 
 /*
@@ -2147,12 +2164,12 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		curr_min_addr = min_addr = vm_map_min(map);
 	try = 0;
 	vm_map_lock(map);
-	if (cluster) {
+	if (cluster) { // false
 		curr_min_addr = map->anon_loc;
 		if (curr_min_addr == 0)
 			cluster = false;
 	}
-	if (find_space != VMFS_NO_SPACE) {
+	if (find_space != VMFS_NO_SPACE) { // false
 		KASSERT(find_space == VMFS_ANY_SPACE ||
 		    find_space == VMFS_OPTIMAL_SPACE ||
 		    find_space == VMFS_SUPER_SPACE ||
@@ -2234,7 +2251,7 @@ again:
 			}
 			goto done;
 		}
-	} else if ((cow & MAP_REMAP) != 0) {
+	} else if ((cow & MAP_REMAP) != 0) { // false
 		if (!vm_map_range_valid(map, *addr, *addr + length)) {
 			rv = KERN_INVALID_ADDRESS;
 			goto done;
@@ -2243,7 +2260,7 @@ again:
 		if (rv != KERN_SUCCESS)
 			goto done;
 	}
-	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) {
+	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) { // true
 		rv = vm_map_stack_locked(map, *addr, length, sgrowsiz, prot,
 		    max, cow);
 	} else {
@@ -2255,7 +2272,7 @@ again:
 done:
 	vm_map_unlock(map);
 	return (rv);
-}
+} // vm_map_find
 
 /*
  *	vm_map_find_min() is a variant of vm_map_find() that takes an
@@ -4318,7 +4335,7 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  * The source map must not be locked.
  */
 struct vmspace *
-vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
+vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge /*OUT*/)
 {
 	struct vmspace *vm2;
 	vm_map_t new_map, old_map;
@@ -4329,8 +4346,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm2 = vmspace_alloc(vm_map_min(old_map), vm_map_max(old_map),
-	    pmap_pinit);
+	vm2 = vmspace_alloc(vm_map_min(old_map), vm_map_max(old_map), pmap_pinit);
 	if (vm2 == NULL)
 		return (NULL);
 
@@ -4344,7 +4360,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 		vm_map_wait_busy(old_map);
 	new_map = &vm2->vm_map;
 	locked = vm_map_trylock(new_map); /* trylock to silence WITNESS */
-	KASSERT(locked, ("vmspace_fork: lock failed"));
+	KASSERT(locked, ("%s: lock failed", __func__)); //wyc
 
 	error = pmap_vmspace_copy(new_map->pmap, old_map->pmap);
 	if (error != 0) {
@@ -4410,7 +4426,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				vm_object_clear_flag(object, OBJ_ONEMAPPING);
 				if (old_entry->cred != NULL) {
 					KASSERT(object->cred == NULL,
-					    ("vmspace_fork both cred"));
+					    ("%s: both cred", __func__)); //wyc
 					object->cred = old_entry->cred;
 					object->charge = old_entry->end -
 					    old_entry->start;
@@ -4427,11 +4443,11 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				    object->type == OBJT_VNODE) {
 					KASSERT(((struct vnode *)object->
 					    handle)->v_writecount > 0,
-					    ("vmspace_fork: v_writecount %p",
+					    ("%s: v_writecount %p", __func__, //wyc
 					    object));
 					KASSERT(object->un_pager.vnp.
 					    writemappings > 0,
-					    ("vmspace_fork: vnp.writecount %p",
+					    ("%s: vnp.writecount %p", __func__, //wyc
 					    object));
 				}
 				VM_OBJECT_WUNLOCK(object);
@@ -4948,6 +4964,7 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 	return (0);
 }
 
+#if 0 //wyc this code is never reached
 /*
  * Unshare the specified VM space for forcing COW.  This
  * is called by rfork, for the (RFMEM|RFPROC) == 0 case.
@@ -4981,6 +4998,7 @@ vmspace_unshare(struct proc *p)
 	vmspace_free(oldvmspace);
 	return (0);
 }
+#endif
 
 /*
  *	vm_map_lookup:
@@ -5266,14 +5284,14 @@ vm_map_lookup_done(vm_map_t map, vm_map_entry_t entry)
 }
 
 vm_offset_t
-vm_map_max_KBI(const struct vm_map *map)
+vm_map_max_KBI(const struct _vm_map *map)
 {
 
 	return (vm_map_max(map));
 }
 
 vm_offset_t
-vm_map_min_KBI(const struct vm_map *map)
+vm_map_min_KBI(const struct _vm_map *map)
 {
 
 	return (vm_map_min(map));

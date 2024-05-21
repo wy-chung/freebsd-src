@@ -68,7 +68,7 @@ typedef struct pv_entry {
 #define	_NPCPV	336
 #define	_NPAD	0
 #endif
-#elif PAGE_SIZE == 16 * 1024
+#elif 0 //PAGE_SIZE == 16 * 1024
 #ifdef __LP64__
 #define	_NPCPV	677
 #define	_NPAD	1
@@ -91,15 +91,29 @@ typedef struct pv_entry {
 #define	PV_CHUNK_HEADER							\
 	struct pmap		*pc_pmap;				\
 	TAILQ_ENTRY(pv_chunk)	pc_list;				\
-	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */	\
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
+	TAILQ_ENTRY(pv_chunk)	pc_lru;					\
+	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 
 struct pv_chunk_header {
+#if !defined(WYC)
 	PV_CHUNK_HEADER
+#else
+	struct pmap		*pc_pmap;
+	TAILQ_ENTRY(pv_chunk)	pc_list;
+	TAILQ_ENTRY(pv_chunk)	pc_lru;
+	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
+#endif
 };
 
 struct pv_chunk {
+#if !defined(WYC)
 	PV_CHUNK_HEADER
+#else
+	struct pmap		*pc_pmap;
+	TAILQ_ENTRY(pv_chunk)	pc_list; // for pmap.pm_pvchunk list
+	TAILQ_ENTRY(pv_chunk)	pc_lru;  // for pv_chunks[0] list
+	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
+#endif
 	struct pv_entry		pc_pventry[_NPCPV];
 	unsigned long		pc_pad[_NPAD];
 };
@@ -133,8 +147,15 @@ pv_to_chunk(pv_entry_t pv)
 {
 	return ((struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK));
 }
-
+#if !defined(WYC)
 #define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
+#else
+struct pmap *PV_PMAP(pv_entry_t pv)
+{
+	struct pv_chunk *chunk = pv_to_chunk(pv);
+	return chunk->pc_pmap;
+}
+#endif
 #endif
 
 #endif /* !__SYS__PV_ENTRY_H__ */

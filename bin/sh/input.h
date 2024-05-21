@@ -44,7 +44,7 @@ extern int parsenleft;		/* number of characters left in input buffer */
 extern const char *parsenextc;	/* next character in input buffer */
 
 struct alias;
-struct parsefile;
+struct _parsefile;
 
 void resetinput(void);
 int pgetc(void);
@@ -52,12 +52,12 @@ int preadbuffer(void);
 int preadateof(void);
 void pungetc(void);
 void pushstring(const char *, int, struct alias *);
-void setinputfile(const char *, int, int);
-void setinputfd(int, int);
-void setinputstring(const char *, int);
+void setinputfile(const char *, bool, int);
+void setinputfd(int fd, bool push);
+void setinputstring(const char *string, bool push);
 void popfile(void);
-struct parsefile *getcurrentfile(void);
-void popfilesupto(struct parsefile *);
+struct _parsefile *getcurrentfile(void);
+void popfilesupto(struct _parsefile *);
 void popallfiles(void);
 void closescript(void);
 

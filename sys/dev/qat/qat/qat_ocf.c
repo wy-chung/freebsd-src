@@ -558,7 +558,7 @@ qat_ocf_newsession(device_t dev,
 	struct qat_ocf_softc *qat_softc;
 	struct qat_ocf_dsession *qat_dsession;
 	struct qat_ocf_instance *qat_instance;
-	u_int cpu_id = PCPU_GET(cpuid);
+	u_int cpu_id = PCPU_GET(pc_cpuid);
 
 	/* Create cryptodev session */
 	qat_softc = device_get_softc(dev);

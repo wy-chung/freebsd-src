@@ -45,7 +45,6 @@ static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
 /*
  * Shell variables.
  */
-
 #include <locale.h>
 #include <langinfo.h>
 
@@ -97,7 +96,7 @@ static struct var voptind;
 struct var vdisvfork;
 
 struct localvar *localvars;
-int forcelocal;
+_Thread_local int forcelocal; // not boolean
 
 static const struct varinit varinit[] = {
 #ifndef NO_HISTORY
@@ -152,7 +151,6 @@ extern char **environ;
  * This routine initializes the builtin variables and imports the environment.
  * It is called when the shell is initialized.
  */
-
 void
 initvar(void)
 {
@@ -194,7 +192,6 @@ initvar(void)
 /*
  * Safe version of setvar, returns 1 on success 0 on failure.
  */
-
 int
 setvarsafe(const char *name, const char *val, int flags)
 {
@@ -204,9 +201,9 @@ setvarsafe(const char *name, const char *val, int flags)
 	int inton;
 
 	inton = is_int_on();
-	if (setjmp(jmploc.loc))
+	if (setjmp(jmploc.loc)) { // return from longjmp
 		err = 1;
-	else {
+	} else { // return from setjmp
 		handler = &jmploc;
 		setvar(name, val, flags);
 	}
@@ -219,7 +216,6 @@ setvarsafe(const char *name, const char *val, int flags)
  * Set the value of a variable.  The flags argument is stored with the
  * flags of the variable.  If val is NULL, the variable is unset.
  */
-
 void
 setvar(const char *name, const char *val, int flags)
 {
@@ -285,7 +281,6 @@ localevar(const char *s)
 	return 0;
 }
 
-
 /*
  * Sets/unsets an environment variable from a pointer that may actually be a
  * pointer into environ where the string should not be manipulated.
@@ -310,14 +305,12 @@ change_env(const char *s, int set)
 	return;
 }
 
-
 /*
  * Same as setvar except that the variable and value are passed in
  * the first argument as name=value.  Since the first argument will
  * be actually stored in the table, it should not be a string that
  * will go away.
  */
-
 void
 setvareq(char *s, int flags)
 {
@@ -362,7 +355,7 @@ setvareq(char *s, int flags)
 		 */
 		if ((vp == &vmpath || (vp == &vmail && ! mpathset())) &&
 		    iflag == 1)
-			chkmail(1);
+			chkmail(true);
 		if ((vp->flags & VEXPORT) && localevar(s)) {
 			change_env(s, 1);
 			(void) setlocale(LC_ALL, "");
@@ -393,18 +386,15 @@ setvareq(char *s, int flags)
 	INTON;
 }
 
-
 static void
 setvareq_const(const char *s, int flags)
 {
 	setvareq(__DECONST(char *, s), flags | VTEXTFIXED);
 }
 
-
 /*
  * Process a linked list of variable assignments.
  */
-
 void
 listsetvar(struct arglist *list, int flags)
 {
@@ -416,12 +406,9 @@ listsetvar(struct arglist *list, int flags)
 	INTON;
 }
 
-
-
 /*
  * Find the value of a variable.  Returns NULL if not set.
  */
-
 char *
 lookupvar(const char *name)
 {
@@ -433,14 +420,11 @@ lookupvar(const char *name)
 	return v->text + v->name_len + 1;
 }
 
-
-
 /*
  * Search the environment of a builtin command.  If the second argument
  * is nonzero, return the value of a variable even if it hasn't been
  * exported.
  */
-
 char *
 bltinlookup(const char *name, int doall)
 {
@@ -462,7 +446,6 @@ bltinlookup(const char *name, int doall)
 		return NULL;
 	return v->text + v->name_len + 1;
 }
-
 
 /*
  * Set up locale for a builtin (LANG/LC_* assignments).
@@ -544,7 +527,6 @@ initcharset(void)
  * Generate a list of exported variables.  This routine is used to construct
  * the third argument to execve when executing a program.
  */
-
 char **
 environment(void)
 {
@@ -569,7 +551,6 @@ environment(void)
 	return env;
 }
 
-
 static int
 var_compare(const void *a, const void *b)
 {
@@ -585,12 +566,10 @@ var_compare(const void *a, const void *b)
 	return strcoll(*sa, *sb);
 }
 
-
 /*
  * Command to list all variables which are set.  This is invoked from the
  * set command when it is called without any options or operands.
  */
-
 int
 showvarscmd(int argc __unused, char **argv __unused)
 {
@@ -641,14 +620,11 @@ showvarscmd(int argc __unused, char **argv __unused)
 	return 0;
 }
 
-
-
 /*
  * The export and readonly commands.
  */
-
 int
-exportcmd(int argc __unused, char **argv)
+exportcmd(int argc __unused, char **argv) // refer to builtins.def
 {
 	struct var **vpp;
 	struct var *vp;
@@ -720,13 +696,11 @@ exportcmd(int argc __unused, char **argv)
 	return 0;
 }
 
-
 /*
  * The "local" command.
  */
-
 int
-localcmd(int argc __unused, char **argv __unused)
+localcmd(int argc __unused, char **argv __unused) // refer to builtins.def
 {
 	char *name;
 
@@ -739,14 +713,12 @@ localcmd(int argc __unused, char **argv __unused)
 	return 0;
 }
 
-
 /*
  * Make a variable a local variable.  When a variable is made local, it's
  * value and flags are saved in a localvar structure.  The saved values
  * will be restored when the shell function returns.  We handle the name
  * "-" as a special case.
  */
-
 void
 mklocal(char *name)
 {
@@ -784,11 +756,9 @@ mklocal(char *name)
 	INTON;
 }
 
-
 /*
  * Called after a function returns.
  */
-
 void
 poplocalvars(void)
 {
@@ -828,9 +798,8 @@ poplocalvars(void)
 	INTON;
 }
 
-
 int
-setvarcmd(int argc, char **argv)
+setvarcmd(int argc, char **argv) // refer to builtins.def
 {
 	if (argc <= 2)
 		return unsetcmd(argc, argv);
@@ -841,13 +810,11 @@ setvarcmd(int argc, char **argv)
 	return 0;
 }
 
-
 /*
  * The unset builtin command.
  */
-
 int
-unsetcmd(int argc __unused, char **argv __unused)
+unsetcmd(int argc __unused, char **argv __unused) // refer to builtins.def
 {
 	char **ap;
 	int i;
@@ -875,12 +842,10 @@ unsetcmd(int argc __unused, char **argv __unused)
 	return ret;
 }
 
-
 /*
  * Unset the specified variable.
  * Called with interrupts off.
  */
-
 int
 unsetvar(const char *s)
 {
@@ -910,14 +875,11 @@ unsetvar(const char *s)
 	return (0);
 }
 
-
-
 /*
  * Returns true if the two strings specify the same variable.  The first
  * variable name is terminated by '='; the second may be terminated by
  * either '=' or '\0'.
  */
-
 static int
 varequal(const char *p, const char *q)
 {
@@ -936,7 +898,6 @@ varequal(const char *p, const char *q)
  * vppp is set to the pointer to vp, or the list head if vp isn't found
  * lenp is set to the number of characters in 'name'
  */
-
 static struct var *
 find_var(const char *name, struct var ***vppp, int *lenp)
 {

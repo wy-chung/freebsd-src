@@ -1584,7 +1584,7 @@ vm_handle_paging(struct vcpu *vcpu, bool *retu)
 {
 	struct vm *vm = vcpu->vm;
 	int rv, ftype;
-	struct vm_map *map;
+	struct _vm_map *map;
 	struct vm_exit *vme;
 
 	vme = &vcpu->exitinfo;
@@ -1922,7 +1922,7 @@ restart:
 
 	tscval = rdtsc();
 
-	pcb = PCPU_GET(curpcb);
+	pcb = PCPU_GET(pc_curpcb);
 	set_pcb_flags(pcb, PCB_FULL_IRET);
 
 	restore_guest_fpustate(vcpu);

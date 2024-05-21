@@ -50,7 +50,7 @@ static int	hw_instruction_sse;
 SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
     &hw_instruction_sse, 0, "SIMD/MMX2 instructions available in CPU");
 static int	lower_sharedpage_init;
-int		hw_lower_amd64_sharedpage;
+int		hw_lower_amd64_sharedpage; // == 0
 SYSCTL_INT(_hw, OID_AUTO, lower_amd64_sharedpage, CTLFLAG_RDTUN,
     &hw_lower_amd64_sharedpage, 0,
    "Lower sharedpage to work around Ryzen issue with executing code near the top of user memory");
@@ -246,7 +246,7 @@ u_int
 cpu_auxmsr(void)
 {
 	KASSERT((read_rflags() & PSL_I) == 0, ("context switch possible"));
-	return (PCPU_GET(cpuid));
+	return (PCPU_GET(pc_cpuid));
 }
 
 void
@@ -261,10 +261,10 @@ cpu_init_small_core(void)
 	if ((r[0] & CPUID_HYBRID_CORE_MASK) != CPUID_HYBRID_SMALL_CORE)
 		return;
 
-	PCPU_SET(small_core, 1);
+	PCPU_SET(pc_small_core, 1);
 	if (pmap_pcid_enabled && invpcid_works &&
 	    pmap_pcid_invlpg_workaround_uena) {
-		PCPU_SET(pcid_invlpg_workaround, 1);
+		PCPU_SET(pc_pcid_invlpg_workaround, 1);
 		pmap_pcid_invlpg_workaround = 1;
 	}
 }
@@ -284,12 +284,12 @@ initializecpu(void)
 		cr4 |= CR4_FXSR | CR4_XMM;
 		hw_instruction_sse = 1;
 	}
-	if (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE)
+	if (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) //qemu false
 		cr4 |= CR4_FSGSBASE;
 
 	if (cpu_stdext_feature2 & CPUID_STDEXT2_PKU)
 		cr4 |= CR4_PKE;
-
+	//qemu cr4 == 0x620 == {CR4_XMM, CR4_FXSR, CR4_PAE}
 	/*
 	 * If SMEP is present, we only need to flush RSB (by default)
 	 * on context switches, to prevent cross-process ret2spec

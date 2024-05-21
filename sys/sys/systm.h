@@ -260,7 +260,7 @@ void	*SAN_INTERCEPTOR(memset)(void *, int, size_t);
 void	*SAN_INTERCEPTOR(memcpy)(void *, const void *, size_t);
 void	*SAN_INTERCEPTOR(memmove)(void *, const void *, size_t);
 int	SAN_INTERCEPTOR(memcmp)(const void *, const void *, size_t);
-#ifndef SAN_RUNTIME
+ #ifndef SAN_RUNTIME
 #define bcopy(from, to, len)	SAN_INTERCEPTOR(memmove)((to), (from), (len))
 #define bzero(buf, len)		SAN_INTERCEPTOR(memset)((buf), 0, (len))
 #define bcmp(b1, b2, len)	SAN_INTERCEPTOR(memcmp)((b1), (b2), (len))
@@ -268,7 +268,7 @@ int	SAN_INTERCEPTOR(memcmp)(const void *, const void *, size_t);
 #define memcpy(to, from, len)	SAN_INTERCEPTOR(memcpy)((to), (from), (len))
 #define memmove(dest, src, n)	SAN_INTERCEPTOR(memmove)((dest), (src), (n))
 #define memcmp(b1, b2, len)	SAN_INTERCEPTOR(memcmp)((b1), (b2), (len))
-#endif /* !SAN_RUNTIME */
+ #endif /* !SAN_RUNTIME */
 #else /* !SAN_NEEDS_INTERCEPTORS */
 #define bcopy(from, to, len)	__builtin_memmove((to), (from), (len))
 #define bzero(buf, len)		__builtin_memset((buf), 0, (len))

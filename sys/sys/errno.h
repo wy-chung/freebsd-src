@@ -47,6 +47,7 @@ __END_DECLS
 #define	errno		(* __error())
 #endif
 
+#define ESUCCESS	0		// Operation is successful
 #define	EPERM		1		/* Operation not permitted */
 #define	ENOENT		2		/* No such file or directory */
 #define	ESRCH		3		/* No such process */

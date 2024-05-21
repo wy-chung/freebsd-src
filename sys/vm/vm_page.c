@@ -187,8 +187,6 @@ static int vm_page_zone_import(void *arg, void **store, int cnt, int domain,
     int flags);
 static void vm_page_zone_release(void *arg, void **store, int cnt);
 
-SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
-
 static void
 vm_page_init(void *dummy)
 {
@@ -197,6 +195,7 @@ vm_page_init(void *dummy)
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	bogus_page = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 }
+SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
 
 static int pgcache_zone_max_pcpu;
 SYSCTL_INT(_vm, OID_AUTO, pgcache_zone_max_pcpu,
@@ -499,7 +498,7 @@ vm_page_domain_init(int domain)
  * lists.
  */
 void
-vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
+vm_page_init_page(struct vm_page *m, vm_paddr_t pa, int segind)
 {
 
 	m->object = NULL;
@@ -554,7 +553,7 @@ vm_page_startup(vm_offset_t vaddr)
 {
 	struct vm_phys_seg *seg;
 	struct vm_domain *vmd;
-	vm_page_t m;
+	struct vm_page *m;
 	char *list, *listend;
 	vm_paddr_t end, high_avail, low_avail, new_end, size;
 	vm_paddr_t page_range __unused;
@@ -1224,12 +1223,12 @@ PHYS_TO_VM_PAGE(vm_paddr_t pa)
 {
 	vm_page_t m;
 
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // false
 	m = vm_phys_paddr_to_vm_page(pa);
 	if (m == NULL)
 		m = vm_phys_fictitious_to_vm_page(pa);
 	return (m);
-#elif defined(VM_PHYSSEG_DENSE)
+#elif defined(VM_PHYSSEG_DENSE) // true
 	long pi;
 
 	pi = atop(pa);

@@ -31,7 +31,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if !defined(WYC)
 #define	__ELF_WORD_SIZE	64
+#endif
 
 #include <sys/param.h>
 #include <sys/exec.h>
@@ -242,8 +244,8 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	regs = td->td_frame;
 	pcb = td->td_pcb;
 
-	if (td->td_proc->p_md.md_ldt != NULL)
-		user_ldt_free(td);
+	//if (td->td_proc->p_md.md_ldt != NULL) //wyc false. It is NULL indeed
+	//	user_ldt_free(td);
 
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
@@ -716,7 +718,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_ontdexit	= linux_thread_dtor,
 	.sv_setid_allowed = &linux_setid_allowed_query,
 	.sv_set_fork_retval = linux_set_fork_retval,
-};
+}; // elf_linux_sysvec
 
 static int
 linux_on_exec_vmspace(struct proc *p, struct image_params *imgp)

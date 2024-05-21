@@ -61,12 +61,12 @@ breakpoint(void)
 	__asm __volatile("int $3");
 }
 
+// __builtin_ctz: Returns the number of trailing 0-bits, starting at the least significant bit position
 #define	bsfl(mask)	__builtin_ctz(mask)
-
 #define	bsfq(mask)	__builtin_ctzl(mask)
 
+// __builtin_clz: Returns the number of leading 0-bits, starting at the most significant bit position
 #define	bsrl(mask)	(__builtin_clz(mask) ^ 0x1f)
-
 #define	bsrq(mask)	(__builtin_clzl(mask) ^ 0x3f)
 
 static __inline void
@@ -471,8 +471,10 @@ invltlb(void)
 	load_cr3(rcr3());
 }
 
+#if !defined(WYC)
 #ifndef CR4_PGE
 #define	CR4_PGE	0x00000080	/* Page global enable */
+#endif
 #endif
 
 /*
@@ -554,13 +556,13 @@ rss(void)
 }
 
 static __inline void
-load_ds(u_short sel)
+load_ds(u_short sel) // write to ds
 {
 	__asm __volatile("movw %0,%%ds" : : "rm" (sel));
 }
 
 static __inline void
-load_es(u_short sel)
+load_es(u_short sel) // write to es
 {
 	__asm __volatile("movw %0,%%es" : : "rm" (sel));
 }
@@ -598,8 +600,10 @@ wrpkru(uint32_t mask)
 
 #ifdef _KERNEL
 /* This is defined in <machine/specialreg.h> but is too painful to get to */
-#ifndef	MSR_FSBASE
-#define	MSR_FSBASE	0xc0000100
+#if !defined(WYC)
+ #ifndef	MSR_FSBASE
+ #define	MSR_FSBASE	0xc0000100
+ #endif
 #endif
 static __inline void
 load_fs(u_short sel)
@@ -609,11 +613,13 @@ load_fs(u_short sel)
 	    : : "rm" (sel), "c" (MSR_FSBASE) : "eax", "edx");
 }
 
-#ifndef	MSR_GSBASE
-#define	MSR_GSBASE	0xc0000101
+#if !defined(WYC)
+ #ifndef	MSR_GSBASE
+ #define	MSR_GSBASE	0xc0000101
+ #endif
 #endif
 static __inline void
-load_gs(u_short sel)
+load_gs(u_short sel) // for PCPU
 {
 	/*
 	 * Preserve the gsbase value across the selector load.

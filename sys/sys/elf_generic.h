@@ -82,6 +82,31 @@ __ElfType(Hashelt);
 __ElfType(Size);
 __ElfType(Ssize);
 
+#if defined(WYC)
+typedef Elf64_Addr	Elf_Addr;
+typedef Elf64_Half	Elf_Half;
+typedef Elf64_Off	Elf_Off;
+typedef Elf64_Sword	Elf_Sword;
+typedef Elf64_Word	Elf_Word;
+typedef Elf64_Ehdr	Elf_Ehdr;
+typedef Elf64_Shdr	Elf_Shdr;
+typedef Elf64_Phdr	Elf_Phdr;
+typedef Elf64_Dyn	Elf_Dyn;
+typedef Elf64_Rel	Elf_Rel;
+typedef Elf64_Rela	Elf_Rela;
+typedef Elf64_Relr	Elf_Relr;
+typedef Elf64_Sym	Elf_Sym;
+typedef Elf64_Verdef	Elf_Verdef;
+typedef Elf64_Verdaux	Elf_Verdaux;
+typedef Elf64_Verneed	Elf_Verneed;
+typedef Elf64_Vernaux	Elf_Vernaux;
+typedef Elf64_Versym	Elf_Versym;
+
+typedef Elf64_Hashelt	Elf_Hashelt;
+typedef Elf64_Size	Elf_Size;
+typedef Elf64_Ssize	Elf_Ssize;
+#endif
+
 #define	ELF_R_SYM	__ELFN(R_SYM)
 #define	ELF_R_TYPE	__ELFN(R_TYPE)
 #define	ELF_R_INFO	__ELFN(R_INFO)

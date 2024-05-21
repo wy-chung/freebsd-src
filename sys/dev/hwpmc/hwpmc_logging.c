@@ -64,7 +64,7 @@
 #include <machine/clock.h>
 #endif
 
-#define curdomain PCPU_GET(domain)
+#define curdomain PCPU_GET(pc_domain)
 
 /*
  * Sysctl tunables

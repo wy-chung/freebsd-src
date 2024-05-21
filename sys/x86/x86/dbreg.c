@@ -118,7 +118,7 @@ dbreg_sync(struct dbreg *dp)
 	struct pcpu *pc;
 	int cpu, c;
 
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(pc_cpuid);
 	CPU_FOREACH(c) {
 		if (c == cpu)
 			continue;
@@ -136,7 +136,7 @@ dbreg_set_watchpoint(vm_offset_t addr, vm_size_t size, int access)
 	int avail, i, wsize;
 
 #ifdef __amd64__
-	d = (struct dbreg *)PCPU_PTR(dbreg);
+	d = (struct dbreg *)PCPU_PTR(pc_dbreg);
 #else
 	/* debug registers aren't stored in PCPU on i386. */
 	struct dbreg d_temp;
@@ -192,7 +192,7 @@ dbreg_clr_watchpoint(vm_offset_t addr, vm_size_t size)
 	int i;
 
 #ifdef __amd64__
-	d = (struct dbreg *)PCPU_PTR(dbreg);
+	d = (struct dbreg *)PCPU_PTR(pc_dbreg);
 #else
 	/* debug registers aren't stored in PCPU on i386. */
 	struct dbreg d_temp;
@@ -264,11 +264,11 @@ amd64_db_resume_dbreg(void)
 {
 	struct dbreg *d;
 
-	switch (PCPU_GET(dbreg_cmd)) {
+	switch (PCPU_GET(pc_dbreg_cmd)) {
 	case PC_DBREG_CMD_LOAD:
-		d = (struct dbreg *)PCPU_PTR(dbreg);
+		d = (struct dbreg *)PCPU_PTR(pc_dbreg);
 		set_dbregs(NULL, d);
-		PCPU_SET(dbreg_cmd, PC_DBREG_CMD_NONE);
+		PCPU_SET(pc_dbreg_cmd, PC_DBREG_CMD_NONE);
 		break;
 	}
 }

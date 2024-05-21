@@ -98,9 +98,9 @@
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-struct vm_map kernel_map_store;
-struct vm_map exec_map_store;
-struct vm_map pipe_map_store;
+struct _vm_map kernel_map_store;
+struct _vm_map exec_map_store;
+struct _vm_map pipe_map_store;
 
 const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
@@ -777,13 +777,13 @@ kva_import_domain(void *arena, vmem_size_t size, int flags, vmem_addr_t *addrp)
  *	Create the kernel vmem arena and its per-domain children.
  */
 void
-kmem_init(vm_offset_t start, vm_offset_t end)
+kmem_init(vm_offset_t start, vm_offset_t end) // end == -1
 {
 	vm_size_t quantum;
 	int domain;
 
 	vm_map_init(kernel_map, kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
-	kernel_map->system_map = 1;
+	kernel_map->system_map = TRUE;
 	vm_map_lock(kernel_map);
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
 	(void)vm_map_insert(kernel_map, NULL, 0,

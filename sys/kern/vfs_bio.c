@@ -1611,7 +1611,7 @@ binsfree(struct buf *bp, int qindex)
 	bd = bufdomain(bp);
 	if (qindex == QUEUE_CLEAN) {
 		if (bd->bd_lim != 0)
-			bq = &bd->bd_subq[PCPU_GET(cpuid)];
+			bq = &bd->bd_subq[PCPU_GET(pc_cpuid)];
 		else
 			bq = bd->bd_cleanq;
 	} else

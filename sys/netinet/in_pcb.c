@@ -459,7 +459,7 @@ in_pcblbgroup_numa(struct inpcb *inp, int arg)
 		numa_domain = M_NODOM;
 		break;
 	case TCP_REUSPORT_LB_NUMA_CURDOM:
-		numa_domain = PCPU_GET(domain);
+		numa_domain = PCPU_GET(pc_domain);
 		break;
 	default:
 		if (arg < 0 || arg >= vm_ndomains)

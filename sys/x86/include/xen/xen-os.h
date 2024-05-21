@@ -58,7 +58,7 @@ XEN_CPUID_TO_VCPUID(u_int cpuid)
 	return (pcpu_find(cpuid)->pc_vcpu_id);
 }
 
-#define	XEN_VCPUID()	PCPU_GET(vcpu_id)
+#define	XEN_VCPUID()	PCPU_GET(pc_vcpu_id)
 
 static inline bool
 xen_has_percpu_evtchn(void)

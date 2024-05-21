@@ -29,7 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)mail.c	8.2 (Berkeley) 5/4/95";
@@ -50,28 +49,20 @@ static char sccsid[] = "@(#)mail.c	8.2 (Berkeley) 5/4/95";
 #include <sys/stat.h>
 #include <stdlib.h>
 
-
 #define MAXMBOXES 10
-
 
 static int nmboxes;			/* number of mailboxes */
 static time_t mailtime[MAXMBOXES];	/* times of mailboxes */
-
-
 
 /*
  * Print appropriate message(s) if mail has arrived.  If the argument is
  * nozero, then the value of MAIL has changed, so we just update the
  * values.
  */
-
 void
-chkmail(int silent)
+chkmail(bool silent)
 {
 	int i;
-	char *mpath;
-	char *p;
-	char *msg;
 	struct stackmark smark;
 	struct stat statb;
 
@@ -80,9 +71,9 @@ chkmail(int silent)
 	if (nmboxes == 0)
 		return;
 	setstackmark(&smark);
-	mpath = stsavestr(mpathset()? mpathval() : mailval());
+	char *mpath = stsavestr(mpathset()? mpathval() : mailval());
 	for (i = 0 ; i < nmboxes ; i++) {
-		p = mpath;
+		char *p = mpath;
 		if (*p == '\0')
 			break;
 		mpath = strchrnul(mpath, ':');
@@ -91,7 +82,7 @@ chkmail(int silent)
 			if (p == mpath - 1)
 				continue;
 		}
-		msg = strchr(p, '%');
+		char *msg = strchr(p, '%');
 		if (msg != NULL)
 			*msg++ = '\0';
 #ifdef notdef /* this is what the System V shell claims to do (it lies) */

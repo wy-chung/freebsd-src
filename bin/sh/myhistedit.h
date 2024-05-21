@@ -35,7 +35,7 @@
 
 extern History *hist;
 extern EditLine *el;
-extern int displayhist;
+extern bool displayhist;
 
 #include <filecomplete.h>
 

@@ -77,13 +77,13 @@ struct mdthread {
 	register_t md_efirt_tmp;	/* (k) */
 	int	md_efirt_dis_pf;	/* (k) */
 	struct pcb md_pcb;
-	vm_offset_t md_stack_base;
+	vm_offset_t md_stack_base;	// the base address of the stack. nb, stack grows towards 0
 	void *md_usr_fpu_save;
 };
 
 struct mdproc {
-	struct proc_ldt *md_ldt;	/* (t) per-process ldt */
-	struct system_segment_descriptor md_ldt_sd;
+	struct proc_ldt *md_ldt;	/* (t) per-process ldt */	//wyc cannot remove, assertion fail
+	struct system_segment_descriptor md_ldt_sd;			//wyc cannot remove, assertion fail
 	u_int md_flags;			/* (c) md process flags P_MD */
 };
 
@@ -104,7 +104,7 @@ int amd64_set_ldt_data(struct thread *td, int start, int num,
     struct user_segment_descriptor *descs);
 
 extern struct mtx dt_lock;
-extern int max_ldt_segment;
+//extern int max_ldt_segment;
 
 #define	NARGREGS	6
 
