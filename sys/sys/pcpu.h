@@ -33,7 +33,7 @@
 #ifndef _SYS_PCPU_H_
 #define	_SYS_PCPU_H_
 
-#ifdef LOCORE
+#ifdef LOCORE // LOCORE means "don't declare C stuff"
 #error "no assembler-serviceable parts inside"
 #endif
 

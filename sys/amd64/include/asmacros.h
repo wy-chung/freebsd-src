@@ -76,7 +76,7 @@
 #define POP_FRAME_POINTER	\
 	popq	%rbp
 
-#ifdef LOCORE
+#ifdef LOCORE // LOCORE means "don't declare C stuff"
 /*
  * Access per-CPU data.
  */

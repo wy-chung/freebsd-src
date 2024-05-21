@@ -634,8 +634,7 @@ ssdtosyssd(struct soft_segment_descriptor *ssd, struct system_segment_descriptor
 u_int basemem;
 
 static int
-add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
-    int *physmap_idxp)
+add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap, int *physmap_idxp)
 {
 	int i, insert_idx, physmap_idx;
 
@@ -834,10 +833,8 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 	 * ie: an int32_t immediately precedes smap.
 	 */
 
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
-	smap = (struct bios_smap *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_SMAP);
+	efihdr = (struct efi_map_header *)preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	smap = (struct bios_smap *)preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_SMAP);
 	if (efihdr == NULL && smap == NULL)
 		panic("No BIOS smap or EFI map info from loader!");
 
@@ -900,8 +897,7 @@ getmemsize(caddr_t kmdp, u_int64_t first) // < hammer_time < btext
 	}
 	if (basemem == 0 || basemem > 640) {
 		if (bootverbose)
-			printf(
-		"Memory map doesn't contain a basemem segment, faking it");
+			printf("Memory map doesn't contain a basemem segment, faking it");
 		basemem = 640;
 	}
 
@@ -1334,8 +1330,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree) // < btext
 		panic("%s: wyctest", __func__); // pass
 	kmdp = native_parse_preload_data(modulep);
 
-	efi_boot = preload_search_info(kmdp, MODINFO_METADATA |
-	    MODINFOMD_EFI_MAP) != NULL;
+	efi_boot = preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP) != NULL;
 
 	if (!efi_boot) {
 		/* Tell the bios to warmboot next time */
@@ -1512,19 +1507,16 @@ hammer_time(u_int64_t modulep, u_int64_t physfree) // < btext
 	TUNABLE_INT_FETCH("hw.spec_store_bypass_disable", &hw_ssb_disable);
 	TUNABLE_INT_FETCH("machdep.mitigations.ssb.disable", &hw_ssb_disable);
 
-	TUNABLE_INT_FETCH("machdep.syscall_ret_flush_l1d",
-	    &syscall_ret_l1d_flush_mode);
+	TUNABLE_INT_FETCH("machdep.syscall_ret_flush_l1d", &syscall_ret_l1d_flush_mode);
 
 	TUNABLE_INT_FETCH("hw.mds_disable", &hw_mds_disable);
 	TUNABLE_INT_FETCH("machdep.mitigations.mds.disable", &hw_mds_disable);
 
 	TUNABLE_INT_FETCH("machdep.mitigations.taa.enable", &x86_taa_enable);
 
-	TUNABLE_INT_FETCH("machdep.mitigations.rngds.enable",
-	    &x86_rngds_mitg_enable);
+	TUNABLE_INT_FETCH("machdep.mitigations.rngds.enable", &x86_rngds_mitg_enable);
 
-	TUNABLE_INT_FETCH("machdep.mitigations.zenbleed.enable",
-	    &zenbleed_enable);
+	TUNABLE_INT_FETCH("machdep.mitigations.zenbleed.enable", &zenbleed_enable);
 	zenbleed_sanitize_enable();
 
 	finishidentcpu();	/* Final stage of CPU initialization */
