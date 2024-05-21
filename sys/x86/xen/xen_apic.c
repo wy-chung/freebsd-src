@@ -125,7 +125,7 @@ send_nmi(int dest)
 	 */
 	switch(dest) {
 	case APIC_IPI_DEST_SELF:
-		rc = HYPERVISOR_vcpu_op(VCPUOP_send_nmi, PCPU_GET(vcpu_id), NULL);
+		rc = HYPERVISOR_vcpu_op(VCPUOP_send_nmi, PCPU_GET(pc_vcpu_id), NULL);
 		break;
 	case APIC_IPI_DEST_ALL:
 		CPU_FOREACH(cpu) {
@@ -137,7 +137,7 @@ send_nmi(int dest)
 		break;
 	case APIC_IPI_DEST_OTHERS:
 		CPU_FOREACH(cpu) {
-			if (cpu != PCPU_GET(cpuid)) {
+			if (cpu != PCPU_GET(pc_cpuid)) {
 				rc = HYPERVISOR_vcpu_op(VCPUOP_send_nmi,
 				    PCPU_ID_GET(cpu, vcpu_id), NULL);
 				if (rc != 0)
@@ -194,7 +194,7 @@ xen_pv_lapic_ipi_vectored(u_int vector, int dest)
 		}
 		break;
 	case APIC_IPI_DEST_OTHERS:
-		self = PCPU_GET(cpuid);
+		self = PCPU_GET(pc_cpuid);
 		CPU_FOREACH(to_cpu) {
 			if (to_cpu != self) {
 				ipi_handle = DPCPU_ID_GET(to_cpu, ipi_handle);
@@ -228,7 +228,7 @@ static int
 xen_smp_rendezvous_action(void *arg)
 {
 #ifdef COUNT_IPIS
-	(*ipi_rendezvous_counts[PCPU_GET(cpuid)])++;
+	(*ipi_rendezvous_counts[PCPU_GET(pc_cpuid)])++;
 #endif /* COUNT_IPIS */
 
 	smp_rendezvous_action();

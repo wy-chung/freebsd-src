@@ -60,14 +60,14 @@ static __inline uint64_t
 vmm_get_host_trbase(void)
 {
 
-	return ((uint64_t)PCPU_GET(tssp));
+	return ((uint64_t)PCPU_GET(pc_tssp));
 }
 
 static __inline uint64_t
 vmm_get_host_gdtrbase(void)
 {
 
-	return ((uint64_t)*PCPU_PTR(gdt));
+	return ((uint64_t)*PCPU_PTR(pc_gdt));
 }
 
 static __inline uint64_t

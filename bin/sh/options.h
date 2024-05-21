@@ -44,27 +44,25 @@ struct shparam {
 	char *optptr;		/* used by getopts */
 };
 
-
-
-#define eflag optval[0]
-#define fflag optval[1]
-#define Iflag optval[2]
-#define iflag optval[3]
-#define mflag optval[4]
-#define nflag optval[5]
-#define sflag optval[6]
-#define xflag optval[7]
-#define vflag optval[8]
-#define Vflag optval[9]
-#define	Eflag optval[10]
-#define	Cflag optval[11]
-#define	aflag optval[12]
-#define	bflag optval[13]
-#define	uflag optval[14]
-#define	privileged optval[15]
-#define	Tflag optval[16]
-#define	Pflag optval[17]
-#define	hflag optval[18]
+#define eflag optval[0] // Exit immediately if any untested command fails in non-interactive mode
+#define fflag optval[1] // Disable pathname expansion
+#define Iflag optval[2] // ignoreeof
+#define iflag optval[3] // interactive
+#define mflag optval[4] // monitor: Turn on job control
+#define nflag optval[5] // noexec, read commands but do not execute them
+#define sflag optval[6] // stdin
+#define xflag optval[7] // xtrace
+#define vflag optval[8] // verbose
+#define Vflag optval[9] // vi
+#define	Eflag optval[10] // emacs
+#define	Cflag optval[11] // noclobber
+#define	aflag optval[12] // allexport
+#define	bflag optval[13] // notify (UNIMPLEMENTED)
+#define	uflag optval[14] // nounset
+#define	privileged optval[15] // privileged
+#define	Tflag optval[16] // trapsasync
+#define	Pflag optval[17] // physical
+#define	hflag optval[18] //  A do-nothing option for POSIX compliance
 #define	nologflag optval[19]
 #define	pipefailflag optval[20]
 #define	verifyflag optval[21]
@@ -74,7 +72,7 @@ struct shparam {
 
 extern char optval[NOPTS];
 extern const char optletter[NSHORTOPTS];
-#ifdef DEFINE_OPTIONS
+#if 0 //defined(DEFINE_OPTIONS)
 char optval[NOPTS];
 const char optletter[NSHORTOPTS] = "efIimnsxvVECabupTPh";
 static const unsigned char optname[] =
@@ -102,7 +100,6 @@ static const unsigned char optname[] =
 	"\006verify"
 ;
 #endif
-
 
 extern char *minusc;		/* argument to -c option */
 extern char *arg0;		/* $0 */

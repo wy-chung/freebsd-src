@@ -257,7 +257,7 @@ kern_thread_cputime(struct thread *targettd, struct timespec *ats)
 
 	if (targettd == NULL) { /* current thread */
 		spinlock_enter();
-		switchtime = PCPU_GET(switchtime);
+		switchtime = PCPU_GET(pc_switchtime);
 		curtime = cpu_ticks();
 		runtime = curthread->td_runtime;
 		spinlock_exit();
@@ -282,7 +282,7 @@ kern_process_cputime(struct proc *targetp, struct timespec *ats)
 	rufetch(targetp, &ru);
 	runtime = targetp->p_rux.rux_runtime;
 	if (curthread->td_proc == targetp)
-		runtime += cpu_ticks() - PCPU_GET(switchtime);
+		runtime += cpu_ticks() - PCPU_GET(pc_switchtime);
 	PROC_STATUNLOCK(targetp);
 	cputick2timespec(runtime, ats);
 }

@@ -43,9 +43,9 @@ struct stackmark {
 };
 
 
-extern char *stacknxt;
-extern int stacknleft;
-extern char *sstrend;
+_Thread_local extern char *stacknxt;
+_Thread_local extern int stacknleft;
+_Thread_local extern char *sstrend;
 
 pointer ckmalloc(size_t);
 pointer ckrealloc(pointer, int);
@@ -60,8 +60,7 @@ char *growstackstr(void);
 char *makestrspace(int, char *);
 char *stputbin(const char *data, size_t len, char *p);
 char *stputs(const char *data, char *p);
-
-
+void stfree(void); //wyc
 
 #define stackblock() stacknxt
 #define stackblocksize() stacknleft

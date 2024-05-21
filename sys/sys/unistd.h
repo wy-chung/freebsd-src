@@ -169,9 +169,9 @@
  */
 #define	RFNAMEG		(1<<0)	/* UNIMPL new plan9 `name space' */
 #define	RFENVG		(1<<1)	/* UNIMPL copy plan9 `env space' */
-#define	RFFDG		(1<<2)	/* copy fd table */
+#define	RFFDG		(1<<2) //wyc true	/* copy fd table */
 #define	RFNOTEG		(1<<3)	/* UNIMPL create new plan9 `note group' */
-#define	RFPROC		(1<<4)	/* change child (else changes curproc) */
+#define	RFPROC		(1<<4) //wyc true	/* change child (else changes curproc) */
 #define	RFMEM		(1<<5)	/* share `address space' */
 #define	RFNOWAIT	(1<<6)	/* give child to init */
 #define	RFCNAMEG	(1<<10)	/* UNIMPL zero plan9 `name space' */
@@ -188,6 +188,7 @@
 #define	RFTSIGNUM(flags)	(((flags) >> RFTSIGSHIFT) & RFTSIGMASK)
 #define	RFTSIGFLAGS(signum)	((signum) << RFTSIGSHIFT)
 #define	RFPROCDESC	(1<<28)	/* return a process descriptor */
+//wyc bits 29..30 of rfork flags are not used
 /* kernel: parent sleeps until child exits (vfork) */
 #define	RFPPWAIT	(1<<31)
 /* user: vfork(2) semantics, clear signals */

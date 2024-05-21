@@ -271,11 +271,11 @@ acpi_cpu_idle_mwait(uint32_t mwait_hint)
 	 * but all Intel CPUs provide hardware coordination.
 	 */
 
-	state = &PCPU_PTR(monitorbuf)->idle_state;
+	state = &PCPU_PTR(pc_monitorbuf)->idle_state;
 	KASSERT(atomic_load_int(state) == STATE_SLEEPING,
 	    ("cpu_mwait_cx: wrong monitorbuf state"));
 	atomic_store_int(state, STATE_MWAIT);
-	if (PCPU_GET(ibpb_set) || hw_ssb_active) {
+	if (PCPU_GET(pc_ibpb_set) || hw_ssb_active) {
 		v = rdmsr(MSR_IA32_SPEC_CTRL);
 		wrmsr(MSR_IA32_SPEC_CTRL, v & ~(IA32_SPEC_CTRL_IBRS |
 		    IA32_SPEC_CTRL_STIBP | IA32_SPEC_CTRL_SSBD));
@@ -471,15 +471,15 @@ cpu_reset(void)
 
 	if (smp_started) {
 		map = all_cpus;
-		CPU_CLR(PCPU_GET(cpuid), &map);
+		CPU_CLR(PCPU_GET(pc_cpuid), &map);
 		CPU_ANDNOT(&map, &map, &stopped_cpus);
 		if (!CPU_EMPTY(&map)) {
 			printf("cpu_reset: Stopping other CPUs\n");
 			stop_cpus(map);
 		}
 
-		if (PCPU_GET(cpuid) != 0) {
-			cpu_reset_proxyid = PCPU_GET(cpuid);
+		if (PCPU_GET(pc_cpuid) != 0) {
+			cpu_reset_proxyid = PCPU_GET(pc_cpuid);
 			cpustop_restartfunc = cpu_reset_proxy;
 			cpu_reset_proxy_active = 0;
 			printf("cpu_reset: Restarting BSP\n");
@@ -584,7 +584,7 @@ cpu_idle_acpi(sbintime_t sbt)
 {
 	int *state;
 
-	state = &PCPU_PTR(monitorbuf)->idle_state;
+	state = &PCPU_PTR(pc_monitorbuf)->idle_state;
 	if (cpu_idle_enter(state, STATE_SLEEPING)) {
 		if (cpu_idle_hook)
 			cpu_idle_hook(sbt);
@@ -599,7 +599,7 @@ cpu_idle_hlt(sbintime_t sbt)
 {
 	int *state;
 
-	state = &PCPU_PTR(monitorbuf)->idle_state;
+	state = &PCPU_PTR(pc_monitorbuf)->idle_state;
 	if (cpu_idle_enter(state, STATE_SLEEPING)) {
 		acpi_cpu_c1();
 		atomic_store_int(state, STATE_RUNNING);
@@ -611,7 +611,7 @@ cpu_idle_mwait(sbintime_t sbt)
 {
 	int *state;
 
-	state = &PCPU_PTR(monitorbuf)->idle_state;
+	state = &PCPU_PTR(pc_monitorbuf)->idle_state;
 	if (cpu_idle_enter(state, STATE_MWAIT)) {
 		cpu_monitor(state, 0, 0);
 		if (atomic_load_int(state) == STATE_MWAIT)
@@ -628,7 +628,7 @@ cpu_idle_spin(sbintime_t sbt)
 	int *state;
 	int i;
 
-	state = &PCPU_PTR(monitorbuf)->idle_state;
+	state = &PCPU_PTR(pc_monitorbuf)->idle_state;
 	atomic_store_int(state, STATE_RUNNING);
 
 	/*
@@ -897,7 +897,7 @@ nmi_handle_intr(u_int type, struct trapframe *frame)
 		return;
 	}
 #endif
-	nmi_call_kdb(PCPU_GET(cpuid), type, frame);
+	nmi_call_kdb(PCPU_GET(pc_cpuid), type, frame);
 }
 
 static int hw_ibrs_active;
@@ -1646,7 +1646,11 @@ acpi_get_fadt_bootflags(uint16_t *flagsp)
 #endif
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, uint64_t, rdtsc_ordered, (void))
+#else
+uint64_t rdtsc_ordered(void);
+#endif
 {
 	bool cpu_is_amd = cpu_vendor_id == CPU_VENDOR_AMD ||
 	    cpu_vendor_id == CPU_VENDOR_HYGON;

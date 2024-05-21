@@ -51,7 +51,7 @@
 #define	cpu_spinwait()			ia32_pause()
 
 #define	TRAPF_USERMODE(framep) \
-	(ISPL((framep)->tf_cs) == SEL_UPL)
+	(SEL_PL((framep)->tf_cs) == SEL_UPL)
 #define	TRAPF_PC(framep)	((framep)->tf_rip)
 
 #ifdef _KERNEL

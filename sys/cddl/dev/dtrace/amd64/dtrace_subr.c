@@ -330,7 +330,7 @@ dtrace_gethrtime_init(void *arg)
 			continue;
 
 		pc = pcpu_find(i);
-		CPU_SETOF(PCPU_GET(cpuid), &map);
+		CPU_SETOF(PCPU_GET(pc_cpuid), &map);
 		CPU_SET(pc->pc_cpuid, &map);
 
 		smp_rendezvous_cpus(map, NULL,

@@ -168,7 +168,7 @@ mp_start(void *dummy)
 	if (smp_disabled != 0 || cpu_mp_probe() == 0) {
 		mp_ncores = 1;
 		mp_ncpus = 1;
-		CPU_SETOF(PCPU_GET(cpuid), &all_cpus);
+		CPU_SETOF(PCPU_GET(pc_cpuid), &all_cpus);
 		return;
 	}
 
@@ -276,9 +276,9 @@ generic_stop_cpus(cpuset_t map, u_int type)
 #if X86
 	if (!nmi_is_broadcast || nmi_kdb_lock == 0) {
 #endif
-	if (stopping_cpu != PCPU_GET(cpuid))
+	if (stopping_cpu != PCPU_GET(pc_cpuid))
 		while (atomic_cmpset_int(&stopping_cpu, NOCPU,
-		    PCPU_GET(cpuid)) == 0)
+		    PCPU_GET(pc_cpuid)) == 0)
 			while (stopping_cpu != NOCPU)
 				cpu_spinwait(); /* spin */
 
@@ -899,9 +899,9 @@ mp_setvariables_for_up(void *dummy)
 {
 	mp_ncpus = 1;
 	mp_ncores = 1;
-	mp_maxid = PCPU_GET(cpuid);
+	mp_maxid = PCPU_GET(pc_cpuid);
 	CPU_SETOF(mp_maxid, &all_cpus);
-	KASSERT(PCPU_GET(cpuid) == 0, ("UP must have a CPU ID of zero"));
+	KASSERT(PCPU_GET(pc_cpuid) == 0, ("UP must have a CPU ID of zero"));
 }
 SYSINIT(cpu_mp_setvariables, SI_SUB_TUNABLES, SI_ORDER_FIRST,
     mp_setvariables_for_up, NULL);

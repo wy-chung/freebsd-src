@@ -187,7 +187,7 @@ void	*contigmalloc_domainset(unsigned long size, struct malloc_type *type,
 	    __malloc_like __result_use_check __alloc_size(1) __alloc_align(7);
 void	free(void *addr, struct malloc_type *type);
 void	zfree(void *addr, struct malloc_type *type);
-void	*malloc(size_t size, struct malloc_type *type, int flags) __malloc_like
+void	*_malloc(size_t size, struct malloc_type *type, int flags) __malloc_like
 	    __result_use_check __alloc_size(1);
 /*
  * Try to optimize malloc(..., ..., M_ZERO) allocations by doing zeroing in
@@ -229,12 +229,12 @@ void	*malloc(size_t size, struct malloc_type *type, int flags) __malloc_like
 	size_t _size = (size);						\
 	if (__builtin_constant_p(size) && __builtin_constant_p(flags) &&\
 	    ((flags) & M_ZERO) != 0) {					\
-		_malloc_item = malloc(_size, type, (flags) &~ M_ZERO);	\
+		_malloc_item = _malloc(_size, type, (flags) &~ M_ZERO);	\
 		if (((flags) & M_WAITOK) != 0 ||			\
 		    __predict_true(_malloc_item != NULL))		\
 			memset(_malloc_item, 0, _size);			\
 	} else {							\
-		_malloc_item = malloc(_size, type, flags);		\
+		_malloc_item = _malloc(_size, type, flags);		\
 	}								\
 	_malloc_item;							\
 })

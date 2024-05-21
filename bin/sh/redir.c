@@ -31,7 +31,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
@@ -61,18 +60,15 @@ static char sccsid[] = "@(#)redir.c	8.2 (Berkeley) 5/4/95";
 #include "error.h"
 #include "options.h"
 
-
 #define EMPTY -2		/* marks an unused slot in redirtab */
 #define CLOSED -1		/* fd was not open before redir */
-
 
 struct redirtab {
 	struct redirtab *next;
 	int renamed[10];
-	int fd0_redirected;
+	bool fd0_redirected;
 	unsigned int empty_redirs;
 };
-
 
 static struct redirtab *redirlist;
 
@@ -81,14 +77,13 @@ static struct redirtab *redirlist;
  * background commands, where we want to redirect fd0 to /dev/null only
  * if it hasn't already been redirected.
 */
-static int fd0_redirected = 0;
+static bool fd0_redirected = false;
 
 /* Number of redirtabs that have not been allocated. */
 static unsigned int empty_redirs = 0;
 
 static void openredirect(union node *, char[10 ]);
 static int openhere(union node *);
-
 
 /*
  * Process a list of redirection commands.  If the REDIR_PUSH flag is set,
@@ -104,25 +99,21 @@ static int openhere(union node *);
  * with EINTR). There is, however, a race condition if an interrupt
  * arrives after INTOFF and before open blocks.
  */
-
 void
 redirect(union node *redir, int flags)
 {
-	union node *n;
 	struct redirtab *sv = NULL;
-	int i;
-	int fd;
 	char memory[10];	/* file descriptors to write to memory */
 
 	INTOFF;
-	for (i = 10 ; --i >= 0 ; )
+	for (int i = 0 ; i < 10 ; ++i)
 		memory[i] = 0;
 	memory[1] = flags & REDIR_BACKQ;
 	if (flags & REDIR_PUSH) {
 		empty_redirs++;
 		if (redir != NULL) {
 			sv = ckmalloc(sizeof (struct redirtab));
-			for (i = 0 ; i < 10 ; i++)
+			for (int i = 0 ; i < 10 ; i++)
 				sv->renamed[i] = EMPTY;
 			sv->fd0_redirected = fd0_redirected;
 			sv->empty_redirs = empty_redirs - 1;
@@ -131,16 +122,17 @@ redirect(union node *redir, int flags)
 			empty_redirs = 0;
 		}
 	}
-	for (n = redir ; n ; n = n->nfile.next) {
-		fd = n->nfile.fd;
+	for (union node *n = redir ; n ; n = n->nfile.next) {
+		int fd = n->nfile.fd;
 		if (fd == 0)
-			fd0_redirected = 1;
+			fd0_redirected = true;
 		if ((n->nfile.type == NTOFD || n->nfile.type == NFROMFD) &&
 		    n->ndup.dupfd == fd)
 			continue; /* redirect from/to same file descriptor */
 
 		if ((flags & REDIR_PUSH) && sv->renamed[fd] == EMPTY) {
 			INTOFF;
+			int i;
 			if ((i = fcntl(fd, F_DUPFD_CLOEXEC, 10)) == -1) {
 				switch (errno) {
 				case EBADF:
@@ -165,7 +157,6 @@ redirect(union node *redir, int flags)
 		out2 = &memout;
 	INTON;
 }
-
 
 static void
 openredirect(union node *redir, char memory[10])
@@ -249,13 +240,11 @@ openredirect(union node *redir, char memory[10])
 	}
 }
 
-
 /*
  * Handle here documents.  Normally we fork off a process to write the
  * data to a pipe.  If the document is short, we can stuff the data in
  * the pipe without forking.
  */
-
 static int
 openhere(union node *redir)
 {
@@ -268,7 +257,7 @@ openhere(union node *redir)
 	if (pipe(pip) < 0)
 		error("Pipe call failed: %s", strerror(errno));
 
-	if (redir->type == NXHERE)
+	if (redir->type == NXHERE) // node of expand here
 		p = redir->nhere.expdoc;
 	else
 		p = redir->nhere.doc->narg.text;
@@ -285,7 +274,8 @@ openhere(union node *redir)
 		fcntl(pip[1], F_SETFL, flags);
 	}
 
-	if (forkshell((struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) {
+	fprintf(stderr, "%s: call forkshell\n", __func__);
+	if (forkshell((struct job *)NULL, (union node *)NULL, FORK_NOJOB) == 0) { // child
 		close(pip[0]);
 		signal(SIGINT, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
@@ -300,12 +290,9 @@ out:
 	return pip[0];
 }
 
-
-
 /*
  * Undo the effects of the last redirection.
  */
-
 void
 popredir(void)
 {
@@ -336,16 +323,15 @@ popredir(void)
 }
 
 /* Return true if fd 0 has already been redirected at least once.  */
-int
+bool
 fd0_redirected_p(void)
 {
-        return fd0_redirected != 0;
+        return fd0_redirected;
 }
 
 /*
  * Discard all saved file descriptors.
  */
-
 void
 clearredir(void)
 {

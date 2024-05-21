@@ -82,7 +82,7 @@
 #define	X86_PG_PKU_MASK		X86_PG_PKU(PMAP_MAX_PKRU_IDX)
 
 /*
- * Intel extended page table (EPT) bit definitions.
+ * Intel extended page table (EPT) bit definitions. //wyc used by hypervisor
  */
 #define	EPT_PG_READ		0x001	/* R	Read		*/
 #define	EPT_PG_WRITE		0x002	/* W	Write		*/
@@ -97,13 +97,13 @@
  * Define the PG_xx macros in terms of the bits on x86 PTEs.
  */
 #define	PG_V		X86_PG_V
-#define	PG_RW		X86_PG_RW
-#define	PG_U		X86_PG_U
-#define	PG_NC_PWT	X86_PG_NC_PWT
-#define	PG_NC_PCD	X86_PG_NC_PCD
+#define	PG_RW		X86_PG_RW	// 0: read-only 1: read/write
+#define	PG_U		X86_PG_U	// 0: supervisor access only, 1: both user and supervisor
+#define	PG_NC_PWT	X86_PG_NC_PWT	// write through
+#define	PG_NC_PCD	X86_PG_NC_PCD	// cache disable
 #define	PG_A		X86_PG_A
 #define	PG_M		X86_PG_M
-#define	PG_PS		X86_PG_PS
+#define	PG_PS		X86_PG_PS	// page size
 #define	PG_PTE_PAT	X86_PG_PTE_PAT
 #define	PG_G		X86_PG_G
 #define	PG_AVAIL1	X86_PG_AVAIL1
@@ -120,9 +120,9 @@
 #define	EPT_PG_EMUL_V	X86_PG_AVAIL(52)
 #define	EPT_PG_EMUL_RW	X86_PG_AVAIL(53)
 #define	PG_PROMOTED	X86_PG_AVAIL(54)	/* PDE only */
-#define	PG_FRAME	(0x000ffffffffff000ul)
-#define	PG_PS_FRAME	(0x000fffffffe00000ul)
-#define	PG_PS_PDP_FRAME	(0x000fffffc0000000ul)
+#define	PG_FRAME	(0x000ffffffffff000ul) // 4K
+#define	PG_PS_FRAME	(0x000fffffffe00000ul) // 2M
+#define	PG_PS_PDP_FRAME	(0x000fffffc0000000ul) // 1G
 
 /*
  * Promotion to a 2MB (PDE) page mapping requires that the corresponding 4KB
@@ -152,17 +152,17 @@
  * The appropriate bitmask will be calculated at runtime based on the pmap
  * type.
  */
-#ifdef AMD64_NPT_AWARE
+#ifdef AMD64_NPT_AWARE // true
 #undef PG_AVAIL1		/* X86_PG_AVAIL1 aliases with EPT_PG_M */
-#undef PG_G
-#undef PG_A
-#undef PG_M
+#undef PG_G	// ref pmap_global_bit
+#undef PG_A	// ref pmap_accessed_bit
+#undef PG_M	// ref pmap_modified_bit
 #undef PG_PDE_PAT
 #undef PG_PDE_CACHE
 #undef PG_PTE_PAT
 #undef PG_PTE_CACHE
-#undef PG_RW
-#undef PG_V
+#undef PG_RW	// ref pmap_rw_bit
+#undef PG_V	// ref pmap_valid_bit
 #endif
 
 /*
@@ -215,14 +215,10 @@
  * We use the same numbering of the page table pages for 5-level and
  * 4-level paging structures.
  */
-#define	NUPML5E		(NPML5EPG / 2)		/* number of userland PML5
-						   pages */
-#define	NUPML4E		(NUPML5E * NPML4EPG)	/* number of userland PML4
-						   pages */
-#define	NUPDPE		(NUPML4E * NPDPEPG)	/* number of userland PDP
-						   pages */
-#define	NUPDE		(NUPDPE * NPDEPG)	/* number of userland PD
-						   entries */
+#define	NUPML5E		(NPML5EPG / 2)		/* number of userland PML5 pages */
+#define	NUPML4E		(NUPML5E * NPML4EPG)	/* number of userland PML4 pages */
+#define	NUPDPE		(NUPML4E * NPDPEPG)	/* number of userland PDP pages */
+#define	NUPDE		(NUPDPE * NPDEPG)	/* number of userland PD entries */
 #define	NUP4ML4E	(NPML4EPG / 2)
 
 /*
@@ -232,7 +228,7 @@
  * value is 64; using 128 will make the direct map intrude into
  * the recursive page table map.
  */
-#define	NDMPML4E	8
+#define	NDMPML4E	8	// 0.5T * 8 = 4T
 
 /*
  * These values control the layout of virtual memory.  The starting address
@@ -254,7 +250,7 @@
 #define	PML5PML5I	(NPML5EPG / 2)	/* Index of recursive pml5 mapping */
 
 #define	KPML4BASE	(NPML4EPG-NKPML4E) /* KVM at highest addresses */
-#define	DMPML4I		rounddown(KPML4BASE-NDMPML4E, NDMPML4E) /* Below KVM */
+#define	DMPML4I		rounddown(KPML4BASE-NDMPML4E, NDMPML4E) /* Below KVM */ //wyc direct map pml4 entries start index
 
 #define	KPML4I		(NPML4EPG-1)
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
@@ -276,7 +272,7 @@
 
 #define	PMAP_PCID_NONE		0xffffffff
 #define	PMAP_PCID_KERN		0
-#define	PMAP_PCID_OVERMAX	0x1000
+#define	PMAP_PCID_OVERMAX	0x1000	// PCID has only 12 bits
 #define	PMAP_PCID_OVERMAX_KERN	0x800
 #define	PMAP_PCID_USER_PT	0x800
 
@@ -295,11 +291,12 @@
 #include <sys/_pv_entry.h>
 #include <sys/_rangeset.h>
 #include <sys/_smr.h>
+#include <sys/malloc.h> //wyc
 
 #include <vm/_vm_radix.h>
 
-typedef u_int64_t pd_entry_t;
 typedef u_int64_t pt_entry_t;
+typedef u_int64_t pd_entry_t;
 typedef u_int64_t pdp_entry_t;
 typedef u_int64_t pml4_entry_t;
 typedef u_int64_t pml5_entry_t;
@@ -308,6 +305,8 @@ typedef u_int64_t pml5_entry_t;
  * Address of current address space page table maps and directories.
  */
 #ifdef _KERNEL
+MALLOC_DECLARE(M_PMAP);
+
 #define	addr_P4Tmap	(KV4ADDR(PML4PML4I, 0, 0, 0))
 #define	addr_P4Dmap	(KV4ADDR(PML4PML4I, PML4PML4I, 0, 0))
 #define	addr_P4DPmap	(KV4ADDR(PML4PML4I, PML4PML4I, PML4PML4I, 0))
@@ -379,9 +378,9 @@ enum pmap_type {
 struct pmap {
 	struct mtx		pm_mtx;
 	pml4_entry_t		*pm_pmltop;	/* KVA of top level page table */
-	pml4_entry_t		*pm_pmltopu;	/* KVA of user top page table */
-	uint64_t		pm_cr3;
-	uint64_t		pm_ucr3;
+	pml4_entry_t		*pm_pmltopu;	/* KVA of user top page table */ // It will be NULL if pti is disabled
+	uint64_t		pm_cr3;	//wyc physical address of the PML4 page table, don't contain PCID and cached flag
+	uint64_t		pm_ucr3; //wyc user mode page table. It will be PMAP_NO_CR3 if pti is disabled
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t		pm_active;	/* active on cpus */
 	enum pmap_type		pm_type;	/* regular or nested tables */
@@ -404,7 +403,14 @@ typedef struct pmap	*pmap_t;
 
 #ifdef _KERNEL
 extern struct pmap	kernel_pmap_store;
+extern struct pmap	user_pmap_store; //wyc
+#if !defined(WYC)
 #define kernel_pmap	(&kernel_pmap_store)
+#define user_pmap	(&user_pmap_store) //wyc
+#else
+extern struct pmap	*kernel_pmap;
+extern struct pmap	*user_pmap; //wyc
+#endif
 
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
 #define	PMAP_LOCK_ASSERT(pmap, type) \
@@ -522,7 +528,7 @@ pmap_invalidate_cpu_mask(pmap_t pmap)
 static __inline void
 pmap_invlpg(pmap_t pmap, vm_offset_t va)
 {
-	if (pmap == kernel_pmap && PCPU_GET(pcid_invlpg_workaround)) {
+	if (pmap == kernel_pmap && PCPU_GET(pc_pcid_invlpg_workaround)) {
 		struct invpcid_descr d = { 0 };
 
 		invpcid(&d, INVPCID_CTXGLOB);
@@ -535,7 +541,7 @@ pmap_invlpg(pmap_t pmap, vm_offset_t va)
 #if defined(_SYS_PCPU_H_)
 /* Return pcid for the pmap pmap on current cpu */
 static __inline uint32_t
-pmap_get_pcid(pmap_t pmap)
+pmap_get_pcid(struct pmap *pmap)
 {
 	struct pmap_pcid *pcidp;
 

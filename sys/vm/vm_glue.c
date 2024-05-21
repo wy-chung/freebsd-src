@@ -367,7 +367,7 @@ vm_thread_new(struct thread *td, int pages)
 	 * swap-in.
 	 */
 	if (ks == 0)
-		ks = vm_thread_stack_create(DOMAINSET_PREF(PCPU_GET(domain)),
+		ks = vm_thread_stack_create(DOMAINSET_PREF(PCPU_GET(pc_domain)),
 		    pages);
 	if (ks == 0)
 		return (0);
@@ -528,13 +528,15 @@ intr_prof_stack_use(struct thread *td, struct trapframe *frame)
  */
 int
 vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
-    struct vmspace *vm2, int flags)
+    struct vmspace *vm2, int flags) // flags: fork request flags
 {
 	struct proc *p1 = td->td_proc;
 	struct domainset *dset;
-	int error;
 
-	if ((flags & RFPROC) == 0) {
+	if ((flags & RFPROC) == 0) { //wyc false
+panic("%s", __func__); //wyctest success, never reached
+#if 0 //wyc
+		int error;
 		/*
 		 * Divorce the memory, if it is shared, essentially
 		 * this changes shared memory amongst threads, into
@@ -547,9 +549,10 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 		}
 		cpu_fork(td, p2, td2, flags);
 		return (0);
+#endif
 	}
 
-	if (flags & RFMEM) {
+	if (flags & RFMEM) { //wyc for vfork
 		p2->p_vmspace = p1->p_vmspace;
 		refcount_acquire(&p1->p_vmspace->vm_refcnt);
 	}

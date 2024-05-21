@@ -67,7 +67,7 @@
 SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, UIO_MAXIOV,
 	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
 
-static int uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault);
+static int uiomove_faultflag(void *cp, int n, struct uio *uio, bool nofault);
 
 int
 copyin_nofault(const void *udaddr, void *kaddr, size_t len)
@@ -193,18 +193,18 @@ int
 uiomove(void *cp, int n, struct uio *uio)
 {
 
-	return (uiomove_faultflag(cp, n, uio, 0));
+	return (uiomove_faultflag(cp, n, uio, false));
 }
 
 int
 uiomove_nofault(void *cp, int n, struct uio *uio)
 {
 
-	return (uiomove_faultflag(cp, n, uio, 1));
+	return (uiomove_faultflag(cp, n, uio, true));
 }
 
 static int
-uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
+uiomove_faultflag(void *cp, int n, struct uio *uio, bool nofault)
 {
 	struct iovec *iov;
 	size_t cnt;
@@ -213,9 +213,9 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 	save = error = 0;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
-	    ("uiomove: mode"));
+	    ("%s: mode", __func__));
 	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == curthread,
-	    ("uiomove proc"));
+	    ("%s proc", __func__));
 	KASSERT(uio->uio_resid >= 0,
 	    ("%s: uio %p resid underflow", __func__, uio));
 
@@ -228,11 +228,11 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 			newflags |= TDP_NOFAULTING | TDP_RESETSPUR;
 		} else {
 			WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-			    "Calling uiomove()");
+			    "Calling %s()", __func__);
 		}
 		save = curthread_pflags_set(newflags);
 	} else {
-		KASSERT(nofault == 0, ("uiomove: nofault"));
+		KASSERT(!nofault, ("%s: nofault", __func__));
 	}
 
 	while (n > 0 && uio->uio_resid) {

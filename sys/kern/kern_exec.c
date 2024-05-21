@@ -205,7 +205,7 @@ sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS)
  * Each of the items is a pointer to a `const struct execsw', hence the
  * double pointer here.
  */
-static const struct execsw **execsw;
+static const struct execsw **execsw_s;
 
 #ifndef _SYS_SYSPROTO_H_
 struct execve_args {
@@ -381,15 +381,11 @@ static int
 do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
     struct vmspace *oldvmspace)
 {
-	struct proc *p = td->td_proc;
 	struct nameidata nd;
 	struct ucred *oldcred;
-	struct uidinfo *euip = NULL;
 	uintptr_t stack_base;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
-	struct pargs *oldargs = NULL, *newargs = NULL;
-	struct sigacts *oldsigacts = NULL, *newsigacts = NULL;
 #ifdef KTRACE
 	struct ktr_io_params *kiop;
 #endif
@@ -408,7 +404,12 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	uint32_t orig_fctl0;
 	Elf_Brandinfo *orig_brandinfo;
 	size_t freepath_size;
+
 	static const char fexecv_proc_title[] = "(fexecv)";
+	struct proc *p = td->td_proc;
+	struct uidinfo *euip = NULL;
+	struct pargs *oldargs = NULL, *newargs = NULL;
+	struct sigacts *oldsigacts = NULL, *newsigacts = NULL;
 
 	imgp = &image_params;
 	oldtextvp = oldtextdvp = NULL;
@@ -452,7 +453,7 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	SDT_PROBE1(proc, , , exec, args->fname);
 
 interpret:
-	if (args->fname != NULL) {
+	if (args->fname != NULL) { // 504 fname == "/sbin/init"
 #ifdef CAPABILITY_MODE
 		if (CAP_TRACING(td))
 			ktrcapfail(CAPFAIL_NAMEI, args->fname);
@@ -492,7 +493,7 @@ interpret:
 		/*
 		 * Do the best to calculate the full path to the image file.
 		 */
-		if (args->fname[0] == '/') {
+		if (args->fname[0] == '/') { // true
 			imgp->execpath = args->fname;
 		} else {
 			VOP_UNLOCK(imgp->vp);
@@ -503,7 +504,8 @@ interpret:
 				imgp->execpath = args->fname;
 			vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		}
-	} else if (imgp->interpreter_vp) {
+	}
+	else if (imgp->interpreter_vp) {
 		/*
 		 * An image activator has already provided an open vnode
 		 */
@@ -548,7 +550,7 @@ interpret:
 		goto exec_fail_dealloc;
 
 	imgp->object = imgp->vp->v_object;
-	if (imgp->object != NULL)
+	if (imgp->object != NULL) // true
 		vm_object_reference(imgp->object);
 
 	error = exec_map_first_page(imgp);
@@ -649,10 +651,13 @@ interpret:
 	 *	and an error otherwise.
 	 */
 	error = -1;
-	for (i = 0; error == -1 && execsw[i]; ++i) {
-		if (execsw[i]->ex_imgact == NULL)
+	for (i = 0; error == -1 && execsw_s[i]; ++i) {
+		if (execsw_s[i]->ex_imgact == NULL)
 			continue;
-		error = (*execsw[i]->ex_imgact)(imgp);
+		error = (*execsw_s[i]->ex_imgact)(imgp);
+#if defined(WYC)
+		error = exec_elf64_imgact();
+#endif
 	}
 
 	if (error) {
@@ -738,7 +743,11 @@ interpret:
 	/*
 	 * Stack setup.
 	 */
+#if !defined(WYC)
 	error = (*p->p_sysent->sv_fixup)(&stack_base, imgp);
+#else
+	error = elf32_freebsd_fixup();
+#endif
 	if (error != 0) {
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		goto exec_fail_dealloc;
@@ -931,6 +940,9 @@ interpret:
 
 	/* Set values passed into the program in registers. */
 	(*p->p_sysent->sv_setregs)(td, imgp, stack_base);
+#if defined(WYC)
+	exec_setregs();
+#endif
 
 	VOP_MMAPPED(imgp->vp);
 
@@ -968,12 +980,13 @@ exec_fail_dealloc:
 	free(imgp->freepath, M_TEMP);
 
 	if (error == 0) {
+		PROC_LOCK(p);
 		if (p->p_ptevents & PTRACE_EXEC) {
-			PROC_LOCK(p);
 			if (p->p_ptevents & PTRACE_EXEC)
 				td->td_dbgflags |= TDB_EXEC;
-			PROC_UNLOCK(p);
 		}
+		p->p_state = PRS_NORMAL; //wyc
+		PROC_UNLOCK(p);
 	} else {
 exec_fail:
 		/* we're done here, clear P_INEXEC */
@@ -1030,7 +1043,7 @@ exec_fail:
 	 * registers unmodified when returning EJUSTRETURN.
 	 */
 	return (error == 0 ? EJUSTRETURN : error);
-}
+} // 383 do_execve()
 
 void
 exec_cleanup(struct thread *td, struct vmspace *oldvmspace)
@@ -1124,11 +1137,11 @@ int
 exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 {
 	int error;
+	vm_offset_t sv_minuser;
+	struct _vm_map *map;
 	struct proc *p = imgp->proc;
 	struct vmspace *vmspace = p->p_vmspace;
 	struct thread *td = curthread;
-	vm_offset_t sv_minuser;
-	vm_map_t map;
 
 	imgp->vmspace_destroyed = true;
 	imgp->sysent = sv;
@@ -1145,11 +1158,11 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	 * not disrupted
 	 */
 	map = &vmspace->vm_map;
-	if (map_at_zero)
+	if (map_at_zero) // false
 		sv_minuser = sv->sv_minuser;
 	else
 		sv_minuser = MAX(sv->sv_minuser, PAGE_SIZE);
-	if (refcount_load(&vmspace->vm_refcnt) == 1 &&
+	if (refcount_load(&vmspace->vm_refcnt) == 1 && // false
 	    vm_map_min(map) == sv_minuser &&
 	    vm_map_max(map) == sv->sv_maxuser &&
 	    cpu_exec_vmspace_reuse(p, map)) {
@@ -1174,7 +1187,8 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	}
 	map->flags |= imgp->map_flags;
 
-	return (sv->sv_onexec != NULL ? sv->sv_onexec(p, imgp) : 0);
+	return (sv->sv_onexec != NULL ? sv->sv_onexec(p, imgp) : 0); // return 0
+	// sv->sv_onexec == NULL
 }
 
 /*
@@ -1221,7 +1235,7 @@ exec_map_stack(struct image_params *imgp)
 
 	stack_prot = sv->sv_shared_page_obj != NULL && imgp->stack_prot != 0 ?
 	    imgp->stack_prot : sv->sv_stackprot;
-	if ((map->flags & MAP_ASLR_STACK) != 0) {
+	if ((map->flags & MAP_ASLR_STACK) != 0) { // false, map->flags == 0
 		stack_addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
 		    lim_max(curthread, RLIMIT_DATA));
 		find_space = VMFS_ANY_SPACE;
@@ -1897,19 +1911,19 @@ exec_register(const struct execsw *execsw_arg)
 	const struct execsw **es, **xs, **newexecsw;
 	u_int count = 2;	/* New slot and trailing NULL */
 
-	if (execsw)
-		for (es = execsw; *es; es++)
+	if (execsw_s)
+		for (es = execsw_s; *es; es++)
 			count++;
 	newexecsw = malloc(count * sizeof(*es), M_TEMP, M_WAITOK);
 	xs = newexecsw;
-	if (execsw)
-		for (es = execsw; *es; es++)
+	if (execsw_s)
+		for (es = execsw_s; *es; es++)
 			*xs++ = *es;
 	*xs++ = execsw_arg;
 	*xs = NULL;
-	if (execsw)
-		free(execsw, M_TEMP);
-	execsw = newexecsw;
+	if (execsw_s)
+		free(execsw_s, M_TEMP);
+	execsw_s = newexecsw;
 	return (0);
 }
 
@@ -1919,27 +1933,27 @@ exec_unregister(const struct execsw *execsw_arg)
 	const struct execsw **es, **xs, **newexecsw;
 	int count = 1;
 
-	if (execsw == NULL)
+	if (execsw_s == NULL)
 		panic("unregister with no handlers left?\n");
 
-	for (es = execsw; *es; es++) {
+	for (es = execsw_s; *es; es++) {
 		if (*es == execsw_arg)
 			break;
 	}
 	if (*es == NULL)
 		return (ENOENT);
-	for (es = execsw; *es; es++)
+	for (es = execsw_s; *es; es++)
 		if (*es != execsw_arg)
 			count++;
 	newexecsw = malloc(count * sizeof(*es), M_TEMP, M_WAITOK);
 	xs = newexecsw;
-	for (es = execsw; *es; es++)
+	for (es = execsw_s; *es; es++)
 		if (*es != execsw_arg)
 			*xs++ = *es;
 	*xs = NULL;
-	if (execsw)
-		free(execsw, M_TEMP);
-	execsw = newexecsw;
+	if (execsw_s)
+		free(execsw_s, M_TEMP);
+	execsw_s = newexecsw;
 	return (0);
 }
 

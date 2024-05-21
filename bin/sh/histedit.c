@@ -43,7 +43,6 @@ static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
 #include <fcntl.h>
 #include <limits.h>
 #include <paths.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -69,7 +68,7 @@ static char sccsid[] = "@(#)histedit.c	8.2 (Berkeley) 5/4/95";
 
 History *hist;	/* history cookie */
 EditLine *el;	/* editline cookie */
-int displayhist;
+bool displayhist;
 static int savehist;
 static FILE *el_in, *el_out;
 static bool in_command_completion;
@@ -251,7 +250,7 @@ setterm(const char *term)
 }
 
 int
-histcmd(int argc, char **argv __unused)
+histcmd(int argc, char **argv __unused) // refer to builtins.def
 {
 	const char *editor = NULL;
 	HistEvent he;
@@ -308,7 +307,7 @@ operands:
 		 * Catch interrupts to reset active counter and
 		 * cleanup temp files.
 		 */
-		if (setjmp(jmploc.loc)) {
+		if (setjmp(jmploc.loc)) { // return from longjmp
 			active = 0;
 			if (editfile)
 				unlink(editfile);
@@ -318,7 +317,7 @@ operands:
 		handler = &jmploc;
 		if (++active > MAXHISTLOOPS) {
 			active = 0;
-			displayhist = 0;
+			displayhist = false;
 			error("called recursively too many times");
 		}
 		/*
@@ -458,7 +457,7 @@ operands:
 	if (lflg == 0 && active > 0)
 		--active;
 	if (displayhist)
-		displayhist = 0;
+		displayhist = false;
 	handler = savehandler;
 	return 0;
 }
@@ -543,7 +542,7 @@ str_to_event(const char *str, int last)
 }
 
 int
-bindcmd(int argc, char **argv)
+bindcmd(int argc, char **argv) // refer to builtins.def
 {
 	int ret;
 	FILE *old;
@@ -759,7 +758,7 @@ sh_complete(EditLine *sel, int ch __unused)
 		(size_t)100, NULL, &((int) {0}), NULL, NULL, FN_QUOTE_MATCH);
 }
 
-#else
+#else // defined NO_HISTORY
 #include "error.h"
 
 int
@@ -778,4 +777,4 @@ bindcmd(int argc __unused, char **argv __unused)
 	error("not compiled with line editing support");
 	return (0);
 }
-#endif
+#endif // not defined NO_HISTORY

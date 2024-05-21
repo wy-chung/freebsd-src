@@ -1516,7 +1516,7 @@ qat_crypto_load(struct qat_session *qs, struct qat_sym_cookie *qsc,
 static inline struct qat_crypto_bank *
 qat_crypto_select_bank(struct qat_crypto *qcy)
 {
-	u_int cpuid = PCPU_GET(cpuid);
+	u_int cpuid = PCPU_GET(pc_cpuid);
 
 	return &qcy->qcy_banks[cpuid % qcy->qcy_num_banks];
 }

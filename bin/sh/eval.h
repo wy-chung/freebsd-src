@@ -60,10 +60,13 @@ void evalbackcmd(union node *, struct backcmd *);
 /* in_function returns nonzero if we are currently evaluating a function */
 #define in_function()	funcnest
 extern int funcnest;
-extern int evalskip;
+extern enum skip_reason evalskip;
 extern int skipcount;
 
 /* reasons for skipping commands (see comment on breakcmd routine) */
-#define SKIPBREAK	1
-#define SKIPCONT	2
-#define SKIPRETURN	3
+enum skip_reason {
+	SKIPNONE,
+	SKIPBREAK, //	1,
+	SKIPCONT, //	2
+	SKIPRETURN, //	3
+};

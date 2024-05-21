@@ -614,7 +614,7 @@ intr_next_cpu(int domain)
 
 	MPASS(mp_ncpus == 1 || smp_started);
 	if (mp_ncpus == 1)
-		return (PCPU_GET(apic_id));
+		return (PCPU_GET(pc_apic_id));
 
 	if (intr_no_domain)
 		domain = 0;
@@ -786,6 +786,6 @@ u_int
 intr_next_cpu(int domain)
 {
 
-	return (PCPU_GET(apic_id));
+	return (PCPU_GET(pc_apic_id));
 }
 #endif

@@ -87,7 +87,7 @@ int letcmd(int, char **);
 static __dead2 void yyerror(const char *s)
 {
 	error("arithmetic expression: %s: \"%s\"", s, arith_startbuf);
-	/* NOTREACHED */
+	/*NOTREACHED*/
 }
 
 static arith_t arith_lookupvarint(char *varname)
@@ -344,7 +344,7 @@ arith_t arith(const char *s)
  *  The exp(1) builtin.
  */
 int
-letcmd(int argc, char **argv)
+letcmd(int argc, char **argv) // refer to builtins.def
 {
 	const char *p;
 	char *concat;

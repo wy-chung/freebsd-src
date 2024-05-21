@@ -194,7 +194,11 @@ vm_paddr_t efi_systbl_phys;
 #define ICH_PMBASE	0x400
 #define ICH_SMI_EN	ICH_PMBASE + 0x30
 
-int	_udatasel, _ucodesel, _ucode32sel, _ufssel, _ugssel;
+int	_ucode32sel;	// GUCODE32_SEL
+int	_ucodesel;	// GUCODE_SEL
+int	_udatasel;	// GUDATA_SEL
+int	_ufssel;	// GUFS32_SEL, TLS
+int	_ugssel;	// GUGS32_SEL, PCPU
 
 int cold = 1;
 
@@ -473,7 +477,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	.ssd_long = 0,
 	.ssd_def32 = 0,
 	.ssd_gran = 0		},
-};
+}; // gdt_segs
 _Static_assert(nitems(gdt_segs) == NGDT, "Stale NGDT");
 
 void
@@ -498,6 +502,7 @@ extern inthand_t
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(dblfault),
+
 	IDTVEC(div_pti), IDTVEC(bpt_pti),
 	IDTVEC(ofl_pti), IDTVEC(bnd_pti), IDTVEC(ill_pti), IDTVEC(dna_pti),
 	IDTVEC(fpusegm_pti), IDTVEC(tss_pti), IDTVEC(missing_pti),
@@ -629,8 +634,7 @@ ssdtosyssd(struct soft_segment_descriptor *ssd, struct system_segment_descriptor
 u_int basemem;
 
 static int
-add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
-    int *physmap_idxp)
+add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap, int *physmap_idxp)
 {
 	int i, insert_idx, physmap_idx;
 
@@ -829,10 +833,8 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 	 * ie: an int32_t immediately precedes smap.
 	 */
 
-	efihdr = (struct efi_map_header *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_EFI_MAP);
-	smap = (struct bios_smap *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_SMAP);
+	efihdr = (struct efi_map_header *)preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP);
+	smap = (struct bios_smap *)preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_SMAP);
 	if (efihdr == NULL && smap == NULL)
 		panic("No BIOS smap or EFI map info from loader!");
 
@@ -859,7 +861,7 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
  * XXX first should be vm_paddr_t.
  */
 static void
-getmemsize(caddr_t kmdp, u_int64_t first)
+getmemsize(caddr_t kmdp, u_int64_t first) // < hammer_time < btext
 {
 	int i, physmap_idx, pa_indx, da_indx;
 	vm_paddr_t pa, physmap[PHYS_AVAIL_ENTRIES];
@@ -878,7 +880,9 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	bzero(physmap, sizeof(physmap));
 	physmap_idx = 0;
 
-	init_ops.parse_memmap(kmdp, physmap, &physmap_idx);
+	if(init_ops.parse_memmap != native_parse_memmap)
+		panic("%s: wyctest", __func__); // pass
+	native_parse_memmap(kmdp, physmap, &physmap_idx);
 	physmap_idx -= 2;
 
 	/*
@@ -893,8 +897,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	}
 	if (basemem == 0 || basemem > 640) {
 		if (bootverbose)
-			printf(
-		"Memory map doesn't contain a basemem segment, faking it");
+			printf("Memory map doesn't contain a basemem segment, faking it");
 		basemem = 640;
 	}
 
@@ -1173,19 +1176,39 @@ amd64_kdb_init(void)
 #endif
 }
 
+/*
+SYSCALL
+  r11 = rflags
+  rcx = rip
+  cs = STAR[47:32]
+  rip = LSTAR
+  ss = STAR[47:32] + 8
+
+SYSRET(64-bit)
+  cs = STAR[63:48] + 16
+  rip = rcx
+  ss = START[63:48] + 8
+  eflags = r11
+
+SYSRET(32-bit)
+  cs = START[63:48]
+  eip = ecx
+  ss = START[63:48] + 8
+  eflags = r11
+*/
 /* Set up the fast syscall stuff */
 void
 amd64_conf_fast_syscall(void)
 {
 	uint64_t msr;
 
-	msr = rdmsr(MSR_EFER) | EFER_SCE;
+	msr = rdmsr(MSR_EFER) | EFER_SCE; // enable system call extension
 	wrmsr(MSR_EFER, msr);
 	wrmsr(MSR_LSTAR, pti ? (u_int64_t)IDTVEC(fast_syscall_pti) :
 	    (u_int64_t)IDTVEC(fast_syscall));
 	wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
-	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) |
-	    ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48);
+	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) | // for SYSCALL
+	    ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48); // for SYSRET
 	wrmsr(MSR_STAR, msr);
 	wrmsr(MSR_SF_MASK, PSL_NT | PSL_T | PSL_I | PSL_C | PSL_D | PSL_AC);
 }
@@ -1195,26 +1218,26 @@ amd64_bsp_pcpu_init1(struct pcpu *pc)
 {
 	struct user_segment_descriptor *gdt;
 
-	PCPU_SET(prvspace, pc);
-	gdt = *PCPU_PTR(gdt);
-	PCPU_SET(curthread, &thread0);
-	PCPU_SET(tssp, PCPU_PTR(common_tss));
-	PCPU_SET(tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
-	PCPU_SET(ldt, (struct system_segment_descriptor *)&gdt[GUSERLDT_SEL]);
-	PCPU_SET(fs32p, &gdt[GUFS32_SEL]);
-	PCPU_SET(gs32p, &gdt[GUGS32_SEL]);
-	PCPU_SET(ucr3_load_mask, PMAP_UCR3_NOMASK);
-	PCPU_SET(smp_tlb_gen, 1);
+	PCPU_SET(pc_prvspace, pc);
+	gdt = *PCPU_PTR(pc_gdt);
+	PCPU_SET(pc_curthread, &thread0);
+	PCPU_SET(pc_tssp, PCPU_PTR(pc_common_tss));
+	PCPU_SET(pc_tss, (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
+	PCPU_SET(pc_ldt, (struct system_segment_descriptor *)&gdt[GUSERLDT_SEL]);
+	PCPU_SET(pc_fs32p, &gdt[GUFS32_SEL]);
+	PCPU_SET(pc_gs32p, &gdt[GUGS32_SEL]);
+	PCPU_SET(pc_ucr3_load_mask, PMAP_UCR3_NOMASK);
+	PCPU_SET(pc_smp_tlb_gen, 1);
 }
 
 void
 amd64_bsp_pcpu_init2(uint64_t rsp0)
 {
 
-	PCPU_SET(rsp0, rsp0);
-	PCPU_SET(pti_rsp0, ((vm_offset_t)PCPU_PTR(pti_stack) +
+	PCPU_SET(pc_rsp0, rsp0);
+	PCPU_SET(pc_pti_rsp0, ((vm_offset_t)PCPU_PTR(pc_pti_stack) +
 	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful);
-	PCPU_SET(curpcb, thread0.td_pcb);
+	PCPU_SET(pc_curpcb, thread0.td_pcb);
 }
 
 void
@@ -1284,8 +1307,9 @@ amd64_loadaddr(void)
 	return (*pde & PG_FRAME);
 }
 
+// returns the stack base of thread0
 u_int64_t
-hammer_time(u_int64_t modulep, u_int64_t physfree)
+hammer_time(u_int64_t modulep, u_int64_t physfree) // < btext
 {
 	caddr_t kmdp;
 	int gsel_tss, x;
@@ -1302,10 +1326,11 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	physfree += kernphys;
 
-	kmdp = init_ops.parse_preload_data(modulep);
+	if (init_ops.parse_preload_data != native_parse_preload_data)
+		panic("%s: wyctest", __func__); // pass
+	kmdp = native_parse_preload_data(modulep);
 
-	efi_boot = preload_search_info(kmdp, MODINFO_METADATA |
-	    MODINFOMD_EFI_MAP) != NULL;
+	efi_boot = preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_EFI_MAP) != NULL;
 
 	if (!efi_boot) {
 		/* Tell the bios to warmboot next time */
@@ -1330,9 +1355,11 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	pti = pti_get_default();
 	TUNABLE_INT_FETCH("vm.pmap.pti", &pti);
 	TUNABLE_INT_FETCH("vm.pmap.pcid_enabled", &pmap_pcid_enabled);
+	pti = 0;		//wyc always disable pti
+	pmap_pcid_enabled = 0;	//wyc always disable pcid
 	if ((cpu_feature2 & CPUID2_PCID) != 0 && pmap_pcid_enabled) {
-		invpcid_works = (cpu_stdext_feature &
-		    CPUID_STDEXT_INVPCID) != 0;
+		invpcid_works =
+		    (cpu_stdext_feature & CPUID_STDEXT_INVPCID) != 0;
 	} else {
 		pmap_pcid_enabled = 0;
 	}
@@ -1342,7 +1369,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 * CPU features and user knobs are evaluated.
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.pcid_invlpg_workaround",
-	    &pmap_pcid_invlpg_workaround_uena);
+	    &pmap_pcid_invlpg_workaround_uena); // == 0
 	cpu_init_small_core();
 
 	if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
@@ -1375,7 +1402,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	pmap_thread_init_invl_gen(&thread0);
 
 	pc = &temp_bsp_pcpu;
-	pcpu_init(pc, 0, sizeof(struct pcpu));
+	pcpu_init(pc, /*cpuid*/0, sizeof(struct pcpu));
 	gdt = &temp_bsp_pcpu.pc_gdt[0];
 
 	/*
@@ -1383,7 +1410,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 */
 	for (x = 0; x < NGDT; x++) {
 		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1) &&
-		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL) + 1)
+		    x != GUSERLDT_SEL && x != (GUSERLDT_SEL + 1)) //wycpull ')' moved
 			ssdtosd(&gdt_segs[x], &gdt[x]);
 	}
 	gdt_segs[GPROC0_SEL].ssd_base = (uintptr_t)&pc->pc_common_tss;
@@ -1480,19 +1507,16 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	TUNABLE_INT_FETCH("hw.spec_store_bypass_disable", &hw_ssb_disable);
 	TUNABLE_INT_FETCH("machdep.mitigations.ssb.disable", &hw_ssb_disable);
 
-	TUNABLE_INT_FETCH("machdep.syscall_ret_flush_l1d",
-	    &syscall_ret_l1d_flush_mode);
+	TUNABLE_INT_FETCH("machdep.syscall_ret_flush_l1d", &syscall_ret_l1d_flush_mode);
 
 	TUNABLE_INT_FETCH("hw.mds_disable", &hw_mds_disable);
 	TUNABLE_INT_FETCH("machdep.mitigations.mds.disable", &hw_mds_disable);
 
 	TUNABLE_INT_FETCH("machdep.mitigations.taa.enable", &x86_taa_enable);
 
-	TUNABLE_INT_FETCH("machdep.mitigations.rngds.enable",
-	    &x86_rngds_mitg_enable);
+	TUNABLE_INT_FETCH("machdep.mitigations.rngds.enable", &x86_rngds_mitg_enable);
 
-	TUNABLE_INT_FETCH("machdep.mitigations.zenbleed.enable",
-	    &zenbleed_enable);
+	TUNABLE_INT_FETCH("machdep.mitigations.zenbleed.enable", &zenbleed_enable);
 	zenbleed_sanitize_enable();
 
 	finishidentcpu();	/* Final stage of CPU initialization */
@@ -1588,7 +1612,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	rsp0 = thread0.td_md.md_stack_base;
 	/* Ensure the stack is aligned to 16 bytes */
 	rsp0 &= ~0xFul;
-	PCPU_PTR(common_tss)->tss_rsp0 = rsp0;
+	PCPU_PTR(pc_common_tss)->tss_rsp0 = rsp0;
 	amd64_bsp_pcpu_init2(rsp0);
 
 	/* transfer to user mode */
@@ -1783,6 +1807,7 @@ set_pcb_flags_fsgsbase(struct pcb *pcb, const u_int flags)
 {
 	register_t r;
 
+//panic("%s", __func__); //wyctest qemu success, kvm fail
 	if (curpcb == pcb &&
 	    (flags & PCB_FULL_IRET) != 0 &&
 	    (pcb->pcb_flags & PCB_FULL_IRET) == 0) {
@@ -1800,11 +1825,15 @@ set_pcb_flags_fsgsbase(struct pcb *pcb, const u_int flags)
 	}
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, void, set_pcb_flags, (struct pcb *, const u_int))
+#else
+void set_pcb_flags(struct pcb *, const u_int);
+#endif
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0 ?
-	    set_pcb_flags_fsgsbase : set_pcb_flags_raw);
+	    set_pcb_flags_fsgsbase : set_pcb_flags_raw); // kvm : qemu
 }
 
 void
@@ -1881,22 +1910,34 @@ memcpy(void * _Nonnull dst, const void * _Nonnull src, size_t len)
 	return (memcpy_std(dst, src, len));
 }
 #else
+#if !defined(WYC)
 DEFINE_IFUNC(, void *, memset, (void *, int, size_t))
+#else
+void * memset(void *, int, size_t);
+#endif
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?
 	    memset_erms : memset_std);
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, void *, memmove, (void * _Nonnull, const void * _Nonnull,
     size_t))
+#else
+void * memmove(void * _Nonnull, const void * _Nonnull,size_t);
+#endif
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?
 	    memmove_erms : memmove_std);
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, void *, memcpy, (void * _Nonnull, const void * _Nonnull,size_t))
+#else
+void * memcpy(void * _Nonnull, const void * _Nonnull,size_t);
+#endif
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?
@@ -1906,7 +1947,11 @@ DEFINE_IFUNC(, void *, memcpy, (void * _Nonnull, const void * _Nonnull,size_t))
 
 void	pagezero_std(void *addr);
 void	pagezero_erms(void *addr);
+#if !defined(WYC)
 DEFINE_IFUNC(, void , pagezero, (void *))
+#else
+void  pagezero(void *);
+#endif
 {
 
 	return ((cpu_stdext_feature & CPUID_STDEXT_ERMS) != 0 ?

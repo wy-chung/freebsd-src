@@ -700,7 +700,7 @@ _Static_assert(UCODE_PAGEFLT == T_PAGEFLT, "T_PAGEFLT");
  */
 int
 vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
-    int fault_flags, int *signo, int *ucode)
+    int fault_flags, int *signo, int *ucode) __attribute__((optnone)) //wyc
 {
 	int result;
 
@@ -745,7 +745,7 @@ vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 				 */
 				if (SV_CURPROC_ABI() == SV_ABI_FREEBSD &&
 				    curproc->p_osrel >= P_OSREL_SIGSEGV) {
-					*signo = SIGSEGV;
+					*signo = SIGSEGV;	//wyc failed here. pid 17 (sh), jid 0, uid 0: exited on signal 11 (no core dump - other error)
 					*ucode = SEGV_ACCERR;
 				} else {
 					*signo = SIGBUS;
@@ -1970,7 +1970,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
     vm_prot_t prot, vm_page_t *ma, int max_count)
 {
 	vm_offset_t end, va;
-	vm_page_t *mp;
+	struct vm_page **mp;
 	int count;
 	boolean_t pmap_failed;
 

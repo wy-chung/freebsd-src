@@ -157,7 +157,7 @@ vm_domainset_iter_first(struct vm_domainset_iter *di, int *domain)
 
 	switch (di->di_policy) {
 	case DOMAINSET_POLICY_FIRSTTOUCH:
-		*domain = PCPU_GET(domain);
+		*domain = PCPU_GET(pc_domain);
 		if (DOMAINSET_ISSET(*domain, &di->di_domain->ds_mask)) {
 			/*
 			 * Add an extra iteration because we will visit the
