@@ -115,7 +115,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	 * can return error only if no i/o was performed.
 	 */
 	if (uio->uio_resid != orig_resid)
-		error = 0;
+		error = ESUCCESS;
 
 	return (error);
 }
