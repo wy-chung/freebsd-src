@@ -119,7 +119,7 @@ _start:
 	 *  a1 - zero or dtbp
 	 */
 pagetables:
-	/* Get the kernel's load address */
+	/* Get the kernel`s load address */
 	jal	get_physmem
 
 	/* Add L1 entry for kernel */
@@ -180,7 +180,7 @@ pagetables:
 	lla	s1, pagetable_l2_devmap
 	mv	s2, a1
 	srli	s2, s2, PAGE_SHIFT
-	/* Mask off any bits that aren't aligned */
+	/* Mask off any bits that aren`t aligned */
 	andi	s2, s2, ~((1 << (PTE_PPN1_S - PTE_PPN0_S)) - 1)
 
 	li	t0, (PTE_KERN)
@@ -364,7 +364,7 @@ ENTRY(mpentry)
 	lla	t0, bootstack
 	ld	sp, 0(t0)
 
-	/* Get the kernel's load address */
+	/* Get the kernel`s load address */
 	jal	get_physmem
 
 	/* Setup supervisor trap vector */

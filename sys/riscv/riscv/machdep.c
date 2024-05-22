@@ -419,7 +419,7 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 }
 
 /* Support for FDT configurations only. */
-CTASSERT(FDT);
+CTASSERT(FDT); // flattened device tree
 
 #ifdef FDT
 static void
