@@ -4055,7 +4055,7 @@ vm_page_wire_mapped(vm_page_t m)
 	old = m->ref_count;
 	do {
 		KASSERT(old > 0,
-		    ("vm_page_wire_mapped: wiring unreferenced page %p", m));
+		    ("%s: wiring unreferenced page %p", __func__, m));
 		if ((old & VPRC_BLOCKED) != 0)
 			return (false);
 	} while (!atomic_fcmpset_int(&m->ref_count, &old, old + 1));
@@ -5036,7 +5036,7 @@ vm_page_bits_set(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t set)
 	 * of atomic_{set, clear}_{8, 16}.
 	 */
 	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
+#if 0//BYTE_ORDER == BIG_ENDIAN
 	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
 	shift *= NBBY;
@@ -5069,7 +5069,7 @@ vm_page_bits_clear(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t clear)
 	 * of atomic_{set, clear}_{8, 16}.
 	 */
 	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
+#if 0//BYTE_ORDER == BIG_ENDIAN
 	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
 	shift *= NBBY;
@@ -5118,7 +5118,7 @@ vm_page_bits_swap(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t newbits)
 	 * of atomic_{set, swap, clear}_{8, 16}.
 	 */
 	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
+#if 0//BYTE_ORDER == BIG_ENDIAN
 	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
 	shift *= NBBY;

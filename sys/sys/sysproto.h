@@ -25,7 +25,7 @@ struct thread;
 #define	PAD_(t)	(sizeof(syscallarg_t) <= sizeof(t) ? \
 		0 : sizeof(syscallarg_t) - sizeof(t))
 
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if 1//BYTE_ORDER == LITTLE_ENDIAN
 #define	PADL_(t)	0
 #define	PADR_(t)	PAD_(t)
 #else

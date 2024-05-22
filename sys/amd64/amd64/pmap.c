@@ -6100,19 +6100,18 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 {
 	pd_entry_t newpde, oldpde;
 	pt_entry_t *firstpte, newpte;
-	pt_entry_t PG_A, PG_G, PG_M, PG_PKU_MASK, PG_RW, PG_V;
 	vm_paddr_t mptepa;
 	vm_page_t mpte;
-	int PG_PTE_CACHE;
 	bool in_kernel;
 
-	PG_A = pmap_accessed_bit(pmap);
-	PG_G = pmap_global_bit(pmap);
-	PG_M = pmap_modified_bit(pmap);
-	PG_RW = pmap_rw_bit(pmap);
-	PG_V = pmap_valid_bit(pmap);
-	PG_PTE_CACHE = pmap_cache_mask(pmap, 0);
-	PG_PKU_MASK = pmap_pku_mask_bit(pmap);
+printf("    %s: wyctest\n", __func__); // it is called sometimes
+	pt_entry_t PG_A = pmap_accessed_bit(pmap);
+	pt_entry_t PG_G = pmap_global_bit(pmap);
+	pt_entry_t PG_M = pmap_modified_bit(pmap);
+	pt_entry_t PG_RW = pmap_rw_bit(pmap);
+	pt_entry_t PG_V = pmap_valid_bit(pmap);
+	pt_entry_t PG_PKU_MASK = pmap_pku_mask_bit(pmap);
+	int PG_PTE_CACHE = pmap_cache_mask(pmap, 0);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	in_kernel = va >= VM_MAXUSER_ADDRESS;
@@ -6949,20 +6948,20 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va, vm_page_t mpte,
 {
 	pd_entry_t newpde;
 	pt_entry_t *firstpte, oldpte, pa, *pte;
-	pt_entry_t allpte_PG_A, PG_A, PG_G, PG_M, PG_PKU_MASK, PG_RW, PG_V;
-	int PG_PTE_CACHE;
+	pt_entry_t allpte_PG_A;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if (!pmap_ps_enabled(pmap))
 		return (false);
 
-	PG_A = pmap_accessed_bit(pmap);
-	PG_G = pmap_global_bit(pmap);
-	PG_M = pmap_modified_bit(pmap);
-	PG_V = pmap_valid_bit(pmap);
-	PG_RW = pmap_rw_bit(pmap);
-	PG_PKU_MASK = pmap_pku_mask_bit(pmap);
-	PG_PTE_CACHE = pmap_cache_mask(pmap, 0);
+printf("%s: wyctest\n", __func__); // it is called sometimes
+	pt_entry_t PG_A = pmap_accessed_bit(pmap);
+	pt_entry_t PG_G = pmap_global_bit(pmap);
+	pt_entry_t PG_M = pmap_modified_bit(pmap);
+	pt_entry_t PG_V = pmap_valid_bit(pmap);
+	pt_entry_t PG_RW = pmap_rw_bit(pmap);
+	pt_entry_t PG_PKU_MASK = pmap_pku_mask_bit(pmap);
+	int PG_PTE_CACHE = pmap_cache_mask(pmap, 0);
 
 	/*
 	 * Examine the first PTE in the specified PTP.  Abort if this PTE is
@@ -7227,7 +7226,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, struct vm_page *m, vm_prot_t prot,
 { // 7460
 	struct rwlock *lock;
 	pd_entry_t *pde;
-	pt_entry_t *pte, PG_G, PG_A, PG_M, PG_RW, PG_V;
+	pt_entry_t *pte;
 	pt_entry_t newpte, origpte;
 	pv_entry_t pv;
 	vm_paddr_t opa, pa;
@@ -7235,14 +7234,14 @@ pmap_enter(pmap_t pmap, vm_offset_t va, struct vm_page *m, vm_prot_t prot,
 	int rv;
 	boolean_t nosleep;
 
-	PG_A = pmap_accessed_bit(pmap);
-	PG_G = pmap_global_bit(pmap);
-	PG_M = pmap_modified_bit(pmap);
-	PG_V = pmap_valid_bit(pmap);
-	PG_RW = pmap_rw_bit(pmap);
+	pt_entry_t PG_A = pmap_accessed_bit(pmap);
+	pt_entry_t PG_G = pmap_global_bit(pmap);
+	pt_entry_t PG_M = pmap_modified_bit(pmap);
+	pt_entry_t PG_V = pmap_valid_bit(pmap);
+	pt_entry_t PG_RW = pmap_rw_bit(pmap);
 
 	va = trunc_page(va);
-	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("%s: toobig", __func__));
+	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("%s: toobig", __func__)); //typo
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("%s: invalid page table pages (va: 0x%lx)", __func__, va));
 	KASSERT((m->oflags & VPO_UNMANAGED) != 0 || !VA_IS_CLEANMAP(va),

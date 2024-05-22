@@ -696,7 +696,7 @@ crc32c_sb8_64_bit(uint32_t crc,
 		crc = sctp_crc_tableil8_o32[(crc ^ *p_buf++) & 0x000000FF] ^
 		    (crc >> 8);
 	for (li = 0; li < running_length / 8; li++) {
-#if BYTE_ORDER == BIG_ENDIAN
+#if 0//BYTE_ORDER == BIG_ENDIAN
 		crc ^= *p_buf++;
 		crc ^= (*p_buf++) << 8;
 		crc ^= (*p_buf++) << 16;
@@ -712,7 +712,7 @@ crc32c_sb8_64_bit(uint32_t crc,
 		    sctp_crc_tableil8_o72[term2 & 0x000000FF] ^
 		    sctp_crc_tableil8_o64[(term2 >> 8) & 0x000000FF];
 
-#if BYTE_ORDER == BIG_ENDIAN
+#if 0//BYTE_ORDER == BIG_ENDIAN
 		crc ^= sctp_crc_tableil8_o56[*p_buf++];
 		crc ^= sctp_crc_tableil8_o48[*p_buf++];
 		crc ^= sctp_crc_tableil8_o40[*p_buf++];

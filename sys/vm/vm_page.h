@@ -804,7 +804,7 @@ void vm_page_assert_pga_writeable(vm_page_t m, uint16_t bits);
 #define	vm_page_xbusy_claim(m)
 #endif
 
-#if BYTE_ORDER == BIG_ENDIAN
+#if 0//BYTE_ORDER == BIG_ENDIAN
 #define	VM_PAGE_AFLAG_SHIFT	16
 #else
 #define	VM_PAGE_AFLAG_SHIFT	0
