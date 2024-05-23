@@ -79,9 +79,18 @@ extern u_long maxphys;		/* max raw I/O transfer size */
  * ever implemented (e.g. vendor-specific paravirtualization features).
  * Keep in sync with vm_guest_sysctl_names[].
  */
-enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
-		VM_GUEST_VMWARE, VM_GUEST_KVM, VM_GUEST_BHYVE, VM_GUEST_VBOX,
-		VM_GUEST_PARALLELS, VM_LAST };
+enum VM_GUEST {
+	VM_GUEST_NO,
+	VM_GUEST_VM,
+	VM_GUEST_XEN,
+	VM_GUEST_HV,
+	VM_GUEST_VMWARE,
+	VM_GUEST_KVM,
+	VM_GUEST_BHYVE,
+	VM_GUEST_VBOX,
+	VM_GUEST_PARALLELS,
+	VM_LAST,
+};
 
 #endif /* KERNEL */
 
