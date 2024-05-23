@@ -386,7 +386,8 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 #define	pa_index(pa)	((pa) >> PDRSHIFT)
 #define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
 #else
-struct md_page *pa_to_pvh(vm_paddr_t pa) { return &pv_table[pa >> PDRSHIFT]; } // for 2MB super page
+struct md_page *pa_to_pvh(vm_paddr_t pa) // for 2MB super page
+{ return &pv_table[pa >> PDRSHIFT]; }
 #endif
 
 #define	NPV_LIST_LOCKS	MAXCPU
@@ -8123,7 +8124,7 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
  *	This routine is only advisory and need not do anything.
  */
 void
-pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
+pmap_copy(struct pmap *dst_pmap, struct pmap *src_pmap, vm_offset_t dst_addr, vm_size_t len,
     vm_offset_t src_addr)
 {
 	struct rwlock *lock;
@@ -8132,7 +8133,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	pd_entry_t *pde, srcptepaddr;
 	pt_entry_t *dst_pte, PG_A, PG_M, PG_V, ptetemp, *src_pte;
 	vm_offset_t addr, end_addr, va_next;
-	vm_page_t dst_pdpg, dstmpte, srcmpte;
+	struct vm_page *dst_pdpg, *dstmpte, *srcmpte;
 
 	if (dst_addr != src_addr)
 		return;
@@ -8167,7 +8168,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 
 	for (addr = src_addr; addr < end_addr; addr = va_next) {
 		KASSERT(addr < UPT_MIN_ADDRESS,
-		    ("pmap_copy: invalid to pmap_copy page tables"));
+		    ("%s: invalid to pmap_copy page tables", __func__));
 
 		pml4e = pmap_pml4e(src_pmap, addr);
 		if (pml4e == NULL || (*pml4e & PG_V) == 0) {
@@ -8385,7 +8386,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	pagecopy((void *)src, (void *)dst);
 }
 
-int unmapped_buf_allowed = 1;
+int unmapped_buf_allowed = 1; // vfs.unmapped_buf_allowed == 1
 
 void
 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
@@ -8865,7 +8866,7 @@ pmap_is_modified(vm_page_t m)
 {
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_is_modified: page %p is not managed", m));
+	    ("%s: page %p is not managed", __func__, m));
 
 	/*
 	 * If the page is not busied then this check is racy.

@@ -567,7 +567,7 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_offset_t mapped;
 	int witness_size;
 #endif
-#if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
+#if 0//defined(__i386__) && defined(VM_PHYSSEG_DENSE)
 	long ii;
 #endif
 
@@ -581,9 +581,9 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Initialize the page and queue locks.
 	 */
 	mtx_init(&vm_domainset_lock, "vm domainset lock", NULL, MTX_DEF);
-	for (i = 0; i < PA_LOCK_COUNT; i++)
+	for (i = 0; i < PA_LOCK_COUNT; i++) // PA_LOCK_COUNT == 256
 		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
-	for (i = 0; i < vm_ndomains; i++)
+	for (i = 0; i < vm_ndomains; i++) // vm_ndomains == 1
 		vm_page_domain_init(i);
 
 	new_end = end;
@@ -756,7 +756,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Initialize the page structures and add every available page to the
 	 * physical memory allocator's free lists.
 	 */
-#if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
+#if 0//defined(__i386__) && defined(VM_PHYSSEG_DENSE)
 	for (ii = 0; ii < vm_page_array_size; ii++) {
 		m = &vm_page_array[ii];
 		vm_page_init_page(m, (first_page + ii) << PAGE_SHIFT, 0);

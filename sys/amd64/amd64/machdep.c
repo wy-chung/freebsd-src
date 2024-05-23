@@ -641,7 +641,7 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap, int *phys
 	physmap_idx = *physmap_idxp;
 
 	if (length == 0)
-		return (1);
+		return (ESUCCESS);
 
 	/*
 	 * Find insertion point while checking for overlap.  Start off by
@@ -659,20 +659,20 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap, int *phys
 			if (boothowto & RB_VERBOSE)
 				printf(
 		    "Overlapping memory regions, ignoring second region\n");
-			return (1);
+			return (ESUCCESS);
 		}
 	}
 
 	/* See if we can prepend to the next entry. */
 	if (insert_idx <= physmap_idx && base + length == physmap[insert_idx]) {
 		physmap[insert_idx] = base;
-		return (1);
+		return (ESUCCESS);
 	}
 
 	/* See if we can append to the previous entry. */
 	if (insert_idx > 0 && base == physmap[insert_idx - 1]) {
 		physmap[insert_idx - 1] += length;
-		return (1);
+		return (ESUCCESS);
 	}
 
 	physmap_idx += 2;
@@ -680,7 +680,7 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap, int *phys
 	if (physmap_idx == PHYS_AVAIL_ENTRIES) {
 		printf(
 		"Too many segments in the physical address map, giving up\n");
-		return (0);
+		return (EFAIL);
 	}
 
 	/*
@@ -695,7 +695,7 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap, int *phys
 	/* Insert the new entry. */
 	physmap[insert_idx] = base;
 	physmap[insert_idx + 1] = base + length;
-	return (1);
+	return (ESUCCESS);
 }
 
 void
@@ -714,8 +714,8 @@ bios_add_smap_entries(struct bios_smap *smapbase, u_int32_t smapsize,
 		if (smap->type != SMAP_TYPE_MEMORY)
 			continue;
 
-		if (!add_physmap_entry(smap->base, smap->length, physmap,
-		    physmap_idx))
+		if (add_physmap_entry(smap->base, smap->length, physmap,
+		    physmap_idx) != ESUCCESS)
 			break;
 	}
 }
@@ -812,8 +812,8 @@ add_efi_map_entries(struct efi_map_header *efihdr, vm_paddr_t *physmap,
 			continue;
 		}
 
-		if (!add_physmap_entry(p->md_phys, p->md_pages * EFI_PAGE_SIZE,
-		    physmap, physmap_idx))
+		if (add_physmap_entry(p->md_phys, p->md_pages * EFI_PAGE_SIZE,
+		    physmap, physmap_idx) != ESUCCESS)
 			break;
 	}
 }
@@ -823,7 +823,6 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 {
 	struct bios_smap *smap;
 	struct efi_map_header *efihdr;
-	u_int32_t size;
 
 	/*
 	 * Memory map from INT 15:E820.
@@ -842,7 +841,7 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 		add_efi_map_entries(efihdr, physmap, physmap_idx);
 		strlcpy(bootmethod, "UEFI", sizeof(bootmethod));
 	} else {
-		size = *((u_int32_t *)smap - 1);
+		u_int32_t size = *((u_int32_t *)smap - 1);
 		bios_add_smap_entries(smap, size, physmap, physmap_idx);
 		strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
 	}
@@ -851,20 +850,23 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 #define	PAGES_PER_GB	(1024 * 1024 * 1024 / PAGE_SIZE)
 
 /*
- * Populate the (physmap) array with base/bound pairs describing the
+ * Populate the %physmap array with base/bound pairs describing the
  * available physical memory in the system, then test this memory and
- * build the phys_avail array describing the actually-available memory.
+ * build the @phys_avail array describing the actually-available memory.
  *
  * Total memory size may be set by the kernel environment variable
  * hw.physmem or the compile-time define MAXMEM.
  *
  * XXX first should be vm_paddr_t.
  */
+// output: @phys_avail
 static void
-getmemsize(caddr_t kmdp, u_int64_t first) // < hammer_time < btext
+getmemsize(caddr_t kmdp, vm_paddr_t first) // < hammer_time < btext
 {
-	int i, physmap_idx, pa_indx, da_indx;
-	vm_paddr_t pa, physmap[PHYS_AVAIL_ENTRIES];
+	int i, pa_indx, da_indx;
+	vm_paddr_t pa;
+	vm_paddr_t physmap[PHYS_AVAIL_ENTRIES];
+	int physmap_idx;
 	u_long physmem_start, physmem_tunable, memtest;
 	pt_entry_t *pte;
 	quad_t dcons_addr, dcons_size;
@@ -1120,7 +1122,10 @@ do_next:
 		phys_avail[pa_indx--] = 0;
 	}
 
-	Maxmem = atop(phys_avail[pa_indx]);
+	long maxmem = atop(phys_avail[pa_indx]);
+	long pattrsz = roundup2(maxmem / 2, PAGE_SIZE); // number of bytes needed for the page attribute
+	phys_avail[pa_indx] = ptoa(maxmem) - pattrsz;
+	Maxmem = atop(phys_avail[pa_indx]); // Maxmem is the base address for the page attribute
 
 	/* Trim off space for the message buffer. */
 	phys_avail[pa_indx] -= round_page(msgbufsize);

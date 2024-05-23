@@ -134,8 +134,8 @@ static int __read_mostly vm_nfreelists;
  * allocations remove extents from phys_avail that may still be included
  * in dumps.
  */
-vm_paddr_t phys_avail[PHYS_AVAIL_COUNT];
-vm_paddr_t dump_avail[PHYS_AVAIL_COUNT];
+vm_paddr_t phys_avail[PHYS_AVAIL_COUNT]; // initialized by getmemsize
+vm_paddr_t dump_avail[PHYS_AVAIL_COUNT]; // initialized by getmemsize
 
 /*
  * Provides the mapping from VM_FREELIST_* to free list indices (flind).
@@ -404,9 +404,9 @@ _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain)
 	struct vm_phys_seg *seg;
 
 	KASSERT(vm_phys_nsegs < VM_PHYSSEG_MAX,
-	    ("vm_phys_create_seg: increase VM_PHYSSEG_MAX"));
+	    ("%s: increase VM_PHYSSEG_MAX", __func__));
 	KASSERT(domain >= 0 && domain < vm_ndomains,
-	    ("vm_phys_create_seg: invalid domain provided"));
+	    ("%s: invalid domain provided", __func__));
 	seg = &vm_phys_segs[vm_phys_nsegs++];
 	while (seg > vm_phys_segs && (seg - 1)->start >= end) {
 		*seg = *(seg - 1);
