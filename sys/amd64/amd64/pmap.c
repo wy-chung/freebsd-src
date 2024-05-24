@@ -8873,7 +8873,7 @@ pmap_is_modified(vm_page_t m)
 	 */
 	if (!pmap_page_is_write_mapped(m))
 		return (FALSE);
-	return (pmap_page_test_mappings(m, FALSE, TRUE));
+	return (pmap_page_test_mappings(m, /*accessed*/FALSE, /*modified*/TRUE));
 }
 
 /*
@@ -8918,7 +8918,7 @@ pmap_is_referenced(vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_referenced: page %p is not managed", m));
-	return (pmap_page_test_mappings(m, TRUE, FALSE));
+	return (pmap_page_test_mappings(m, /*accessed*/TRUE, /*modified*/FALSE));
 }
 
 /*

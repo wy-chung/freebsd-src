@@ -1121,7 +1121,7 @@ do_next:
 		phys_avail[pa_indx--] = 0;
 		phys_avail[pa_indx--] = 0;
 	}
-
+//wyc
 	long maxmem = atop(phys_avail[pa_indx]);
 	long pattrsz = roundup2(maxmem / 2, PAGE_SIZE); // number of bytes needed for the page attribute
 	phys_avail[pa_indx] = ptoa(maxmem) - pattrsz;
