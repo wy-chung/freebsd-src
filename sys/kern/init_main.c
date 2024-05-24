@@ -353,7 +353,7 @@ print_caddr_t(void *data)
 {
 	printf("%s", (char *)data);
 }
-
+//wyc
 extern vm_paddr_t phys_avail[];
 extern long Maxmem;
 static void
@@ -367,7 +367,7 @@ print_version(void *data __unused)
 		len--;
 	printf("%.*s %s\n", len, version, machine);
 	printf("%s\n", compiler_version);
-
+//wyc
 	for (int i = 0 ; phys_avail[i] != 0; i += 2)
 		printf("phys_avail %d %08lx %08lx\n", i, phys_avail[i], phys_avail[i+1]);
 	printf("MaxMem: %lx\n", Maxmem);
