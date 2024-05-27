@@ -179,12 +179,12 @@ MALLOC_DEFINE(M_PMAP, "pmap", "pmap structures");
 #endif
 
 static __inline boolean_t
-pmap_type_guest(pmap_t pmap)
+pmap_type_guest(pmap_t pmap) // always return false
 {
 	boolean_t is_guest; //wyc
 	is_guest = (pmap->pm_type == PT_EPT) || (pmap->pm_type == PT_RVI);
 	if (is_guest) //wyc
-		panic("%s", __func__);
+		panic("%s: wyctest", __func__); // pass, never a guest
 	return (is_guest);
 }
 
@@ -2411,7 +2411,7 @@ pmap_init_pv_table(void)
 	vm_size_t s;
 	long start, end, highest, pv_npg;
 	int domain, i, j, pages;
-panic("%s", __func__); //wyctest passed. NUMA is disabled in MYKERNEL
+panic("%s", __func__); //wyctest pass. NUMA is disabled in MYKERNEL
 	/*
 	 * For correctness we depend on the size being evenly divisible into a
 	 * page. As a tradeoff between performance and total memory use, the
@@ -2889,7 +2889,7 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 {
 	pt_entry_t PG_G;
 
-	if (pmap_type_guest(pmap))
+	if (pmap_type_guest(pmap)) // false
 		return;
 
 	KASSERT(pmap->pm_type == PT_X86,
@@ -3081,7 +3081,7 @@ pmap_invalidate_ept(pmap_t pmap)
 {
 	smr_seq_t goal;
 	int ipinum;
-
+panic("%s: wyctest", __func__); // pass, never reached
 	sched_pin();
 	KASSERT(!CPU_ISSET(curcpu, &pmap->pm_active),
 	    ("%s: absurd pm_active", __func__));
@@ -3256,7 +3256,7 @@ pmap_invalidate_page_curcpu_cb(pmap_t pmap, vm_offset_t va,
 void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-	if (pmap_type_guest(pmap)) {
+	if (pmap_type_guest(pmap)) { // false
 		pmap_invalidate_ept(pmap);
 		return;
 	}
@@ -3361,7 +3361,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		return;
 	}
 
-	if (pmap_type_guest(pmap)) {
+	if (pmap_type_guest(pmap)) { // false
 		pmap_invalidate_ept(pmap);
 		return;
 	}
@@ -3449,7 +3449,7 @@ pmap_invalidate_all_curcpu_cb(pmap_t pmap, vm_offset_t addr1 __unused,
 void
 pmap_invalidate_all(pmap_t pmap)
 {
-	if (pmap_type_guest(pmap)) {
+	if (pmap_type_guest(pmap)) { // false
 		pmap_invalidate_ept(pmap);
 		return;
 	}

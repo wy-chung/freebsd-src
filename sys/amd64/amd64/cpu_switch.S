@@ -288,7 +288,7 @@ do_tss:	movq	%rdx,PCPU(TSSP)
 	ltr	%ax
 	jmp	done_tss
 #if 0 //wyc
-do_ldt:	hlt	//wyctest success, this code is never reached
+do_ldt:	hlt	//wyctest pass, never reached
 	movq	PCPU(LDT),%rax
 	movq	P_MD+MD_LDT_SD(%rcx),%rdx
 	movq	%rdx,(%rax)
