@@ -81,13 +81,13 @@ extern u_long maxphys;		/* max raw I/O transfer size */
  */
 enum VM_GUEST {
 	VM_GUEST_NO,
-	VM_GUEST_VM,
+	VM_GUEST_VM,	// in qemu
 	VM_GUEST_XEN,
 	VM_GUEST_HV,
 	VM_GUEST_VMWARE,
-	VM_GUEST_KVM,
+	VM_GUEST_KVM,	// in kvm
 	VM_GUEST_BHYVE,
-	VM_GUEST_VBOX,
+	VM_GUEST_VBOX,	// in VirtualBox
 	VM_GUEST_PARALLELS,
 	VM_LAST,
 };

@@ -181,9 +181,9 @@ MALLOC_DEFINE(M_PMAP, "pmap", "pmap structures");
 static __inline boolean_t
 pmap_type_guest(pmap_t pmap)
 {
-	boolean_t is_guest;
+	boolean_t is_guest; //wyc
 	is_guest = (pmap->pm_type == PT_EPT) || (pmap->pm_type == PT_RVI);
-	if (is_guest)
+	if (is_guest) //wyc
 		panic("%s", __func__);
 	return (is_guest);
 }
@@ -3262,7 +3262,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	}
 
 	KASSERT(pmap->pm_type == PT_X86,
-	    ("pmap_invalidate_page: invalid type %d", pmap->pm_type));
+	    ("%s: invalid type %d", __func__, pmap->pm_type));
 
 	pmap_invalidate_preipi(pmap);
 	smp_masked_invlpg(va, pmap, pmap_invalidate_page_curcpu_cb);
@@ -4346,10 +4346,11 @@ pmap_pinit_pcids(pmap_t pmap, uint32_t pcid, int gen)
 }
 
 void
-pmap_pinit0(pmap_t pmap) // &vmspace0.vm_pmap
+pmap_pinit0(void) // < proc0_init
 {
 	struct proc *p;
 	struct thread *td;
+	struct pmap *pmap = vmspace_pmap(&vmspace0);
 
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pmltop = kernel_pmap->pm_pmltop;
@@ -9043,7 +9044,7 @@ pmap_ts_referenced(vm_page_t m)
 	boolean_t demoted;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_ts_referenced: page %p is not managed", m));
+	    ("%s: page %p is not managed", __func__, m));
 	SLIST_INIT(&free);
 	cleared = 0;
 	pa = VM_PAGE_TO_PHYS(m);
@@ -9180,8 +9181,7 @@ small_mappings:
 		PG_RW = pmap_rw_bit(pmap);
 		pde = pmap_pde(pmap, pv->pv_va);
 		KASSERT((*pde & PG_PS) == 0,
-		    ("pmap_ts_referenced: found a 2mpage in page %p's pv list",
-		    m));
+		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
 		if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 			vm_page_dirty(m);
@@ -10239,7 +10239,7 @@ panic("%s", __func__);
 }
 
 static void
-pmap_activate_sw_nopcid_nopti(struct thread *td __unused, pmap_t pmap,
+pmap_activate_sw_nopcid_nopti(struct thread *td __unused, struct pmap *pmap,
     u_int cpuid __unused)
 {
 
@@ -10248,7 +10248,7 @@ pmap_activate_sw_nopcid_nopti(struct thread *td __unused, pmap_t pmap,
 }
 
 static void
-pmap_activate_sw_nopcid_pti(struct thread *td, pmap_t pmap,
+pmap_activate_sw_nopcid_pti(struct thread *td, struct pmap *pmap,
     u_int cpuid __unused)
 {
 panic("%s", __func__);
@@ -10295,8 +10295,9 @@ pmap_activate_sw(struct thread *td)
 #else
 	CPU_SET(cpuid, &pmap->pm_active);
 #endif
+#if !defined(WYC)
 	pmap_activate_sw_mode(td, pmap, cpuid);
-#if defined(WYC)
+#else
 	pmap_activate_sw_nopcid_nopti(td, pmap, cpuid);
 #endif
 #ifdef SMP
