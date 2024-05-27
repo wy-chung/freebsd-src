@@ -1478,10 +1478,10 @@ ENTRY(lgdt)
 	nop
 1:
 	movl	$KDSEL,%eax	// == GDATA_SEL(5) << 3
-	movl	%eax,%ds //wyctest success, can be removed
-	movl	%eax,%es //wyctest success
-	movl	%eax,%fs //wyctest success	/* Beware, use wrmsr to set 64 bit base */
-	movl	%eax,%gs //wyctest success
+	movl	%eax,%ds //wyctest pass, can be removed
+	movl	%eax,%es //wyctest pass, can be removed
+	movl	%eax,%fs //wyctest pass, can be removed	/* Beware, use wrmsr to set 64 bit base */
+	movl	%eax,%gs //wyctest pass, can be removed
 	movl	%eax,%ss //wyctest fail, cannot be removed
 
 	/* reload code selector by turning return into intersegmental return */

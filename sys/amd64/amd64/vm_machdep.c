@@ -270,7 +270,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags) // 
 		mdp2->md_ldt = NULL;
 		return;
 	}
-panic("%s: wyctest", __func__); //wyctest success, mdp1->md_ldt is always NULL
+panic("%s: wyctest", __func__); //wyctest pass, mdp1->md_ldt is always NULL
 	mtx_lock(&dt_lock);
 	if (mdp1->md_ldt != NULL) {
 		if (flags & RFMEM) {
