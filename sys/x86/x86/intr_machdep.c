@@ -207,8 +207,7 @@ intr_init_sources(void *arg)
 			pic->pic_register_sources(pic);
 	}
 }
-SYSINIT(intr_init_sources, SI_SUB_INTR, SI_ORDER_FOURTH + 1, intr_init_sources,
-    NULL);
+SYSINIT(intr_init_sources, SI_SUB_INTR, SI_ORDER_FOURTH + 1, intr_init_sources, NULL);
 
 /*
  * Register a new interrupt source with the global interrupt system.

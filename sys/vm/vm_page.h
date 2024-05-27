@@ -213,7 +213,7 @@ typedef uint64_t vm_page_bits_t;
 
 typedef union vm_page_astate {
 	struct {
-		uint16_t flags;
+		uint16_t flags; // see enum pga_flags
 		uint8_t	queue;
 		uint8_t act_count;
 	};
@@ -245,7 +245,7 @@ struct vm_page {
 	union vm_page_astate a;		/* state accessed atomically (A) */
 	uint8_t order;			/* index of the buddy queue (F) */
 	uint8_t pool;			/* vm_phys freepool index (F) */
-	uint8_t flags;			/* page PG_* flags (P) */
+	uint8_t flags; // ref enum pg_flags	/* page PG_* flags (P) */
 	uint8_t oflags;			/* page VPO_* flags (O) */
 	int8_t psind;			/* pagesizes[] index (O) */
 	int8_t segind;			/* vm_phys segment index (C) */
@@ -289,11 +289,12 @@ struct vm_page {
  * 	 mappings, and such pages are also not on any PQ queue.
  *
  */
-#define	VPO_KMEM_EXEC	0x01		/* kmem mapping allows execution */
-#define	VPO_SWAPSLEEP	0x02		/* waiting for swap to finish */
-#define	VPO_UNMANAGED	0x04		/* no PV management for page */
-#define	VPO_SWAPINPROG	0x08		/* swap I/O in progress on page */
-
+enum vpo_flags {
+	VPO_KMEM_EXEC	= 0x01,		/* kmem mapping allows execution */
+	VPO_SWAPSLEEP	= 0x02,		/* waiting for swap to finish */
+	VPO_UNMANAGED	= 0x04,		/* no PV management for page */
+	VPO_SWAPINPROG	= 0x08,		/* swap I/O in progress on page */
+};
 /*
  * Busy page implementation details.
  * The algorithm is taken mostly by rwlock(9) and sx(9) locks implementation,
@@ -434,17 +435,18 @@ extern struct mtx_padalign pa_lock[];
  * when the context that dirties the page does not have the object write lock
  * held.
  */
-#define	PGA_WRITEABLE	0x0001		/* page may be mapped writeable */
-#define	PGA_REFERENCED	0x0002		/* page has been referenced */
-#define	PGA_EXECUTABLE	0x0004		/* page may be mapped executable */
-#define	PGA_ENQUEUED	0x0008		/* page is enqueued in a page queue */
-#define	PGA_DEQUEUE	0x0010		/* page is due to be dequeued */
-#define	PGA_REQUEUE	0x0020		/* page is due to be requeued */
-#define	PGA_REQUEUE_HEAD 0x0040		/* page requeue should bypass LRU */
-#define	PGA_NOSYNC	0x0080		/* do not collect for syncer */
-#define	PGA_SWAP_FREE	0x0100		/* page with swap space was dirtied */
-#define	PGA_SWAP_SPACE	0x0200		/* page has allocated swap space */
-
+enum pga_flags {
+	PGA_WRITEABLE	= 0x0001,	/* page may be mapped writeable */
+	PGA_REFERENCED	= 0x0002,	/* page has been referenced */
+	PGA_EXECUTABLE	= 0x0004,	/* page may be mapped executable */
+	PGA_ENQUEUED	= 0x0008,	/* page is enqueued in a page queue */
+	PGA_DEQUEUE	= 0x0010,	/* page is due to be dequeued */
+	PGA_REQUEUE	= 0x0020,	/* page is due to be requeued */
+	PGA_REQUEUE_HEAD= 0x0040,	/* page requeue should bypass LRU */
+	PGA_NOSYNC	= 0x0080,	/* do not collect for syncer */
+	PGA_SWAP_FREE	= 0x0100,	/* page with swap space was dirtied */
+	PGA_SWAP_SPACE	= 0x0200,	/* page has allocated swap space */
+};
 #define	PGA_QUEUE_OP_MASK	(PGA_DEQUEUE | PGA_REQUEUE | PGA_REQUEUE_HEAD)
 #define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_QUEUE_OP_MASK)
 
@@ -456,12 +458,13 @@ extern struct mtx_padalign pa_lock[];
  * allocated from a per-CPU cache.  It is cleared the next time that the
  * page is allocated from the physical memory allocator.
  */
-#define	PG_PCPU_CACHE	0x01		/* was allocated from per-CPU caches */
-#define	PG_FICTITIOUS	0x02		/* physical page doesn't exist */
-#define	PG_ZERO		0x04		/* page is zeroed */
-#define	PG_MARKER	0x08		/* special queue marker page */
-#define	PG_NODUMP	0x10		/* don't include this page in a dump */
-
+enum pg_flags {
+	PG_PCPU_CACHE	= 0x01,		/* was allocated from per-CPU caches */
+	PG_FICTITIOUS	= 0x02,		/* physical page doesn't exist */
+	PG_ZERO		= 0x04,		/* page is zeroed */
+	PG_MARKER	= 0x08,		/* special queue marker page */
+	PG_NODUMP	= 0x10,		/* don't include this page in a dump */
+};
 /*
  * Misc constants.
  */

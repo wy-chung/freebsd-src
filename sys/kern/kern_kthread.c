@@ -65,7 +65,7 @@ kproc_start(const void *udata)
 	error = kproc_create((void (*)(void *))kp->func, NULL,
 	    kp->global_procpp, 0, 0, "%s", kp->arg0);
 	if (error)
-		panic("kproc_start: %s: error %d", kp->arg0, error);
+		panic("%s: %s: error %d", __func__, kp->arg0, error);
 }
 
 /*

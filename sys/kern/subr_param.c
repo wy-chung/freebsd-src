@@ -100,7 +100,7 @@ u_long	maxswzone;			/* max swmeta KVA storage */
 u_long	maxbcache;			/* max buffer cache KVA storage */
 u_long	maxpipekva;			/* Limit on pipe KVA */
 u_long	maxphys;			/* max raw I/O transfer size */
-int	vm_guest = VM_GUEST_NO;		/* Running as virtual machine guest? */
+int	vm_guest = VM_GUEST_NO;	// == VM_GUEST_VBOX in VirtualBox, == VM_GUEST_VM in qemu
 u_long	maxtsiz;			/* max text size */
 u_long	dfldsiz;			/* initial data size limit */
 u_long	maxdsiz;			/* max data size */

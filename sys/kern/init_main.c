@@ -458,6 +458,7 @@ struct sysentvec null_sysvec = {
 	.sv_regset_end  = NULL,
 };
 
+static void proc0_init(void *dummy __unused);
 /*
  * The two following SYSINIT's are proc0 specific glue code.  I am not
  * convinced that they can not be safely combined, but their order of
@@ -465,6 +466,7 @@ struct sysentvec null_sysvec = {
  * for right now.
  */
 /* ARGSUSED*/
+SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL);
 static void
 proc0_init(void *dummy __unused) // kernel swapper
 {
@@ -621,7 +623,7 @@ proc0_init(void *dummy __unused) // kernel swapper
 	/* Allocate a prototype map so we have something to fork. */
 	p->p_vmspace = &vmspace0;
 	refcount_init(&vmspace0.vm_refcnt, 1);
-	pmap_pinit0(vmspace_pmap(&vmspace0));
+	pmap_pinit0();
 
 	/*
 	 * proc0 is not expected to enter usermode, so there is no special
@@ -655,7 +657,6 @@ proc0_init(void *dummy __unused) // kernel swapper
 	racct_add_force(p, RACCT_NPROC, 1);
 	PROC_UNLOCK(p);
 }
-SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL);
 
 /* ARGSUSED*/
 static void
