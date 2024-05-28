@@ -305,7 +305,7 @@ typedef u_int64_t pml5_entry_t;
  * Address of current address space page table maps and directories.
  */
 #ifdef _KERNEL
-MALLOC_DECLARE(M_PMAP);
+MALLOC_DECLARE(M_PMAP); //wyctodo
 
 #define	addr_P4Tmap	(KV4ADDR(PML4PML4I, 0, 0, 0))
 #define	addr_P4Dmap	(KV4ADDR(PML4PML4I, PML4PML4I, 0, 0))
@@ -413,8 +413,7 @@ extern struct pmap	*user_pmap; //wyc
 #endif
 
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
-#define	PMAP_LOCK_ASSERT(pmap, type) \
-				mtx_assert(&(pmap)->pm_mtx, (type))
+#define	PMAP_LOCK_ASSERT(pmap, type) mtx_assert(&(pmap)->pm_mtx, (type))
 #define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
 #define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
 				    NULL, MTX_DEF | MTX_DUPOK)
@@ -451,7 +450,7 @@ void pmap_unmapbios(void *va, vm_size_t sz) { pmap_unmapdev(va, sz); }
 	    m, m->phys_addr, kernphys, &_end));
 
 struct thread;
-
+#if !defined(WYC)
 void	pmap_activate_boot(pmap_t pmap);
 void	pmap_activate_sw(struct thread *);
 void	pmap_allow_2m_x_ept_recalculate(void);
@@ -506,7 +505,7 @@ void	pmap_thread_init_invl_gen(struct thread *td);
 int	pmap_vmspace_copy(pmap_t dst_pmap, pmap_t src_pmap);
 void	pmap_page_array_startup(long count);
 vm_page_t pmap_page_alloc_below_4g(bool zeroed);
-
+#endif
 #if defined(KASAN) || defined(KMSAN)
 void	pmap_san_enter(vm_offset_t);
 #endif

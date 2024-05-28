@@ -170,7 +170,7 @@
 #include <machine/sysarch.h>
 #include <machine/tss.h>
 
-MALLOC_DEFINE(M_PMAP, "pmap", "pmap structures");
+MALLOC_DEFINE(M_PMAP, "pmap", "pmap structures"); //wyctodo
 
 #ifdef NUMA
 #define	PMAP_MEMDOM	MAXMEMDOM
@@ -189,10 +189,12 @@ pmap_type_guest(pmap_t pmap) // always return false
 }
 
 static __inline boolean_t
-pmap_emulate_ad_bits(pmap_t pmap)
+pmap_emulate_ad_bits(pmap_t pmap) // always false
 {
-
-	return ((pmap->pm_flags & PMAP_EMULATE_AD_BITS) != 0);
+	boolean_t is_emulate = (pmap->pm_flags & PMAP_EMULATE_AD_BITS) != 0;
+	if (is_emulate)
+		panic("%s: wyctest", __func__);
+	return (is_emulate);
 }
 
 static __inline pt_entry_t
@@ -209,7 +211,7 @@ pmap_valid_bit(pmap_t pmap)
 		mask = X86_PG_V;
 		break;
 	case PT_EPT:
-		if (pmap_emulate_ad_bits(pmap))
+		if (pmap_emulate_ad_bits(pmap)) // false
 			mask = EPT_PG_EMUL_V;
 		else
 			mask = EPT_PG_READ;
@@ -235,7 +237,7 @@ pmap_rw_bit(pmap_t pmap)
 		mask = X86_PG_RW;
 		break;
 	case PT_EPT:
-		if (pmap_emulate_ad_bits(pmap))
+		if (pmap_emulate_ad_bits(pmap)) // false
 			mask = EPT_PG_EMUL_RW;
 		else
 			mask = EPT_PG_WRITE;
@@ -286,7 +288,7 @@ pmap_accessed_bit(pmap_t pmap)
 		mask = X86_PG_A;
 		break;
 	case PT_EPT:
-		if (pmap_emulate_ad_bits(pmap))
+		if (pmap_emulate_ad_bits(pmap)) // false
 			mask = EPT_PG_READ;
 		else
 			mask = EPT_PG_A;
@@ -312,7 +314,7 @@ pmap_modified_bit(pmap_t pmap)
 		mask = X86_PG_M;
 		break;
 	case PT_EPT:
-		if (pmap_emulate_ad_bits(pmap))
+		if (pmap_emulate_ad_bits(pmap)) // false
 			mask = EPT_PG_WRITE;
 		else
 			mask = EPT_PG_M;
@@ -335,7 +337,7 @@ static __inline boolean_t
 safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 {
 
-	if (!pmap_emulate_ad_bits(pmap))
+	if (!pmap_emulate_ad_bits(pmap)) // true
 		return (TRUE);
 
 	KASSERT(pmap->pm_type == PT_EPT, ("invalid pm_type %d", pmap->pm_type));
@@ -650,7 +652,7 @@ pmap_di_locked(void) // false I guess
 	if ((cpu_feature2 & CPUID2_CX16) == 0)
 		return (true);
 	tun = 0;
-	TUNABLE_INT_FETCH("vm.pmap.di_locked", &tun);
+	TUNABLE_INT_FETCH("vm.pmap.di_locked", &tun); // vm.pmap.di_locked == 0
 	return (tun != 0);
 }
 
@@ -671,7 +673,7 @@ static bool pmap_not_in_di_u(void);
 #if !defined(WYC)
 DEFINE_IFUNC(, bool, pmap_not_in_di, (void))
 #else
-bool pmap_not_in_di(void);
+bool pmap_not_in_di(void); // di means delayed invalidation
 #endif
 {
 
@@ -5346,18 +5348,10 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 	struct pv_chunks_list *pvc;
 	struct pv_chunk *pc, *pc_marker, *pc_marker_end;
 	struct pv_chunk_header pc_marker_b, pc_marker_end_b;
-	struct md_page *pvh;
-	pd_entry_t *pde;
-	pmap_t next_pmap, pmap;
-	pt_entry_t *pte, tpte;
+	pmap_t pmap;
 	pt_entry_t PG_G, PG_A, PG_M, PG_RW;
-	pv_entry_t pv;
-	vm_offset_t va;
-	vm_page_t m, m_pc;
+	vm_page_t m_pc;
 	struct spglist free;
-	uint64_t inuse;
-	int bit, field, freed;
-	bool start_di, restart;
 
 	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
 	KASSERT(lockp != NULL, ("reclaim_pv_chunk: lockp is NULL"));
@@ -5375,7 +5369,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 	 * pmap_advise() or pmap_remove() called this function by way
 	 * of pmap_demote_pde_locked().
 	 */
-	start_di = pmap_not_in_di();
+	bool start_di = pmap_not_in_di();
 
 	pvc = &pv_chunks[domain];
 	mtx_lock(&pvc->pvc_lock);
@@ -5384,7 +5378,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 	TAILQ_INSERT_TAIL(&pvc->pvc_list, pc_marker_end, pc_lru);
 	while ((pc = TAILQ_NEXT(pc_marker, pc_lru)) != pc_marker_end &&
 	    SLIST_EMPTY(&free)) {
-		next_pmap = pc->pc_pmap;
+		pmap_t next_pmap = pc->pc_pmap;
 		if (next_pmap == NULL) {
 			/*
 			 * The next chunk is a marker.  However, it is
@@ -5402,7 +5396,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 		 * corresponding pmap is locked.
 		 */
 		if (pmap != next_pmap) {
-			restart = false;
+			bool restart = false;
 			reclaim_pv_chunk_leave_pmap(pmap, locked_pmap,
 			    start_di);
 			pmap = next_pmap;
@@ -5442,23 +5436,24 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 		/*
 		 * Destroy every non-wired, 4 KB page mapping in the chunk.
 		 */
-		freed = 0;
-		for (field = 0; field < _NPCM; field++) {
-			for (inuse = ~pc->pc_map[field] & pc_freemask[field];
+		int bit;
+		int freed = 0;
+		for (int field = 0; field < _NPCM; field++) {
+			for (uint64_t inuse = ~pc->pc_map[field] & pc_freemask[field];
 			    inuse != 0; inuse &= ~(1UL << bit)) {
 				bit = bsfq(inuse);
-				pv = &pc->pc_pventry[field * 64 + bit];
-				va = pv->pv_va;
-				pde = pmap_pde(pmap, va);
+				pv_entry_t pv = &pc->pc_pventry[field * 64 + bit];
+				vm_offset_t va = pv->pv_va;
+				pd_entry_t *pde = pmap_pde(pmap, va);
 				if ((*pde & PG_PS) != 0)
 					continue;
-				pte = pmap_pde_to_pte(pde, va);
+				pt_entry_t *pte = pmap_pde_to_pte(pde, va);
 				if ((*pte & PG_W) != 0)
 					continue;
-				tpte = pte_load_clear(pte);
+				pt_entry_t tpte = pte_load_clear(pte);
 				if ((tpte & PG_G) != 0)
 					pmap_invalidate_page(pmap, va);
-				m = PHYS_TO_VM_PAGE(tpte & PG_FRAME);
+				vm_page_t m = PHYS_TO_VM_PAGE(tpte & PG_FRAME);
 				if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 					vm_page_dirty(m);
 				if ((tpte & PG_A) != 0)
@@ -5468,7 +5463,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 				m->md.pv_gen++;
 				if (TAILQ_EMPTY(&m->md.pv_list) &&
 				    (m->flags & PG_FICTITIOUS) == 0) {
-					pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+					struct md_page *pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
 						vm_page_aflag_clear(m,
 						    PGA_WRITEABLE);
@@ -5598,7 +5593,7 @@ free_pv_chunk_dequeued(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
-	vm_page_unwire_noq(m);
+	vm_page_unwire_noq(m); // unwire without inserting it into a queue
 	vm_page_free(m);
 }
 
@@ -6106,7 +6101,6 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	vm_page_t mpte;
 	bool in_kernel;
 
-printf("    %s: wyctest\n", __func__); // it is called sometimes
 	pt_entry_t PG_A = pmap_accessed_bit(pmap);
 	pt_entry_t PG_G = pmap_global_bit(pmap);
 	pt_entry_t PG_M = pmap_modified_bit(pmap);
@@ -6345,21 +6339,18 @@ static int
 pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, 
     pd_entry_t ptepde, struct spglist *free, struct rwlock **lockp)
 {
-	struct md_page *pvh;
-	pt_entry_t oldpte, PG_A, PG_M, PG_RW;
-	vm_page_t m;
-
-	PG_A = pmap_accessed_bit(pmap);
-	PG_M = pmap_modified_bit(pmap);
-	PG_RW = pmap_rw_bit(pmap);
-
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	oldpte = pte_load_clear(ptq);
+
+	pt_entry_t PG_A = pmap_accessed_bit(pmap);
+	pt_entry_t PG_M = pmap_modified_bit(pmap);
+	pt_entry_t PG_RW = pmap_rw_bit(pmap);
+	pt_entry_t oldpte = pte_load_clear(ptq);
+
 	if (oldpte & PG_W)
 		pmap->pm_stats.wired_count -= 1;
 	pmap_resident_count_adj(pmap, -1);
 	if (oldpte & PG_MANAGED) {
-		m = PHYS_TO_VM_PAGE(oldpte & PG_FRAME);
+		struct vm_page *m = PHYS_TO_VM_PAGE(oldpte & PG_FRAME);
 		if ((oldpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 			vm_page_dirty(m);
 		if (oldpte & PG_A)
@@ -6368,7 +6359,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
 		pmap_pvh_free(&m->md, pmap, va);
 		if (TAILQ_EMPTY(&m->md.pv_list) &&
 		    (m->flags & PG_FICTITIOUS) == 0) {
-			pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+			struct md_page *pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 			if (TAILQ_EMPTY(&pvh->pv_list))
 				vm_page_aflag_clear(m, PGA_WRITEABLE);
 		}
@@ -6956,7 +6947,6 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va, vm_page_t mpte,
 	if (!pmap_ps_enabled(pmap))
 		return (false);
 
-printf("%s: wyctest\n", __func__); // it is called sometimes
 	pt_entry_t PG_A = pmap_accessed_bit(pmap);
 	pt_entry_t PG_G = pmap_global_bit(pmap);
 	pt_entry_t PG_M = pmap_modified_bit(pmap);
@@ -8128,20 +8118,16 @@ void
 pmap_copy(struct pmap *dst_pmap, struct pmap *src_pmap, vm_offset_t dst_addr, vm_size_t len,
     vm_offset_t src_addr)
 {
-	struct rwlock *lock;
-	pml4_entry_t *pml4e;
-	pdp_entry_t *pdpe;
-	pd_entry_t *pde, srcptepaddr;
-	pt_entry_t *dst_pte, PG_A, PG_M, PG_V, ptetemp, *src_pte;
-	vm_offset_t addr, end_addr, va_next;
-	struct vm_page *dst_pdpg, *dstmpte, *srcmpte;
+	pd_entry_t srcptepaddr;
+	vm_offset_t va_next;
+	struct vm_page *dst_pdpg;
 
 	if (dst_addr != src_addr)
 		return;
 
 	if (dst_pmap->pm_type != src_pmap->pm_type)
 		return;
-
+//wyc this function is called a lot
 	/*
 	 * EPT page table entries that require emulation of A/D bits are
 	 * sensitive to clearing the PG_A bit (aka EPT_PG_READ). Although
@@ -8150,11 +8136,10 @@ pmap_copy(struct pmap *dst_pmap, struct pmap *src_pmap, vm_offset_t dst_addr, vm
 	 * implementations flag an EPT misconfiguration for exec-only
 	 * mappings we skip this function entirely for emulated pmaps.
 	 */
-	if (pmap_emulate_ad_bits(dst_pmap))
+	if (pmap_emulate_ad_bits(dst_pmap)) // false
 		return;
 
-	end_addr = src_addr + len;
-	lock = NULL;
+	vm_offset_t end_addr = src_addr + len;
 	if (dst_pmap < src_pmap) {
 		PMAP_LOCK(dst_pmap);
 		PMAP_LOCK(src_pmap);
@@ -8163,15 +8148,16 @@ pmap_copy(struct pmap *dst_pmap, struct pmap *src_pmap, vm_offset_t dst_addr, vm
 		PMAP_LOCK(dst_pmap);
 	}
 
-	PG_A = pmap_accessed_bit(dst_pmap);
-	PG_M = pmap_modified_bit(dst_pmap);
-	PG_V = pmap_valid_bit(dst_pmap);
+	pt_entry_t PG_A = pmap_accessed_bit(dst_pmap);
+	pt_entry_t PG_M = pmap_modified_bit(dst_pmap);
+	pt_entry_t PG_V = pmap_valid_bit(dst_pmap);
 
-	for (addr = src_addr; addr < end_addr; addr = va_next) {
+	struct rwlock *lock = NULL;
+	for (vm_offset_t addr = src_addr; addr < end_addr; addr = va_next) {
 		KASSERT(addr < UPT_MIN_ADDRESS,
 		    ("%s: invalid to pmap_copy page tables", __func__));
 
-		pml4e = pmap_pml4e(src_pmap, addr);
+		pml4_entry_t *pml4e = pmap_pml4e(src_pmap, addr);
 		if (pml4e == NULL || (*pml4e & PG_V) == 0) {
 			va_next = (addr + NBPML4) & ~PML4MASK;
 			if (va_next < addr)
@@ -8182,7 +8168,7 @@ pmap_copy(struct pmap *dst_pmap, struct pmap *src_pmap, vm_offset_t dst_addr, vm
 		va_next = (addr + NBPDP) & ~PDPMASK;
 		if (va_next < addr)
 			va_next = end_addr;
-		pdpe = pmap_pml4e_to_pdpe(pml4e, addr);
+		pdp_entry_t *pdpe = pmap_pml4e_to_pdpe(pml4e, addr);
 		if ((*pdpe & PG_V) == 0)
 			continue;
 		if ((*pdpe & PG_PS) != 0) {
@@ -8218,7 +8204,7 @@ pmap_copy(struct pmap *dst_pmap, struct pmap *src_pmap, vm_offset_t dst_addr, vm
 		if (va_next < addr)
 			va_next = end_addr;
 
-		pde = pmap_pdpe_to_pde(pdpe, addr);
+		pd_entry_t *pde = pmap_pdpe_to_pde(pdpe, addr);
 		srcptepaddr = *pde;
 		if (srcptepaddr == 0)
 			continue;
@@ -8257,18 +8243,18 @@ pmap_copy(struct pmap *dst_pmap, struct pmap *src_pmap, vm_offset_t dst_addr, vm
 		}
 
 		srcptepaddr &= PG_FRAME;
-		srcmpte = PHYS_TO_VM_PAGE(srcptepaddr);
+		struct vm_page *srcmpte = PHYS_TO_VM_PAGE(srcptepaddr);
 		KASSERT(srcmpte->ref_count > 0,
 		    ("pmap_copy: source page table page is unused"));
 
 		if (va_next > end_addr)
 			va_next = end_addr;
 
-		src_pte = (pt_entry_t *)PHYS_TO_DMAP(srcptepaddr);
+		pt_entry_t *src_pte = (pt_entry_t *)PHYS_TO_DMAP(srcptepaddr);
 		src_pte = &src_pte[pmap_pte_index(addr)];
-		dstmpte = NULL;
+		struct vm_page *dstmpte = NULL;
 		for (; addr < va_next; addr += PAGE_SIZE, src_pte++) {
-			ptetemp = *src_pte;
+			pt_entry_t ptetemp = *src_pte;
 
 			/*
 			 * We only virtual copy managed pages.
@@ -8284,8 +8270,7 @@ pmap_copy(struct pmap *dst_pmap, struct pmap *src_pmap, vm_offset_t dst_addr, vm
 			} else if ((dstmpte = pmap_allocpte(dst_pmap, addr,
 			    NULL)) == NULL)
 				goto out;
-			dst_pte = (pt_entry_t *)
-			    PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dstmpte));
+			pt_entry_t *dst_pte = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(dstmpte));
 			dst_pte = &dst_pte[pmap_pte_index(addr)];
 			if (*dst_pte == 0 &&
 			    pmap_try_insert_pv_entry(dst_pmap, addr,
@@ -8384,7 +8369,7 @@ pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 	vm_offset_t src = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(msrc));
 	vm_offset_t dst = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mdst));
 
-	pagecopy((void *)src, (void *)dst);
+	pagecopy((void *)src, (void *)dst); // in support.S
 }
 
 int unmapped_buf_allowed = 1; // vfs.unmapped_buf_allowed == 1
@@ -9251,7 +9236,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	 * advisory in nature we skip it entirely for pmaps that require
 	 * A/D bit emulation.
 	 */
-	if (pmap_emulate_ad_bits(pmap))
+	if (pmap_emulate_ad_bits(pmap)) // false
 		return;
 
 	PG_A = pmap_accessed_bit(pmap);
@@ -9377,15 +9362,11 @@ maybe_invlrng:
 void
 pmap_clear_modify(struct vm_page * const m)
 {
-	struct md_page *pvh;
-	pmap_t pmap;
 	pv_entry_t next_pv, pv;
-	pd_entry_t oldpde, *pde;
-	pt_entry_t *pte, PG_M, PG_RW;
-	struct rwlock *lock;
+	pd_entry_t *pde;
+	pt_entry_t *pte;
 	vm_offset_t va;
-	vm_paddr_t pa;
-	int md_gen, pvh_gen;
+	int pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is not managed", __func__, m));
@@ -9393,13 +9374,13 @@ pmap_clear_modify(struct vm_page * const m)
 
 	if (!pmap_page_is_write_mapped(m))
 		return;
-	pa = VM_PAGE_TO_PHYS(m);
-	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : pa_to_pvh(pa);
-	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
+	struct md_page *pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : pa_to_pvh(pa);
+	struct rwlock *lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_wlock(lock);
 restart: // unlikely
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) { // for 2MB super page
-		pmap = PV_PMAP(pv);
+		pmap_t pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
 			pvh_gen = pvh->pv_gen;
 			rw_wunlock(lock);
@@ -9410,11 +9391,11 @@ restart: // unlikely
 				goto restart;
 			}
 		}
-		PG_M = pmap_modified_bit(pmap);
-		PG_RW = pmap_rw_bit(pmap);
+		pt_entry_t PG_M = pmap_modified_bit(pmap);
+		pt_entry_t PG_RW = pmap_rw_bit(pmap);
 		va = pv->pv_va;
 		pde = pmap_pde(pmap, va);
-		oldpde = *pde;
+		pd_entry_t oldpde = *pde;
 		/* If oldpde has PG_RW set, then it also has PG_M set. */
 		if ((oldpde & PG_RW) != 0 &&
 		    pmap_demote_pde_locked(pmap, pde, va, &lock) &&
@@ -9432,9 +9413,9 @@ restart: // unlikely
 		PMAP_UNLOCK(pmap);
 	}
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) { // for 4K page
-		pmap = PV_PMAP(pv);
+		pmap_t pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
-			md_gen = m->md.pv_gen;
+			int md_gen = m->md.pv_gen;
 			pvh_gen = pvh->pv_gen;
 			rw_wunlock(lock);
 			PMAP_LOCK(pmap);
@@ -9444,8 +9425,8 @@ restart: // unlikely
 				goto restart;
 			}
 		}
-		PG_M = pmap_modified_bit(pmap);
-		PG_RW = pmap_rw_bit(pmap);
+		pt_entry_t PG_M = pmap_modified_bit(pmap);
+		pt_entry_t PG_RW = pmap_rw_bit(pmap);
 		va = pv->pv_va;
 		pde = pmap_pde(pmap, va);
 		KASSERT((*pde & PG_PS) == 0, ("%s: found"
@@ -10429,7 +10410,7 @@ pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype)
 	KASSERT(ftype == VM_PROT_READ || ftype == VM_PROT_WRITE,
 	    ("pmap_emulate_accessed_dirty: invalid fault type %d", ftype));
 
-	if (!pmap_emulate_ad_bits(pmap))
+	if (!pmap_emulate_ad_bits(pmap)) // true
 		return (-1);
 
 	PG_A = pmap_accessed_bit(pmap);
