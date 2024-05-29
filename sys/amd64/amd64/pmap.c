@@ -383,21 +383,22 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 		_lock = &(pa_to_pmdp(pa)->pv_lock);		\
 	_lock;							\
 })
-#else
-#if !defined(WYC)
+#else // !NUMA
+#define	NPV_LIST_LOCKS	MAXCPU
+ #if !defined(WYC)
 #define	pa_index(pa)	((pa) >> PDRSHIFT)
 #define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
-#else
-struct md_page *pa_to_pvh(vm_paddr_t pa) // for 2MB super page
-{ return &pv_table[pa >> PDRSHIFT]; }
-#endif
-
-#define	NPV_LIST_LOCKS	MAXCPU
-
 #define	PHYS_TO_PV_LIST_LOCK(pa)	\
 			(&pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS])
-#endif
+ #else // defined(WYC)
+struct md_page *pa_to_pvh(vm_paddr_t pa) // for 2MB super page
+	{ return &pv_table[pa >> PDRSHIFT]; }
+struct rwlock *PHYS_TO_PV_LIST_LOCK(vm_paddr_t pa)
+	{ return &pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS]; }
+ #endif // !defined(WYC)
+#endif // NUMA
 
+#if !defined(WYC)
 #define	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa)	do {	\
 	struct rwlock **_lockp = (lockp);		\
 	struct rwlock *_new_lock;			\
@@ -423,16 +424,42 @@ struct md_page *pa_to_pvh(vm_paddr_t pa) // for 2MB super page
 	}						\
 } while (0)
 
-#if !defined(WYC)
 #define	VM_PAGE_TO_PV_LIST_LOCK(m)	\
 			PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m))
-#else
+#else // defined(WYC)
+void CHANGE_PV_LIST_LOCK_TO_PHYS(struct rwlock **lockp, vm_paddr_t pa)
+{
+	struct rwlock **_lockp = (lockp);
+	struct rwlock *_new_lock;
+
+	_new_lock = PHYS_TO_PV_LIST_LOCK(pa);
+	if (_new_lock != *_lockp) {
+		if (*_lockp != NULL)
+			rw_wunlock(*_lockp);
+		*_lockp = _new_lock;
+		rw_wlock(*_lockp);
+	}
+}
+
+void CHANGE_PV_LIST_LOCK_TO_VM_PAGE(struct rwlock **lockp, vm_page_t m)
+	{ CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, VM_PAGE_TO_PHYS(m)); }
+
+void RELEASE_PV_LIST_LOCK(struct rwlock **lockp)
+{
+	struct rwlock **_lockp = (lockp);
+
+	if (*_lockp != NULL) {
+		rw_wunlock(*_lockp);
+		*_lockp = NULL;
+	}
+}
+
 struct rwlock *VM_PAGE_TO_PV_LIST_LOCK(struct vm_page *m)
 {
 	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
 	return &pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS];
 }
-#endif
+#endif // !defined(WYC)
 
 /*
  * Statically allocate kernel pmap memory.  However, memory for
@@ -564,7 +591,7 @@ __read_mostly vm_paddr_t pmap_last_pa;
 #else
 static struct rwlock __exclusive_cache_line pv_list_locks[NPV_LIST_LOCKS];
 static u_long pv_invl_gen[NPV_LIST_LOCKS];
-static struct md_page *pv_table; // for 2MB super page
+static struct md_page *pv_table; // for 2MB super page, init in pmap_init_pv_table()
 static struct md_page pv_dummy;
 #endif
 
@@ -9399,7 +9426,7 @@ restart: // unlikely
 		/* If oldpde has PG_RW set, then it also has PG_M set. */
 		if ((oldpde & PG_RW) != 0 &&
 		    pmap_demote_pde_locked(pmap, pde, va, &lock) &&
-		    (oldpde & PG_W) == 0) { // W means wired
+		    (oldpde & PG_W) == 0) { // not wired
 			/*
 			 * Write protect the mapping to a single page so that
 			 * a subsequent write access may repromote.

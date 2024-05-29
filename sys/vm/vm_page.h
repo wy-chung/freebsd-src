@@ -239,7 +239,7 @@ struct vm_page {
 	vm_object_t object;		/* which object am I in (O) */
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page (C) */
-	struct md_page md;		/* machine dependent stuff */
+	struct md_page md; // 4k pv_list	/* machine dependent stuff */
 	u_int ref_count;		/* page references (A) */
 	u_int busy_lock;		/* busy owners lock (A) */
 	union vm_page_astate a;		/* state accessed atomically (A) */
