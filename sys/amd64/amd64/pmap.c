@@ -391,7 +391,7 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 #define	PHYS_TO_PV_LIST_LOCK(pa)	\
 			(&pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS])
  #else // defined(WYC)
-struct md_page *pa_to_pvh(vm_paddr_t pa) // for 2MB super page
+struct md_page *pa_to_pvh(vm_paddr_t pa) // pv"h" means 2MB super page
 	{ return &pv_table[pa >> PDRSHIFT]; }
 struct rwlock *PHYS_TO_PV_LIST_LOCK(vm_paddr_t pa)
 	{ return &pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS]; }
@@ -570,9 +570,11 @@ pc_to_domain(struct pv_chunk *pc __unused)
 }
 #endif
 
+typedef TAILQ_HEAD(pch, pv_chunk) pch_t;
+
 struct pv_chunks_list {
 	struct mtx pvc_lock;
-	TAILQ_HEAD(pch, pv_chunk) pvc_list;
+	pch_t pvc_list;
 	int active_reclaims;
 } __aligned(CACHE_LINE_SIZE);
 
@@ -5633,14 +5635,12 @@ free_pv_chunk(struct pv_chunk *pc)
 static void
 free_pv_chunk_batch(struct pv_chunklist *batch)
 {
-	struct pv_chunks_list *pvc;
-	struct pv_chunk *pc, *npc;
-	int i;
+	struct pv_chunk *pc;
 
-	for (i = 0; i < vm_ndomains; i++) {
+	for (int i = 0; i < vm_ndomains; i++) {
 		if (TAILQ_EMPTY(&batch[i]))
 			continue;
-		pvc = &pv_chunks[i];
+		struct pv_chunks_list *pvc = &pv_chunks[i];
 		mtx_lock(&pvc->pvc_lock);
 		TAILQ_FOREACH(pc, &batch[i], pc_list) {
 			TAILQ_REMOVE(&pvc->pvc_list, pc, pc_lru);
@@ -5648,7 +5648,8 @@ free_pv_chunk_batch(struct pv_chunklist *batch)
 		mtx_unlock(&pvc->pvc_lock);
 	}
 
-	for (i = 0; i < vm_ndomains; i++) {
+	for (int i = 0; i < vm_ndomains; i++) {
+		struct pv_chunk *npc;
 		TAILQ_FOREACH_SAFE(pc, &batch[i], pc_list, npc) {
 			free_pv_chunk_dequeued(pc);
 		}
@@ -5666,17 +5667,15 @@ free_pv_chunk_batch(struct pv_chunklist *batch)
 static pv_entry_t
 get_pv_entry(pmap_t pmap, struct rwlock **lockp)
 {
-	struct pv_chunks_list *pvc;
-	int bit, field;
 	pv_entry_t pv;
 	struct pv_chunk *pc;
-	vm_page_t m;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PV_STAT(counter_u64_add(pv_entry_allocs, 1));
 retry: // unlikely
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 	if (pc != NULL) {
+		int bit, field;
 		for (field = 0; field < _NPCM; field++) {
 			if (pc->pc_map[field]) {
 				bit = bsfq(pc->pc_map[field]);
@@ -5698,7 +5697,7 @@ retry: // unlikely
 		}
 	}
 	/* No free items, allocate another chunk */
-	m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
+	vm_page_t m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 	if (m == NULL) {
 		if (lockp == NULL) {
 			PV_STAT(counter_u64_add(pc_chunk_tryfail, 1));
@@ -5717,7 +5716,7 @@ retry: // unlikely
 	pc->pc_map[0] = PC_FREEN & ~1ul;	/* preallocated bit 0 */
 	pc->pc_map[1] = PC_FREEN;
 	pc->pc_map[2] = PC_FREEL;
-	pvc = &pv_chunks[vm_page_domain(m)];
+	struct pv_chunks_list *pvc = &pv_chunks[vm_page_domain(m)];
 	mtx_lock(&pvc->pvc_lock);
 	TAILQ_INSERT_TAIL(&pvc->pvc_list, pc, pc_lru);
 	mtx_unlock(&pvc->pvc_lock);
@@ -5766,7 +5765,7 @@ popcnt_pc_map_pq(uint64_t *map)
 static void
 reserve_pv_entries(struct pmap *pmap, int needed, struct rwlock **lockp)
 {
-	struct pch new_tail[PMAP_MEMDOM];
+	pch_t new_tail[PMAP_MEMDOM];
 	struct pv_chunk *pc;
 	int avail;
 
@@ -6296,20 +6295,16 @@ static int
 pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
     struct spglist *free, struct rwlock **lockp)
 {
-	struct md_page *pvh;
 	pd_entry_t oldpde;
-	vm_offset_t eva, va;
-	vm_page_t m, mpte;
-	pt_entry_t PG_G, PG_A, PG_M, PG_RW;
 
-	PG_G = pmap_global_bit(pmap);
-	PG_A = pmap_accessed_bit(pmap);
-	PG_M = pmap_modified_bit(pmap);
-	PG_RW = pmap_rw_bit(pmap);
+	pt_entry_t PG_G = pmap_global_bit(pmap);
+	pt_entry_t PG_A = pmap_accessed_bit(pmap);
+	pt_entry_t PG_M = pmap_modified_bit(pmap);
+	pt_entry_t PG_RW = pmap_rw_bit(pmap);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((sva & PDRMASK) == 0,
-	    ("pmap_remove_pde: sva is not 2mpage aligned"));
+	    ("%s: sva is not 2mpage aligned", __func__));
 	oldpde = pte_load_clear(pdq);
 	if (oldpde & PG_W)
 		pmap->pm_stats.wired_count -= NBPDR / PAGE_SIZE;
@@ -6318,11 +6313,11 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 	pmap_resident_count_adj(pmap, -NBPDR / PAGE_SIZE);
 	if (oldpde & PG_MANAGED) {
 		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, oldpde & PG_PS_FRAME);
-		pvh = pa_to_pvh(oldpde & PG_PS_FRAME);
+		struct md_page *pvh = pa_to_pvh(oldpde & PG_PS_FRAME);
 		pmap_pvh_free(pvh, pmap, sva);
-		eva = sva + NBPDR;
-		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
-		    va < eva; va += PAGE_SIZE, m++) {
+		vm_offset_t eva = sva + NBPDR;
+		vm_page_t m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
+		for (vm_offset_t va = sva; va < eva; va += PAGE_SIZE) {
 			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
 				vm_page_dirty(m);
 			if (oldpde & PG_A)
@@ -6331,18 +6326,19 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 			    TAILQ_EMPTY(&pvh->pv_list))
 				vm_page_aflag_clear(m, PGA_WRITEABLE);
 			pmap_delayed_invl_page(m);
+			++m;
 		}
 	}
 	if (pmap == kernel_pmap) {
 		pmap_remove_kernel_pde(pmap, pdq, sva);
 	} else {
-		mpte = pmap_remove_pt_page(pmap, sva);
+		vm_page_t mpte = pmap_remove_pt_page(pmap, sva);
 		if (mpte != NULL) {
 			KASSERT(vm_page_any_valid(mpte),
-			    ("pmap_remove_pde: pte page not promoted"));
+			    ("%s: pte page not promoted", __func__));
 			pmap_pt_page_count_adj(pmap, -1);
 			KASSERT(mpte->ref_count == NPTEPG,
-			    ("pmap_remove_pde: pte page ref count error"));
+			    ("%s: pte page ref count error", __func__));
 			mpte->ref_count = 0;
 			pmap_add_delayed_free_list(mpte, free, FALSE);
 		}
