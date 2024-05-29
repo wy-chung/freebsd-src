@@ -846,7 +846,7 @@ vm_page_astate_fcmpset(vm_page_t m, vm_page_astate_t *old, vm_page_astate_t new)
  *	Clear the given bits in the specified page.
  */
 static inline void
-vm_page_aflag_clear(vm_page_t m, uint16_t bits)
+vm_page_aflag_clear(vm_page_t m, uint16_t bits) // a in aflag means atomic
 {
 	uint32_t *addr, val;
 
@@ -855,7 +855,7 @@ vm_page_aflag_clear(vm_page_t m, uint16_t bits)
 	 * atomic update.  Parallel non-atomic updates to the other fields
 	 * within this word are handled properly by the atomic update.
 	 */
-	addr = (void *)&m->a;
+	addr = (void *)&m->a; // a means atomic
 	val = bits << VM_PAGE_AFLAG_SHIFT;
 	atomic_clear_32(addr, val);
 }
