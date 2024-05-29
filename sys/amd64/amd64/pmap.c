@@ -4033,14 +4033,14 @@ out:
 
 //wyc kernel virtual address space is always mapped
 vm_paddr_t
-pmap_kextract(vm_offset_t va)
+pmap_kextract(vm_offset_t va) // k means kernel
 {
 	pd_entry_t pde;
 	vm_paddr_t pa;
 
 	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS) {
 		pa = DMAP_TO_PHYS(va);
-	} else if (PMAP_ADDRESS_IN_LARGEMAP(va)) { // large map is disabled
+	} else if (PMAP_ADDRESS_IN_LARGEMAP(va)) { // large map is disabled because @lm_ents = 0
 		pa = pmap_large_map_kextract(va);
 	} else {
 		pde = *vtopde(va);
@@ -5372,24 +5372,21 @@ reclaim_pv_chunk_leave_pmap(pmap_t pmap, pmap_t locked_pmap, bool start_di)
 static vm_page_t
 reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 {
-	struct pv_chunks_list *pvc;
-	struct pv_chunk *pc, *pc_marker, *pc_marker_end;
+	struct pv_chunk *pc;
 	struct pv_chunk_header pc_marker_b, pc_marker_end_b;
-	pmap_t pmap;
 	pt_entry_t PG_G, PG_A, PG_M, PG_RW;
-	vm_page_t m_pc;
 	struct spglist free;
 
 	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
-	KASSERT(lockp != NULL, ("reclaim_pv_chunk: lockp is NULL"));
-	pmap = NULL;
-	m_pc = NULL;
+	KASSERT(lockp != NULL, ("%s: lockp is NULL", __func__));
+	pmap_t pmap = NULL;
+	vm_page_t m_pc = NULL;
 	PG_G = PG_A = PG_M = PG_RW = 0;
 	SLIST_INIT(&free);
 	bzero(&pc_marker_b, sizeof(pc_marker_b));
 	bzero(&pc_marker_end_b, sizeof(pc_marker_end_b));
-	pc_marker = (struct pv_chunk *)&pc_marker_b;
-	pc_marker_end = (struct pv_chunk *)&pc_marker_end_b;
+	struct pv_chunk *pc_marker = (struct pv_chunk *)&pc_marker_b;
+	struct pv_chunk *pc_marker_end = (struct pv_chunk *)&pc_marker_end_b;
 
 	/*
 	 * A delayed invalidation block should already be active if
@@ -5398,7 +5395,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 	 */
 	bool start_di = pmap_not_in_di();
 
-	pvc = &pv_chunks[domain];
+	struct pv_chunks_list *pvc = &pv_chunks[domain];
 	mtx_lock(&pvc->pvc_lock);
 	pvc->active_reclaims++;
 	TAILQ_INSERT_HEAD(&pvc->pvc_list, pc_marker, pc_lru);
@@ -5584,17 +5581,14 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 static void
 free_pv_entry(pmap_t pmap, pv_entry_t pv)
 {
-	struct pv_chunk *pc;
-	int idx, field, bit;
-
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PV_STAT(counter_u64_add(pv_entry_frees, 1));
 	PV_STAT(counter_u64_add(pv_entry_spare, 1));
 	PV_STAT(counter_u64_add(pv_entry_count, -1));
-	pc = pv_to_chunk(pv);
-	idx = pv - &pc->pc_pventry[0];
-	field = idx / 64;
-	bit = idx % 64;
+	struct pv_chunk *pc = pv_to_chunk(pv);
+	int idx = pv - &pc->pc_pventry[0];
+	int field = idx / 64;
+	int bit = idx % 64;
 	pc->pc_map[field] |= 1ul << bit;
 	if (!pc_is_free(pc)) {
 		/* 98% of the time, pc is already at the head of the list. */
@@ -5696,8 +5690,7 @@ retry: // unlikely
 			if (pc->pc_map[0] == 0 && pc->pc_map[1] == 0 &&
 			    pc->pc_map[2] == 0) {
 				TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-				TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc,
-				    pc_list);
+				TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_list);
 			}
 			PV_STAT(counter_u64_add(pv_entry_count, 1));
 			PV_STAT(counter_u64_add(pv_entry_spare, -1));
@@ -5773,12 +5766,9 @@ popcnt_pc_map_pq(uint64_t *map)
 static void
 reserve_pv_entries(struct pmap *pmap, int needed, struct rwlock **lockp)
 {
-	struct pv_chunks_list *pvc;
 	struct pch new_tail[PMAP_MEMDOM];
 	struct pv_chunk *pc;
-	struct vm_page *m;
-	int avail, free;
-	bool reclaimed;
+	int avail;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(lockp != NULL, ("reserve_pv_entries: lockp is NULL"));
@@ -5794,6 +5784,7 @@ reserve_pv_entries(struct pmap *pmap, int needed, struct rwlock **lockp)
 retry:
 	avail = 0;
 	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_list) {
+		int free;
 #ifndef __POPCNT__
 		if ((cpu_feature2 & CPUID2_POPCNT) == 0)
 			bit_count((bitstr_t *)pc->pc_map, 0,
@@ -5807,8 +5798,8 @@ retry:
 		if (avail >= needed)
 			break;
 	}
-	for (reclaimed = false; avail < needed; avail += _NPCPV) {
-		m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
+	for (bool reclaimed = false; avail < needed; avail += _NPCPV) {
+		struct vm_page *m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 		if (m == NULL) {
 			m = reclaim_pv_chunk(pmap, lockp);
 			if (m == NULL)
@@ -5839,7 +5830,7 @@ retry:
 	for (int i = 0; i < vm_ndomains; i++) {
 		if (TAILQ_EMPTY(&new_tail[i]))
 			continue;
-		pvc = &pv_chunks[i];
+		struct pv_chunks_list *pvc = &pv_chunks[i];
 		mtx_lock(&pvc->pvc_lock);
 		TAILQ_CONCAT(&pvc->pvc_list, &new_tail[i], pc_lru);
 		mtx_unlock(&pvc->pvc_lock);
