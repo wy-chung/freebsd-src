@@ -2539,29 +2539,26 @@ void
 kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
     int *resident_count, bool *super)
 {
-	vm_object_t obj, tobj;
-	vm_page_t m, m_adv;
-	vm_offset_t addr;
-	vm_paddr_t pa;
-	vm_pindex_t pi, pi_adv, pindex;
+	vm_page_t m;
+	vm_pindex_t pi_adv;
 
 	*super = false;
 	*resident_count = 0;
 	if (vmmap_skip_res_cnt)
 		return;
 
-	pa = 0;
-	obj = entry->object.vm_object;
-	addr = entry->start;
-	m_adv = NULL;
-	pi = OFF_TO_IDX(entry->offset);
+	vm_paddr_t pa = 0;
+	vm_object_t obj = entry->object.vm_object;
+	vm_offset_t addr = entry->start;
+	vm_page_t m_adv = NULL;
+	vm_pindex_t pi = OFF_TO_IDX(entry->offset);
 	for (; addr < entry->end; addr += IDX_TO_OFF(pi_adv), pi += pi_adv) {
 		if (m_adv != NULL) {
 			m = m_adv;
 		} else {
 			pi_adv = atop(entry->end - addr);
-			pindex = pi;
-			for (tobj = obj;; tobj = tobj->backing_object) {
+			vm_pindex_t pindex = pi;
+			for (vm_object_t tobj = obj;; tobj = tobj->backing_object) {
 				m = vm_page_find_least(tobj, pindex);
 				if (m != NULL) {
 					if (m->pindex == pindex)
@@ -2573,8 +2570,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 				}
 				if (tobj->backing_object == NULL)
 					goto next;
-				pindex += OFF_TO_IDX(tobj->
-				    backing_object_offset);
+				pindex += OFF_TO_IDX(tobj->backing_object_offset);
 			}
 		}
 		m_adv = NULL;

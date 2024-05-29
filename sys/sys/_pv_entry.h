@@ -118,8 +118,7 @@ struct pv_chunk {
 	unsigned long		pc_pad[_NPAD];
 };
 
-_Static_assert(sizeof(struct pv_chunk) == PAGE_SIZE,
-    "PV entry chunk size mismatch");
+_Static_assert(sizeof(struct pv_chunk) == PAGE_SIZE, "PV entry chunk size mismatch");
 
 #ifdef _KERNEL
 static __inline bool
