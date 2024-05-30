@@ -335,10 +335,10 @@ enum vpo_flags {
 #define	PQ_COUNT	4
 
 #ifndef VM_PAGE_HAVE_PGLIST
-TAILQ_HEAD(pglist, vm_page);
+TAILQ_HEAD(pglist, vm_page);	// page list
 #define VM_PAGE_HAVE_PGLIST
 #endif
-SLIST_HEAD(spglist, vm_page);
+SLIST_HEAD(spglist, vm_page);	// singly-linked page List
 
 #ifdef _KERNEL
 extern vm_page_t bogus_page;

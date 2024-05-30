@@ -764,24 +764,24 @@ struct {								\
 	    (var) && ((tvar) = TAILQ_NEXT((var), field), 1);		\
 	    (var) = (tvar))
 
-#define	TAILQ_FOREACH_REVERSE(var, head, headname, field)		\
-	for ((var) = TAILQ_LAST((head), headname);			\
+#define	TAILQ_FOREACH_REVERSE(var, head, headtype, field)		\
+	for ((var) = TAILQ_LAST((head), headtype);			\
 	    (var);							\
-	    (var) = TAILQ_PREV((var), headname, field))
+	    (var) = TAILQ_PREV((var), headtype, field))
 
-#define	TAILQ_FOREACH_REVERSE_FROM(var, head, headname, field)		\
-	for ((var) = ((var) ? (var) : TAILQ_LAST((head), headname));	\
+#define	TAILQ_FOREACH_REVERSE_FROM(var, head, headtype, field)		\
+	for ((var) = ((var) ? (var) : TAILQ_LAST((head), headtype));	\
 	    (var);							\
-	    (var) = TAILQ_PREV((var), headname, field))
+	    (var) = TAILQ_PREV((var), headtype, field))
 
-#define	TAILQ_FOREACH_REVERSE_SAFE(var, head, headname, field, tvar)	\
-	for ((var) = TAILQ_LAST((head), headname);			\
-	    (var) && ((tvar) = TAILQ_PREV((var), headname, field), 1);	\
+#define	TAILQ_FOREACH_REVERSE_SAFE(var, head, headtype, field, tvar)	\
+	for ((var) = TAILQ_LAST((head), headtype);			\
+	    (var) && ((tvar) = TAILQ_PREV((var), headtype, field), 1);	\
 	    (var) = (tvar))
 
-#define	TAILQ_FOREACH_REVERSE_FROM_SAFE(var, head, headname, field, tvar)\
-	for ((var) = ((var) ? (var) : TAILQ_LAST((head), headname));	\
-	    (var) && ((tvar) = TAILQ_PREV((var), headname, field), 1);	\
+#define	TAILQ_FOREACH_REVERSE_FROM_SAFE(var, head, headtype, field, tvar)\
+	for ((var) = ((var) ? (var) : TAILQ_LAST((head), headtype));	\
+	    (var) && ((tvar) = TAILQ_PREV((var), headtype, field), 1);	\
 	    (var) = (tvar))
 
 #define	TAILQ_INIT(head) do {						\
@@ -838,8 +838,8 @@ struct {								\
 	QMD_TRACE_ELEM(&(elm)->field);					\
 } while (0)
 
-#define	TAILQ_LAST(head, headname)					\
-	(*(((struct headname *)((head)->tqh_last))->tqh_last))
+#define	TAILQ_LAST(head, headtype)					\
+	(*(((struct headtype *)((head)->tqh_last))->tqh_last))
 
 /*
  * The FAST function is fast in that it causes no data access other
@@ -853,8 +853,8 @@ struct {								\
 
 #define	TAILQ_NEXT(elm, field) ((elm)->field.tqe_next)
 
-#define	TAILQ_PREV(elm, headname, field)				\
-	(*(((struct headname *)((elm)->field.tqe_prev))->tqh_last))
+#define	TAILQ_PREV(elm, headtype, field)				\
+	(*(((struct headtype *)((elm)->field.tqe_prev))->tqh_last))
 
 #define	TAILQ_PREV_FAST(elm, head, type, field)				\
     ((elm)->field.tqe_prev == &(head)->tqh_first ? NULL :		\

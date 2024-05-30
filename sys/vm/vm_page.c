@@ -3860,7 +3860,6 @@ vm_page_enqueue(vm_page_t m, uint8_t queue)
 static bool
 vm_page_free_prep(vm_page_t m)
 {
-
 	/*
 	 * Synchronize with threads that have dropped a reference to this
 	 * page.
@@ -3873,25 +3872,25 @@ vm_page_free_prep(vm_page_t m)
 		int i;
 		p = (uint64_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 		for (i = 0; i < PAGE_SIZE / sizeof(uint64_t); i++, p++)
-			KASSERT(*p == 0, ("vm_page_free_prep %p PG_ZERO %d %jx",
-			    m, i, (uintmax_t)*p));
+			KASSERT(*p == 0, ("%s %p PG_ZERO %d %jx",
+			    __func__, m, i, (uintmax_t)*p));
 	}
 #endif
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		KASSERT(!pmap_page_is_mapped(m),
-		    ("vm_page_free_prep: freeing mapped page %p", m));
+		    ("%s: freeing mapped page %p", __func__, m));
 		KASSERT((m->a.flags & (PGA_EXECUTABLE | PGA_WRITEABLE)) == 0,
-		    ("vm_page_free_prep: mapping flags set in page %p", m));
+		    ("%s: mapping flags set in page %p", __func__, m));
 	} else {
 		KASSERT(m->a.queue == PQ_NONE,
-		    ("vm_page_free_prep: unmanaged page %p is queued", m));
+		    ("%s: unmanaged page %p is queued", __func__, m));
 	}
 	VM_CNT_INC(v_tfree);
 
 	if (m->object != NULL) {
 		KASSERT(((m->oflags & VPO_UNMANAGED) != 0) ==
 		    ((m->object->flags & OBJ_UNMANAGED) != 0),
-		    ("vm_page_free_prep: managed flag mismatch for page %p",
+		    ("%s: managed flag mismatch for page %p", __func__,
 		    m));
 		vm_page_assert_xbusied(m);
 
@@ -3901,7 +3900,7 @@ vm_page_free_prep(vm_page_t m)
 		 */
 		KASSERT((m->flags & PG_FICTITIOUS) != 0 ||
 		    m->ref_count == VPRC_OBJREF,
-		    ("vm_page_free_prep: page %p has unexpected ref_count %u",
+		    ("%s: page %p has unexpected ref_count %u", __func__,
 		    m, m->ref_count));
 		vm_page_object_remove(m);
 		m->ref_count -= VPRC_OBJREF;
@@ -3934,7 +3933,7 @@ vm_page_free_prep(vm_page_t m)
 	vm_page_undirty(m);
 
 	if (m->ref_count != 0)
-		panic("vm_page_free_prep: page %p has references", m);
+		panic("%s: page %p has references", __func__, m);
 
 	/*
 	 * Restore the default memory attribute to the page.
