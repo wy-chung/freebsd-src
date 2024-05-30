@@ -570,7 +570,7 @@ pc_to_domain(struct pv_chunk *pc __unused)
 }
 #endif
 
-typedef TAILQ_HEAD(pch, pv_chunk) pch_t;
+typedef TAILQ_HEAD(, pv_chunk) pch_t;
 
 struct pv_chunks_list {
 	struct mtx pvc_lock;
@@ -5377,7 +5377,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 	struct pv_chunk *pc;
 	struct pv_chunk_header pc_marker_b, pc_marker_end_b;
 	pt_entry_t PG_G, PG_A, PG_M, PG_RW;
-	struct spglist free;
+	struct spglist free; // singly-linked page List
 
 	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
 	KASSERT(lockp != NULL, ("%s: lockp is NULL", __func__));
@@ -5667,7 +5667,6 @@ free_pv_chunk_batch(struct pv_chunklist *batch)
 static pv_entry_t
 get_pv_entry(pmap_t pmap, struct rwlock **lockp)
 {
-	pv_entry_t pv;
 	struct pv_chunk *pc;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -5683,7 +5682,7 @@ retry: // unlikely
 			}
 		}
 		if (field < _NPCM) {
-			pv = &pc->pc_pventry[field * 64 + bit];
+			pv_entry_t pv = &pc->pc_pventry[field * 64 + bit];
 			pc->pc_map[field] &= ~(1ul << bit); // set to "not free"
 			/* If this was the last item, move it to tail */
 			if (pc->pc_map[0] == 0 && pc->pc_map[1] == 0 &&
@@ -5720,7 +5719,7 @@ retry: // unlikely
 	mtx_lock(&pvc->pvc_lock);
 	TAILQ_INSERT_TAIL(&pvc->pvc_list, pc, pc_lru);
 	mtx_unlock(&pvc->pvc_lock);
-	pv = &pc->pc_pventry[0];
+	pv_entry_t pv = &pc->pc_pventry[0];
 	TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 	PV_STAT(counter_u64_add(pv_entry_count, 1));
 	PV_STAT(counter_u64_add(pv_entry_spare, _NPCPV - 1));
