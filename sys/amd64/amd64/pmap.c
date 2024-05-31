@@ -373,7 +373,7 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 	    ("address %lx beyond the last segment", (pa)));	\
 	(pa) >> PDRSHIFT;					\
 })
-#define	pa_to_pmdp(pa)	(&pv_table[pa_index(pa)])
+#define	pa_to_pmdp(pa)	(&pvh_table[pa_index(pa)])
 #define	pa_to_pvh(pa)	(&(pa_to_pmdp(pa)->pv_page))
 #define	PHYS_TO_PV_LIST_LOCK(pa)	({			\
 	struct rwlock *_lock;					\
@@ -387,12 +387,12 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 #define	NPV_LIST_LOCKS	MAXCPU
  #if !defined(WYC)
 #define	pa_index(pa)	((pa) >> PDRSHIFT)
-#define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
+#define	pa_to_pvh(pa)	(&pvh_table[pa_index(pa)])
 #define	PHYS_TO_PV_LIST_LOCK(pa)	\
 			(&pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS])
  #else // defined(WYC)
 struct md_page *pa_to_pvh(vm_paddr_t pa) // pv"h" means 2MB super page
-	{ return &pv_table[pa >> PDRSHIFT]; }
+	{ return &pvh_table[pa >> PDRSHIFT]; }
 struct rwlock *PHYS_TO_PV_LIST_LOCK(vm_paddr_t pa)
 	{ return &pv_list_locks[pa_index(pa) % NPV_LIST_LOCKS]; }
  #endif // !defined(WYC)
@@ -577,7 +577,7 @@ struct pv_chunks_list {
 	pch_t pvc_list;
 	int active_reclaims;
 } __aligned(CACHE_LINE_SIZE);
-
+//all the pv chunks are queued in pv_chunks
 struct pv_chunks_list __exclusive_cache_line pv_chunks[PMAP_MEMDOM]; // PMAP_MEMDOM == 1
 
 #ifdef	NUMA
@@ -588,13 +588,13 @@ struct pmap_large_md_page {
 };
 __exclusive_cache_line static struct pmap_large_md_page pv_dummy_large;
 #define pv_dummy pv_dummy_large.pv_page
-__read_mostly static struct pmap_large_md_page *pv_table;
+__read_mostly static struct pmap_large_md_page *pvh_table;
 __read_mostly vm_paddr_t pmap_last_pa;
 #else
 static struct rwlock __exclusive_cache_line pv_list_locks[NPV_LIST_LOCKS];
 static u_long pv_invl_gen[NPV_LIST_LOCKS];
-static struct md_page *pv_table; // for 2MB super page, init in pmap_init_pv_table()
-static struct md_page pv_dummy;
+static struct md_page *pvh_table; // for 2MB super page, init in pmap_init_pv_table()
+static struct md_page pvh_dummy;
 #endif
 
 /*
@@ -2461,8 +2461,8 @@ panic("%s", __func__); //wyctest pass. NUMA is disabled in MYKERNEL
 	pv_npg = howmany(pmap_last_pa, NBPDR);
 	s = (vm_size_t)pv_npg * sizeof(struct pmap_large_md_page);
 	s = round_page(s);
-	pv_table = (struct pmap_large_md_page *)kva_alloc(s);
-	if (pv_table == NULL)
+	pvh_table = (struct pmap_large_md_page *)kva_alloc(s);
+	if (pvh_table == NULL)
 		panic("%s: kva_alloc failed\n", __func__);
 
 	/*
@@ -2478,7 +2478,7 @@ panic("%s", __func__); //wyctest pass. NUMA is disabled in MYKERNEL
 			continue;
 
 		start = highest + 1;
-		pvd = &pv_table[start];
+		pvd = &pvh_table[start];
 
 		pages = end - start + 1;
 		s = round_page(pages * sizeof(*pvd));
@@ -2529,11 +2529,11 @@ pmap_init_pv_table(void)
 	 * Allocate memory for the pv head table for superpages.
 	 */
 	s = (vm_size_t)pv_npg * sizeof(struct md_page);
-	s = round_page(s);
-	pv_table = kmem_malloc(s, M_WAITOK | M_ZERO);
+	s = round_page(s); // round up
+	pvh_table = kmem_malloc(s, M_WAITOK | M_ZERO);
 	for (i = 0; i < pv_npg; i++)
-		TAILQ_INIT(&pv_table[i].pv_list);
-	TAILQ_INIT(&pv_dummy.pv_list);
+		TAILQ_INIT(&pvh_table[i].pv_list);
+	TAILQ_INIT(&pvh_dummy.pv_list);
 }
 #endif
 
@@ -5491,8 +5491,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 				    (m->flags & PG_FICTITIOUS) == 0) {
 					struct md_page *pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
-						vm_page_aflag_clear(m,
-						    PGA_WRITEABLE);
+						vm_page_aflag_clear(m, PGA_WRITEABLE);
 					}
 				}
 				pmap_delayed_invl_page(m);
@@ -5874,7 +5873,7 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((pa & PDRMASK) == 0,
-	    ("pmap_pv_demote_pde: pa is not 2mpage aligned"));
+	    ("%s: pa is not 2mpage aligned", __func__));
 	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
 
 	/*
@@ -5885,7 +5884,7 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	pvh = pa_to_pvh(pa);
 	va = trunc_2mpage(va);
 	pv = pmap_pvh_remove(pvh, pmap, va);
-	KASSERT(pv != NULL, ("pmap_pv_demote_pde: pv not found"));
+	KASSERT(pv != NULL, ("%s: pv not found", __func__));
 	m = PHYS_TO_VM_PAGE(pa);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 	m->md.pv_gen++;
@@ -5895,7 +5894,7 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	for (;;) {
 		pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 		KASSERT(pc->pc_map[0] != 0 || pc->pc_map[1] != 0 ||
-		    pc->pc_map[2] != 0, ("pmap_pv_demote_pde: missing spare"));
+		    pc->pc_map[2] != 0, ("%s: missing spare", __func__));
 		for (field = 0; field < _NPCM; field++) {
 			while (pc->pc_map[field]) {
 				bit = bsfq(pc->pc_map[field]);
@@ -5905,7 +5904,7 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 				pv->pv_va = va;
 				m++;
 				KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-			    ("pmap_pv_demote_pde: page %p is not managed", m));
+			    ("%s: page %p is not managed", __func__, m));
 				TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 				m->md.pv_gen++;
 				if (va == va_last)
@@ -6653,7 +6652,7 @@ pmap_remove_all(vm_page_t m)
 	    ("pmap_remove_all: page %p is not managed", m));
 	SLIST_INIT(&free);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
-	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy :
 	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	rw_wlock(lock);
 retry:
@@ -8943,7 +8942,7 @@ pmap_remove_write(vm_page_t m)
 		return;
 
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
-	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy :
 	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	rw_wlock(lock);
 retry:
@@ -9047,7 +9046,7 @@ pmap_ts_referenced(vm_page_t m)
 	cleared = 0;
 	pa = VM_PAGE_TO_PHYS(m);
 	lock = PHYS_TO_PV_LIST_LOCK(pa);
-	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : pa_to_pvh(pa);
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy : pa_to_pvh(pa);
 	rw_wlock(lock);
 retry:
 	not_cleared = 0;
@@ -9388,7 +9387,7 @@ pmap_clear_modify(struct vm_page * const m)
 	if (!pmap_page_is_write_mapped(m))
 		return;
 	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
-	struct md_page *pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy : pa_to_pvh(pa);
+	struct md_page *pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy : pa_to_pvh(pa);
 	struct rwlock *lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_wlock(lock);
 restart: // unlikely
