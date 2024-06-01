@@ -5397,7 +5397,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 	 * pmap_advise() or pmap_remove() called this function by way
 	 * of pmap_demote_pde_locked().
 	 */
-	bool start_di = pmap_not_in_di();
+	bool start_di = pmap_not_in_di(); // di: delayed invalidation
 
 	struct pv_chunks_list *pvc = &pv_chunks[domain];
 	mtx_lock(&pvc->pvc_lock);
@@ -5425,8 +5425,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 		 */
 		if (pmap != next_pmap) {
 			bool restart = false;
-			reclaim_pv_chunk_leave_pmap(pmap, locked_pmap,
-			    start_di);
+			reclaim_pv_chunk_leave_pmap(pmap, locked_pmap, start_di);
 			pmap = next_pmap;
 			/* Avoid deadlock and lock recursion. */
 			if (pmap > locked_pmap) {
@@ -6720,17 +6719,15 @@ pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva, vm_prot_t prot)
 {
 	pd_entry_t newpde, oldpde;
 	vm_page_t m, mt;
-	boolean_t anychanged;
-	pt_entry_t PG_G, PG_M, PG_RW;
 
-	PG_G = pmap_global_bit(pmap);
-	PG_M = pmap_modified_bit(pmap);
-	PG_RW = pmap_rw_bit(pmap);
+	pt_entry_t PG_G = pmap_global_bit(pmap);
+	pt_entry_t PG_M = pmap_modified_bit(pmap);
+	pt_entry_t PG_RW = pmap_rw_bit(pmap);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	KASSERT((sva & PDRMASK) == 0,
-	    ("pmap_protect_pde: sva is not 2mpage aligned"));
-	anychanged = FALSE;
+	KASSERT((sva & PDRMASK) == 0, ("%s: sva is not 2mpage aligned", __func__));
+
+	boolean_t anychanged = FALSE;
 retry:
 	oldpde = newpde = *pde;
 	if ((prot & VM_PROT_WRITE) == 0) {
@@ -6750,6 +6747,7 @@ retry:
 		 * PG_PROMOTED.  The impending invalidation will remove any
 		 * lingering 4KB page mappings from the TLB.
 		 */
+		// atomic_cmpset_long(*p, old, new) if (*p == old) *p = new;
 		if (!atomic_cmpset_long(pde, oldpde, newpde & ~PG_PROMOTED))
 			goto retry;
 		if ((oldpde & PG_G) != 0)
@@ -6843,6 +6841,7 @@ retry_pdpe:
 				pbits |= pg_nx;
 
 			if (pbits != obits) {
+				// atomic_cmpset_long(*p, old, new) if (*p == old) *p = new;
 				if (!atomic_cmpset_long(pdpe, obits, pbits))
 					/* PG_PS cannot be cleared under us, */
 					goto retry_pdpe;
@@ -6910,6 +6909,7 @@ retry:
 				pbits |= pg_nx;
 
 			if (pbits != obits) {
+				// atomic_cmpset_long(*p, old, new) if (*p == old) *p = new;
 				if (!atomic_cmpset_long(pte, obits, pbits))
 					goto retry;
 				if (obits & PG_G)

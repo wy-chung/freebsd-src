@@ -440,7 +440,7 @@ extern int pmap_pcid_invlpg_workaround_uena;
 #define	pmap_unmapbios(va, sz)		pmap_unmapdev((va), (sz))
 #else
 vm_memattr_t pmap_page_get_memattr(vm_page_t m) { return (vm_memattr_t)m->md.pat_mode; }
-bool pmap_page_is_write_mapped(vm_page_t m) {(m->a.flags & PGA_WRITEABLE) != 0; }
+bool pmap_page_is_write_mapped(vm_page_t m) { return (m->a.flags & PGA_WRITEABLE) != 0; }
 void pmap_unmapbios(void *va, vm_size_t sz) { pmap_unmapdev(va, sz); }
 #endif
 #define	pmap_vm_page_alloc_check(m)					\
