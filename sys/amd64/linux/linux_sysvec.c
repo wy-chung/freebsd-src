@@ -79,7 +79,7 @@ _Static_assert(sizeof(struct l_fpstate) ==
 MODULE_VERSION(linux64, 1);
 
 #define	LINUX_VDSOPAGE_SIZE	PAGE_SIZE * 2
-#define	LINUX_VDSOPAGE_LA48	(VM_MAXUSER_ADDRESS_LA48 - \
+#define	LINUX_VDSOPAGE_LA48	(VM_MAXUSER_ADDRESS/*_LA48*/ - \
 				    LINUX_VDSOPAGE_SIZE)
 #define	LINUX_SHAREDPAGE_LA48	(LINUX_VDSOPAGE_LA48 - PAGE_SIZE)
 				/*
@@ -691,7 +691,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_elf_core_prepare_notes = linux64_prepare_notes,
 	.sv_minsigstksz	= LINUX_MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS_LA48,
+	.sv_maxuser	= VM_MAXUSER_ADDRESS/*_LA48*/,
 	.sv_usrstack	= LINUX_USRSTACK_LA48,
 	.sv_psstrings	= LINUX_PS_STRINGS_LA48,
 	.sv_psstringssz	= sizeof(struct ps_strings),

@@ -480,10 +480,12 @@ cpu_procctl_la_status(struct proc *p, int *val)
 		res = PROC_LA_CTL_LA57_ON_EXEC;
 	else
 		res = PROC_LA_CTL_DEFAULT_ON_EXEC;
-	if (p->p_sysent->sv_maxuser == VM_MAXUSER_ADDRESS_LA48)
+	if (p->p_sysent->sv_maxuser == VM_MAXUSER_ADDRESS/*_LA48*/)
 		res |= PROC_LA_STATUS_LA48;
-	else
+	else {
+		panic("%s", __func__);
 		res |= PROC_LA_STATUS_LA57;
+	}
 	*val = res;
 }
 

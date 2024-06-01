@@ -69,7 +69,7 @@ struct sysentvec elf64_freebsd_sysvec_la48 = {
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS_LA48,
+	.sv_maxuser	= VM_MAXUSER_ADDRESS/*_LA48*/,
 	.sv_usrstack	= USRSTACK_LA48,
 	.sv_psstrings	= PS_STRINGS_LA48,
 	.sv_psstringssz	= sizeof(struct ps_strings),
@@ -98,6 +98,7 @@ struct sysentvec elf64_freebsd_sysvec_la48 = {
 	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
 };
 
+#if 0 //wyc
 struct sysentvec elf64_freebsd_sysvec_la57 = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
@@ -140,18 +141,20 @@ struct sysentvec elf64_freebsd_sysvec_la57 = {
 	.sv_regset_begin = SET_BEGIN(__elfN(regset)),
 	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
 };
+#endif
 
 static void
 amd64_init_sysvecs(void *arg)
 {
 	amd64_lower_shared_page(&elf64_freebsd_sysvec_la48);
-	if (la57) {
+#if 0 //wyc
+	/*if (la57) {
 		exec_sysvec_init(&elf64_freebsd_sysvec_la57);
 		exec_sysvec_init_secondary(&elf64_freebsd_sysvec_la57,
 		    &elf64_freebsd_sysvec_la48);
-	} else {
+	} else */
+#endif
 		exec_sysvec_init(&elf64_freebsd_sysvec_la48);
-	}
 }
 SYSINIT(elf64_sysvec, SI_SUB_EXEC, SI_ORDER_ANY, amd64_init_sysvecs, NULL);
 
@@ -166,6 +169,7 @@ amd64_lower_shared_page(struct sysentvec *sv)
 	}
 }
 
+#if 0 //wyc
 static bool
 freebsd_brand_info_la57_img_compat(struct image_params *imgp,
     int32_t *osrel __unused, uint32_t *fctl0)
@@ -178,6 +182,7 @@ freebsd_brand_info_la57_img_compat(struct image_params *imgp,
 		return (false);
 	return (true);
 }
+#endif
 
 static Elf64_Brandinfo freebsd_brand_info_la48 = {
 	.brand		= ELFOSABI_FREEBSD,
@@ -190,6 +195,7 @@ static Elf64_Brandinfo freebsd_brand_info_la48 = {
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
 };
 
+#if 0 //wyc
 static Elf64_Brandinfo freebsd_brand_info_la57 = {
 	.brand		= ELFOSABI_FREEBSD,
 	.machine	= EM_X86_64,
@@ -201,6 +207,7 @@ static Elf64_Brandinfo freebsd_brand_info_la57 = {
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE,
 	.header_supported = freebsd_brand_info_la57_img_compat,
 };
+#endif
 
 static void
 sysinit_register_elf64_brand_entries(void *arg __unused)
@@ -209,8 +216,8 @@ sysinit_register_elf64_brand_entries(void *arg __unused)
 	 * _57 must go first so it can either claim the image or hand
 	 * it to _48.
 	 */
-	if (la57)
-		elf64_insert_brand_entry(&freebsd_brand_info_la57);
+	//if (la57)
+	//	elf64_insert_brand_entry(&freebsd_brand_info_la57);
 	elf64_insert_brand_entry(&freebsd_brand_info_la48);
 }
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_FIRST,

@@ -212,8 +212,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 			goto fail;
 		}
 		if (p->md_phys + p->md_pages * EFI_PAGE_SIZE < p->md_phys ||
-		    p->md_phys + p->md_pages * EFI_PAGE_SIZE >=
-		    VM_MAXUSER_ADDRESS) {
+		    p->md_phys + p->md_pages * EFI_PAGE_SIZE >= VM_MAXUSER_ADDRESS_LA48) {
 			printf("EFI Runtime entry %d is not in mappable for RT:"
 			    "base %#016jx %#jx pages\n",
 			    i, (uintmax_t)p->md_phys,
