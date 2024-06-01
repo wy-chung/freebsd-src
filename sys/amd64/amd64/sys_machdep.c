@@ -245,8 +245,8 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 	case AMD64_GET_FSBASE:
 		update_pcb_bases(pcb);
-		error = copyout(&pcb->pcb_fsbase, uap->parms,
-		    sizeof(pcb->pcb_fsbase));
+		a64base = pcb->pcb_fsbase - pcb->pcb_csbase; //wyc
+		error = copyout(&a64base, uap->parms, sizeof(pcb->pcb_fsbase));
 		break;
 
 	case I386_SET_FSBASE:
@@ -263,7 +263,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
 				set_pcb_flags(pcb, PCB_FULL_IRET);
-				pcb->pcb_fsbase = a64base;
+				pcb->pcb_fsbase = a64base + pcb->pcb_csbase;
 				td->td_frame->tf_fs = _ufssel;
 			} else
 				error = EINVAL;
@@ -277,8 +277,8 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 	case AMD64_GET_GSBASE:
 		update_pcb_bases(pcb);
-		error = copyout(&pcb->pcb_gsbase, uap->parms,
-		    sizeof(pcb->pcb_gsbase));
+		a64base = pcb->pcb_gsbase - pcb->pcb_csbase;
+		error = copyout(&a64base, uap->parms, sizeof(pcb->pcb_gsbase));
 		break;
 
 	case I386_SET_GSBASE:
@@ -295,7 +295,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
 				set_pcb_flags(pcb, PCB_FULL_IRET);
-				pcb->pcb_gsbase = a64base;
+				pcb->pcb_gsbase = a64base + pcb->pcb_csbase;
 				td->td_frame->tf_gs = _ugssel;
 			} else
 				error = EINVAL;

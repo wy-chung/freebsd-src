@@ -114,6 +114,7 @@ linux_arch_prctl(struct thread *td, struct linux_arch_prctl_args *args)
 	unsigned long long cet[3];
 	struct pcb *pcb;
 	int error;
+	uint64_t a64base;
 
 	pcb = td->td_pcb;
 	LINUX_CTR2(arch_prctl, "0x%x, %p", args->code, args->addr);
@@ -122,7 +123,7 @@ linux_arch_prctl(struct thread *td, struct linux_arch_prctl_args *args)
 	case LINUX_ARCH_SET_GS:
 		if (args->addr < VM_MAXUSER_ADDRESS) {
 			update_pcb_bases(pcb);
-			pcb->pcb_gsbase = args->addr;
+			pcb->pcb_gsbase = args->addr + pcb->pcb_csbase;
 			td->td_frame->tf_gs = _ugssel;
 			error = 0;
 		} else
@@ -131,18 +132,20 @@ linux_arch_prctl(struct thread *td, struct linux_arch_prctl_args *args)
 	case LINUX_ARCH_SET_FS:
 		if (args->addr < VM_MAXUSER_ADDRESS) {
 			update_pcb_bases(pcb);
-			pcb->pcb_fsbase = args->addr;
+			pcb->pcb_fsbase = args->addr + pcb->pcb_csbase;
 			td->td_frame->tf_fs = _ufssel;
 			error = 0;
 		} else
 			error = EPERM;
 		break;
 	case LINUX_ARCH_GET_FS:
-		error = copyout(&pcb->pcb_fsbase, PTRIN(args->addr),
+		a64base = pcb->pcb_fsbase - pcb->pcb_csbase;
+		error = copyout(&a64base, PTRIN(args->addr),
 		    sizeof(args->addr));
 		break;
 	case LINUX_ARCH_GET_GS:
-		error = copyout(&pcb->pcb_gsbase, PTRIN(args->addr),
+		a64base = pcb->pcb_gsbase - pcb->pcb_csbase;
+		error = copyout(&a64base, PTRIN(args->addr),
 		    sizeof(args->addr));
 		break;
 	case LINUX_ARCH_CET_STATUS:
@@ -166,7 +169,7 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 
 	pcb = td->td_pcb;
 	update_pcb_bases(pcb);
-	pcb->pcb_fsbase = (register_t)desc;
+	pcb->pcb_fsbase = (register_t)desc + pcb->pcb_csbase;
 	td->td_frame->tf_fs = _ufssel;
 
 	return (0);
