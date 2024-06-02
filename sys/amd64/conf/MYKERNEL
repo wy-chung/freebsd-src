@@ -4,10 +4,10 @@ include	GENERIC
 ident	MYKERNEL
 
 options DDB
+options	INVARIANT_SUPPORT   # A prerequisite for INVARIANTS
+#options	INVARIANTS
 #options	KDB_UNATTENDED
 #options	GDB			# compile in support for the remote debugger
-#options	INVARIANT_SUPPORT   # A prerequisite for INVARIANTS
-#options	INVARIANTS
 #options	WITNESS
 #options	WITNESS_SKIPSPIN
 

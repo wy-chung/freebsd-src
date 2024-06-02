@@ -63,12 +63,12 @@
 #define	X86_PG_A	0x020	/* A	Accessed		*/
 #define	X86_PG_M	0x040	/* D	Dirty			*/
 #define	X86_PG_PS	0x080	/* PS	Page size (0=4k,1=2M)	*/
-#define	X86_PG_PTE_PAT	0x080	/* PAT	PAT index		*/
+#define	X86_PG_PTE_PAT	0x080	/* PAT	Page Attribute Table index */
 #define	X86_PG_G	0x100	/* G	Global			*/
 #define	X86_PG_AVAIL1	0x200	/*    /	Available for system	*/
 #define	X86_PG_AVAIL2	0x400	/*   <	programmers use		*/
 #define	X86_PG_AVAIL3	0x800	/*    \				*/
-#define	X86_PG_PDE_PAT	0x1000	/* PAT	PAT index		*/
+#define	X86_PG_PDE_PAT 0x1000	/* PAT	Page Attribute Table index */
 #define	X86_PG_PKU(idx)	((pt_entry_t)idx << 59)
 #define	X86_PG_NX	(1ul<<63) /* No-execute */
 #define	X86_PG_AVAIL(x)	(1ul << (x))
@@ -171,24 +171,24 @@
  */
 #define KV4ADDR(l4, l3, l2, l1) ( \
 	((unsigned long)-1 << 47) | \
-	((unsigned long)(l4) << PML4SHIFT) | \
-	((unsigned long)(l3) << PDPSHIFT) | \
-	((unsigned long)(l2) << PDRSHIFT) | \
-	((unsigned long)(l1) << PAGE_SHIFT))
+	((unsigned long)(l4) << PML4SHIFT /*39*/) | \
+	((unsigned long)(l3) << PDPSHIFT  /*30*/) | \
+	((unsigned long)(l2) << PDRSHIFT  /*21*/) | \
+	((unsigned long)(l1) << PAGE_SHIFT/*12*/))
 #define KV5ADDR(l5, l4, l3, l2, l1) (		\
 	((unsigned long)-1 << 56) | \
-	((unsigned long)(l5) << PML5SHIFT) | \
-	((unsigned long)(l4) << PML4SHIFT) | \
-	((unsigned long)(l3) << PDPSHIFT) | \
-	((unsigned long)(l2) << PDRSHIFT) | \
-	((unsigned long)(l1) << PAGE_SHIFT))
+	((unsigned long)(l5) << PML5SHIFT /*48*/) | \
+	((unsigned long)(l4) << PML4SHIFT /*39*/) | \
+	((unsigned long)(l3) << PDPSHIFT  /*30*/) | \
+	((unsigned long)(l2) << PDRSHIFT  /*21*/) | \
+	((unsigned long)(l1) << PAGE_SHIFT/*12*/))
 
 #define UVADDR(l5, l4, l3, l2, l1) (	     \
-	((unsigned long)(l5) << PML5SHIFT) | \
-	((unsigned long)(l4) << PML4SHIFT) | \
-	((unsigned long)(l3) << PDPSHIFT) | \
-	((unsigned long)(l2) << PDRSHIFT) | \
-	((unsigned long)(l1) << PAGE_SHIFT))
+	((unsigned long)(l5) << PML5SHIFT /*48*/) | \
+	((unsigned long)(l4) << PML4SHIFT /*39*/) | \
+	((unsigned long)(l3) << PDPSHIFT  /*30*/) | \
+	((unsigned long)(l2) << PDRSHIFT  /*21*/) | \
+	((unsigned long)(l1) << PAGE_SHIFT/*12*/))
 
 /*
  * Number of kernel PML4 slots.  Can be anywhere from 1 to 64 or so,
