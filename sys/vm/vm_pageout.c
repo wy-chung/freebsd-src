@@ -126,9 +126,6 @@ static int vm_pageout_cluster(vm_page_t m);
 static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int page_shortage,
     int starting_page_shortage);
 
-SYSINIT(pagedaemon_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, vm_pageout_init,
-    NULL);
-
 struct proc *pageproc;
 
 static struct kproc_desc page_kp = {
@@ -2327,6 +2324,7 @@ vm_pageout_init(void)
 	if (vm_page_max_user_wired == 0)
 		vm_page_max_user_wired = 4 * freecount / 5;
 }
+SYSINIT(pagedaemon_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, vm_pageout_init, NULL);
 
 /*
  *     vm_pageout is the high level pageout daemon.

@@ -4133,20 +4133,18 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
  * Note that old mappings are simply written
  * over.  The page *must* be wired.
  * Note: SMP coherent.  Uses a ranged shootdown IPI.
- */
+ TLB shootdown: The process of invalidating or updating the TLB */
 void
 pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 {
 	pt_entry_t *endpte, oldpte, pa, *pte;
-	vm_page_t m;
-	int cache_bits;
 
 	oldpte = 0;
 	pte = vtopte(sva);
 	endpte = pte + count;
 	while (pte < endpte) {
-		m = *ma++;
-		cache_bits = pmap_cache_bits(kernel_pmap, m->md.pat_mode, 0);
+		vm_page_t m = *ma++;
+		int cache_bits = pmap_cache_bits(kernel_pmap, m->md.pat_mode, 0);
 		pa = VM_PAGE_TO_PHYS(m) | cache_bits;
 		if ((*pte & (PG_FRAME | X86_PG_PTE_CACHE)) != pa) {
 			oldpte |= *pte;
@@ -6942,13 +6940,9 @@ pmap_pde_ept_executable(pmap_t pmap, pd_entry_t pde)
  * identical characteristics. 
  */
 static bool
-pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va, vm_page_t mpte,
+pmap_promote_pde(pmap_t pmap, pd_entry_t *pde/*OUT*/, vm_offset_t va, vm_page_t mpte,
     struct rwlock **lockp)
 {
-	pd_entry_t newpde;
-	pt_entry_t *firstpte, oldpte, pa, *pte;
-	pt_entry_t allpte_PG_A;
-
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if (!pmap_ps_enabled(pmap))
 		return (false);
@@ -6966,14 +6960,14 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va, vm_page_t mpte,
 	 * ineligible for promotion due to hardware errata, invalid, or does
 	 * not map the first 4KB physical page within a 2MB page.
 	 */
-	firstpte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
-	newpde = *firstpte;
+	pt_entry_t *firstpte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
+	pd_entry_t newpde = *firstpte;
 	if (!pmap_allow_2m_x_page(pmap, pmap_pde_ept_executable(pmap, newpde)))
 		return (false);
 	if ((newpde & ((PG_FRAME & PDRMASK) | PG_V)) != PG_V) {
 		counter_u64_add(pmap_pde_p_failures, 1);
-		CTR2(KTR_PMAP, "pmap_promote_pde: failure for va %#lx"
-		    " in pmap %p", va, pmap);
+		CTR3(KTR_PMAP, "%s: failure for va %#lx"
+		    " in pmap %p", __func__, va, pmap);
 		return (false);
 	}
 
@@ -7002,8 +6996,8 @@ setpde:
 		if (!atomic_fcmpset_long(firstpte, &newpde, newpde & ~PG_RW))
 			goto setpde;
 		newpde &= ~PG_RW;
-		CTR2(KTR_PMAP, "pmap_promote_pde: protect for va %#lx"
-		    " in pmap %p", va & ~PDRMASK, pmap);
+		CTR3(KTR_PMAP, "%s: protect for va %#lx"
+		    " in pmap %p", __func__, va & ~PDRMASK, pmap);
 	}
 
 	/*
@@ -7011,10 +7005,10 @@ setpde:
 	 * PTE maps an unexpected 4KB physical page or does not have identical
 	 * characteristics to the first PTE.
 	 */
-	allpte_PG_A = newpde & PG_A;
-	pa = (newpde & (PG_PS_FRAME | PG_V)) + NBPDR - PAGE_SIZE;
-	for (pte = firstpte + NPTEPG - 1; pte > firstpte; pte--) {
-		oldpte = *pte;
+	pt_entry_t allpte_PG_A = newpde & PG_A;
+	pt_entry_t pa = (newpde & (PG_PS_FRAME | PG_V)) + NBPDR - PAGE_SIZE;
+	for (pt_entry_t *pte = firstpte + NPTEPG - 1; pte > firstpte; pte--) {
+		pt_entry_t oldpte = *pte;
 		if ((oldpte & (PG_FRAME | PG_V)) != pa) {
 			counter_u64_add(pmap_pde_p_failures, 1);
 			CTR2(KTR_PMAP, "pmap_promote_pde: failure for va %#lx"
@@ -7227,10 +7221,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, struct vm_page *m, vm_prot_t prot,
 	pt_entry_t *pte;
 	pt_entry_t newpte, origpte;
 	pv_entry_t pv;
-	vm_paddr_t opa, pa;
-	struct vm_page *mpte, *om;
+	struct vm_page *mpte;
 	int rv;
-	boolean_t nosleep;
 
 	pt_entry_t PG_A = pmap_accessed_bit(pmap);
 	pt_entry_t PG_G = pmap_global_bit(pmap);
@@ -7248,7 +7240,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, struct vm_page *m, vm_prot_t prot,
 		VM_PAGE_OBJECT_BUSY_ASSERT(m);
 	KASSERT((flags & PMAP_ENTER_RESERVED) == 0,
 	    ("%s: flags %u has reserved bits set", __func__, flags));
-	pa = VM_PAGE_TO_PHYS(m);
+	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
 	newpte = (pt_entry_t)(pa | PG_A | PG_V);
 	if ((flags & VM_PROT_WRITE) != 0)
 		newpte |= PG_M;
@@ -7313,7 +7305,7 @@ retry:
 		 * Here if the pte page isn't mapped, or if it has been
 		 * deallocated.
 		 */
-		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
+		bool nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
 		mpte = pmap_allocpte_alloc(pmap, pmap_pde_pindex(va),
 		    nosleep ? NULL : &lock, va);
 		if (mpte == NULL && nosleep) {
@@ -7357,7 +7349,7 @@ retry:
 		/*
 		 * Has the physical page changed?
 		 */
-		opa = origpte & PG_FRAME;
+		vm_paddr_t opa = origpte & PG_FRAME;
 		if (opa == pa) {
 			/*
 			 * No, might be a protection or wiring change.
@@ -7384,7 +7376,7 @@ retry:
 		KASSERT((origpte & PG_FRAME) == opa,
 		    ("%s: unexpected pa update for %#lx", __func__, va));
 		if ((origpte & PG_MANAGED) != 0) {
-			om = PHYS_TO_VM_PAGE(opa);
+			struct vm_page *om = PHYS_TO_VM_PAGE(opa);
 
 			/*
 			 * The pmap lock is sufficient to synchronize with
@@ -9369,10 +9361,6 @@ void
 pmap_clear_modify(struct vm_page * const m)
 {
 	pv_entry_t next_pv, pv;
-	pd_entry_t *pde;
-	pt_entry_t *pte;
-	vm_offset_t va;
-	int pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is not managed", __func__, m));
@@ -9388,7 +9376,7 @@ restart: // unlikely
 	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) { // for 2MB super page
 		pmap_t pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
-			pvh_gen = pvh->pv_gen;
+			int pvh_gen = pvh->pv_gen;
 			rw_wunlock(lock);
 			PMAP_LOCK(pmap);
 			rw_wlock(lock);
@@ -9399,8 +9387,8 @@ restart: // unlikely
 		}
 		pt_entry_t PG_M = pmap_modified_bit(pmap);
 		pt_entry_t PG_RW = pmap_rw_bit(pmap);
-		va = pv->pv_va;
-		pde = pmap_pde(pmap, va);
+		vm_offset_t va = pv->pv_va;
+		pd_entry_t *pde = pmap_pde(pmap, va);
 		pd_entry_t oldpde = *pde;
 		/* If oldpde has PG_RW set, then it also has PG_M set. */
 		if ((oldpde & PG_RW) != 0 &&
@@ -9411,7 +9399,7 @@ restart: // unlikely
 			 * a subsequent write access may repromote.
 			 */
 			va += pa - (oldpde & PG_PS_FRAME);
-			pte = pmap_pde_to_pte(pde, va);
+			pt_entry_t *pte = pmap_pde_to_pte(pde, va);
 			atomic_clear_long(pte, PG_M | PG_RW);
 			vm_page_dirty(m);
 			pmap_invalidate_page(pmap, va);
@@ -9422,7 +9410,7 @@ restart: // unlikely
 		pmap_t pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
 			int md_gen = m->md.pv_gen;
-			pvh_gen = pvh->pv_gen;
+			int pvh_gen = pvh->pv_gen;
 			rw_wunlock(lock);
 			PMAP_LOCK(pmap);
 			rw_wlock(lock);
@@ -9433,11 +9421,11 @@ restart: // unlikely
 		}
 		pt_entry_t PG_M = pmap_modified_bit(pmap);
 		pt_entry_t PG_RW = pmap_rw_bit(pmap);
-		va = pv->pv_va;
-		pde = pmap_pde(pmap, va);
+		vm_offset_t va = pv->pv_va;
+		pd_entry_t *pde = pmap_pde(pmap, va);
 		KASSERT((*pde & PG_PS) == 0, ("%s: found"
 		    " a 2mpage in page %p's pv list", __func__, m));
-		pte = pmap_pde_to_pte(pde, va);
+		pt_entry_t *pte = pmap_pde_to_pte(pde, va);
 		if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
 			atomic_clear_long(pte, PG_M);
 			pmap_invalidate_page(pmap, va);
