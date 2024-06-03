@@ -785,7 +785,7 @@ pmap_init(void)
 	/*
 	 * Calculate the size of the pv head table for superpages.
 	 */
-	pv_npg = howmany(vm_phys_segs[vm_phys_nsegs - 1].end, L2_SIZE);
+	pv_npg = howmany(vm_phys_segs[vm_phys_nsegs - 1].end, L2_SIZE); // 2M
 
 	/*
 	 * Allocate memory for the pv head table for superpages.

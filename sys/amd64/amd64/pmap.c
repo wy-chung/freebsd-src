@@ -84,6 +84,7 @@
  */
 
 #define	AMD64_NPT_AWARE
+//#define INVARIANTS //wyctodo
 
 #include <sys/cdefs.h>
 /*
@@ -476,7 +477,7 @@ struct pmap user_pmap_store; //wyc
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
-int nkpt; // kernel uses 2MB page
+int nkpt; // kernel uses 2MB page. == 50
 SYSCTL_INT(_machdep, OID_AUTO, nkpt, CTLFLAG_RD, &nkpt, 0,
     "Number of kernel page table pages allocated on bootup");
 
@@ -1672,8 +1673,8 @@ CTASSERT(powerof2(NDMPML4E));
 /* number of kernel PDP slots */
 #define	NKPDPE(ptpgs)		howmany(ptpgs, NPDEPG)
 
-static void
-nkpt_init(vm_paddr_t addr)
+static int
+nkpt_init(vm_paddr_t addr) // < create_pagetables < pmap_bootstrap < getmemsize < hammer_time
 {
 	int pt_pages;
 
@@ -1702,7 +1703,7 @@ nkpt_init(vm_paddr_t addr)
 	 */
 	pt_pages += 32;		/* 64MB additional slop. */
 #endif
-	nkpt = pt_pages;
+	return pt_pages;
 }
 
 /*
@@ -1834,8 +1835,8 @@ create_pagetables(vm_paddr_t *firstaddr) // < pmap_bootstrap < getmemsize < hamm
 	 * all but the KPML4I'th one, so we need NKPML4E-1 extra (zeroed)
 	 * pages.  (pmap_enter requires a PD page to exist for each KPML4E.)
 	 */
-	nkpt_init(*firstaddr);
-	nkpdpe = NKPDPE(nkpt);
+	nkpt = nkpt_init(*firstaddr);
+	nkpdpe = NKPDPE(nkpt); // should be 1
 
 	KPTphys = allocpages(firstaddr, nkpt);
 	KPDphys = allocpages(firstaddr, nkpdpe);
@@ -2580,14 +2581,14 @@ pmap_init(void) // < vm_mem_init < SYSINIT(SI_SUB_VM, SI_ORDER_FIRST)
 	}
 
 	/* IFU */
-	pmap_allow_2m_x_ept_recalculate();
+	pmap_allow_2m_x_ept_recalculate(); // init the variable @pmap_allow_2m_x_ept
 
 	/*
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
 	 */ 
 	PMAP_LOCK(kernel_pmap);
-	for (int i = 0; i < nkpt; i++) { // machdep.nkpt == 50 entries of 2MB page
+	for (int i = 0; i < nkpt; i++) { // machdep.nkpt == 50 * 512 of 2MB page
 		struct vm_page *mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
@@ -5938,7 +5939,7 @@ pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	vm_page_t m;
 
 	KASSERT((pa & PDRMASK) == 0,
-	    ("pmap_pv_promote_pde: pa is not 2mpage aligned"));
+	    ("%s: pa is not 2mpage aligned", __func__));
 	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
 
 	/*
@@ -5951,7 +5952,7 @@ pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	m = PHYS_TO_VM_PAGE(pa);
 	va = trunc_2mpage(va);
 	pv = pmap_pvh_remove(&m->md, pmap, va);
-	KASSERT(pv != NULL, ("pmap_pv_promote_pde: pv not found"));
+	KASSERT(pv != NULL, ("%s: pv not found", __func__));
 	pvh = pa_to_pvh(pa);
 	TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
 	pvh->pv_gen++;
@@ -6109,6 +6110,7 @@ static boolean_t
 pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
     struct rwlock **lockp)
 {
+//panic("%s: wyctest\n", __func__); // will be called even when VM_NRESERVLEVEL == 0
 	pt_entry_t PG_A = pmap_accessed_bit(pmap);
 	pt_entry_t PG_G = pmap_global_bit(pmap);
 	pt_entry_t PG_M = pmap_modified_bit(pmap);
@@ -6943,6 +6945,7 @@ static bool
 pmap_promote_pde(pmap_t pmap, pd_entry_t *pde/*OUT*/, vm_offset_t va, vm_page_t mpte,
     struct rwlock **lockp)
 {
+panic("%s: wyctest\n", __func__); // pass. will not be called when VM_NRESERVLEVEL == 0
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if (!pmap_ps_enabled(pmap))
 		return (false);
@@ -9405,7 +9408,7 @@ restart: // unlikely
 			pmap_invalidate_page(pmap, va);
 		}
 		PMAP_UNLOCK(pmap);
-	}
+	} // for 2MB super page
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) { // for 4K page
 		pmap_t pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
@@ -9431,7 +9434,7 @@ restart: // unlikely
 			pmap_invalidate_page(pmap, va);
 		}
 		PMAP_UNLOCK(pmap);
-	}
+	} // for 4K page
 	rw_wunlock(lock);
 }
 
