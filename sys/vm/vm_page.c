@@ -62,6 +62,8 @@
  * rights to redistribute these changes.
  */
 
+//#define INVARIANTS //wyctodo
+
 /*
  *	Resident memory management module.
  */

@@ -356,6 +356,8 @@ print_caddr_t(void *data)
 //wyc
 extern vm_paddr_t phys_avail[];
 extern long Maxmem;
+extern const u_long vm_maxuser_address;
+
 static void
 print_version(void *data __unused)
 {
@@ -371,6 +373,7 @@ print_version(void *data __unused)
 	for (int i = 0 ; phys_avail[i] != 0; i += 2)
 		printf("phys_avail %d %08lx %08lx\n", i, phys_avail[i], phys_avail[i+1]);
 	printf("MaxMem: %lx\n", Maxmem);
+	printf("vm_maxuser_address: %lx\n", vm_maxuser_address);
 }
 
 SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
