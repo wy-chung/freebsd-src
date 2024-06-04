@@ -263,12 +263,12 @@ struct vm_page {
  * prevent reclamation.  Accesses to the ref_count field must be atomic unless
  * the page is unallocated.
  *
- * VPRC_OBJREF is the reference held by the containing object.  It can set or
- * cleared only when the corresponding object's write lock is held.
- *
  * VPRC_BLOCKED is used to atomically block wirings via pmap lookups while
  * attempting to tear down all mappings of a given page.  The page busy lock and
  * object write lock must both be held in order to set or clear this bit.
+ *
+ * VPRC_OBJREF is the reference held by the containing object.  It can set or
+ * cleared only when the corresponding object's write lock is held.
  */
 #define	VPRC_BLOCKED	0x40000000u	/* mappings are being removed */
 #define	VPRC_OBJREF	0x80000000u	/* object reference, cleared with (O) */

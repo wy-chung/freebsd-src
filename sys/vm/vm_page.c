@@ -4029,11 +4029,11 @@ vm_page_wire(vm_page_t m)
 #endif
 	KASSERT((m->flags & PG_FICTITIOUS) == 0 ||
 	    VPRC_WIRE_COUNT(m->ref_count) >= 1,
-	    ("vm_page_wire: fictitious page %p has zero wirings", m));
+	    ("%s: fictitious page %p has zero wirings", __func__, m));
 
 	old = atomic_fetchadd_int(&m->ref_count, 1);
 	KASSERT(VPRC_WIRE_COUNT(old) != VPRC_WIRE_COUNT_MAX,
-	    ("vm_page_wire: counter overflow for page %p", m));
+	    ("%s: counter overflow for page %p", __func__, m));
 	if (VPRC_WIRE_COUNT(old) == 0) {
 		if ((m->oflags & VPO_UNMANAGED) == 0)
 			vm_page_aflag_set(m, PGA_DEQUEUE);
