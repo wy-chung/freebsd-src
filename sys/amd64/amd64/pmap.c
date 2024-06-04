@@ -489,7 +489,7 @@ pt_entry_t pg_nx;
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");
 
-static int __read_frequently pg_ps_enabled = 1;
+static int __read_frequently pg_ps_enabled = 0;//wyc ori 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pg_ps_enabled, 0, "Are large page mappings enabled?");
 
@@ -2588,7 +2588,7 @@ pmap_init(void) // < vm_mem_init < SYSINIT(SI_SUB_VM, SI_ORDER_FIRST)
 	 * page table pages.
 	 */ 
 	PMAP_LOCK(kernel_pmap);
-	for (int i = 0; i < nkpt; i++) { // machdep.nkpt == 50 * 512 of 2MB page
+	for (int i = 0; i < nkpt; i++) { // machdep.nkpt == 50, 50 * 512 of 2MB page
 		struct vm_page *mpte = PHYS_TO_VM_PAGE(KPTphys + (i << PAGE_SHIFT));
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
@@ -7219,12 +7219,6 @@ int
 pmap_enter(pmap_t pmap, vm_offset_t va, struct vm_page *m, vm_prot_t prot,
     u_int flags, int8_t psind)
 { // 7460
-	struct rwlock *lock;
-	pd_entry_t *pde;
-	pt_entry_t *pte;
-	pt_entry_t newpte, origpte;
-	pv_entry_t pv;
-	struct vm_page *mpte;
 	int rv;
 
 	pt_entry_t PG_A = pmap_accessed_bit(pmap);
@@ -7244,7 +7238,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, struct vm_page *m, vm_prot_t prot,
 	KASSERT((flags & PMAP_ENTER_RESERVED) == 0,
 	    ("%s: flags %u has reserved bits set", __func__, flags));
 	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
-	newpte = (pt_entry_t)(pa | PG_A | PG_V);
+	pt_entry_t newpte = (pt_entry_t)(pa | PG_A | PG_V);
 	if ((flags & VM_PROT_WRITE) != 0)
 		newpte |= PG_M;
 	if ((prot & VM_PROT_WRITE) != 0)
@@ -7272,7 +7266,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, struct vm_page *m, vm_prot_t prot,
 	} else
 		newpte |= PG_MANAGED;
 
-	lock = NULL;
+	struct rwlock *lock = NULL;
 	PMAP_LOCK(pmap);
 	if ((flags & PMAP_ENTER_LARGEPAGE) != 0) {
 		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
@@ -7288,14 +7282,15 @@ pmap_enter(pmap_t pmap, vm_offset_t va, struct vm_page *m, vm_prot_t prot,
 		rv = pmap_enter_pde(pmap, va, newpte | PG_PS, flags, m, &lock);
 		goto out;
 	}
-	mpte = NULL;
+	struct vm_page *mpte = NULL;
 
 	/*
 	 * In the case that a page table page is not
 	 * resident, we are creating it here.
 	 */
-retry:
-	pde = pmap_pde(pmap, va);
+retry:; //the semicolon is needed to silence the compiler error
+	pt_entry_t *pte;
+	pd_entry_t *pde = pmap_pde(pmap, va);
 	if (pde != NULL && (*pde & PG_V) != 0 && ((*pde & PG_PS) == 0 ||
 	    pmap_demote_pde_locked(pmap, pde, va, &lock))) {
 		pte = pmap_pde_to_pte(pde, va);
@@ -7319,8 +7314,8 @@ retry:
 	} else
 		panic("%s: invalid page directory va=%#lx", __func__, va);
 
-	origpte = *pte;
-	pv = NULL;
+	pt_entry_t origpte = *pte;
+	pv_entry_t pv = NULL;
 	if (va < VM_MAXUSER_ADDRESS_LA48 && pmap->pm_type == PT_X86)
 		newpte |= pmap_pkru_get(pmap, va);
 
@@ -8028,16 +8023,13 @@ void
 pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	vm_offset_t va_next;
-	pml4_entry_t *pml4e;
-	pdp_entry_t *pdpe;
-	pd_entry_t *pde;
-	pt_entry_t *pte, PG_V, PG_G __diagused;
+	pt_entry_t PG_V, PG_G __diagused;
 
 	PG_V = pmap_valid_bit(pmap);
 	PG_G = pmap_global_bit(pmap);
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
-		pml4e = pmap_pml4e(pmap, sva);
+		pml4_entry_t *pml4e = pmap_pml4e(pmap, sva);
 		if (pml4e == NULL || (*pml4e & PG_V) == 0) {
 			va_next = (sva + NBPML4) & ~PML4MASK; // 0.5T
 			if (va_next < sva)
@@ -8048,7 +8040,7 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		va_next = (sva + NBPDP) & ~PDPMASK; // 1G
 		if (va_next < sva)
 			va_next = eva;
-		pdpe = pmap_pml4e_to_pdpe(pml4e, sva);
+		pdp_entry_t *pdpe = pmap_pml4e_to_pdpe(pml4e, sva);
 		if ((*pdpe & PG_V) == 0)
 			continue;
 		if ((*pdpe & PG_PS) != 0) {
@@ -8066,7 +8058,7 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		va_next = (sva + NBPDR) & ~PDRMASK; // 2M
 		if (va_next < sva)
 			va_next = eva;
-		pde = pmap_pdpe_to_pde(pdpe, sva);
+		pd_entry_t *pde = pmap_pdpe_to_pde(pdpe, sva);
 		if ((*pde & PG_V) == 0)
 			continue;
 		if ((*pde & PG_PS) != 0) {
@@ -8088,8 +8080,8 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		}
 		if (va_next > eva)
 			va_next = eva;
-		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
-		    sva += PAGE_SIZE) {
+		for (pt_entry_t *pte = pmap_pde_to_pte(pde, sva);
+		     sva != va_next; pte++, sva += PAGE_SIZE) {
 			if ((*pte & PG_V) == 0)
 				continue;
 			if ((*pte & PG_W) == 0) // if not wired

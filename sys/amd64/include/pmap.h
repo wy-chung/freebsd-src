@@ -393,7 +393,7 @@ struct pmap {
 	struct rangeset		pm_pkru;
 };
 
-/* flags */
+/* pm_flags */
 #define	PMAP_NESTED_IPIMASK	0xff
 #define	PMAP_PDE_SUPERPAGE	(1 << 8)	/* supports 2MB superpages */
 #define	PMAP_EMULATE_AD_BITS	(1 << 9)	/* needs A/D bits emulation */

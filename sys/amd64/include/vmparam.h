@@ -89,7 +89,8 @@
 /*
  * The physical address space is densely populated.
  */
-#define	VM_PHYSSEG_DENSE
+//#define	VM_PHYSSEG_DENSE // ori
+#define VM_PHYSSEG_SPARSE // wyctest pass. can also run in sparse mode
 
 /*
  * The number of PHYSSEG entries must be one greater than the number
@@ -139,14 +140,8 @@
  */
 #define	VM_NFREEORDER		13
 
-#define	VM_NRESERVLEVEL		0	//wyc Disable superpage
-
-/*
- * Enable superpage reservations: 1 level.
-#ifndef	VM_NRESERVLEVEL
-#define	VM_NRESERVLEVEL		1
-#endif
-*/
+#define VM_NRESERVLEVEL		0	//wyc Disable superpage
+//#define VM_NRESERVLEVEL	1	//ori  Enable superpage reservations: 1 level.
 
 /*
  * Level 0 reservations consist of 512 pages.
@@ -175,6 +170,7 @@
  *
  * 0x0000,0000,0000,0000 - 0x0000,7fff,ffff,ffff   user map //wyc == 2^47 == 128T
  * 0x0000,8000,0000,0000 - 0xffff,7fff,ffff,ffff   does not exist (hole)
+     UPT_MIN_ADDRESS     -   UPT_MAX_ADDRESS
  * 0xffff,8000,0000,0000 - 0xffff,8040,2010,0fff   recursive page table (512GB slot)
  * 0xffff,8040,2010,0fff - 0xffff,807f,ffff,ffff   unused
  * 0xffff,8080,0000,0000 - 0xffff,847f,ffff,ffff   large map (can be tuned up)
