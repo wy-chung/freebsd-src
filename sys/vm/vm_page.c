@@ -506,7 +506,8 @@ vm_page_init_page(struct vm_page *m, vm_paddr_t pa, int segind)
 	m->object = NULL;
 	m->ref_count = 0;
 	m->busy_lock = VPB_FREED;
-	m->flags = m->a.flags = 0;
+	m->a.flags = 0;
+	m->flags = 0;
 	m->phys_addr = pa;
 	m->a.queue = PQ_NONE;
 	m->psind = 0;
@@ -4077,8 +4078,6 @@ vm_page_wire_mapped(vm_page_t m)
 static void
 vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 {
-	u_int old;
-
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is unmanaged", __func__, m));
 
@@ -4087,10 +4086,10 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 	 * Use a release store when updating the reference count to
 	 * synchronize with vm_page_free_prep().
 	 */
-	old = m->ref_count;
+	u_int old = m->ref_count;
 	do {
 		KASSERT(VPRC_WIRE_COUNT(old) > 0,
-		    ("vm_page_unwire: wire count underflow for page %p", m));
+		    ("%s: wire count underflow for page %p", __func__, m));
 
 		if (old > VPRC_OBJREF + 1) {
 			/*
@@ -4136,8 +4135,7 @@ vm_page_unwire(vm_page_t m, uint8_t nqueue)
 {
 
 	KASSERT(nqueue < PQ_COUNT,
-	    ("vm_page_unwire: invalid queue %u request for page %p",
-	    nqueue, m));
+	    ("%s: invalid queue %u request for page %p", __func__, nqueue, m));
 
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		if (vm_page_unwire_noq(m) && m->ref_count == 0)
