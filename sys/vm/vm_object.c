@@ -2371,23 +2371,21 @@ vm_object_unwire(vm_object_t object, vm_ooffset_t offset, vm_size_t length,
     uint8_t queue)
 {
 	vm_object_t tobject, t1object;
-	vm_page_t m, tm;
-	vm_pindex_t end_pindex, pindex, tpindex;
-	int depth, locked_depth;
+	vm_page_t tm;
 
 	KASSERT((offset & PAGE_MASK) == 0,
-	    ("vm_object_unwire: offset is not page aligned"));
+	    ("%s: offset is not page aligned", __func__));
 	KASSERT((length & PAGE_MASK) == 0,
-	    ("vm_object_unwire: length is not a multiple of PAGE_SIZE"));
+	    ("%s: length is not a multiple of PAGE_SIZE", __func__));
 	/* The wired count of a fictitious page never changes. */
 	if ((object->flags & OBJ_FICTITIOUS) != 0)
 		return;
-	pindex = OFF_TO_IDX(offset);
-	end_pindex = pindex + atop(length);
-again:
-	locked_depth = 1;
+	vm_pindex_t pindex = OFF_TO_IDX(offset);
+	vm_pindex_t end_pindex = pindex + atop(length);
+again:; // ';' is needed to silence a compiler error
+	int locked_depth = 1;
 	VM_OBJECT_RLOCK(object);
-	m = vm_page_find_least(object, pindex);
+	vm_page_t m = vm_page_find_least(object, pindex);
 	while (pindex < end_pindex) {
 		if (m == NULL || pindex < m->pindex) {
 			/*
@@ -2396,14 +2394,14 @@ again:
 			 * the page must exist in a backing object.
 			 */
 			tobject = object;
-			tpindex = pindex;
-			depth = 0;
+			vm_pindex_t tpindex = pindex;
+			int depth = 0;
 			do {
 				tpindex +=
 				    OFF_TO_IDX(tobject->backing_object_offset);
 				tobject = tobject->backing_object;
 				KASSERT(tobject != NULL,
-				    ("vm_object_unwire: missing page"));
+				    ("%s: missing page", __func__));
 				if ((tobject->flags & OBJ_FICTITIOUS) != 0)
 					goto next_page;
 				depth++;
@@ -2411,8 +2409,7 @@ again:
 					locked_depth++;
 					VM_OBJECT_RLOCK(tobject);
 				}
-			} while ((tm = vm_page_lookup(tobject, tpindex)) ==
-			    NULL);
+			} while ((tm = vm_page_lookup(tobject, tpindex)) == NULL);
 		} else {
 			tm = m;
 			m = TAILQ_NEXT(m, listq);
@@ -2426,8 +2423,7 @@ again:
 				tobject = t1object;
 			}
 			tobject = tm->object;
-			if (!vm_page_busy_sleep(tm, "unwbo",
-			    VM_ALLOC_IGN_SBUSY))
+			if (!vm_page_busy_sleep(tm, "unwbo", VM_ALLOC_IGN_SBUSY))
 				VM_OBJECT_RUNLOCK(tobject);
 			goto again;
 		}

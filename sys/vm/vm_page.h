@@ -211,9 +211,106 @@ typedef uint32_t vm_page_bits_t;
 typedef uint64_t vm_page_bits_t;
 #endif
 
+/*
+ * Page flags.  Updates to these flags are not synchronized, and thus they must
+ * be set during page allocation or free to avoid races.
+ *
+ * The PG_PCPU_CACHE flag is set at allocation time if the page was
+ * allocated from a per-CPU cache.  It is cleared the next time that the
+ * page is allocated from the physical memory allocator.
+ */
+enum pg_flags : uint8_t {
+	PG_PCPU_CACHE	= 0x01,		/* was allocated from per-CPU caches */
+	PG_FICTITIOUS	= 0x02,		/* physical page doesn't exist */
+	PG_ZERO		= 0x04,		/* page is zeroed */
+	PG_MARKER	= 0x08,		/* special queue marker page */
+	PG_NODUMP	= 0x10,		/* don't include this page in a dump */
+};
+
+/*
+ * Page flags stored in oflags:
+ *
+ * Access to these page flags is synchronized by the lock on the object
+ * containing the page (O).
+ *
+ * Note: VPO_UNMANAGED (used by OBJT_DEVICE, OBJT_PHYS and OBJT_SG)
+ * 	 indicates that the page is not under PV management but
+ * 	 otherwise should be treated as a normal page.  Pages not
+ * 	 under PV management cannot be paged out via the
+ * 	 object/vm_page_t because there is no knowledge of their pte
+ * 	 mappings, and such pages are also not on any PQ queue.
+ *
+ */
+enum vpo_flags : uint8_t {
+	VPO_KMEM_EXEC	= 0x01,		/* kmem mapping allows execution */
+	VPO_SWAPSLEEP	= 0x02,		/* waiting for swap to finish */
+	VPO_UNMANAGED	= 0x04,		/* no PV management for page */
+	VPO_SWAPINPROG	= 0x08,		/* swap I/O in progress on page */
+};
+
+/*
+ * The vm_page's aflags are updated using atomic operations.  To set or clear
+ * these flags, the functions vm_page_aflag_set() and vm_page_aflag_clear()
+ * must be used.  Neither these flags nor these functions are part of the KBI.
+ *
+ * PGA_REFERENCED may be cleared only if the page is locked.  It is set by
+ * both the MI and MD VM layers.  However, kernel loadable modules should not
+ * directly set this flag.  They should call vm_page_reference() instead.
+ *
+ * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().
+ * When it does so, the object must be locked, or the page must be
+ * exclusive busied.  The MI VM layer must never access this flag
+ * directly.  Instead, it should call pmap_page_is_write_mapped().
+ *
+ * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
+ * at least one executable mapping.  It is not consumed by the MI VM layer.
+ *
+ * PGA_NOSYNC must be set and cleared with the page busy lock held.
+ *
+ * PGA_ENQUEUED is set and cleared when a page is inserted into or removed
+ * from a page queue, respectively.  It determines whether the plinks.q field
+ * of the page is valid.  To set or clear this flag, page's "queue" field must
+ * be a valid queue index, and the corresponding page queue lock must be held.
+ *
+ * PGA_DEQUEUE is set when the page is scheduled to be dequeued from a page
+ * queue, and cleared when the dequeue request is processed.  A page may
+ * have PGA_DEQUEUE set and PGA_ENQUEUED cleared, for instance if a dequeue
+ * is requested after the page is scheduled to be enqueued but before it is
+ * actually inserted into the page queue.
+ *
+ * PGA_REQUEUE is set when the page is scheduled to be enqueued or requeued
+ * in its page queue.
+ *
+ * PGA_REQUEUE_HEAD is a special flag for enqueuing pages near the head of
+ * the inactive queue, thus bypassing LRU.
+ *
+ * The PGA_DEQUEUE, PGA_REQUEUE and PGA_REQUEUE_HEAD flags must be set using an
+ * atomic RMW operation to ensure that the "queue" field is a valid queue index,
+ * and the corresponding page queue lock must be held when clearing any of the
+ * flags.
+ *
+ * PGA_SWAP_FREE is used to defer freeing swap space to the pageout daemon
+ * when the context that dirties the page does not have the object write lock
+ * held.
+ */
+enum pga_flags : uint16_t {
+	PGA_WRITEABLE	= 0x0001,	/* page may be mapped writeable */
+	PGA_REFERENCED	= 0x0002,	/* page has been referenced */
+	PGA_EXECUTABLE	= 0x0004,	/* page may be mapped executable */
+	PGA_ENQUEUED	= 0x0008,	/* page is enqueued in a page queue */
+	PGA_DEQUEUE	= 0x0010,	/* page is due to be dequeued */
+	PGA_REQUEUE	= 0x0020,	/* page is due to be requeued */
+	PGA_REQUEUE_HEAD= 0x0040,	/* page requeue should bypass LRU */
+	PGA_NOSYNC	= 0x0080,	/* do not collect for syncer */
+	PGA_SWAP_FREE	= 0x0100,	/* page with swap space was dirtied */
+	PGA_SWAP_SPACE	= 0x0200,	/* page has allocated swap space */
+};
+#define	PGA_QUEUE_OP_MASK	(PGA_DEQUEUE | PGA_REQUEUE | PGA_REQUEUE_HEAD)
+#define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_QUEUE_OP_MASK)
+
 typedef union vm_page_astate {
 	struct {
-		uint16_t flags; // see enum pga_flags
+		enum pga_flags flags;
 		uint8_t	queue;
 		uint8_t act_count;
 	};
@@ -245,8 +342,8 @@ struct vm_page {
 	union vm_page_astate a;		/* state accessed atomically (A) */
 	uint8_t order;			/* index of the buddy queue (F) */
 	uint8_t pool;			/* vm_phys freepool index (F) */
-	uint8_t flags; // ref enum pg_flags	/* page PG_* flags (P) */
-	uint8_t oflags;			/* page VPO_* flags (O) */
+	enum pg_flags flags;		/* page PG_* flags (P) */
+	enum vpo_flags oflags;		/* page VPO_* flags (O) */
 	int8_t psind;			/* pagesizes[] index (O) */
 	int8_t segind;			/* vm_phys segment index (C) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page */
@@ -275,26 +372,6 @@ struct vm_page {
 #define	VPRC_WIRE_COUNT(c)	((c) & ~(VPRC_BLOCKED | VPRC_OBJREF))
 #define	VPRC_WIRE_COUNT_MAX	(~(VPRC_BLOCKED | VPRC_OBJREF))
 
-/*
- * Page flags stored in oflags:
- *
- * Access to these page flags is synchronized by the lock on the object
- * containing the page (O).
- *
- * Note: VPO_UNMANAGED (used by OBJT_DEVICE, OBJT_PHYS and OBJT_SG)
- * 	 indicates that the page is not under PV management but
- * 	 otherwise should be treated as a normal page.  Pages not
- * 	 under PV management cannot be paged out via the
- * 	 object/vm_page_t because there is no knowledge of their pte
- * 	 mappings, and such pages are also not on any PQ queue.
- *
- */
-enum vpo_flags {
-	VPO_KMEM_EXEC	= 0x01,		/* kmem mapping allows execution */
-	VPO_SWAPSLEEP	= 0x02,		/* waiting for swap to finish */
-	VPO_UNMANAGED	= 0x04,		/* no PV management for page */
-	VPO_SWAPINPROG	= 0x08,		/* swap I/O in progress on page */
-};
 /*
  * Busy page implementation details.
  * The algorithm is taken mostly by rwlock(9) and sx(9) locks implementation,
@@ -390,81 +467,6 @@ extern struct mtx_padalign pa_lock[];
 #define	vm_page_lock_assert(m, a)
 #endif
 
-/*
- * The vm_page's aflags are updated using atomic operations.  To set or clear
- * these flags, the functions vm_page_aflag_set() and vm_page_aflag_clear()
- * must be used.  Neither these flags nor these functions are part of the KBI.
- *
- * PGA_REFERENCED may be cleared only if the page is locked.  It is set by
- * both the MI and MD VM layers.  However, kernel loadable modules should not
- * directly set this flag.  They should call vm_page_reference() instead.
- *
- * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().
- * When it does so, the object must be locked, or the page must be
- * exclusive busied.  The MI VM layer must never access this flag
- * directly.  Instead, it should call pmap_page_is_write_mapped().
- *
- * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
- * at least one executable mapping.  It is not consumed by the MI VM layer.
- *
- * PGA_NOSYNC must be set and cleared with the page busy lock held.
- *
- * PGA_ENQUEUED is set and cleared when a page is inserted into or removed
- * from a page queue, respectively.  It determines whether the plinks.q field
- * of the page is valid.  To set or clear this flag, page's "queue" field must
- * be a valid queue index, and the corresponding page queue lock must be held.
- *
- * PGA_DEQUEUE is set when the page is scheduled to be dequeued from a page
- * queue, and cleared when the dequeue request is processed.  A page may
- * have PGA_DEQUEUE set and PGA_ENQUEUED cleared, for instance if a dequeue
- * is requested after the page is scheduled to be enqueued but before it is
- * actually inserted into the page queue.
- *
- * PGA_REQUEUE is set when the page is scheduled to be enqueued or requeued
- * in its page queue.
- *
- * PGA_REQUEUE_HEAD is a special flag for enqueuing pages near the head of
- * the inactive queue, thus bypassing LRU.
- *
- * The PGA_DEQUEUE, PGA_REQUEUE and PGA_REQUEUE_HEAD flags must be set using an
- * atomic RMW operation to ensure that the "queue" field is a valid queue index,
- * and the corresponding page queue lock must be held when clearing any of the
- * flags.
- *
- * PGA_SWAP_FREE is used to defer freeing swap space to the pageout daemon
- * when the context that dirties the page does not have the object write lock
- * held.
- */
-enum pga_flags {
-	PGA_WRITEABLE	= 0x0001,	/* page may be mapped writeable */
-	PGA_REFERENCED	= 0x0002,	/* page has been referenced */
-	PGA_EXECUTABLE	= 0x0004,	/* page may be mapped executable */
-	PGA_ENQUEUED	= 0x0008,	/* page is enqueued in a page queue */
-	PGA_DEQUEUE	= 0x0010,	/* page is due to be dequeued */
-	PGA_REQUEUE	= 0x0020,	/* page is due to be requeued */
-	PGA_REQUEUE_HEAD= 0x0040,	/* page requeue should bypass LRU */
-	PGA_NOSYNC	= 0x0080,	/* do not collect for syncer */
-	PGA_SWAP_FREE	= 0x0100,	/* page with swap space was dirtied */
-	PGA_SWAP_SPACE	= 0x0200,	/* page has allocated swap space */
-};
-#define	PGA_QUEUE_OP_MASK	(PGA_DEQUEUE | PGA_REQUEUE | PGA_REQUEUE_HEAD)
-#define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_QUEUE_OP_MASK)
-
-/*
- * Page flags.  Updates to these flags are not synchronized, and thus they must
- * be set during page allocation or free to avoid races.
- *
- * The PG_PCPU_CACHE flag is set at allocation time if the page was
- * allocated from a per-CPU cache.  It is cleared the next time that the
- * page is allocated from the physical memory allocator.
- */
-enum pg_flags {
-	PG_PCPU_CACHE	= 0x01,		/* was allocated from per-CPU caches */
-	PG_FICTITIOUS	= 0x02,		/* physical page doesn't exist */
-	PG_ZERO		= 0x04,		/* page is zeroed */
-	PG_MARKER	= 0x08,		/* special queue marker page */
-	PG_NODUMP	= 0x10,		/* don't include this page in a dump */
-};
 /*
  * Misc constants.
  */
@@ -976,7 +978,7 @@ vm_page_drop(vm_page_t m, u_int val)
 	atomic_thread_fence_rel();
 	old = atomic_fetchadd_int(&m->ref_count, -val);
 	KASSERT(old != VPRC_BLOCKED,
-	    ("vm_page_drop: page %p has an invalid refcount value", m));
+	    ("%s: page %p has an invalid refcount value", __func__, m));
 	return (old);
 }
 

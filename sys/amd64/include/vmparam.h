@@ -89,8 +89,8 @@
 /*
  * The physical address space is densely populated.
  */
-//#define	VM_PHYSSEG_DENSE // ori
-#define VM_PHYSSEG_SPARSE // wyctest pass. can also run in sparse mode
+#define	VM_PHYSSEG_DENSE //wyc ori
+//#define VM_PHYSSEG_SPARSE //wyctest amd64 pass. risc-v uses this model
 
 /*
  * The number of PHYSSEG entries must be one greater than the number
@@ -141,7 +141,7 @@
 #define	VM_NFREEORDER		13
 
 #define VM_NRESERVLEVEL		0	//wyc Disable superpage
-//#define VM_NRESERVLEVEL	1	//ori  Enable superpage reservations: 1 level.
+//#define VM_NRESERVLEVEL	1	//wyc ori  Enable superpage reservations: 1 level.
 
 /*
  * Level 0 reservations consist of 512 pages.

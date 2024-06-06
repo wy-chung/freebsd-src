@@ -3884,7 +3884,7 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT(entry->wired_count > 0,
-	    ("vm_map_entry_unwire: entry %p isn't wired", entry));
+	    ("%s: entry %p isn't wired", __func__, entry));
 
 	size = entry->end - entry->start;
 	if ((entry->eflags & MAP_ENTRY_USER_WIRED) != 0)

@@ -219,7 +219,7 @@
 #define	NUPML4E		(NUPML5E * NPML4EPG)	/* number of userland PML4 pages */
 #define	NUPDPE		(NUPML4E * NPDPEPG)	/* number of userland PDP pages */
 #define	NUPDE		(NUPDPE * NPDEPG)	/* number of userland PD entries */
-#define	NUP4ML4E	(NPML4EPG / 2)
+#define	NUP4ML4E	(NPML4EPG / 2)	// only referenced by DB_SHOW_COMMAND
 
 /*
  * NDMPML4E is the maximum number of PML4 entries that will be
