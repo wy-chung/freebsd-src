@@ -4510,6 +4510,9 @@ vm_page_grab_sleep(vm_object_t object, vm_page_t m, vm_pindex_t pindex,
 	 */
 	if (locked && (allocflags & VM_ALLOC_NOCREAT) == 0)
 		vm_page_reference(m);
+#if defined(WYC)
+		vm_page_aflag_set(m, PGA_REFERENCED);
+#endif
 
 	if (_vm_page_busy_sleep(object, m, pindex, wmesg, allocflags, locked) &&
 	    locked)

@@ -4830,8 +4830,7 @@ panic("%s: wyctest\n", __func__); // tested. not reached
 				*pml4 |= pg_nx;
 
 			pml4_entry_t *pml4u = &pmap->pm_pmltopu[pml4index];
-			*pml4u = VM_PAGE_TO_PHYS(m) | PG_U | PG_RW | PG_V |
-			    PG_A | PG_M;
+			*pml4u = VM_PAGE_TO_PHYS(m) | PG_U | PG_RW | PG_V | PG_A | PG_M;
 		}
 	} else if (ptepindex >= NUPDE) {
 		/* Wire up a new PDE page */
@@ -5461,10 +5460,11 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 				if ((tpte & PG_G) != 0)
 					pmap_invalidate_page(pmap, va);
 				vm_page_t m = PHYS_TO_VM_PAGE(tpte & PG_FRAME);
-				if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+				if ((tpte & (PG_M/* | PG_RW*/)) == (PG_M/* | PG_RW*/))
+					// write the modified bit to %m
 					vm_page_dirty(m);
 				if ((tpte & PG_A) != 0)
-					// write the access bit to %m
+					// write the accessed bit to %m
 					vm_page_aflag_set(m, PGA_REFERENCED);
 				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
@@ -6271,7 +6271,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 	pt_entry_t PG_G = pmap_global_bit(pmap);
 	pt_entry_t PG_A = pmap_accessed_bit(pmap);
 	pt_entry_t PG_M = pmap_modified_bit(pmap);
-	pt_entry_t PG_RW = pmap_rw_bit(pmap);
+	//pt_entry_t PG_RW = pmap_rw_bit(pmap);
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((sva & PDRMASK) == 0,
@@ -6289,10 +6289,11 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		vm_offset_t eva = sva + NBPDR;
 		vm_page_t m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
 		for (vm_offset_t va = sva; va < eva; va += PAGE_SIZE) {
-			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
+			if ((oldpde & (PG_M/* | PG_RW*/)) == (PG_M/* | PG_RW*/))
+				// write the modified bit to %m
 				vm_page_dirty(m);
 			if (oldpde & PG_A)
-				// write the access bit to %m
+				// write the accessed bit to %m
 				vm_page_aflag_set(m, PGA_REFERENCED);
 			if (TAILQ_EMPTY(&m->md.pv_list) &&
 			    TAILQ_EMPTY(&pvh->pv_list))
@@ -6329,7 +6330,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
 
 	pt_entry_t PG_A = pmap_accessed_bit(pmap);
 	pt_entry_t PG_M = pmap_modified_bit(pmap);
-	pt_entry_t PG_RW = pmap_rw_bit(pmap);
+	//pt_entry_t PG_RW = pmap_rw_bit(pmap);
 	pt_entry_t oldpte = pte_load_clear(ptq);
 
 	if (oldpte & PG_W)
@@ -6337,9 +6338,11 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
 	pmap_resident_count_adj(pmap, -1);
 	if (oldpte & PG_MANAGED) {
 		struct vm_page *m = PHYS_TO_VM_PAGE(oldpte & PG_FRAME);
-		if ((oldpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+		if ((oldpte & (PG_M/* | PG_RW*/)) == (PG_M/* | PG_RW*/))
+			// write the modified to %m
 			vm_page_dirty(m);
 		if (oldpte & PG_A)
+			// write the accessed bit to %m
 			vm_page_aflag_set(m, PGA_REFERENCED);
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
 		pmap_pvh_free(&m->md, pmap, va);
@@ -6608,7 +6611,6 @@ pmap_map_delete(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
  *		inefficient because they iteratively called
  *		pmap_remove (slow...)
  */
-
 void
 pmap_remove_all(vm_page_t m)
 {
@@ -6616,14 +6618,14 @@ pmap_remove_all(vm_page_t m)
 	pv_entry_t pv;
 	pmap_t pmap;
 	struct rwlock *lock;
-	pt_entry_t *pte, tpte, PG_A, PG_M, PG_RW;
+	pt_entry_t *pte, tpte;
 	pd_entry_t *pde;
 	vm_offset_t va;
 	struct spglist free;
 	int pvh_gen, md_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_remove_all: page %p is not managed", m));
+	    ("%s: page %p is not managed", __func__, m));
 	SLIST_INIT(&free);
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy :
@@ -6660,24 +6662,25 @@ retry:
 				goto retry;
 			}
 		}
-		PG_A = pmap_accessed_bit(pmap);
-		PG_M = pmap_modified_bit(pmap);
-		PG_RW = pmap_rw_bit(pmap);
+		pt_entry_t PG_A = pmap_accessed_bit(pmap);
+		pt_entry_t PG_M = pmap_modified_bit(pmap);
+		//pt_entry_t PG_RW = pmap_rw_bit(pmap);
 		pmap_resident_count_adj(pmap, -1);
 		pde = pmap_pde(pmap, pv->pv_va);
-		KASSERT((*pde & PG_PS) == 0, ("pmap_remove_all: found"
-		    " a 2mpage in page %p's pv list", m));
+		KASSERT((*pde & PG_PS) == 0, ("%s: found"
+		    " a 2mpage in page %p's pv list", __func__, m));
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
 		tpte = pte_load_clear(pte);
 		if (tpte & PG_W)
 			pmap->pm_stats.wired_count--;
 		if (tpte & PG_A)
+			// write the access bit to %m
 			vm_page_aflag_set(m, PGA_REFERENCED);
 
 		/*
 		 * Update the vm_page_t clean and reference bits.
 		 */
-		if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+		if ((tpte & (PG_M/* | PG_RW*/)) == (PG_M/* | PG_RW*/))
 			vm_page_dirty(m);
 		pmap_unuse_pt(pmap, pv->pv_va, *pde, &free);
 		pmap_invalidate_page(pmap, pv->pv_va);
@@ -6712,8 +6715,8 @@ pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva, vm_prot_t prot)
 retry:
 	oldpde = newpde = *pde;
 	if ((prot & VM_PROT_WRITE) == 0) {
-		if ((oldpde & (PG_MANAGED | PG_M | PG_RW)) ==
-		    (PG_MANAGED | PG_M | PG_RW)) {
+		if ((oldpde & (PG_MANAGED | PG_M/* | PG_RW*/)) ==
+		    (PG_MANAGED | PG_M/* | PG_RW*/)) {
 			m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
 			for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
 				vm_page_dirty(mt);
@@ -6879,8 +6882,8 @@ retry:
 				continue;
 
 			if ((prot & VM_PROT_WRITE) == 0) {
-				if ((pbits & (PG_MANAGED | PG_M | PG_RW)) ==
-				    (PG_MANAGED | PG_M | PG_RW)) {
+				if ((pbits & (PG_MANAGED | PG_M/* | PG_RW*/)) ==
+				    (PG_MANAGED | PG_M/* | PG_RW*/)) {
 					m = PHYS_TO_VM_PAGE(pbits & PG_FRAME);
 					vm_page_dirty(m);
 				}
@@ -7362,7 +7365,7 @@ retry:; // ';' is needed to silence a compiler error
 			 * concurrent calls to pmap_page_test_mappings() and
 			 * pmap_ts_referenced().
 			 */
-			if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+			if ((origpte & (PG_M/* | PG_RW*/)) == (PG_M/* | PG_RW*/))
 				vm_page_dirty(om);
 			if ((origpte & PG_A) != 0) {
 				pmap_invalidate_page(pmap, va);
@@ -7419,8 +7422,8 @@ validate:
 		origpte = pte_load_store(pte, newpte);
 		KASSERT((origpte & PG_FRAME) == pa,
 		    ("%s: unexpected pa update for %#lx", __func__, va));
-		if ((newpte & PG_M) == 0 && (origpte & (PG_M | PG_RW)) ==
-		    (PG_M | PG_RW)) {
+		if ((newpte & PG_M) == 0 && (origpte & (PG_M/* | PG_RW*/)) ==
+		    (PG_M/* | PG_RW*/)) {
 			if ((origpte & PG_MANAGED) != 0)
 				vm_page_dirty(m);
 
@@ -8539,7 +8542,6 @@ pmap_remove_pages(pmap_t pmap)
 {
 	pd_entry_t ptepde;
 	pt_entry_t *pte, tpte;
-	pt_entry_t PG_M, PG_RW, PG_V;
 	struct spglist free;
 	struct pv_chunklist free_chunks[PMAP_MEMDOM];
 	struct vm_page *m, *mpte, *mt;
@@ -8576,9 +8578,9 @@ pmap_remove_pages(pmap_t pmap)
 #endif
 
 	lock = NULL;
-	PG_M = pmap_modified_bit(pmap);
-	PG_V = pmap_valid_bit(pmap);
-	PG_RW = pmap_rw_bit(pmap);
+	pt_entry_t PG_M = pmap_modified_bit(pmap);
+	pt_entry_t PG_V = pmap_valid_bit(pmap);
+	//pt_entry_t PG_RW = pmap_rw_bit(pmap);
 
 	for (int i = 0; i < PMAP_MEMDOM; i++)
 		TAILQ_INIT(&free_chunks[i]);
@@ -8665,7 +8667,7 @@ pmap_remove_pages(pmap_t pmap)
 				/*
 				 * Update the vm_page_t clean/reference bits.
 				 */
-				if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+				if ((tpte & (PG_M/* | PG_RW*/)) == (PG_M/* | PG_RW*/)) {
 					if (superpage) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
 							vm_page_dirty(mt);
@@ -8734,23 +8736,16 @@ pmap_remove_pages(pmap_t pmap)
 static boolean_t
 pmap_page_test_mappings(vm_page_t m, boolean_t accessed, boolean_t modified)
 {
-	struct rwlock *lock;
 	pv_entry_t pv;
-	struct md_page *pvh;
-	pt_entry_t *pte, mask;
-	pt_entry_t PG_A, PG_M, PG_RW, PG_V;
-	pmap_t pmap;
-	int md_gen, pvh_gen;
-	boolean_t rv;
 
-	rv = FALSE;
-	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	boolean_t rv = FALSE;
+	struct rwlock *lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_rlock(lock);
 restart:
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
-		pmap = PV_PMAP(pv);
+		pmap_t pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
-			md_gen = m->md.pv_gen;
+			int md_gen = m->md.pv_gen;
 			rw_runlock(lock);
 			PMAP_LOCK(pmap);
 			rw_rlock(lock);
@@ -8759,17 +8754,17 @@ restart:
 				goto restart;
 			}
 		}
-		pte = pmap_pte(pmap, pv->pv_va);
-		mask = 0;
+		pt_entry_t *pte = pmap_pte(pmap, pv->pv_va);
+		pt_entry_t mask = 0;
 		if (modified) {
-			PG_M = pmap_modified_bit(pmap);
-			PG_RW = pmap_rw_bit(pmap);
-			mask |= PG_RW | PG_M;
+			pt_entry_t PG_M = pmap_modified_bit(pmap);
+			//pt_entry_t PG_RW = pmap_rw_bit(pmap);
+			mask |= /*PG_RW | */PG_M;
 		}
 		if (accessed) {
-			PG_A = pmap_accessed_bit(pmap);
-			PG_V = pmap_valid_bit(pmap);
-			mask |= PG_V | PG_A;
+			pt_entry_t PG_A = pmap_accessed_bit(pmap);
+			//pt_entry_t PG_V = pmap_valid_bit(pmap);
+			mask |= /*PG_V | */PG_A;
 		}
 		rv = (*pte & mask) == mask;
 		PMAP_UNLOCK(pmap);
@@ -8777,12 +8772,12 @@ restart:
 			goto out;
 	}
 	if ((m->flags & PG_FICTITIOUS) == 0) {
-		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+		struct md_page *pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 		TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
-			pmap = PV_PMAP(pv);
+			pmap_t pmap = PV_PMAP(pv);
 			if (!PMAP_TRYLOCK(pmap)) {
-				md_gen = m->md.pv_gen;
-				pvh_gen = pvh->pv_gen;
+				int md_gen = m->md.pv_gen;
+				int pvh_gen = pvh->pv_gen;
 				rw_runlock(lock);
 				PMAP_LOCK(pmap);
 				rw_rlock(lock);
@@ -8792,19 +8787,19 @@ restart:
 					goto restart;
 				}
 			}
-			pte = pmap_pde(pmap, pv->pv_va);
-			mask = 0;
+			pt_entry_t *pde = pmap_pde(pmap, pv->pv_va);
+			pt_entry_t mask = 0;
 			if (modified) {
-				PG_M = pmap_modified_bit(pmap);
-				PG_RW = pmap_rw_bit(pmap);
-				mask |= PG_RW | PG_M;
+				pt_entry_t PG_M = pmap_modified_bit(pmap);
+				//pt_entry_t PG_RW = pmap_rw_bit(pmap);
+				mask |= /*PG_RW | */PG_M;
 			}
 			if (accessed) {
-				PG_A = pmap_accessed_bit(pmap);
-				PG_V = pmap_valid_bit(pmap);
-				mask |= PG_V | PG_A;
+				pt_entry_t PG_A = pmap_accessed_bit(pmap);
+				//pt_entry_t PG_V = pmap_valid_bit(pmap);
+				mask |= /*PG_V | */PG_A;
 			}
-			rv = (*pte & mask) == mask;
+			rv = (*pde & mask) == mask;
 			PMAP_UNLOCK(pmap);
 			if (rv)
 				goto out;
@@ -8953,8 +8948,7 @@ retry:
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
 		oldpte = *pte;
 		if (oldpte & PG_RW) {
-			while (!atomic_fcmpset_long(pte, &oldpte, oldpte &
-			    ~(PG_RW | PG_M)))
+			while (!atomic_fcmpset_long(pte, &oldpte, oldpte & ~(PG_RW | PG_M)))
 				cpu_spinwait();
 			if ((oldpte & PG_M) != 0)
 				vm_page_dirty(m);
@@ -8990,37 +8984,31 @@ retry:
 int
 pmap_ts_referenced(vm_page_t m)
 {
-	struct md_page *pvh;
-	pv_entry_t pv, pvf;
 	pmap_t pmap;
-	struct rwlock *lock;
 	pd_entry_t oldpde, *pde;
-	pt_entry_t *pte, PG_A, PG_M, PG_RW;
-	vm_offset_t va;
-	vm_paddr_t pa;
-	int cleared, md_gen, not_cleared, pvh_gen;
+	pt_entry_t *pte;
 	struct spglist free;
-	boolean_t demoted;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is not managed", __func__, m));
 	SLIST_INIT(&free);
-	cleared = 0;
-	pa = VM_PAGE_TO_PHYS(m);
-	lock = PHYS_TO_PV_LIST_LOCK(pa);
-	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy : pa_to_pvh(pa);
+	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
+	struct rwlock *lock = PHYS_TO_PV_LIST_LOCK(pa);
+	struct md_page *pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy : pa_to_pvh(pa);
+	int cleared = 0;
 	rw_wlock(lock);
-retry:
-	not_cleared = 0;
-	if ((pvf = TAILQ_FIRST(&pvh->pv_list)) == NULL)
+retry:;
+	int not_cleared = 0;
+	pv_entry_t pvf = TAILQ_FIRST(&pvh->pv_list);
+	if (pvf == NULL)
 		goto small_mappings;
-	pv = pvf;
+	pv_entry_t pv = pvf;
 	do {
 		if (pvf == NULL)
 			pvf = pv;
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
-			pvh_gen = pvh->pv_gen;
+			int pvh_gen = pvh->pv_gen;
 			rw_wunlock(lock);
 			PMAP_LOCK(pmap);
 			rw_wlock(lock);
@@ -9029,13 +9017,13 @@ retry:
 				goto retry;
 			}
 		}
-		PG_A = pmap_accessed_bit(pmap);
-		PG_M = pmap_modified_bit(pmap);
-		PG_RW = pmap_rw_bit(pmap);
-		va = pv->pv_va;
+		pt_entry_t PG_A = pmap_accessed_bit(pmap);
+		pt_entry_t PG_M = pmap_modified_bit(pmap);
+		//pt_entry_t PG_RW = pmap_rw_bit(pmap);
+		vm_offset_t va = pv->pv_va;
 		pde = pmap_pde(pmap, pv->pv_va);
 		oldpde = *pde;
-		if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+		if ((oldpde & (PG_M/* | PG_RW*/)) == (PG_M/* | PG_RW*/)) {
 			/*
 			 * Although "oldpde" is mapping a 2MB page, because
 			 * this function is called at a 4KB page granularity,
@@ -9065,6 +9053,7 @@ retry:
 			if ((((pa >> PAGE_SHIFT) ^ (pv->pv_va >> PDRSHIFT) ^
 			    (uintptr_t)pmap) & (NPTEPG - 1)) == 0 &&
 			    (oldpde & PG_W) == 0) {
+				bool demoted;
 				if (safe_to_clear_referenced(pmap, oldpde)) {
 					atomic_clear_long(pde, PG_A);
 					pmap_invalidate_page(pmap, pv->pv_va);
@@ -9125,8 +9114,8 @@ small_mappings:
 			pvf = pv;
 		pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
-			pvh_gen = pvh->pv_gen;
-			md_gen = m->md.pv_gen;
+			int pvh_gen = pvh->pv_gen;
+			int md_gen = m->md.pv_gen;
 			rw_wunlock(lock);
 			PMAP_LOCK(pmap);
 			rw_wlock(lock);
@@ -9135,14 +9124,14 @@ small_mappings:
 				goto retry;
 			}
 		}
-		PG_A = pmap_accessed_bit(pmap);
-		PG_M = pmap_modified_bit(pmap);
-		PG_RW = pmap_rw_bit(pmap);
+		pt_entry_t PG_A = pmap_accessed_bit(pmap);
+		pt_entry_t PG_M = pmap_modified_bit(pmap);
+		//pt_entry_t PG_RW = pmap_rw_bit(pmap);
 		pde = pmap_pde(pmap, pv->pv_va);
 		KASSERT((*pde & PG_PS) == 0,
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		pte = pmap_pde_to_pte(pde, pv->pv_va);
-		if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+		if ((*pte & (PG_M/* | PG_RW*/)) == (PG_M/* | PG_RW*/))
 			vm_page_dirty(m);
 		if ((*pte & PG_A) != 0) {
 			if (safe_to_clear_referenced(pmap, *pte)) {
@@ -9196,7 +9185,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	pml4_entry_t *pml4e;
 	pdp_entry_t *pdpe;
 	pd_entry_t oldpde, *pde;
-	pt_entry_t *pte, PG_A, PG_G, PG_M, PG_RW, PG_V;
+	pt_entry_t *pte;
 	vm_offset_t va, va_next;
 	vm_page_t m;
 	bool anychanged;
@@ -9213,11 +9202,11 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	if (pmap_emulate_ad_bits(pmap)) // false
 		return;
 
-	PG_A = pmap_accessed_bit(pmap);
-	PG_G = pmap_global_bit(pmap);
-	PG_M = pmap_modified_bit(pmap);
-	PG_V = pmap_valid_bit(pmap);
-	PG_RW = pmap_rw_bit(pmap);
+	pt_entry_t PG_A = pmap_accessed_bit(pmap);
+	pt_entry_t PG_G = pmap_global_bit(pmap);
+	pt_entry_t PG_M = pmap_modified_bit(pmap);
+	pt_entry_t PG_V = pmap_valid_bit(pmap);
+	//pt_entry_t PG_RW = pmap_rw_bit(pmap);
 	anychanged = false;
 	pmap_delayed_invl_start();
 	PMAP_LOCK(pmap);
@@ -9293,7 +9282,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 		    sva += PAGE_SIZE) {
 			if ((*pte & (PG_MANAGED | PG_V)) != (PG_MANAGED | PG_V))
 				goto maybe_invlrng;
-			else if ((*pte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
+			else if ((*pte & (PG_M/* | PG_RW*/)) == (PG_M/* | PG_RW*/)) {
 				if (advice == MADV_DONTNEED) {
 					/*
 					 * Future calls to pmap_is_modified()
@@ -9600,9 +9589,9 @@ pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va)
 	firstpde = (pd_entry_t *)PHYS_TO_DMAP(pdpgpa);
 	newpdpe = pdpgpa | PG_M | PG_A | (oldpdpe & PG_U) | PG_RW | PG_V;
 	KASSERT((oldpdpe & PG_A) != 0,
-	    ("pmap_demote_pdpe: oldpdpe is missing PG_A"));
+	    ("%s: oldpdpe is missing PG_A", __func__));
 	KASSERT((oldpdpe & (PG_M | PG_RW)) != PG_RW,
-	    ("pmap_demote_pdpe: oldpdpe is missing PG_M"));
+	    ("%s: oldpdpe is missing PG_M", __func__));
 	newpde = oldpdpe;
 
 	/*
@@ -10376,7 +10365,7 @@ pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype)
 #endif
 	pd_entry_t *pde;
 	pt_entry_t *pte, PG_A, PG_M, PG_RW, PG_V;
-
+panic("%s: wyctest\n", __func__); // not reached in VirtualBox
 	KASSERT(ftype == VM_PROT_READ || ftype == VM_PROT_WRITE,
 	    ("pmap_emulate_accessed_dirty: invalid fault type %d", ftype));
 

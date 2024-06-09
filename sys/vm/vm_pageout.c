@@ -1158,27 +1158,22 @@ vm_pageout_active_target(struct vm_domain *vmd)
  * Scan the active queue.  If there is no shortage of inactive pages, scan a
  * small portion of the queue in order to maintain quasi-LRU.
  */
-static void
-vm_pageout_scan_active(struct vm_domain *vmd, int page_shortage) // < vm_pageout_worker
+static void // < vm_pageout_worker < vm_pageout
+vm_pageout_scan_active(struct vm_domain *vmd, int page_shortage)
 {
 	struct scan_state ss;
-	vm_object_t object;
-	vm_page_t m, marker;
-	struct vm_pagequeue *pq;
-	vm_page_astate_t old;
+	vm_page_t m;
 	long min_scan;
-	int act_delta, max_scan, ps_delta, refs, scan_tick;
-	uint8_t nqueue;
 
-	marker = &vmd->vmd_markers[PQ_ACTIVE];
-	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
+	vm_page_t marker = &vmd->vmd_markers[PQ_ACTIVE];
+	struct vm_pagequeue *pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
 	vm_pagequeue_lock(pq);
 
 	/*
 	 * If we're just idle polling attempt to visit every
 	 * active page within 'update_period' seconds.
 	 */
-	scan_tick = ticks;
+	int scan_tick = ticks;
 	if (vm_pageout_update_period != 0) {
 		min_scan = pq->pq_cnt;
 		min_scan *= scan_tick - vmd->vmd_last_active_scan;
@@ -1201,7 +1196,7 @@ vm_pageout_scan_active(struct vm_domain *vmd, int page_shortage) // < vm_pageout
 	 * they are moved back to the head and tail of the queue, respectively,
 	 * and scanning resumes.
 	 */
-	max_scan = page_shortage > 0 ? pq->pq_cnt : min_scan;
+	int max_scan = page_shortage > 0 ? pq->pq_cnt : min_scan;
 act_scan:
 	vm_pageout_init_scan(&ss, pq, marker, &vmd->vmd_clock[0], max_scan);
 	while ((m = vm_pageout_next(&ss, false)) != NULL) {
@@ -1233,7 +1228,7 @@ act_scan:
 		 * A page's object pointer may be set to NULL before
 		 * the object lock is acquired.
 		 */
-		object = atomic_load_ptr(&m->object);
+		vm_object_t object = atomic_load_ptr(&m->object);
 		if (__predict_false(object == NULL))
 			/*
 			 * The page has been removed from its object.
@@ -1267,10 +1262,11 @@ act_scan:
 		 *    This race delays the detection of a new reference.  At
 		 *    worst, we will deactivate and reactivate the page.
 		 */
-		refs = object->ref_count != 0 ? pmap_ts_referenced(m) : 0;
+		int refs = object->ref_count != 0 ? pmap_ts_referenced(m) : 0;
 
-		old = vm_page_astate_load(m);
+		vm_page_astate_t old = vm_page_astate_load(m);
 		vm_page_astate_t new;
+		int ps_delta;
 		do {
 			/*
 			 * Check to see if the page has been removed from the
@@ -1287,7 +1283,7 @@ act_scan:
 			 * Advance or decay the act_count based on recent usage.
 			 */
 			new = old;
-			act_delta = refs;
+			int act_delta = refs;
 			if ((old.flags & PGA_REFERENCED) != 0) {
 				new.flags &= ~PGA_REFERENCED;
 				act_delta++;
@@ -1337,6 +1333,7 @@ act_scan:
 				 * the opportunistic updates to the page's dirty
 				 * field by the pmap.
 				 */
+				uint8_t nqueue;
 				if (page_shortage <= 0) {
 					nqueue = PQ_INACTIVE;
 					ps_delta = 0;
@@ -2330,8 +2327,8 @@ SYSINIT(pagedaemon_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, vm_pageout_init, N
  *     vm_pageout is the high level pageout daemon.
  */
 // the pagedaemon process is created by kproc_start
-static void
-vm_pageout(void) // < SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, kproc_start, &page_kp);
+static void // < SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, kproc_start, &page_kp);
+vm_pageout(void)
 {
 	struct proc *p;
 	struct thread *td;
@@ -2361,7 +2358,7 @@ vm_pageout(void) // < SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, 
 			error = kthread_add(vm_pageout_helper,
 			    (void *)(uintptr_t)i, p, NULL, 0, 0,
 			    "dom%d helper%d", i, j);
-			if (error != 0)
+			if (error != ESUCCESS)
 				panic("starting pageout helper %d for domain "
 				    "%d: %d\n", j, i, error);
 		}
