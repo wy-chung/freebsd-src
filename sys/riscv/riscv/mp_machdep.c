@@ -241,7 +241,7 @@ init_secondary(uint64_t hart)
 		__asm __volatile("wfi");
 
 	/* Initialize curthread */
-	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
+	KASSERT(PCPU_GET(pc_idlethread) != NULL, ("no idle thread"));
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	schedinit_ap();
 
@@ -318,11 +318,11 @@ ipi_handler(void *arg)
 
 	csr_clear(sip, SIP_SSIP);
 
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(pc_cpuid);
 
 	mb();
 
-	ipi_bitmap = atomic_readandclear_int(PCPU_PTR(pending_ipis));
+	ipi_bitmap = atomic_readandclear_int(PCPU_PTR(pc_pending_ipis));
 	if (ipi_bitmap == 0)
 		return (FILTER_HANDLED);
 

@@ -7,3 +7,13 @@ ident QEMU
 
 options 	HZ=100
 options 	ROOTDEVNAME=\"ufs:/dev/vtbd0\"
+
+options DDB
+options	INVARIANT_SUPPORT   # A prerequisite for INVARIANTS
+#options	INVARIANTS
+#options	KDB_UNATTENDED
+#options	GDB			# compile in support for the remote debugger
+#options	WITNESS
+#options	WITNESS_SKIPSPIN
+
+nooptions	NUMA

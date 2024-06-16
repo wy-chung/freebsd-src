@@ -626,7 +626,7 @@ proc0_init(void *dummy __unused) // kernel swapper
 	/* Allocate a prototype map so we have something to fork. */
 	p->p_vmspace = &vmspace0;
 	refcount_init(&vmspace0.vm_refcnt, 1);
-	pmap_pinit0();
+	pmap_pinit0(vmspace_pmap(&vmspace0));
 
 	/*
 	 * proc0 is not expected to enter usermode, so there is no special
@@ -832,8 +832,6 @@ create_init(const void *udata __unused) // init process has pid 1
 	struct ucred *newcred, *oldcred;
 	struct thread *td;
 	int error;
-
-	pmap_pinit(user_pmap); //wyc: init user pmap before fork init proc
 
 	bzero(&fr, sizeof(fr));
 	fr.fr_flags = RFFDG | RFPROC | RFSTOPPED;

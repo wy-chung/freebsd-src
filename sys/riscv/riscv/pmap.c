@@ -644,7 +644,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen) // < i
 	 * will add themselves later in init_secondary(). The SBI firmware
 	 * may rely on this mask being precise, so CPU_FILL() is not used.
 	 */
-	CPU_SET(PCPU_GET(hart), &kernel_pmap->pm_active);
+	CPU_SET(PCPU_GET(pc_hart), &kernel_pmap->pm_active);
 
 	/* Assume the address we were loaded to is a valid physical address. */
 	min_pa = max_pa = kernstart;
@@ -816,7 +816,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 
 	sched_pin();
 	mask = pmap->pm_active;
-	CPU_CLR(PCPU_GET(hart), &mask);
+	CPU_CLR(PCPU_GET(pc_hart), &mask);
 	fence();
 	if (!CPU_EMPTY(&mask) && smp_started)
 		sbi_remote_sfence_vma(mask.__bits, va, 1);
@@ -831,7 +831,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 	sched_pin();
 	mask = pmap->pm_active;
-	CPU_CLR(PCPU_GET(hart), &mask);
+	CPU_CLR(PCPU_GET(pc_hart), &mask);
 	fence();
 	if (!CPU_EMPTY(&mask) && smp_started)
 		sbi_remote_sfence_vma(mask.__bits, sva, eva - sva + 1);
@@ -851,7 +851,7 @@ pmap_invalidate_all(pmap_t pmap)
 
 	sched_pin();
 	mask = pmap->pm_active;
-	CPU_CLR(PCPU_GET(hart), &mask);
+	CPU_CLR(PCPU_GET(pc_hart), &mask);
 
 	/*
 	 * XXX: The SBI doc doesn't detail how to specify x0 as the
@@ -2483,11 +2483,10 @@ void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
 	pd_entry_t *l0, *l1, *l2, l2e;
-	pt_entry_t *l3, l3e, mask;
+	pt_entry_t *l3, l3e;
 	vm_page_t m, mt;
 	vm_paddr_t pa;
 	vm_offset_t va_next;
-	bool anychanged, pv_lists_locked;
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
@@ -2498,9 +2497,9 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	    (VM_PROT_WRITE | VM_PROT_EXECUTE))
 		return;
 
-	anychanged = false;
-	pv_lists_locked = false;
-	mask = 0;
+	bool anychanged = false;
+	bool pv_lists_locked = false;
+	pt_entry_t mask = 0;
 	if ((prot & VM_PROT_WRITE) == 0)
 		mask |= PTE_W | PTE_D;
 	if ((prot & VM_PROT_EXECUTE) == 0)
@@ -4719,13 +4718,13 @@ pmap_activate_sw(struct thread *td)
 	pmap_t oldpmap, pmap;
 	u_int hart;
 
-	oldpmap = PCPU_GET(curpmap);
+	oldpmap = PCPU_GET(pc_curpmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	if (pmap == oldpmap)
 		return;
 	csr_write(satp, pmap->pm_satp);
 
-	hart = PCPU_GET(hart);
+	hart = PCPU_GET(pc_hart);
 #ifdef SMP
 	CPU_SET_ATOMIC(hart, &pmap->pm_active);
 	CPU_CLR_ATOMIC(hart, &oldpmap->pm_active);
@@ -4733,7 +4732,7 @@ pmap_activate_sw(struct thread *td)
 	CPU_SET(hart, &pmap->pm_active);
 	CPU_CLR(hart, &oldpmap->pm_active);
 #endif
-	PCPU_SET(curpmap, pmap);
+	PCPU_SET(pc_curpmap, pmap);
 
 	sfence_vma();
 }
@@ -4752,13 +4751,13 @@ pmap_activate_boot(pmap_t pmap)
 {
 	u_int hart;
 
-	hart = PCPU_GET(hart);
+	hart = PCPU_GET(pc_hart);
 #ifdef SMP
 	CPU_SET_ATOMIC(hart, &pmap->pm_active);
 #else
 	CPU_SET(hart, &pmap->pm_active);
 #endif
-	PCPU_SET(curpmap, pmap);
+	PCPU_SET(pc_curpmap, pmap);
 }
 
 void
@@ -4787,7 +4786,7 @@ pmap_sync_icache(pmap_t pmap, vm_offset_t va, vm_size_t sz)
 	 */
 	sched_pin();
 	mask = all_harts;
-	CPU_CLR(PCPU_GET(hart), &mask);
+	CPU_CLR(PCPU_GET(pc_hart), &mask);
 	fence_i();
 	if (!CPU_EMPTY(&mask) && smp_started) {
 		fence();

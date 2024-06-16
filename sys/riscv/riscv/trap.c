@@ -203,7 +203,7 @@ ecall_handler(void)
 static void
 page_fault_handler(struct trapframe *frame, int usermode)
 {
-	struct vm_map *map;
+	struct _vm_map *map;
 	uint64_t stval;
 	struct thread *td;
 	struct pcb *pcb;
