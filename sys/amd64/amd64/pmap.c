@@ -4378,11 +4378,10 @@ pmap_pinit_pcids(pmap_t pmap, uint32_t pcid, int gen)
 }
 
 void
-pmap_pinit0(void) // < proc0_init
+pmap_pinit0(pmap_t pmap) // < proc0_init
 {
 	struct proc *p;
 	struct thread *td;
-	struct pmap *pmap = vmspace_pmap(&vmspace0);
 
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pmltop = kernel_pmap->pm_pmltop;
@@ -6090,7 +6089,7 @@ static boolean_t
 pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
     struct rwlock **lockp)
 {
-//panic("%s: wyctest\n", __func__); // will be called even when VM_NRESERVLEVEL == 0
+//panic("%s: wyctest\n", __func__); // will be called even when VM_NRESERVLEVEL == 0 and vm.map.pg_ps_enabled to 0
 	pt_entry_t PG_A = pmap_accessed_bit(pmap);
 	pt_entry_t PG_M = pmap_modified_bit(pmap);
 	pt_entry_t PG_G = pmap_global_bit(pmap);

@@ -75,10 +75,10 @@ get_curthread(void)
 
 #define	curthread get_curthread()
 
-#define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
-#define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
-#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
-#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
+#define	PCPU_GET(member)	(get_pcpu()->/*pc_ ## */member)
+#define	PCPU_ADD(member, value)	(get_pcpu()->/*pc_ ## */member += (value))
+#define	PCPU_PTR(member)	(&get_pcpu()->/*pc_ ## */member)
+#define	PCPU_SET(member,value)	(get_pcpu()->/*pc_ ## */member = (value))
 
 #endif	/* _KERNEL */
 

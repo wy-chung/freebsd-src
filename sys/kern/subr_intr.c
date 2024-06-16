@@ -1247,7 +1247,7 @@ intr_irq_next_cpu(u_int last_cpu, cpuset_t *cpumask)
 
 	KASSERT(!CPU_EMPTY(cpumask), ("%s: Empty CPU mask", __func__));
 	if (!irq_assign_cpu || mp_ncpus == 1) {
-		cpu = PCPU_GET(cpuid);
+		cpu = PCPU_GET(pc_cpuid);
 
 		if (CPU_ISSET(cpu, cpumask))
 			return (curcpu);

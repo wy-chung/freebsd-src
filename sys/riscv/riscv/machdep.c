@@ -494,7 +494,7 @@ initriscv(struct riscv_bootparams *rvbp) // < _start
 	/* Set the pcpu pointer */
 	__asm __volatile("mv tp, %0" :: "r"(pcpup));
 
-	PCPU_SET(curthread, &thread0);
+	PCPU_SET(pc_curthread, &thread0);
 
 	/* Initialize SBI interface. */
 	sbi_init();
