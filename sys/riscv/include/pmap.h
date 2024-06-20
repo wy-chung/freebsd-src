@@ -108,12 +108,12 @@ extern vm_offset_t virtual_end;
 #define	L1_MAPPABLE_P(va, pa, size)					\
 	((((va) | (pa)) & L1_OFFSET) == 0 && (size) >= L1_SIZE)
 
-enum pmap_mode {
+enum _pmap_mode {
 	PMAP_MODE_SV39,
 	PMAP_MODE_SV48,
 };
 
-extern enum pmap_mode pmap_mode;
+extern enum _pmap_mode pmap_mode;
 
 /* Check if an address resides in a mappable region. */
 #define	VIRT_IS_VALID(va)						\

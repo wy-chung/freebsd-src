@@ -333,6 +333,16 @@ atomic_clear_64(volatile uint64_t *p, uint64_t val)
 			: "memory");
 }
 
+/* man atomic(9)
+atomic_cmpset(dst, old, new)
+{
+	if (*dst == old)	{
+		*dst = new;
+		return (1);
+	} else
+		return (0);
+}
+*/
 static __inline int
 atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 {
@@ -356,6 +366,18 @@ atomic_cmpset_64(volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	return (!res);
 }
 
+/* man atomic(9)
+atomic_fcmpset(dst, *old, new)
+{
+	if (*dst == *old) {
+		*dst = new;
+		return (1);
+	} else {
+		*old = *dst;
+		return (0);
+	}
+}
+*/
 static __inline int
 atomic_fcmpset_64(volatile uint64_t *p, uint64_t *cmpval, uint64_t newval)
 {
