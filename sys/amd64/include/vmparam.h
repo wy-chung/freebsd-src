@@ -140,8 +140,12 @@
  */
 #define	VM_NFREEORDER		13
 
-#define VM_NRESERVLEVEL		0	//wyc Disable superpage
-//#define VM_NRESERVLEVEL	1	//wyc ori  Enable superpage reservations: 1 level.
+/*
+ * Enable superpage reservations: 1 level.
+ */
+#ifndef	VM_NRESERVLEVEL
+#define	VM_NRESERVLEVEL		1
+#endif
 
 /*
  * Level 0 reservations consist of 512 pages.

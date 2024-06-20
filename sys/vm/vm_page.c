@@ -5365,7 +5365,7 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 		pmap_remove_all(m);
 	KASSERT((bits == 0 && vm_page_all_valid(m)) ||
 	    !pmap_page_is_mapped(m),
-	    ("vm_page_set_invalid: page %p is mapped", m));
+	    ("%s: page %p is mapped", __func__, m));
 	if (vm_page_xbusied(m)) {
 		m->valid &= ~bits;
 		m->dirty &= ~bits;
