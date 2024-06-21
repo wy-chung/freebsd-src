@@ -111,7 +111,7 @@ struct pv_chunk {
 #else
 	struct pmap		*pc_pmap;
 	TAILQ_ENTRY(pv_chunk)	pc_list; // for pmap.pm_pvchunk list
-	TAILQ_ENTRY(pv_chunk)	pc_lru;  // for pv_chunks[0] list
+	TAILQ_ENTRY(pv_chunk)	pc_lru;  // for pv_chunks list
 	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 #endif
 	struct pv_entry		pc_pventry[_NPCPV];
