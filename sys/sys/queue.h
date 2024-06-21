@@ -677,6 +677,7 @@ struct {								\
  * Tail queue functions.
  */
 #if (defined(_KERNEL) && defined(INVARIANTS))
+  #if !defined(WYC)
 /*
  * QMD_TAILQ_CHECK_HEAD(TAILQ_HEAD *head, TAILQ_ENTRY NAME)
  *
@@ -722,6 +723,7 @@ struct {								\
 	if (*(elm)->field.tqe_prev != (elm))				\
 		panic("Bad link elm %p prev->next != elm", (elm));	\
 } while (0)
+  #endif // !defined(WYC)
 #else
 #define	QMD_TAILQ_CHECK_HEAD(head, field)
 #define	QMD_TAILQ_CHECK_TAIL(head, headname)
