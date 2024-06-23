@@ -208,6 +208,12 @@ struct pcpu {
 #if !defined(WYC)
 	PCPU_MD_FIELDS;
 #else
+  #if 1 // for riscv
+	struct pmap *pc_curpmap;	/* Currently active pmap */
+	uint32_t pc_pending_ipis;	/* IPIs pending to this CPU */
+	uint32_t pc_hart;		/* Hart ID */
+	char __pad[56];			/* Pad to factor of PAGE_SIZE */
+  #else // for amd64
 	struct monitorbuf pc_monitorbuf __aligned(128);	/* cache line */
 	struct	pcpu *pc_prvspace;	/* Self-reference */
 	struct	pmap *pc_curpmap;
@@ -256,6 +262,7 @@ struct pcpu {
 	struct pmap_pcid pc_kpmap_store;
 	struct user_segment_descriptor pc_gdt[NGDT];
 	char	__pad[2900];		/* pad to UMA_PCPU_ALLOC_SIZE == PAGE_SIZE */
+  #endif
 #endif
 } __aligned(CACHE_LINE_SIZE);
 

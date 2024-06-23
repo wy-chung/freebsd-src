@@ -300,22 +300,22 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled,
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, l2, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "2MB page mapping counters");
 
-static u_long pmap_l2_demotions;
+static u_long pmap_l2_demotions; // the count of l2 demotions
 SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, demotions, CTLFLAG_RD,
     &pmap_l2_demotions, 0,
     "2MB page demotions");
 
-static u_long pmap_l2_mappings;
+static u_long pmap_l2_mappings; // the count of l2 mappings
 SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, mappings, CTLFLAG_RD,
     &pmap_l2_mappings, 0,
     "2MB page mappings");
 
-static u_long pmap_l2_p_failures;
+static u_long pmap_l2_p_failures; // the count of l2 promotion failures
 SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, p_failures, CTLFLAG_RD,
     &pmap_l2_p_failures, 0,
     "2MB page promotion failures");
 
-static u_long pmap_l2_promotions;
+static u_long pmap_l2_promotions; // the count of l2 promotions
 SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, promotions, CTLFLAG_RD,
     &pmap_l2_promotions, 0,
     "2MB page promotions");
@@ -323,7 +323,8 @@ SYSCTL_ULONG(_vm_pmap_l2, OID_AUTO, promotions, CTLFLAG_RD,
 /*
  * Data for the pv entry allocation mechanism
  */
-static TAILQ_HEAD(pch, pv_chunk) pv_chunks = TAILQ_HEAD_INITIALIZER(pv_chunks);
+typedef TAILQ_HEAD(, pv_chunk) pvc_tailq_t;
+static pvc_tailq_t pv_chunks = TAILQ_HEAD_INITIALIZER(pv_chunks);
 static struct mtx pv_chunks_mutex;
 static struct rwlock pv_list_locks[NPV_LIST_LOCKS];
 static struct md_page *pvh_table;
@@ -426,14 +427,12 @@ pmap_l0_to_l1(pd_entry_t *l0, vm_offset_t va)
 static __inline pd_entry_t *
 pmap_l1(pmap_t pmap, vm_offset_t va)
 {
-	pd_entry_t *l0;
-
-	KASSERT(VIRT_IS_VALID(va),
-	    ("%s: malformed virtual address %#lx", __func__, va));
+	KASSERT(VIRT_IS_VALID(va), ("%s: malformed virtual address %#lx", __func__, va));
 	if (pmap_mode == PMAP_MODE_SV39) {
 		return (&pmap->pm_top[pmap_l1_index(va)]);
 	} else {
-		l0 = pmap_l0(pmap, va);
+panic("%s: wyctest\n", __func__); //tested. will not reach here
+		pd_entry_t *l0 = pmap_l0(pmap, va);
 		if ((pmap_load(l0) & PTE_V) == 0)
 			return (NULL);
 		if ((pmap_load(l0) & PTE_RX) != 0)
@@ -1940,7 +1939,7 @@ retry:
 static void
 reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
 {
-	struct pch new_tail;
+	pvc_tailq_t new_tail;
 	struct pv_chunk *pc;
 	vm_page_t m;
 	int avail, free;
@@ -2781,8 +2780,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 		pmap_pv_demote_l2(pmap, va, PTE_TO_PHYS(oldl2), lockp);
 
 	atomic_add_long(&pmap_l2_demotions, 1);
-	CTR2(KTR_PMAP, "pmap_demote_l2_locked: success for va %#lx in pmap %p",
-	    va, pmap);
+	CTR3(KTR_PMAP, "%s: success for va %#lx in pmap %p", __func__, va, pmap);
 	return (true);
 }
 
@@ -2810,8 +2808,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
 	firstl3e = pmap_load(firstl3);
 	pa = PTE_TO_PHYS(firstl3e);
 	if ((pa & L2_OFFSET) != 0) {
-		CTR3(KTR_PMAP, "%s: failure for va %#lx pmap %p", __func__,
-		    va, pmap);
+		CTR3(KTR_PMAP, "%s: failure for va %#lx pmap %p", __func__, va, pmap);
 		atomic_add_long(&pmap_l2_p_failures, 1);
 		return (false);
 	}
@@ -2844,8 +2841,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
 		l3e = pmap_load(l3);
 		if (PTE_TO_PHYS(l3e) != pa) {
 			CTR3(KTR_PMAP,
-			    "%s: failure for va %#lx pmap %p", __func__,
-			    va, pmap);
+			    "%s: failure for va %#lx pmap %p", __func__, va, pmap);
 			atomic_add_long(&pmap_l2_p_failures, 1);
 			return (false);
 		}
@@ -2857,8 +2853,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
 		}
 		if ((l3e & PTE_PROMOTE) != (firstl3e & PTE_PROMOTE)) {
 			CTR3(KTR_PMAP,
-			    "%s: failure for va %#lx pmap %p", __func__,
-			    va, pmap);
+			    "%s: failure for va %#lx pmap %p", __func__, va, pmap);
 			atomic_add_long(&pmap_l2_p_failures, 1);
 			return (false);
 		}
@@ -3370,8 +3365,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 	pmap_store(l2, new_l2);
 
 	atomic_add_long(&pmap_l2_mappings, 1);
-	CTR2(KTR_PMAP, "pmap_enter_l2: success for va %#lx in pmap %p",
-	    va, pmap);
+	CTR3(KTR_PMAP, "%s: success for va %#lx in pmap %p", __func__, va, pmap);
 
 	return (KERN_SUCCESS);
 }

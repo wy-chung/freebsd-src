@@ -98,7 +98,7 @@ struct trapframe;
 struct vnode;
 struct note_info_list;
 
-struct sysentvec { // elf64_freebsd_sysvec_la48
+struct sysentvec { // elf64_freebsd_sysvec_la48(amd64), elf64_freebsd_sysvec(riscv)
 	int		sv_size;	/* number of entries */ // SYS_MAXSYSCALL
 	struct sysent	*sv_table;	/* pointer to sysent */ // sysent
 	int		(*sv_fixup)(uintptr_t *, struct image_params *); // elf32_freebsd_fixup
