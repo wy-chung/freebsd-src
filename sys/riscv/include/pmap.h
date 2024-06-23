@@ -82,8 +82,12 @@ typedef struct pmap *pmap_t;
 
 #ifdef _KERNEL
 extern struct pmap	kernel_pmap_store;
+#if !defined(WYC)
 #define	kernel_pmap	(&kernel_pmap_store)
-#define	pmap_kernel()	kernel_pmap
+#else
+extern struct pmap *kernel_pmap;
+#endif
+//#define	pmap_kernel()	kernel_pmap
 
 #define	PMAP_ASSERT_LOCKED(pmap) \
 				mtx_assert(&(pmap)->pm_mtx, MA_OWNED)
