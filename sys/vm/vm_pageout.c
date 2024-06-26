@@ -484,10 +484,10 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 	 */
 	for (i = 0; i < count; i++) {
 		KASSERT(vm_page_all_valid(mc[i]),
-		    ("vm_pageout_flush: partially invalid page %p index %d/%d",
-			mc[i], i, count));
+		    ("%s: partially invalid page %p index %d/%d",
+			__func__, mc[i], i, count));
 		KASSERT((mc[i]->a.flags & PGA_WRITEABLE) == 0,
-		    ("vm_pageout_flush: writeable page %p", mc[i]));
+		    ("%s: writeable page %p", __func__, mc[i]));
 		vm_page_busy_downgrade(mc[i]);
 	}
 	vm_object_pip_add(object, count);
@@ -502,7 +502,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 
 		KASSERT(pageout_status[i] == VM_PAGER_PEND ||
 		    !pmap_page_is_write_mapped(mt),
-		    ("vm_pageout_flush: page %p is not write protected", mt));
+		    ("%s: page %p is not write protected", __func__, mt));
 		switch (pageout_status[i]) {
 		case VM_PAGER_OK:
 			/*

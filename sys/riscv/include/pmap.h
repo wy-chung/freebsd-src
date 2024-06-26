@@ -47,15 +47,18 @@
 #include <vm/_vm_radix.h>
 
 #ifdef _KERNEL
-
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
-
 #endif
 
+#if !defined(WYC)
 #define	pmap_page_get_memattr(m)	((m)->md.pv_memattr)
 #define	pmap_page_is_write_mapped(m)	(((m)->a.flags & PGA_WRITEABLE) != 0)
-void pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
+#else
+vm_memattr_t pmap_page_get_memattr(vm_page_t m) { return m->md.pv_memattr; }
+bool pmap_page_is_write_mapped(vm_page_t m) { return (m->a.flags & PGA_WRITEABLE) != 0; }
+#endif
 #define	pmap_map_delete(pmap, sva, eva)	pmap_remove(pmap, sva, eva)
+void pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 
 /*
  * Pmap stuff

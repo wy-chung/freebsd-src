@@ -3869,6 +3869,7 @@ vm_page_free_prep(vm_page_t m)
 	 */
 	atomic_thread_fence_acq();
 
+#if !defined(WYC)
 #if defined(DIAGNOSTIC) && defined(PHYS_TO_DMAP)
 	if (PMAP_HAS_DMAP && (m->flags & PG_ZERO) != 0) {
 		uint64_t *p;
@@ -3879,6 +3880,7 @@ vm_page_free_prep(vm_page_t m)
 			    __func__, m, i, (uintmax_t)*p));
 	}
 #endif
+#endif // !defined(WYC)
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		KASSERT(!pmap_page_is_mapped(m),
 		    ("%s: freeing mapped page %p", __func__, m));

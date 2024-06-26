@@ -86,7 +86,7 @@ typedef	uint64_t	pn_t;			/* page number */
 /* Bits 63 - 54 are reserved for future use. */
 #define PTE_HI_MASK	0xFFC0000000000000ULL
 
-#define	PTE_RWX		(PTE_R | PTE_W | PTE_X)
+#define	PTE_RWX		(PTE_R | PTE_W | PTE_X)	// if PTE_RWX is 0, the PTE is pointing to the next level page table
 #define	PTE_RX		(PTE_R | PTE_X)
 #define	PTE_KERN	(PTE_V | PTE_R | PTE_W | PTE_A | PTE_D)
 #define	PTE_PROMOTE	(PTE_V | PTE_RWX | PTE_D | PTE_G | PTE_U | \
