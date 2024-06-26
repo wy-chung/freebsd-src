@@ -591,20 +591,20 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 	pt_entry_t entry;
 	pn_t pn;
 
-	pa = dmap_phys_base = min_pa & ~L1_OFFSET;
-	va = DMAP_MIN_ADDRESS;
 	l1 = (pd_entry_t *)kern_l1;
 	l1_slot = pmap_l1_index(DMAP_MIN_ADDRESS);
+	dmap_phys_base = min_pa & ~L1_OFFSET;
 
-	for (; va < DMAP_MAX_ADDRESS && pa < max_pa;
-	    pa += L1_SIZE, va += L1_SIZE, l1_slot++) {
+	for (va = DMAP_MIN_ADDRESS, pa = dmap_phys_base;
+	    va < DMAP_MAX_ADDRESS && pa < max_pa;
+	    va += L1_SIZE, pa += L1_SIZE) {
 		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
 
 		/* superpages */
 		pn = (pa / PAGE_SIZE);
-		entry = PTE_KERN;
+		entry = PTE_KERN; // accessed and dirty are both 1
 		entry |= (pn << PTE_PPN0_S);
-		pmap_store(&l1[l1_slot], entry);
+		pmap_store(&l1[l1_slot++], entry);
 	}
 
 	/* Set the upper limit of the DMAP region */
@@ -1037,7 +1037,6 @@ pmap_kextract(vm_offset_t va)
 /***************************************************
  * Low level mapping routines.....
  ***************************************************/
-
 void
 pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode __unused)
 {
@@ -1047,11 +1046,11 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode __unused)
 	pn_t pn;
 
 	KASSERT((pa & L3_OFFSET) == 0,
-	   ("pmap_kenter_device: Invalid physical address"));
+	   ("%s: Invalid physical address", __func__));
 	KASSERT((sva & L3_OFFSET) == 0,
-	   ("pmap_kenter_device: Invalid virtual address"));
+	   ("%s: Invalid virtual address", __func__));
 	KASSERT((size & PAGE_MASK) == 0,
-	    ("pmap_kenter_device: Mapping is not page-sized"));
+	    ("%s: Mapping is not page-sized", __func__));
 
 	va = sva;
 	while (size != 0) {
@@ -1059,7 +1058,7 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode __unused)
 		KASSERT(l3 != NULL, ("Invalid page table, va: 0x%lx", va));
 
 		pn = (pa / PAGE_SIZE);
-		entry = PTE_KERN;
+		entry = PTE_KERN; // accessed and dirty are both 1
 		entry |= (pn << PTE_PPN0_S);
 		pmap_store(l3, entry);
 
@@ -1161,7 +1160,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		pn = (pa / PAGE_SIZE);
 		l3 = pmap_l3(kernel_pmap, va);
 
-		entry = PTE_KERN;
+		entry = PTE_KERN; // accessed and dirty are both 1
 		entry |= (pn << PTE_PPN0_S);
 		pmap_store(l3, entry);
 
@@ -4507,7 +4506,8 @@ pmap_clear_modify(vm_page_t m)
 	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
 	if ((m->a.flags & PGA_WRITEABLE) == 0)
-		return;
+		panic("%s: wyctest\n", __func__); // tested
+		//return;
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy : pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_rlock(&pvh_global_lock);

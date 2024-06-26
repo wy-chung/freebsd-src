@@ -145,7 +145,7 @@ pagetables:
 	srli	t4, s9, L2_SHIFT	/* Div physmem base by 2 MiB */
 	li	t2, 512			/* Build 512 entries */
 	add	t3, t4, t2
-	li	t0, (PTE_KERN | PTE_X)
+	li	t0, (PTE_KERN | PTE_X) // accessed and dirty are both 1
 1:
 	slli	t2, t4, PTE_PPN1_S	/* << PTE_PPN1_S */
 	or	t5, t0, t2
@@ -183,7 +183,7 @@ pagetables:
 	/* Mask off any bits that aren`t aligned */
 	andi	s2, s2, ~((1 << (PTE_PPN1_S - PTE_PPN0_S)) - 1)
 
-	li	t0, (PTE_KERN)
+	li	t0, (PTE_KERN) // accessed and dirty are both 1
 	slli	t2, s2, PTE_PPN0_S	/* << PTE_PPN0_S */
 	or	t0, t0, t2
 

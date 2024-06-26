@@ -259,7 +259,7 @@ kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 			return (0);
 		}
 		KASSERT(vm_page_domain(m) == domain,
-		    ("kmem_alloc_attr_domain: Domain mismatch %d != %d",
+		    ("%s: Domain mismatch %d != %d", __func__,
 		    vm_page_domain(m), domain));
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);

@@ -184,9 +184,9 @@ default_phys_pager_getpages(vm_object_t object, vm_page_t *m, int count,
 			vm_page_valid(m[i]);
 		}
 		KASSERT(vm_page_all_valid(m[i]),
-		    ("phys_pager_getpages: partially valid page %p", m[i]));
+		    ("%s: partially valid page %p", __func__, m[i]));
 		KASSERT(m[i]->dirty == 0,
-		    ("phys_pager_getpages: dirty page %p", m[i]));
+		    ("%s: dirty page %p", __func__, m[i]));
 	}
 	if (rbehind)
 		*rbehind = 0;
