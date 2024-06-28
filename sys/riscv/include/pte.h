@@ -81,8 +81,8 @@ typedef	uint64_t	pn_t;			/* page number */
 #define	PTE_SW_MANAGED	(1 << 9)
 #define	PTE_PPN0_S	10 // starting at bit 10
 #define	PTE_PPN1_S	19 // bit 19
-#define	PTE_PPN2_S	28 // bit 28
-#define	PTE_PPN3_S	37 // bit 37
+//#define	PTE_PPN2_S	28 // bit 28
+//#define	PTE_PPN3_S	37 // bit 37
 /* Bits 63 - 54 are reserved for future use. */
 #define PTE_HI_MASK	0xFFC0000000000000ULL
 

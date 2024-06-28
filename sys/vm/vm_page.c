@@ -3642,7 +3642,7 @@ vm_page_pqstate_commit(vm_page_t m, vm_page_astate_t *old, vm_page_astate_t new)
 static inline void
 vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m, uint8_t queue)
 {
-	vm_page_astate_t new, old;
+	vm_page_astate_t _new, old;
 
 	CRITICAL_ASSERT(curthread);
 	vm_pagequeue_assert_locked(pq);
@@ -3660,19 +3660,19 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m, uint8_t queue)
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 		    ("%s: page %p is unmanaged", __func__, m));
 
-		new = old;
+		_new = old;
 		if ((old.flags & PGA_DEQUEUE) != 0) {
-			new.flags &= ~PGA_QUEUE_OP_MASK;
-			new.queue = PQ_NONE;
+			_new.flags &= ~PGA_QUEUE_OP_MASK;
+			_new.queue = PQ_NONE;
 			if (__predict_true(_vm_page_pqstate_commit_dequeue(pq,
-			    m, &old, new))) {
+			    m, &old, _new))) {
 				counter_u64_add(queue_ops, 1);
 				break;
 			}
 		} else {
-			new.flags &= ~(PGA_REQUEUE | PGA_REQUEUE_HEAD);
+			_new.flags &= ~(PGA_REQUEUE | PGA_REQUEUE_HEAD);
 			if (__predict_true(_vm_page_pqstate_commit_requeue(pq,
-			    m, &old, new))) {
+			    m, &old, _new))) {
 				counter_u64_add(queue_ops, 1);
 				break;
 			}

@@ -304,14 +304,23 @@ enum pga_flags : uint16_t {
 	PGA_NOSYNC	= 0x0080,	/* do not collect for syncer */
 	PGA_SWAP_FREE	= 0x0100,	/* page with swap space was dirtied */
 	PGA_SWAP_SPACE	= 0x0200,	/* page has allocated swap space */
+	PGA_QUEUE_OP_MASK	= PGA_DEQUEUE | PGA_REQUEUE | PGA_REQUEUE_HEAD,
+	PGA_QUEUE_STATE_MASK	= PGA_ENQUEUED | PGA_QUEUE_OP_MASK,
 };
-#define	PGA_QUEUE_OP_MASK	(PGA_DEQUEUE | PGA_REQUEUE | PGA_REQUEUE_HEAD)
-#define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_QUEUE_OP_MASK)
+
+enum pq_queue : uint8_t {
+	PQ_INACTIVE,
+	PQ_ACTIVE,
+	PQ_LAUNDRY,
+	PQ_UNSWAPPABLE,
+	PQ_COUNT,
+	PQ_NONE		= 255
+};
 
 typedef union vm_page_astate {
 	struct {
 		enum pga_flags flags;
-		uint8_t	queue;
+		enum pq_queue queue;
 		uint8_t act_count;
 	};
 	uint32_t _bits;
@@ -403,13 +412,6 @@ struct vm_page {
 
 /* Freed lock blocks both shared and exclusive. */
 #define	VPB_FREED		(0xffffffff - VPB_BIT_SHARED)
-
-#define	PQ_NONE		255
-#define	PQ_INACTIVE	0
-#define	PQ_ACTIVE	1
-#define	PQ_LAUNDRY	2
-#define	PQ_UNSWAPPABLE	3
-#define	PQ_COUNT	4
 
 #ifndef VM_PAGE_HAVE_PGLIST
 TAILQ_HEAD(pglist, vm_page);	// page list
