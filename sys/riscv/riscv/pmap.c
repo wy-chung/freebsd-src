@@ -398,7 +398,7 @@ pagezero(void *p)
 #define	pmap_l3_index(va)	(((va) >> L3_SHIFT) & Ln_ADDR_MASK)
 
 #define	PTE_TO_PHYS(pte) \
-    ((((pte) & ~PTE_HI_MASK) >> PTE_PPN0_S) * PAGE_SIZE)
+    ((((pte) & ~PTE_HI_MASK) >> PTE_PPN0_S) << PAGE_SHIFT)
 #define	L2PTE_TO_PHYS(l2) \
     ((((l2) & ~PTE_HI_MASK) >> PTE_PPN1_S) << L2_SHIFT)
 
@@ -431,7 +431,7 @@ pmap_l1(pmap_t pmap, vm_offset_t va)
 	if (pmap_mode == PMAP_MODE_SV39) {
 		return (&pmap->pm_top[pmap_l1_index(va)]);
 	} else {
-panic("%s: wyctest\n", __func__); //tested. will not reach here
+panic("%s: wyctest\n", __func__); //tested. not reach here
 		pd_entry_t *l0 = pmap_l0(pmap, va);
 		if ((pmap_load(l0) & PTE_V) == 0)
 			return (NULL);
@@ -597,7 +597,7 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 
 	for (va = DMAP_MIN_ADDRESS, pa = dmap_phys_base;
 	    va < DMAP_MAX_ADDRESS && pa < max_pa;
-	    va += L1_SIZE, pa += L1_SIZE) {
+	    va += L1_SIZE, pa += L1_SIZE) { // 1G size
 		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
 
 		/* superpages */
@@ -951,7 +951,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	PMAP_LOCK(pmap);
 	l2p = pmap_l2(pmap, va);
 	if (l2p != NULL && ((l2e = pmap_load(l2p)) & PTE_V) != 0) {
-		if ((l2e & PTE_RWX) == 0) {
+		if ((l2e & PTE_RWX) == 0) { // point to l3 page table
 			l3p = pmap_l2_to_l3(l2p, va);
 			if (l3p != NULL) {
 				pa = PTE_TO_PHYS(pmap_load(l3p));
@@ -1581,7 +1581,7 @@ pmap_alloc_l2(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
 retry:
 	l1 = pmap_l1(pmap, va);
 	if (l1 != NULL && (pmap_load(l1) & PTE_V) != 0) {
-		KASSERT((pmap_load(l1) & PTE_RWX) == 0,
+		KASSERT((pmap_load(l1) & PTE_RWX) == 0, // point to l2 page table
 		    ("%s: L1 entry %#lx for VA %#lx is a leaf", __func__,
 		    pmap_load(l1), va));
 		/* Add a reference to the L2 page. */
@@ -1726,7 +1726,7 @@ pmap_growkernel(vm_offset_t addr)
 		}
 		l2 = pmap_l1_to_l2(l1, kernel_vm_end);
 		if ((pmap_load(l2) & PTE_V) != 0 &&
-		    (pmap_load(l2) & PTE_RWX) == 0) {
+		    (pmap_load(l2) & PTE_RWX) == 0) { // point to l3 page table
 			kernel_vm_end = (kernel_vm_end + L2_SIZE) & ~L2_OFFSET;
 			if (kernel_vm_end - 1 >= vm_map_max(kernel_map)) {
 				kernel_vm_end = vm_map_max(kernel_map);
@@ -2234,7 +2234,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((sva & L2_OFFSET) == 0, ("%s: sva is not aligned", __func__));
 	oldl2e = pmap_load_clear(l2);
-	KASSERT((oldl2e & PTE_RWX) != 0,
+	KASSERT((oldl2e & PTE_RWX) != 0, // assert that it is a superpage
 	    ("%s: L2e %lx is not a superpage mapping", __func__, oldl2e));
 
 	/*
@@ -2383,13 +2383,12 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			continue;
 		if ((l2e = pmap_load(l2)) == 0)
 			continue;
-		if ((l2e & PTE_RWX) != 0) {
+		if ((l2e & PTE_RWX) != 0) { // superpage
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
 				(void)pmap_remove_l2(pmap, l2, sva,
 				    pmap_load(l1), &free, &lock);
 				continue;
-			} else if (!pmap_demote_l2_locked(pmap, l2, sva,
-			    &lock)) {
+			} else if (!pmap_demote_l2_locked(pmap, l2, sva, &lock)) {
 				/*
 				 * The large page mapping was destroyed.
 				 */
@@ -2407,8 +2406,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			va_next = eva;
 
 		va = va_next;
-		for (l3 = pmap_l2_to_l3(l2, sva); sva != va_next; l3++,
-		    sva += L3_SIZE) {
+		for (l3 = pmap_l2_to_l3(l2, sva); sva != va_next; l3++, sva += L3_SIZE) {
 			if (pmap_load(l3) == 0) {
 				if (va != va_next) {
 					pmap_invalidate_range(pmap, va, sva);
@@ -2565,7 +2563,7 @@ resume:
 		l2 = pmap_l1_to_l2(l1, sva);
 		if (l2 == NULL || (l2e = pmap_load(l2)) == 0)
 			continue;
-		if ((l2e & PTE_RWX) != 0) {
+		if ((l2e & PTE_RWX) != 0) { // superpage
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
 retryl2:
 				if ((prot & VM_PROT_WRITE) == 0 &&
@@ -2641,9 +2639,11 @@ pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 	l2 = pmap_l2(pmap, va);
 	if (l2 == NULL || ((l2e = pmap_load(l2)) & PTE_V) == 0)
 		goto done;
-	if ((l2e & PTE_RWX) == 0) {
+	if ((l2e & PTE_RWX) == 0) { // point to l3 page table
 		pte = pmap_l2_to_l3(l2, va);
-		if (pte == NULL || ((olde = pmap_load(pte)) & PTE_V) == 0)
+if (pte == NULL) panic("%s: wyctest\n", __func__); //wycpull pte should never return NULL
+		olde = pmap_load(pte);
+		if ((olde & PTE_V) == 0)
 			goto done;
 	} else {
 		pte = l2;
@@ -2705,7 +2705,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	oldl2e = pmap_load(l2);
-	KASSERT((oldl2e & PTE_RWX) != 0,
+	KASSERT((oldl2e & PTE_RWX) != 0, // assert superpage
 	    ("%s: oldl2e is not a leaf entry", __func__));
 	if ((oldl2e & PTE_A) == 0 || (mpte = pmap_remove_pt_page(pmap, va)) == NULL) {
 		KASSERT((oldl2e & PTE_SW_WIRED) == 0,
@@ -2791,7 +2791,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
 	if (!pmap_ps_enabled(pmap))
 		return (false);
 
-	KASSERT((pmap_load(l2) & PTE_RWX) == 0,
+	KASSERT((pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 	    ("%s: invalid l2 entry %p", __func__, l2));
 
 	/*
@@ -2968,8 +2968,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	l2 = pmap_l2(pmap, va);
 	if (l2 != NULL && ((l2e = pmap_load(l2)) & PTE_V) != 0 &&
-	    ((l2e & PTE_RWX) == 0 || pmap_demote_l2_locked(pmap, l2,
-	    va, &lock))) {
+	    ((l2e & PTE_RWX) == 0 || pmap_demote_l2_locked(pmap, l2, va, &lock))) {
 		l3 = pmap_l2_to_l3(l2, va);
 		if (va < VM_MAXUSER_ADDRESS) {
 			mpte = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
@@ -3239,8 +3238,8 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 
 	if ((l2pg = pmap_alloc_l2(pmap, va, (flags & PMAP_ENTER_NOSLEEP) != 0 ?
 	    NULL : lockp)) == NULL) {
-		CTR2(KTR_PMAP, "pmap_enter_l2: failed to allocate PT page"
-		    " for va %#lx in pmap %p", va, pmap);
+		CTR3(KTR_PMAP, "%s: failed to allocate PT page"
+		    " for va %#lx in pmap %p", __func__, va, pmap);
 		return (KERN_RESOURCE_SHORTAGE);
 	}
 
@@ -3248,25 +3247,25 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 	l2 = &l2[pmap_l2_index(va)];
 	if ((oldl2e = pmap_load(l2)) != 0) {
 		KASSERT(l2pg->ref_count > 1,
-		    ("pmap_enter_l2: l2pg's ref count is too low"));
+		    ("%s: l2pg's ref count is too low", __func__));
 		if ((flags & PMAP_ENTER_NOREPLACE) != 0) {
-			if ((oldl2e & PTE_RWX) != 0) {
+			if ((oldl2e & PTE_RWX) != 0) { // superpage
 				l2pg->ref_count--;
-				CTR2(KTR_PMAP,
-				    "pmap_enter_l2: no space for va %#lx"
-				    " in pmap %p", va, pmap);
+				CTR3(KTR_PMAP,
+				    "%s: no space for va %#lx"
+				    " in pmap %p", __func__, va, pmap);
 				return (KERN_NO_SPACE);
 			} else if (va < VM_MAXUSER_ADDRESS ||
 			    !pmap_every_pte_zero(L2PTE_TO_PHYS(oldl2e))) {
 				l2pg->ref_count--;
-				CTR2(KTR_PMAP, "pmap_enter_l2:"
+				CTR3(KTR_PMAP, "%s:"
 				    " failed to replace existing mapping"
-				    " for va %#lx in pmap %p", va, pmap);
+				    " for va %#lx in pmap %p", __func__, va, pmap);
 				return (KERN_FAILURE);
 			}
 		}
 		SLIST_INIT(&free);
-		if ((oldl2e & PTE_RWX) != 0)
+		if ((oldl2e & PTE_RWX) != 0) // superpage
 			(void)pmap_remove_l2(pmap, l2, va,
 			    pmap_load(pmap_l1(pmap, va)), &free, lockp);
 		else
@@ -3285,10 +3284,10 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 			 */
 			mt = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
 			if (pmap_insert_pt_page(pmap, mt, false, false))
-				panic("pmap_enter_l2: trie insert failed");
+				panic("%s: trie insert failed", __func__);
 		} else
 			KASSERT(pmap_load(l2) == 0,
-			    ("pmap_enter_l2: non-zero L2 entry %p", l2));
+			    ("%s: non-zero L2 entry %p", __func__, l2));
 	}
 
 	/*
@@ -3335,9 +3334,9 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 				vm_page_unwire_noq(uwptpg);
 				vm_page_free(uwptpg);
 			}
-			CTR2(KTR_PMAP,
-			    "pmap_enter_l2: failed to create PV entry"
-			    " for va %#lx in pmap %p", va, pmap);
+			CTR3(KTR_PMAP,
+			    "%s: failed to create PV entry"
+			    " for va %#lx in pmap %p", __func__, va, pmap);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
 		if ((new_l2e & PTE_W) != 0)
@@ -3478,7 +3477,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			 * attempt fails, we don't retry.  Instead, we give up.
 			 */
 			if (l2 != NULL && pmap_load(l2) != 0) {
-				if ((pmap_load(l2) & PTE_RWX) != 0)
+				if ((pmap_load(l2) & PTE_RWX) != 0) // superpage
 					return (NULL);
 				phys = PTE_TO_PHYS(pmap_load(l2));
 				mpte = PHYS_TO_VM_PAGE(phys);
@@ -3629,11 +3628,11 @@ retry:
 		l2 = pmap_l1_to_l2(l1, sva);
 		if ((l2e = pmap_load(l2)) == 0)
 			continue;
-		if ((l2e & PTE_RWX) != 0) {
+		if ((l2e & PTE_RWX) != 0) { // superpage
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
 				if ((l2e & PTE_SW_WIRED) == 0)
-					panic("pmap_unwire: l2 %#jx is missing "
-					    "PTE_SW_WIRED", (uintmax_t)l2e);
+					panic("%s: l2 %#jx is missing "
+					    "PTE_SW_WIRED", __func__, (uintmax_t)l2e);
 				pmap_clear_bits(l2, PTE_SW_WIRED);
 				continue;
 			} else {
@@ -3647,7 +3646,7 @@ retry:
 					}
 				}
 				if (!pmap_demote_l2(pmap, l2, sva))
-					panic("pmap_unwire: demotion failed");
+					panic("%s: demotion failed", __func__);
 			}
 		}
 
@@ -3658,8 +3657,8 @@ retry:
 			if ((l3e = pmap_load(l3)) == 0)
 				continue;
 			if ((l3e & PTE_SW_WIRED) == 0)
-				panic("pmap_unwire: l3 %#jx is missing "
-				    "PTE_SW_WIRED", (uintmax_t)l3e);
+				panic("%s: l3 %#jx is missing "
+				    "PTE_SW_WIRED", __func__, (uintmax_t)l3e);
 
 			/*
 			 * PG_W must be cleared atomically.  Although the pmap
@@ -3869,7 +3868,7 @@ restart:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT((pmap_load(l2) & PTE_RWX) == 0,
+		KASSERT((pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		if ((pmap_load(l3) & PTE_SW_WIRED) != 0)
@@ -4021,9 +4020,9 @@ pmap_remove_pages(pmap_t pmap)
 				KASSERT((tpte & PTE_V) != 0,
 				    ("L2 PTE is invalid... bogus PV entry? "
 				    "va=%#lx, pte=%#lx", pv->pv_va, tpte));
-				if ((tpte & PTE_RWX) != 0) {
+				if ((tpte & PTE_RWX) != 0) { // superpage
 					superpage = true;
-				} else {
+				} else { // point to l3 page table
 					ptepde = tpte;
 					pte = pmap_l2_to_l3(pte, pv->pv_va);
 					tpte = pmap_load(pte);
@@ -4050,8 +4049,7 @@ pmap_remove_pages(pmap_t pmap)
 				/*
 				 * Update the vm_page_t clean/reference bits.
 				 */
-				if ((tpte & (PTE_D | PTE_W)) ==
-				    (PTE_D | PTE_W)) {
+				if ((tpte & (PTE_D | PTE_W)) == (PTE_D | PTE_W)) {
 					if (superpage)
 						for (mt = m;
 						    mt < &m[Ln_ENTRIES]; mt++)
@@ -4123,7 +4121,7 @@ restart:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT((pmap_load(l2) & PTE_RWX) == 0,
+		KASSERT((pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		rv = (pmap_load(l3) & mask) == mask;
@@ -4286,7 +4284,7 @@ retry_pv_loop:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT((pmap_load(l2) & PTE_RWX) == 0,
+		KASSERT((pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		oldl3e = pmap_load(l3);
@@ -4505,9 +4503,8 @@ pmap_clear_modify(vm_page_t m)
 	 * If the object containing the page is locked and the page is not
 	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->a.flags & PGA_WRITEABLE) == 0)
-		panic("%s: wyctest\n", __func__); // tested
-		//return;
+	if ((m->a.flags & PGA_WRITEABLE) == 0) //wyc this is a redundant test
+		return;
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy : pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_rlock(&pvh_global_lock);
@@ -4558,7 +4555,7 @@ restart:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT((pmap_load(l2) & PTE_RWX) == 0,
+		KASSERT((pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		if ((pmap_load(l3) & (PTE_D | PTE_W)) == (PTE_D | PTE_W)) {
@@ -4647,7 +4644,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		l1 = pmap_l1(kernel_pmap, tmpva);
 		if (l1 == NULL || ((l1e = pmap_load(l1)) & PTE_V) == 0)
 			return (EINVAL);
-		if ((l1e & PTE_RWX) != 0) {
+		if ((l1e & PTE_RWX) != 0) { // this should not be supported
+panic("%s: wyctest\n", __func__); // tested. not reach here
 			/*
 			 * TODO: Demote if attributes don't match and there
 			 * isn't an L1 page left in the range, and update the
@@ -4661,7 +4659,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		l2 = pmap_l1_to_l2(l1, tmpva);
 		if (l2 == NULL || ((l2e = pmap_load(l2)) & PTE_V) == 0)
 			return (EINVAL);
-		if ((l2e & PTE_RWX) != 0) {
+		if ((l2e & PTE_RWX) != 0) { // superpage
 			/*
 			 * TODO: Demote if attributes don't match and there
 			 * isn't an L2 page left in the range, and update the
@@ -4701,7 +4699,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 	PMAP_LOCK(pmap);
 	l2 = pmap_l2(pmap, addr);
 	if (l2 != NULL && ((tpte = pmap_load(l2)) & PTE_V) != 0) {
-		if ((tpte & PTE_RWX) != 0) {
+		if ((tpte & PTE_RWX) != 0) { // superpage
 			pa = PTE_TO_PHYS(tpte) | (addr & L2_OFFSET);
 			val = MINCORE_INCORE | MINCORE_PSIND(1);
 		} else {
@@ -5079,6 +5077,7 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 			continue;
 		}
 		if ((l1e & PTE_RWX) != 0) {
+//panic("%s: wyctest\n", __func__); // the program will run to here
 			sysctl_kmaps_check(sb, &range, sva, l1e, 0, 0);
 			range.l1pages++;
 			sva += L1_SIZE;
@@ -5094,7 +5093,7 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 				sva += L2_SIZE;
 				continue;
 			}
-			if ((l2e & PTE_RWX) != 0) {
+			if ((l2e & PTE_RWX) != 0) { // superpage
 				sysctl_kmaps_check(sb, &range, sva, l1e, l2e, 0);
 				range.l2pages++;
 				sva += L2_SIZE;
