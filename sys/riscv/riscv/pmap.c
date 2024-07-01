@@ -1234,16 +1234,16 @@ pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
  * valid mappings with identical attributes including PTE_A; "mpte"'s valid
  * field will be set to VM_PAGE_BITS_ALL.
  */
+// return an error number
 static __inline int
-pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte, bool promoted,
-    bool all_l3e_PTE_A_set)
+pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte, bool promoted, bool all_l3e_PTE_A_set)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(promoted || !all_l3e_PTE_A_set,
 	    ("a zero-filled PTP can't have PTE_A set in every PTE"));
 	mpte->valid = promoted ? (all_l3e_PTE_A_set ? VM_PAGE_BITS_ALL : 1) : 0;
-	return (vm_radix_insert(&pmap->pm_root, mpte));
+	return (vm_radix_insert(&pmap->pm_root, mpte)); // return an error number
 }
 
 /*
@@ -2248,7 +2248,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 	if ((oldl2e & PTE_SW_WIRED) != 0)
 		pmap->pm_stats.wired_count -= L2_SIZE / PAGE_SIZE;
 	pmap_resident_count_dec(pmap, L2_SIZE / PAGE_SIZE);
-	if ((oldl2e & PTE_SW_MANAGED) != 0) {
+	if (oldl2e & PTE_SW_MANAGED) {
 		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, PTE_TO_PHYS(oldl2e));
 		pvh = pa_to_pvh(PTE_TO_PHYS(oldl2e));
 		pmap_pv_pvh_free(pvh, pmap, sva);
@@ -2567,8 +2567,7 @@ resume:
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
 retryl2:
 				if ((prot & VM_PROT_WRITE) == 0 &&
-				    (l2e & (PTE_SW_MANAGED | PTE_D)) ==
-				    (PTE_SW_MANAGED | PTE_D)) {
+				    (l2e & (PTE_SW_MANAGED | PTE_D)) == (PTE_SW_MANAGED | PTE_D)) {
 					pa = PTE_TO_PHYS(l2e);
 					m = PHYS_TO_VM_PAGE(pa);
 					for (vm_page_t mt = m; mt < &m[Ln_ENTRIES]; mt++)
@@ -2608,8 +2607,7 @@ retryl3:
 			if ((l3e & PTE_V) == 0)
 				continue;
 			if ((prot & VM_PROT_WRITE) == 0 &&
-			    (l3e & (PTE_SW_MANAGED | PTE_D)) ==
-			    (PTE_SW_MANAGED | PTE_D)) {
+			    (l3e & (PTE_SW_MANAGED | PTE_D)) == (PTE_SW_MANAGED | PTE_D)) {
 				m = PHYS_TO_VM_PAGE(PTE_TO_PHYS(l3e));
 				vm_page_dirty(m);
 			}
@@ -2760,7 +2758,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	 * the wrong PV list and pmap_pv_demote_l2() failing to find the
 	 * expected PV entry for the 2MB page mapping that is being demoted.
 	 */
-	if ((oldl2e & PTE_SW_MANAGED) != 0)
+	if (oldl2e & PTE_SW_MANAGED)
 		reserve_pv_entries(pmap, Ln_ENTRIES - 1, lockp);
 
 	/*
@@ -2771,7 +2769,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	/*
 	 * Demote the PV entry.
 	 */
-	if ((oldl2e & PTE_SW_MANAGED) != 0)
+	if (oldl2e & PTE_SW_MANAGED)
 		pmap_pv_demote_l2(pmap, va, PTE_TO_PHYS(oldl2e), lockp);
 
 	atomic_add_long(&pmap_l2_demotions, 1);
@@ -2880,7 +2878,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
 		return (false);
 	}
 
-	if ((firstl3e & PTE_SW_MANAGED) != 0)
+	if (firstl3e & PTE_SW_MANAGED)
 		pmap_pv_promote_l2(pmap, va, PTE_TO_PHYS(firstl3e), lockp);
 
 	pmap_store(l2, firstl3e);
@@ -3060,8 +3058,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			/*
 			 * No, might be a protection or wiring change.
 			 */
-			if ((orig_l3e & PTE_SW_MANAGED) != 0 &&
-			    (new_l3e & PTE_W) != 0)
+			if ((orig_l3e & PTE_SW_MANAGED) && (new_l3e & PTE_W))
 				vm_page_aflag_set(m, PGA_WRITEABLE);
 			goto validate;
 		}
@@ -3079,7 +3076,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		orig_l3e = pmap_load_clear(l3);
 		KASSERT(PTE_TO_PHYS(orig_l3e) == opa,
 		    ("%s: unexpected pa update for %#lx", __func__, va));
-		if ((orig_l3e & PTE_SW_MANAGED) != 0) {
+		if (orig_l3e & PTE_SW_MANAGED) {
 			om = PHYS_TO_VM_PAGE(opa);
 
 			/*
@@ -3094,7 +3091,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
 			pv = pmap_pv_pvh_remove(&om->md, pmap, va);
 			KASSERT(pv != NULL, ("%s: no PV entry for %#lx", __func__, va));
-			if ((new_l3e & PTE_SW_MANAGED) == 0)
+			if (!(new_l3e & PTE_SW_MANAGED))
 				free_pv_entry(pmap, pv);
 			if ((om->a.flags & PGA_WRITEABLE) != 0 &&
 			    TAILQ_EMPTY(&om->md.pv_list) &&
@@ -3115,7 +3112,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
-	if ((new_l3e & PTE_SW_MANAGED) != 0) {
+	if (new_l3e & PTE_SW_MANAGED) {
 		if (pv == NULL) {
 			pv = get_pv_entry(pmap, &lock);
 			pv->pv_va = va;
@@ -3142,8 +3139,7 @@ validate:
 		orig_l3e = pmap_load_store(l3, new_l3e);
 		pmap_invalidate_page(pmap, va);
 		KASSERT(PTE_TO_PHYS(orig_l3e) == pa, ("%s: invalid update", __func__));
-		if ((orig_l3e & (PTE_D | PTE_SW_MANAGED)) ==
-		    (PTE_D | PTE_SW_MANAGED))
+		if ((orig_l3e & (PTE_D | PTE_SW_MANAGED)) == (PTE_D | PTE_SW_MANAGED))
 			vm_page_dirty(m);
 	} else {
 		pmap_store(l3, new_l3e);
@@ -3308,7 +3304,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 		pmap_resident_count_inc(pmap, 1);
 		uwptpg->ref_count = Ln_ENTRIES;
 	}
-	if ((new_l2e & PTE_SW_MANAGED) != 0) {
+	if (new_l2e & PTE_SW_MANAGED) {
 		/*
 		 * Abort this mapping if its PV entry could not be created.
 		 */
@@ -4498,13 +4494,6 @@ pmap_clear_modify(vm_page_t m)
 	if (!pmap_page_is_write_mapped(m))
 	        return;
 
-	/*
-	 * If the page is not PGA_WRITEABLE, then no PTEs can have PG_M set.
-	 * If the object containing the page is locked and the page is not
-	 * exclusive busied, then PGA_WRITEABLE cannot be concurrently set.
-	 */
-	if ((m->a.flags & PGA_WRITEABLE) == 0) //wyc this is a redundant test
-		return;
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy : pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
 	rw_rlock(&pvh_global_lock);
