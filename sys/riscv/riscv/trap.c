@@ -204,12 +204,8 @@ static void
 page_fault_handler(struct trapframe *frame, int usermode)
 {
 	struct _vm_map *map;
-	uint64_t stval;
-	struct thread *td;
-	struct pcb *pcb;
 	vm_prot_t ftype;
 	vm_offset_t va;
-	struct proc *p;
 	int error, sig, ucode;
 #ifdef KDB
 	bool handled;
@@ -222,14 +218,13 @@ page_fault_handler(struct trapframe *frame, int usermode)
 	}
 #endif
 
-	td = curthread;
-	p = td->td_proc;
-	pcb = td->td_pcb;
-	stval = frame->tf_stval;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+	struct pcb *pcb = td->td_pcb;
+	uint64_t stval = frame->tf_stval;
 
 	if (td->td_critnest != 0 || td->td_intr_nesting_level != 0 ||
-	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
-	    "Kernel page fault") != 0)
+	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL, "Kernel page fault") != 0)
 		goto fatal;
 
 	if (usermode) {
