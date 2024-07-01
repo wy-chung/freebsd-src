@@ -418,7 +418,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 				else
 					vm_radix_addnode(parent, index, leaf,
 					    LOCKED);
-				return (0);
+				return (ESUCCESS);
 			}
 			newind = vm_radix_topage(rnode)->pindex;
 			if (newind == index)
@@ -449,7 +449,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 	vm_radix_addnode(parent, newind, rnode, UNSERIALIZED);
 	/* Serializing write to make the above visible. */
 	vm_radix_node_store(parentp, parent, LOCKED);
-	return (0);
+	return (ESUCCESS);
 }
 
 /*
