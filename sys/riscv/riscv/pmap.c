@@ -953,6 +953,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	if (l2p != NULL && ((l2e = pmap_load(l2p)) & PTE_V) != 0) {
 		if ((l2e & PTE_RWX) == 0) { // point to l3 page table
 			l3p = pmap_l2_to_l3(l2p, va);
+			if (l3p == NULL) panic("%s: wyctest\n", __func__);
 			if (l3p != NULL) {
 				pa = PTE_TO_PHYS(pmap_load(l3p));
 				pa |= (va & L3_OFFSET);
@@ -1026,7 +1027,7 @@ pmap_kextract(vm_offset_t va)
 		}
 
 		l3 = pmap_l2_to_l3(&l2e, va);
-		if (l3 == NULL)
+		if (l3 == NULL) //wyctest will never be NULL
 			panic("pmap_kextract: No l3...");
 		pa = PTE_TO_PHYS(pmap_load(l3));
 		pa |= (va & PAGE_MASK);
@@ -2380,7 +2381,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 		l2 = pmap_l1_to_l2(l1, sva);
 		if (l2 == NULL)
-			continue;
+			//continue;
+			panic("%s: wyctest\n", __func__);
 		if ((l2e = pmap_load(l2)) == 0)
 			continue;
 		if ((l2e & PTE_RWX) != 0) { // superpage
@@ -2561,7 +2563,8 @@ resume:
 			va_next = eva;
 
 		l2 = pmap_l1_to_l2(l1, sva);
-		if (l2 == NULL || (l2e = pmap_load(l2)) == 0)
+		if (l2 == NULL) panic("%s: wyctest\n", __func__);
+		if (/*l2 == NULL || */(l2e = pmap_load(l2)) == 0)
 			continue;
 		if ((l2e & PTE_RWX) != 0) { // superpage
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
@@ -2630,7 +2633,7 @@ pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 	pt_entry_t bits, *pte, olde;
 	int rv;
 
-	KASSERT(VIRT_IS_VALID(va), ("pmap_fault: invalid va %#lx", va));
+	KASSERT(VIRT_IS_VALID(va), ("%s: invalid va %#lx", __func__, va));
 
 	rv = 0;
 	PMAP_LOCK(pmap);
@@ -2639,7 +2642,7 @@ pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 		goto done;
 	if ((l2e & PTE_RWX) == 0) { // point to l3 page table
 		pte = pmap_l2_to_l3(l2, va);
-if (pte == NULL) panic("%s: wyctest\n", __func__); //wycpull pte should never return NULL
+if (pte == NULL) panic("%s: wyctest\n", __func__); //wycpull pmap_l2_to_l3 will never return NULL
 		olde = pmap_load(pte);
 		if ((olde & PTE_V) == 0)
 			goto done;
@@ -2779,8 +2782,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 
 #if VM_NRESERVLEVEL > 0
 static bool
-pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
-    struct rwlock **lockp)
+pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3, struct rwlock **lockp)
 {
 	pt_entry_t all_l3e_PTE_A, *firstl3, firstl3e, *l3, l3e;
 	vm_paddr_t pa;
@@ -2872,8 +2874,8 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
 	KASSERT(ml3->pindex == pmap_l2_pindex(va),
 	    ("%s: page table page's pindex is wrong", __func__));
 	if (pmap_insert_pt_page(pmap, ml3, true, all_l3e_PTE_A != 0)) {
-		CTR3(KTR_PMAP, "%s: failure for va %#lx pmap %p", __func__,
-		    va, pmap);
+		CTR3(KTR_PMAP, "%s: failure for va %#lx pmap %p",
+		    __func__, va, pmap);
 		atomic_add_long(&pmap_l2_p_failures, 1);
 		return (false);
 	}
@@ -2884,8 +2886,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3,
 	pmap_store(l2, firstl3e);
 
 	atomic_add_long(&pmap_l2_promotions, 1);
-	CTR3(KTR_PMAP, "%s: success for va %#lx in pmap %p", __func__, va,
-	    pmap);
+	CTR3(KTR_PMAP, "%s: success for va %#lx in pmap %p", __func__, va, pmap);
 	return (true);
 }
 #endif
@@ -3005,8 +3006,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				l2 = pmap_l1_to_l2(l1, va);
 			}
 
-			l3_m = vm_page_alloc_noobj(VM_ALLOC_WIRED |
-			    VM_ALLOC_ZERO);
+			l3_m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (l3_m == NULL)
 				panic("%s: l3 pte_m == NULL", __func__);
 
@@ -4646,7 +4646,8 @@ panic("%s: wyctest\n", __func__); // tested. not reach here
 			continue;
 		}
 		l2 = pmap_l1_to_l2(l1, tmpva);
-		if (l2 == NULL || ((l2e = pmap_load(l2)) & PTE_V) == 0)
+		if (l2 == NULL) panic("%s: wyctest\n", __func__);
+		if (/*l2 == NULL || */((l2e = pmap_load(l2)) & PTE_V) == 0)
 			return (EINVAL);
 		if ((l2e & PTE_RWX) != 0) { // superpage
 			/*
@@ -4660,7 +4661,8 @@ panic("%s: wyctest\n", __func__); // tested. not reach here
 			continue;
 		}
 		l3 = pmap_l2_to_l3(l2, tmpva);
-		if (l3 == NULL || ((l3e = pmap_load(l3)) & PTE_V) == 0)
+		if (l3 == NULL) panic("%s: wyctest\n", __func__);
+		if (/*l3 == NULL || */((l3e = pmap_load(l3)) & PTE_V) == 0)
 			return (EINVAL);
 		/*
 		 * TODO: Update the L3 entry if the attributes don't match once

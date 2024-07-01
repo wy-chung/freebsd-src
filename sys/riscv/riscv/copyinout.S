@@ -57,7 +57,7 @@ END(copyio_fault)
  * a1 - Destination address
  * a2 - Size of copy
  */
-	.macro copycommon
+.macro copycommon
 	la	a6, copyio_fault	/* Get the handler address */
 	SET_FAULT_HANDLER(a6, a7)	/* Set the handler */
 	ENTER_USER_ACCESS(a7)
@@ -92,7 +92,7 @@ END(copyio_fault)
 	addi	a2, a2, -XLEN_BYTES	/* len -= XLEN_BYTES */
 3:	bgeu	a2, t2, 2b		/* Again if len >= XLEN_BYTES */
 
-	/* Check if we're finished */
+	/* Check if we`re finished */
 	beqz	a2, 5f
 
 	/* Copy any remaining bytes */
@@ -105,7 +105,7 @@ END(copyio_fault)
 
 5:	EXIT_USER_ACCESS(a7)
 	SET_FAULT_HANDLER(x0, a7)	/* Clear the handler */
-	.endm
+.endm
 
 /*
  * Copies from a kernel to user address
