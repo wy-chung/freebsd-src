@@ -91,7 +91,7 @@ typedef struct pv_entry {
 #define	PV_CHUNK_HEADER							\
 	struct pmap		*pc_pmap;				\
 	TAILQ_ENTRY(pv_chunk)	pc_pmlist;				\
-	TAILQ_ENTRY(pv_chunk)	pc_lru;					\
+	TAILQ_ENTRY(pv_chunk)	pc_pvclist;					\
 	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 
 struct pv_chunk_header {
@@ -100,7 +100,7 @@ struct pv_chunk_header {
 #else
 	struct pmap		*pc_pmap;
 	TAILQ_ENTRY(pv_chunk)	pc_pmlist;
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
+	TAILQ_ENTRY(pv_chunk)	pc_pvclist;
 	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 #endif
 };
@@ -111,7 +111,7 @@ struct pv_chunk {
 #else
 	struct pmap		*pc_pmap;
 	TAILQ_ENTRY(pv_chunk)	pc_pmlist; // for pmap.pm_pvchunk list
-	TAILQ_ENTRY(pv_chunk)	pc_lru;  // for pv_chunks list
+	TAILQ_ENTRY(pv_chunk)	pc_pvclist;  // for pv_chunks list
 	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 #endif
 	struct pv_entry		pc_pventry[_NPCPV];

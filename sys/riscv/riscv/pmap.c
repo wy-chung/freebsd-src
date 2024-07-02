@@ -1843,7 +1843,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	vm_page_t m;
 
 	mtx_lock(&pv_chunks_mutex);
- 	TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
+	TAILQ_REMOVE(&pv_chunks, pc, pc_pvclist);
 	mtx_unlock(&pv_chunks_mutex);
 	PV_STAT(atomic_subtract_int(&pv_entry_spare, _NPCPV));
 	PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
@@ -1916,7 +1916,7 @@ retry:
 	pc->pc_map[1] = PC_FREEN;
 	pc->pc_map[2] = PC_FREEL;
 	mtx_lock(&pv_chunks_mutex);
-	TAILQ_INSERT_TAIL(&pv_chunks, pc, pc_lru);
+	TAILQ_INSERT_TAIL(&pv_chunks, pc, pc_pvclist);
 	mtx_unlock(&pv_chunks_mutex);
 	pv = &pc->pc_pventry[0];
 	TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_pmlist);
@@ -1980,7 +1980,7 @@ retry:
 		pc->pc_map[1] = PC_FREEN;
 		pc->pc_map[2] = PC_FREEL;
 		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_pmlist);
-		TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
+		TAILQ_INSERT_TAIL(&new_tail, pc, pc_pvclist);
 
 		/*
 		 * The reclaim might have freed a chunk from the current pmap.
@@ -1992,7 +1992,7 @@ retry:
 	}
 	if (!TAILQ_EMPTY(&new_tail)) {
 		mtx_lock(&pv_chunks_mutex);
-		TAILQ_CONCAT(&pv_chunks, &new_tail, pc_lru);
+		TAILQ_CONCAT(&pv_chunks, &new_tail, pc_pvclist);
 		mtx_unlock(&pv_chunks_mutex);
 	}
 }
