@@ -908,7 +908,7 @@ kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 #endif
 }
 
-#ifdef PMAP_WANT_ACTIVE_CPUS_NAIVE
+#ifdef PMAP_WANT_ACTIVE_CPUS_NAIVE //wyc this is only for arm64
 void
 pmap_active_cpus(pmap_t pmap, cpuset_t *res)
 {

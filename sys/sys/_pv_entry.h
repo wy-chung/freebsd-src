@@ -46,7 +46,7 @@ struct pmap;
  */
 typedef struct pv_entry {
 	vm_offset_t	pv_va;		/* virtual address for mapping */
-	TAILQ_ENTRY(pv_entry)	pv_next;
+	TAILQ_ENTRY(pv_entry)	pv_next; // on either vm_page's pv_list or pa_to_pvh(pa) list
 } *pv_entry_t;
 
 /*
@@ -90,7 +90,7 @@ typedef struct pv_entry {
 
 #define	PV_CHUNK_HEADER							\
 	struct pmap		*pc_pmap;				\
-	TAILQ_ENTRY(pv_chunk)	pc_list;				\
+	TAILQ_ENTRY(pv_chunk)	pc_pmlist;				\
 	TAILQ_ENTRY(pv_chunk)	pc_lru;					\
 	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 
@@ -99,7 +99,7 @@ struct pv_chunk_header {
 	PV_CHUNK_HEADER
 #else
 	struct pmap		*pc_pmap;
-	TAILQ_ENTRY(pv_chunk)	pc_list;
+	TAILQ_ENTRY(pv_chunk)	pc_pmlist;
 	TAILQ_ENTRY(pv_chunk)	pc_lru;
 	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 #endif
@@ -110,7 +110,7 @@ struct pv_chunk {
 	PV_CHUNK_HEADER
 #else
 	struct pmap		*pc_pmap;
-	TAILQ_ENTRY(pv_chunk)	pc_list; // for pmap.pm_pvchunk list
+	TAILQ_ENTRY(pv_chunk)	pc_pmlist; // for pmap.pm_pvchunk list
 	TAILQ_ENTRY(pv_chunk)	pc_lru;  // for pv_chunks list
 	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 #endif
