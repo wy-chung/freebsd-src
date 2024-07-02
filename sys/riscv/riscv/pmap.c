@@ -2616,16 +2616,16 @@ retryl3:
 	PMAP_UNLOCK(pmap);
 }
 
-int
+bool
 pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 {
 	pd_entry_t *l2, l2e;
 	pt_entry_t bits, *pte, olde;
-	int rv;
+	bool rv;
 
 	KASSERT(VIRT_IS_VALID(va), ("%s: invalid va %#lx", __func__, va));
 
-	rv = 0;
+	rv = false;
 	PMAP_LOCK(pmap);
 	l2 = pmap_l2(pmap, va);
 	if (l2 == NULL || ((l2e = pmap_load(l2)) & PTE_V) == 0)
@@ -2658,7 +2658,7 @@ pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 	if ((olde & bits) != bits)
 		pmap_store_bits(pte, bits);
 	sfence_vma();
-	rv = 1;
+	rv = true;
 done:
 	PMAP_UNLOCK(pmap);
 	return (rv);

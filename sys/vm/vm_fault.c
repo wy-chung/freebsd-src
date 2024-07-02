@@ -124,12 +124,12 @@ struct faultstate {
 	vm_prot_t	fault_type;
 	vm_prot_t	prot;
 	int		fault_flags;
-	boolean_t	wired;
+	bool		wired;
 
 	/* Control state. */
+	int		nera;
 	struct timeval	oom_start_time;
 	bool		oom_started;
-	int		nera;
 	bool		can_read_lock;
 
 	/* Page reference for cow. */
@@ -700,7 +700,7 @@ _Static_assert(UCODE_PAGEFLT == T_PAGEFLT, "T_PAGEFLT");
  */
 int
 vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
-    int fault_flags, int *signo, int *ucode) __attribute__((optnone)) //wyc
+    int fault_flags, int *signo, int *ucode)
 {
 	int result;
 
@@ -709,8 +709,7 @@ vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	if (map != kernel_map && KTRPOINT(curthread, KTR_FAULT))
 		ktrfault(vaddr, fault_type);
 #endif
-	result = vm_fault(map, trunc_page(vaddr), fault_type, fault_flags,
-	    NULL);
+	result = vm_fault(map, trunc_page(vaddr), fault_type, fault_flags, NULL);
 	KASSERT(result == KERN_SUCCESS || result == KERN_FAILURE ||
 	    result == KERN_INVALID_ADDRESS ||
 	    result == KERN_RESOURCE_SHORTAGE ||
@@ -762,8 +761,7 @@ vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 			}
 			break;
 		default:
-			KASSERT(0, ("Unexpected Mach error %d from vm_fault()",
-			    result));
+			KASSERT(0, ("Unexpected Mach error %d from vm_fault()", result));
 			break;
 		}
 	}

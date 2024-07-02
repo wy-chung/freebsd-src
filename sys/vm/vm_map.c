@@ -5030,7 +5030,7 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	      vm_object_t *object,		/* OUT */
 	      vm_pindex_t *pindex,		/* OUT */
 	      vm_prot_t *out_prot,		/* OUT */
-	      boolean_t *wired)			/* OUT */
+	      bool *wired)			/* OUT */
 {
 	vm_map_entry_t entry;
 	vm_map_t map = *var_map;
@@ -5201,7 +5201,7 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 		     vm_object_t *object,	/* OUT */
 		     vm_pindex_t *pindex,	/* OUT */
 		     vm_prot_t *out_prot,	/* OUT */
-		     boolean_t *wired)		/* OUT */
+		     bool *wired)		/* OUT */
 {
 	vm_map_entry_t entry;
 	vm_map_t map = *var_map;

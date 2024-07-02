@@ -1866,7 +1866,7 @@ shm_unmap(struct file *fp, void *mem, size_t size)
 	vm_object_t obj;
 	vm_pindex_t pindex;
 	vm_prot_t prot;
-	boolean_t wired;
+	bool wired;
 	vm_map_t map;
 	int rv;
 
