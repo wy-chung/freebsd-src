@@ -953,11 +953,8 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	if (l2p != NULL && ((l2e = pmap_load(l2p)) & PTE_V) != 0) {
 		if ((l2e & PTE_RWX) == 0) { // point to l3 page table
 			l3p = pmap_l2_to_l3(l2p, va);
-			if (l3p == NULL) panic("%s: wyctest\n", __func__);
-			if (l3p != NULL) {
-				pa = PTE_TO_PHYS(pmap_load(l3p));
-				pa |= (va & L3_OFFSET);
-			}
+			pa = PTE_TO_PHYS(pmap_load(l3p));
+			pa |= (va & L3_OFFSET);
 		} else {
 			/* L2 is a superpage mapping. */
 			pa = L2PTE_TO_PHYS(l2e);
@@ -1027,8 +1024,6 @@ pmap_kextract(vm_offset_t va)
 		}
 
 		l3 = pmap_l2_to_l3(&l2e, va);
-		if (l3 == NULL) //wyctest will never be NULL
-			panic("pmap_kextract: No l3...");
 		pa = PTE_TO_PHYS(pmap_load(l3));
 		pa |= (va & PAGE_MASK);
 	}
@@ -2380,9 +2375,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			va_next = eva;
 
 		l2 = pmap_l1_to_l2(l1, sva);
-		if (l2 == NULL)
-			//continue;
-			panic("%s: wyctest\n", __func__);
 		if ((l2e = pmap_load(l2)) == 0)
 			continue;
 		if ((l2e & PTE_RWX) != 0) { // superpage
@@ -2563,8 +2555,7 @@ resume:
 			va_next = eva;
 
 		l2 = pmap_l1_to_l2(l1, sva);
-		if (l2 == NULL) panic("%s: wyctest\n", __func__);
-		if (/*l2 == NULL || */(l2e = pmap_load(l2)) == 0)
+		if ((l2e = pmap_load(l2)) == 0)
 			continue;
 		if ((l2e & PTE_RWX) != 0) { // superpage
 			if (sva + L2_SIZE == va_next && eva >= va_next) {
@@ -2603,8 +2594,7 @@ retryl2:
 		if (va_next > eva)
 			va_next = eva;
 
-		for (l3 = pmap_l2_to_l3(l2, sva); sva != va_next; l3++,
-		    sva += L3_SIZE) {
+		for (l3 = pmap_l2_to_l3(l2, sva); sva != va_next; l3++, sva += L3_SIZE) {
 			l3e = pmap_load(l3);
 retryl3:
 			if ((l3e & PTE_V) == 0)
@@ -2642,7 +2632,6 @@ pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 		goto done;
 	if ((l2e & PTE_RWX) == 0) { // point to l3 page table
 		pte = pmap_l2_to_l3(l2, va);
-if (pte == NULL) panic("%s: wyctest\n", __func__); //wycpull pmap_l2_to_l3 will never return NULL
 		olde = pmap_load(pte);
 		if ((olde & PTE_V) == 0)
 			goto done;
@@ -3268,8 +3257,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 			for (sva = va; sva < va + L2_SIZE; sva += PAGE_SIZE) {
 				l3 = pmap_l2_to_l3(l2, sva);
 				if ((pmap_load(l3) & PTE_V) != 0 &&
-				    pmap_remove_l3(pmap, l3, sva, oldl2e, &free,
-				    lockp) != 0)
+				    pmap_remove_l3(pmap, l3, sva, oldl2e, &free, lockp) != 0)
 					break;
 			}
 		vm_page_free_pages_toq(&free, true);
@@ -3648,8 +3636,7 @@ retry:
 
 		if (va_next > eva)
 			va_next = eva;
-		for (l3 = pmap_l2_to_l3(l2, sva); sva != va_next; l3++,
-		    sva += L3_SIZE) {
+		for (l3 = pmap_l2_to_l3(l2, sva); sva != va_next; l3++, sva += L3_SIZE) {
 			if ((l3e = pmap_load(l3)) == 0)
 				continue;
 			if ((l3e & PTE_SW_WIRED) == 0)
@@ -4646,8 +4633,7 @@ panic("%s: wyctest\n", __func__); // tested. not reach here
 			continue;
 		}
 		l2 = pmap_l1_to_l2(l1, tmpva);
-		if (l2 == NULL) panic("%s: wyctest\n", __func__);
-		if (/*l2 == NULL || */((l2e = pmap_load(l2)) & PTE_V) == 0)
+		if (((l2e = pmap_load(l2)) & PTE_V) == 0)
 			return (EINVAL);
 		if ((l2e & PTE_RWX) != 0) { // superpage
 			/*
@@ -4661,8 +4647,7 @@ panic("%s: wyctest\n", __func__); // tested. not reach here
 			continue;
 		}
 		l3 = pmap_l2_to_l3(l2, tmpva);
-		if (l3 == NULL) panic("%s: wyctest\n", __func__);
-		if (/*l3 == NULL || */((l3e = pmap_load(l3)) & PTE_V) == 0)
+		if (((l3e = pmap_load(l3)) & PTE_V) == 0)
 			return (EINVAL);
 		/*
 		 * TODO: Update the L3 entry if the attributes don't match once
@@ -4968,12 +4953,13 @@ sysctl_kmaps_dump(struct sbuf *sb, struct pmap_kernel_map_range *range,
 	if (eva <= range->sva)
 		return;
 
-	sbuf_printf(sb, "0x%016lx-0x%016lx r%c%c%c%c %d %d %d\n",
+	sbuf_printf(sb, "0x%016lx-0x%016lx %c%c%c%c%c %d %d %d\n",
 	    range->sva, eva,
-	    (range->attrs & PTE_W) == PTE_W ? 'w' : '-',
-	    (range->attrs & PTE_X) == PTE_X ? 'x' : '-',
-	    (range->attrs & PTE_U) == PTE_U ? 'u' : 's',
-	    (range->attrs & PTE_G) == PTE_G ? 'g' : '-',
+	    (range->attrs & PTE_R) ? 'r' : '-',
+	    (range->attrs & PTE_W) ? 'w' : '-',
+	    (range->attrs & PTE_X) ? 'x' : '-',
+	    (range->attrs & PTE_U) ? 'u' : 's',
+	    (range->attrs & PTE_G) ? 'g' : '-',
 	    range->l1pages, range->l2pages, range->l3pages);
 
 	/* Reset to sentinel value. */
@@ -5033,17 +5019,12 @@ static int
 sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 {
 	struct pmap_kernel_map_range range;
-	struct sbuf sbuf, *sb;
-	pd_entry_t l1e, *l2, l2e;
-	pt_entry_t *l3, l3e;
-	vm_offset_t sva;
-	vm_paddr_t pa;
-	int error, i, j, k;
+	struct sbuf sbuf;
 
-	error = sysctl_wire_old_buffer(req, 0);
+	int error = sysctl_wire_old_buffer(req, 0);
 	if (error != 0)
 		return (error);
-	sb = &sbuf;
+	struct sbuf *sb = &sbuf;
 	sbuf_new_for_sysctl(sb, NULL, PAGE_SIZE, req);
 
 	/* Sentinel value. */
@@ -5054,31 +5035,31 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 	 * lock. Kernel page table pages are never freed, so at worst we will
 	 * observe inconsistencies in the output.
 	 */
-	sva = VM_MIN_KERNEL_ADDRESS;
-	for (i = pmap_l1_index(sva); i < Ln_ENTRIES; i++) {
+	vm_offset_t sva = VM_MIN_KERNEL_ADDRESS;
+	for (int i = pmap_l1_index(sva); i < Ln_ENTRIES; i++) {
 		if (i == pmap_l1_index(DMAP_MIN_ADDRESS))
 			sbuf_printf(sb, "\nDirect map:\n");
 		else if (i == pmap_l1_index(VM_MIN_KERNEL_ADDRESS))
 			sbuf_printf(sb, "\nKernel map:\n");
 
-		l1e = kernel_pmap->pm_top[i];
+		pd_entry_t l1e = kernel_pmap->pm_top[i];
 		if ((l1e & PTE_V) == 0) {
 			sysctl_kmaps_dump(sb, &range, sva);
 			sva += L1_SIZE;
 			continue;
 		}
-		if ((l1e & PTE_RWX) != 0) {
-//panic("%s: wyctest\n", __func__); // the program will run to here
+		if ((l1e & PTE_RWX) != 0) { // a "huge page", it is bigger than superpage
+//panic("%s: wyctest\n", __func__); // tested. the program will run to here when running "sysctl vm.pmap.kernel_maps"
 			sysctl_kmaps_check(sb, &range, sva, l1e, 0, 0);
 			range.l1pages++;
 			sva += L1_SIZE;
 			continue;
 		}
-		pa = PTE_TO_PHYS(l1e);
-		l2 = (pd_entry_t *)PHYS_TO_DMAP(pa);
+		vm_paddr_t pa = PTE_TO_PHYS(l1e);
+		pd_entry_t *l2 = (pd_entry_t *)PHYS_TO_DMAP(pa);
 
-		for (j = pmap_l2_index(sva); j < Ln_ENTRIES; j++) {
-			l2e = l2[j];
+		for (int j = pmap_l2_index(sva); j < Ln_ENTRIES; j++) {
+			pd_entry_t l2e = l2[j];
 			if ((l2e & PTE_V) == 0) {
 				sysctl_kmaps_dump(sb, &range, sva);
 				sva += L2_SIZE;
@@ -5090,12 +5071,12 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 				sva += L2_SIZE;
 				continue;
 			}
-			pa = PTE_TO_PHYS(l2e);
-			l3 = (pd_entry_t *)PHYS_TO_DMAP(pa);
+			vm_paddr_t pa = PTE_TO_PHYS(l2e);
+			pt_entry_t *l3 = (pd_entry_t *)PHYS_TO_DMAP(pa);
 
-			for (k = pmap_l3_index(sva); k < Ln_ENTRIES; k++,
+			for (int k = pmap_l3_index(sva); k < Ln_ENTRIES; k++,
 			    sva += L3_SIZE) {
-				l3e = l3[k];
+				pt_entry_t l3e = l3[k];
 				if ((l3e & PTE_V) == 0) {
 					sysctl_kmaps_dump(sb, &range, sva);
 					continue;
