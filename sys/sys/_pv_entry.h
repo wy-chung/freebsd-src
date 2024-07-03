@@ -46,7 +46,7 @@ struct pmap;
  */
 typedef struct pv_entry {
 	vm_offset_t	pv_va;		/* virtual address for mapping */
-	TAILQ_ENTRY(pv_entry)	pv_next; // on either vm_page's pv_list or pa_to_pvh(pa) list
+	TAILQ_ENTRY(pv_entry)	pv_next; // on either vm_page's md.pv_list or pa_to_pvh(pa) list
 } *pv_entry_t;
 
 /*
