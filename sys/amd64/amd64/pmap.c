@@ -5380,9 +5380,9 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 	struct pv_chunks_list *pvc = &pv_chunks[domain];
 	mtx_lock(&pvc->pvc_lock);
 	pvc->active_reclaims++;
-	TAILQ_INSERT_HEAD(&pvc->pvc_list, pc_marker, pc_lru);
-	TAILQ_INSERT_TAIL(&pvc->pvc_list, pc_marker_end, pc_lru);
-	while ((pc = TAILQ_NEXT(pc_marker, pc_lru)) != pc_marker_end &&
+	TAILQ_INSERT_HEAD(&pvc->pvc_list, pc_marker, pc_pvclist);
+	TAILQ_INSERT_TAIL(&pvc->pvc_list, pc_marker_end, pc_pvclist);
+	while ((pc = TAILQ_NEXT(pc_marker, pc_pvclist)) != pc_marker_end &&
 	    SLIST_EMPTY(&free)) {
 		pmap_t next_pmap = pc->pc_pmap;
 		if (next_pmap == NULL) {
@@ -5397,7 +5397,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 		mtx_unlock(&pvc->pvc_lock);
 
 		/*
-		 * A pv_chunk can only be removed from the pc_lru list
+		 * A pv_chunk can only be removed from the pc_pvclist list
 		 * when both pc_chunks_mutex is owned and the
 		 * corresponding pmap is locked.
 		 */
@@ -5422,7 +5422,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 				} else {
 					pmap = NULL; /* pmap is not locked */
 					mtx_lock(&pvc->pvc_lock);
-					pc = TAILQ_NEXT(pc_marker, pc_lru);
+					pc = TAILQ_NEXT(pc_marker, pc_pvclist);
 					if (pc == NULL ||
 					    pc->pc_pmap != next_pmap)
 						continue;
@@ -5490,7 +5490,7 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 		PV_STAT(counter_u64_add(pv_entry_frees, freed));
 		PV_STAT(counter_u64_add(pv_entry_spare, freed));
 		PV_STAT(counter_u64_add(pv_entry_count, -freed));
-		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
 		if (pc_is_free(pc)) {
 			PV_STAT(counter_u64_add(pv_entry_spare, -_NPCPV));
 			PV_STAT(counter_u64_add(pc_chunk_count, -1));
@@ -5499,17 +5499,17 @@ reclaim_pv_chunk_domain(pmap_t locked_pmap, struct rwlock **lockp, int domain)
 			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 			dump_drop_page(m_pc->phys_addr);
 			mtx_lock(&pvc->pvc_lock);
-			TAILQ_REMOVE(&pvc->pvc_list, pc, pc_lru);
+			TAILQ_REMOVE(&pvc->pvc_list, pc, pc_pvclist);
 			break;
 		}
-		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
+		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_pmlist);
 		mtx_lock(&pvc->pvc_lock);
 		/* One freed pv entry in locked_pmap is sufficient. */
 		if (pmap == locked_pmap)
 			break;
 next_chunk:
-		TAILQ_REMOVE(&pvc->pvc_list, pc_marker, pc_lru);
-		TAILQ_INSERT_AFTER(&pvc->pvc_list, pc, pc_marker, pc_lru);
+		TAILQ_REMOVE(&pvc->pvc_list, pc_marker, pc_pvclist);
+		TAILQ_INSERT_AFTER(&pvc->pvc_list, pc, pc_marker, pc_pvclist);
 		if (pvc->active_reclaims == 1 && pmap != NULL) {
 			/*
 			 * Rotate the pv chunks list so that we do not
@@ -5520,13 +5520,13 @@ next_chunk:
 			 */
 			while ((pc = TAILQ_FIRST(&pvc->pvc_list)) != pc_marker) {
 				MPASS(pc->pc_pmap != NULL);
-				TAILQ_REMOVE(&pvc->pvc_list, pc, pc_lru);
-				TAILQ_INSERT_TAIL(&pvc->pvc_list, pc, pc_lru);
+				TAILQ_REMOVE(&pvc->pvc_list, pc, pc_pvclist);
+				TAILQ_INSERT_TAIL(&pvc->pvc_list, pc, pc_pvclist);
 			}
 		}
 	}
-	TAILQ_REMOVE(&pvc->pvc_list, pc_marker, pc_lru);
-	TAILQ_REMOVE(&pvc->pvc_list, pc_marker_end, pc_lru);
+	TAILQ_REMOVE(&pvc->pvc_list, pc_marker, pc_pvclist);
+	TAILQ_REMOVE(&pvc->pvc_list, pc_marker_end, pc_pvclist);
 	pvc->active_reclaims--;
 	mtx_unlock(&pvc->pvc_lock);
 	reclaim_pv_chunk_leave_pmap(pmap, locked_pmap, start_di);
@@ -5575,12 +5575,12 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	if (!pc_is_free(pc)) {
 		/* 98% of the time, pc is already at the head of the list. */
 		if (__predict_false(pc != TAILQ_FIRST(&pmap->pm_pvchunk))) {
-			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-			TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
+			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
+			TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_pmlist);
 		}
 		return;
 	}
-	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
+	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
 	free_pv_chunk(pc);
 }
 
@@ -5607,7 +5607,7 @@ free_pv_chunk(struct pv_chunk *pc)
 
 	pvc = &pv_chunks[pc_to_domain(pc)];
 	mtx_lock(&pvc->pvc_lock);
-	TAILQ_REMOVE(&pvc->pvc_list, pc, pc_lru);
+	TAILQ_REMOVE(&pvc->pvc_list, pc, pc_pvclist);
 	mtx_unlock(&pvc->pvc_lock);
 	free_pv_chunk_dequeued(pc);
 }
@@ -5622,15 +5622,15 @@ free_pv_chunk_batch(struct pv_chunklist *batch)
 			continue;
 		struct pv_chunks_list *pvc = &pv_chunks[i];
 		mtx_lock(&pvc->pvc_lock);
-		TAILQ_FOREACH(pc, &batch[i], pc_list) {
-			TAILQ_REMOVE(&pvc->pvc_list, pc, pc_lru);
+		TAILQ_FOREACH(pc, &batch[i], pc_pmlist) {
+			TAILQ_REMOVE(&pvc->pvc_list, pc, pc_pvclist);
 		}
 		mtx_unlock(&pvc->pvc_lock);
 	}
 
 	for (int i = 0; i < vm_ndomains; i++) {
 		struct pv_chunk *npc;
-		TAILQ_FOREACH_SAFE(pc, &batch[i], pc_list, npc) {
+		TAILQ_FOREACH_SAFE(pc, &batch[i], pc_pmlist, npc) {
 			free_pv_chunk_dequeued(pc);
 		}
 	}
@@ -5665,8 +5665,8 @@ retry:; // ';' is needed to silence a compiler error
 			/* If this was the last item, move it to tail */
 			if (pc->pc_map[0] == 0 && pc->pc_map[1] == 0 &&
 			    pc->pc_map[2] == 0) {
-				TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-				TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_list);
+				TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
+				TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_pmlist);
 			}
 			PV_STAT(counter_u64_add(pv_entry_count, 1));
 			PV_STAT(counter_u64_add(pv_entry_spare, -1));
@@ -5695,10 +5695,10 @@ retry:; // ';' is needed to silence a compiler error
 	pc->pc_map[2] = PC_FREEL;
 	struct pv_chunks_list *pvc = &pv_chunks[vm_page_domain(m)];
 	mtx_lock(&pvc->pvc_lock);
-	TAILQ_INSERT_TAIL(&pvc->pvc_list, pc, pc_lru);
+	TAILQ_INSERT_TAIL(&pvc->pvc_list, pc, pc_pvclist);
 	mtx_unlock(&pvc->pvc_lock);
 	pv_entry_t pv = &pc->pc_pventry[0];
-	TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
+	TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_pmlist);
 	PV_STAT(counter_u64_add(pv_entry_count, 1));
 	PV_STAT(counter_u64_add(pv_entry_spare, _NPCPV - 1));
 	return (pv);
@@ -5759,7 +5759,7 @@ reserve_pv_entries(struct pmap *pmap, int needed, struct rwlock **lockp)
 		TAILQ_INIT(&new_tail[i]);
 retry:
 	avail = 0;
-	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_list) {
+	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_pmlist) {
 		int free;
 #ifndef __POPCNT__
 		if ((cpu_feature2 & CPUID2_POPCNT) == 0)
@@ -5791,8 +5791,8 @@ retry:
 		pc->pc_map[0] = PC_FREEN;
 		pc->pc_map[1] = PC_FREEN;
 		pc->pc_map[2] = PC_FREEL;
-		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
-		TAILQ_INSERT_TAIL(&new_tail[vm_page_domain(m)], pc, pc_lru);
+		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_pmlist);
+		TAILQ_INSERT_TAIL(&new_tail[vm_page_domain(m)], pc, pc_pvclist);
 		PV_STAT(counter_u64_add(pv_entry_spare, _NPCPV));
 
 		/*
@@ -5808,7 +5808,7 @@ retry:
 			continue;
 		struct pv_chunks_list *pvc = &pv_chunks[i];
 		mtx_lock(&pvc->pvc_lock);
-		TAILQ_CONCAT(&pvc->pvc_list, &new_tail[i], pc_lru);
+		TAILQ_CONCAT(&pvc->pvc_list, &new_tail[i], pc_pvclist);
 		mtx_unlock(&pvc->pvc_lock);
 	}
 }
@@ -5890,13 +5890,13 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 					goto out;
 			}
 		}
-		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-		TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_list);
+		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
+		TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_pmlist);
 	}
 out:
 	if (pc->pc_map[0] == 0 && pc->pc_map[1] == 0 && pc->pc_map[2] == 0) {
-		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-		TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_list);
+		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
+		TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_pmlist);
 	}
 	PV_STAT(counter_u64_add(pv_entry_count, NPTEPG - 1));
 	PV_STAT(counter_u64_add(pv_entry_spare, -(NPTEPG - 1)));
@@ -8585,7 +8585,7 @@ pmap_remove_pages(pmap_t pmap)
 		TAILQ_INIT(&free_chunks[i]);
 	SLIST_INIT(&free);
 	PMAP_LOCK(pmap);
-	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
+	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_pmlist, npc) {
 		bool allfree = TRUE;
 #ifdef PV_STATS
 		freed = 0;
@@ -8719,8 +8719,8 @@ pmap_remove_pages(pmap_t pmap)
 		PV_STAT(counter_u64_add(pv_entry_spare, freed));
 		PV_STAT(counter_u64_add(pv_entry_count, -freed));
 		if (allfree) {
-			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-			TAILQ_INSERT_TAIL(&free_chunks[pc_to_domain(pc)], pc, pc_list);
+			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
+			TAILQ_INSERT_TAIL(&free_chunks[pc_to_domain(pc)], pc, pc_pmlist);
 		}
 	}
 	if (lock != NULL)
