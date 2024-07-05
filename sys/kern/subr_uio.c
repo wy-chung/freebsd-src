@@ -189,6 +189,7 @@ physcopyout_vlist(vm_paddr_t src, bus_dma_segment_t *dst, off_t offset,
 	return (error);
 }
 
+// the move direction is decided by uio->uio_rw
 int
 uiomove(void *cp, int n, struct uio *uio)
 {
@@ -196,6 +197,7 @@ uiomove(void *cp, int n, struct uio *uio)
 	return (uiomove_faultflag(cp, n, uio, false));
 }
 
+// requires that the buffer and I/O vectors be accessible without incurring a page fault.
 int
 uiomove_nofault(void *cp, int n, struct uio *uio)
 {

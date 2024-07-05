@@ -435,7 +435,7 @@ panic("%s: wyctest\n", __func__); //tested. not reach here
 		pd_entry_t *l0 = pmap_l0(pmap, va);
 		if ((pmap_load(l0) & PTE_V) == 0)
 			return (NULL);
-		if ((pmap_load(l0) & PTE_RX) != 0)
+		if ((pmap_load(l0) & PTE_RWX) != 0) //ori PTE_RX
 			return (NULL);
 		return (pmap_l0_to_l1(l0, va));
 	}
@@ -463,7 +463,7 @@ pmap_l2(pmap_t pmap, vm_offset_t va)
 		return (NULL);
 	if ((pmap_load(l1) & PTE_V) == 0)
 		return (NULL);
-	if ((pmap_load(l1) & PTE_RX) != 0)
+	if ((pmap_load(l1) & PTE_RWX) != 0) //ori PTE_RX
 		return (NULL);
 
 	return (pmap_l1_to_l2(l1, va));
@@ -491,7 +491,7 @@ pmap_l3(pmap_t pmap, vm_offset_t va)
 		return (NULL);
 	if ((pmap_load(l2) & PTE_V) == 0)
 		return (NULL);
-	if ((pmap_load(l2) & PTE_RX) != 0)
+	if ((pmap_load(l2) & PTE_RWX) != 0) //ori PTE_RX
 		return (NULL);
 
 	return (pmap_l2_to_l3(l2, va));
@@ -551,7 +551,7 @@ pmap_early_page_idx(vm_offset_t l1pt, vm_offset_t va, u_int *l1_slot,
 	*l1_slot = (va >> L1_SHIFT) & Ln_ADDR_MASK;
 
 	/* Check locore has used a table L1 map */
-	KASSERT((l1[*l1_slot] & PTE_RX) == 0,
+	KASSERT((l1[*l1_slot] & PTE_RWX) == 0, //ori PTE_RX
 		("Invalid bootstrap L1 table"));
 
 	/* Find the address of the L2 table */
@@ -571,7 +571,7 @@ pmap_early_vtophys(vm_offset_t l1pt, vm_offset_t va)
 	l2 = pmap_early_page_idx(l1pt, va, &l1_slot, &l2_slot);
 
 	/* Check locore has used L2 superpages */
-	KASSERT((l2[l2_slot] & PTE_RX) != 0,
+	KASSERT((l2[l2_slot] & PTE_RWX) != 0, //ori PTE_RX
 		("Invalid bootstrap L2 table"));
 
 	/* L2 is superpages */
@@ -600,7 +600,7 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 	    va += L1_SIZE, pa += L1_SIZE) { // 1G size
 		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
 
-		/* superpages */
+		/* 1G pages */
 		pn = (pa / PAGE_SIZE);
 		entry = PTE_KERN; // accessed and dirty are both 1
 		entry |= (pn << PTE_PPN0_S);
@@ -664,7 +664,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen) // < i
 	u_int physmap_idx;
 	int i, mode;
 
-	printf("pmap_bootstrap %lx %lx %lx\n", l1pt, kernstart, kernlen);
+	printf("%s %lx %lx %lx\n", __func__, l1pt, kernstart, kernlen);
 
 	/* Set this early so we can use the pagetable walking functions */
 	kernel_pmap_store.pm_top = (pd_entry_t *)l1pt;
@@ -1006,7 +1006,7 @@ pmap_kextract(vm_offset_t va)
 	} else {
 		l2 = pmap_l2(kernel_pmap, va);
 		if (l2 == NULL)
-			panic("pmap_kextract: No l2");
+			panic("%s: No l2", __func__);
 		l2e = pmap_load(l2);
 		/*
 		 * Beware of concurrent promotion and demotion! We must
@@ -1016,7 +1016,7 @@ pmap_kextract(vm_offset_t va)
 		 * to use an old l2e because the L3 page is preserved by
 		 * promotion.
 		 */
-		if ((l2e & PTE_RX) != 0) {
+		if ((l2e & PTE_RWX) != 0) { //ori PTE_RX
 			/* superpages */
 			pa = L2PTE_TO_PHYS(l2e);
 			pa |= (va & L2_OFFSET);
@@ -2471,7 +2471,7 @@ pmap_remove_all(vm_page_t m)
 		KASSERT(l2 != NULL, ("%s: no l2 table found", __func__));
 		l2e = pmap_load(l2);
 
-		KASSERT((l2e & PTE_RX) == 0,
+		KASSERT((l2e & PTE_RWX) == 0, //ori PTE_RX
 		    ("%s: found a superpage in %p's pv list", __func__, m));
 
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
@@ -3185,11 +3185,10 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 static bool
 pmap_every_pte_zero(vm_paddr_t pa)
 {
-	pt_entry_t *pt_end, *pte;
-
 	KASSERT((pa & PAGE_MASK) == 0, ("pa is misaligned"));
-	pte = (pt_entry_t *)PHYS_TO_DMAP(pa);
-	for (pt_end = pte + Ln_ENTRIES; pte < pt_end; pte++) {
+	pt_entry_t *pt_start = (pt_entry_t *)PHYS_TO_DMAP(pa);
+	pt_entry_t *pt_end = pt_start + Ln_ENTRIES;
+	for (pt_entry_t *pte = pt_start; pte < pt_end; pte++) {
 		if (*pte != 0)
 			return (false);
 	}
@@ -3849,7 +3848,7 @@ restart:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT((pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
+		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //wycpull assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		if ((pmap_load(l3) & PTE_SW_WIRED) != 0)
@@ -4101,7 +4100,7 @@ restart:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT((pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
+		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //wycpull assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		rv = (pmap_load(l3) & mask) == mask;
@@ -4264,7 +4263,7 @@ retry_pv_loop:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT((pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
+		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //wycpull assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		oldl3e = pmap_load(l3);
@@ -4315,7 +4314,7 @@ pmap_ts_referenced(vm_page_t m)
 	int cleared, md_gen, not_cleared, pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("pmap_ts_referenced: page %p is not managed", m));
+	    ("%s: page %p is not managed", __func__, m));
 	SLIST_INIT(&free);
 	cleared = 0;
 	pa = VM_PAGE_TO_PHYS(m);
@@ -4408,10 +4407,8 @@ small_mappings:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-
-		KASSERT((pmap_load(l2) & PTE_RX) == 0,
-		    ("pmap_ts_referenced: found an invalid l2 table"));
-
+		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //wycpull  //ori PTE_RX
+		    ("%s: found an invalid l2 table", __func__));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		l3e = pmap_load(l3);
 		if ((l3e & PTE_D) != 0)
@@ -4522,7 +4519,7 @@ restart:
 			}
 		}
 		pd_entry_t *l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT((pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
+		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //wycpull assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		pt_entry_t *l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		if ((pmap_load(l3) & (PTE_D | PTE_W)) == (PTE_D | PTE_W)) {
@@ -4900,7 +4897,7 @@ pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
 	if (l1p == NULL || (pmap_load(l1p) & PTE_V) == 0)
 		return (false);
 
-	if ((pmap_load(l1p) & PTE_RX) != 0) {
+	if ((pmap_load(l1p) & PTE_RWX) != 0) { //ori PTE_RX
 		*l2 = NULL;
 		*l3 = NULL;
 		return (true);
@@ -4913,7 +4910,7 @@ pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
 	if (l2p == NULL || (pmap_load(l2p) & PTE_V) == 0)
 		return (false);
 
-	if ((pmap_load(l2p) & PTE_RX) != 0) {
+	if ((pmap_load(l2p) & PTE_RWX) != 0) { //ori PTE_RX
 		*l3 = NULL;
 		return (true);
 	}

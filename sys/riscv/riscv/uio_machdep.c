@@ -91,8 +91,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		page_offset = offset & PAGE_MASK;
 		cnt = min(cnt, PAGE_SIZE - page_offset);
 		if (uio->uio_segflg != UIO_NOCOPY) {
-			mapped = pmap_map_io_transient(
-			    &ma[offset >> PAGE_SHIFT], &vaddr, 1, true);
+			mapped = pmap_map_io_transient(&ma[offset >> PAGE_SHIFT], &vaddr, 1, true);
 			cp = (char *)vaddr + page_offset;
 		}
 		switch (uio->uio_segflg) {
@@ -115,8 +114,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 			break;
 		}
 		if (__predict_false(mapped)) {
-			pmap_unmap_io_transient(&ma[offset >> PAGE_SHIFT],
-			    &vaddr, 1, true);
+			pmap_unmap_io_transient(&ma[offset >> PAGE_SHIFT], &vaddr, 1, true);
 			mapped = false;
 		}
 		iov->iov_base = (char *)iov->iov_base + cnt;
@@ -129,8 +127,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 out:
 	if (__predict_false(mapped)) {
 		panic("TODO 3");
-		pmap_unmap_io_transient(&ma[offset >> PAGE_SHIFT], &vaddr, 1,
-		    true);
+		pmap_unmap_io_transient(&ma[offset >> PAGE_SHIFT], &vaddr, 1, true);
 	}
 	if (save == 0)
 		td->td_pflags &= ~TDP_DEADLKTREAT;

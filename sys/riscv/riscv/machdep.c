@@ -163,11 +163,14 @@ cpu_startup(void *dummy)
 	    ptoa((uintmax_t)vm_free_count()) / (1024 * 1024));
 	if (bootverbose)
 		devmap_print_table();
+printf( "dmap_phys_base %016lx\n"
+	"dmap_phys_max  %016lx\n"
+	"dmap_max_addr  %016lx\n",
+	dmap_phys_base, dmap_phys_max, dmap_max_addr); //wycprintf
 
 	bufinit();
 	vm_pager_bufferinit();
 }
-
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 int

@@ -62,7 +62,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			uio->uio_iov++;
 			uio->uio_iovcnt--;
 			if (uio->uio_iovcnt < 0)
-				panic("memrw");
+				panic("%s", __func__);
 			continue;
 		}
 
