@@ -140,11 +140,9 @@ cpu_startup(void *dummy)
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
-	if (bootverbose) {
-		int indx;
-
+	//if (bootverbose) {
 		printf("Physical memory chunk(s):\n");
-		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
+		for (int indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
 			vm_paddr_t size;
 
 			size = phys_avail[indx + 1] - phys_avail[indx];
@@ -154,7 +152,18 @@ cpu_startup(void *dummy)
 			    (uintmax_t)phys_avail[indx + 1] - 1,
 			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
 		}
-	}
+	//wycprint
+	extern vm_paddr_t phys_avail[];
+	extern long Maxmem;
+	extern const u_long vm_maxuser_address;
+
+	printf("MaxMem: %lx\n", Maxmem);
+	printf("vm_maxuser_address: %lx\n", vm_maxuser_address);
+	printf( "dmap_phys_base %016lx\n"
+		"dmap_phys_max	%016lx\n"
+		"dmap_max_addr	%016lx\n",
+		dmap_phys_base, dmap_phys_max, dmap_max_addr);
+	//}
 
 	vm_ksubmap_init(&kmi);
 
@@ -163,10 +172,6 @@ cpu_startup(void *dummy)
 	    ptoa((uintmax_t)vm_free_count()) / (1024 * 1024));
 	if (bootverbose)
 		devmap_print_table();
-printf( "dmap_phys_base %016lx\n"
-	"dmap_phys_max  %016lx\n"
-	"dmap_max_addr  %016lx\n",
-	dmap_phys_base, dmap_phys_max, dmap_max_addr); //wycprintf
 
 	bufinit();
 	vm_pager_bufferinit();
