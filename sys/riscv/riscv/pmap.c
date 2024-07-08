@@ -2086,7 +2086,7 @@ pmap_pv_demote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	pvh = pa_to_pvh(pa);
 	va &= ~L2_OFFSET;
 	pv = pmap_pv_pvh_remove(pvh, pmap, va);
-	KASSERT(pv != NULL, ("pmap_pv_demote_l2: pv not found"));
+	KASSERT(pv != NULL, ("%s: pv not found", __func__));
 	m = PHYS_TO_VM_PAGE(pa);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 	m->md.pv_gen++;
@@ -2094,7 +2094,7 @@ pmap_pv_demote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	va_last = va + L2_SIZE - PAGE_SIZE;
 	for (;;) {
 		pc = TAILQ_FIRST(&pmap->pm_pvchunk);
-		KASSERT(!pc_is_full(pc), ("pmap_pv_demote_l2: missing spare"));
+		KASSERT(!pc_is_full(pc), ("%s: missing spare", __func__));
 		for (field = 0; field < _NPCM; field++) {
 			while (pc->pc_map[field] != 0) {
 				bit = ffsl(pc->pc_map[field]) - 1;
@@ -2104,7 +2104,7 @@ pmap_pv_demote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 				pv->pv_va = va;
 				m++;
 				KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-			    ("pmap_pv_demote_l2: page %p is not managed", m));
+			    ("%s: page %p is not managed", __func__, m));
 				TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 				m->md.pv_gen++;
 				if (va == va_last)
@@ -2115,7 +2115,7 @@ pmap_pv_demote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 		TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_pmlist);
 	}
 out:
-	if (pc_is_free(pc)) {
+	if (pc_is_full(pc)) { //wycpull
 		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
 		TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_pmlist);
 	}
@@ -3903,6 +3903,7 @@ pmap_page_is_mapped(vm_page_t m)
 	return (rv);
 }
 
+// remove @pv from @m's pv_list
 static void
 pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
     struct spglist *free, bool superpage)
@@ -3924,10 +3925,10 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 		mpte = pmap_remove_pt_page(pmap, pv->pv_va);
 		if (mpte != NULL) {
 			KASSERT(vm_page_any_valid(mpte),
-			    ("pmap_remove_pages: pte page not promoted"));
+			    ("%s: pte page not promoted", __func__));
 			pmap_resident_count_dec(pmap, 1);
 			KASSERT(mpte->ref_count == Ln_ENTRIES,
-			    ("pmap_remove_pages: pte page ref count error"));
+			    ("%s: pte page ref count error", __func__));
 			mpte->ref_count = 0;
 			pmap_add_delayed_free_list(mpte, free, FALSE);
 		}
@@ -3970,9 +3971,6 @@ pmap_remove_pages(pmap_t pmap)
 	pv_entry_t pv;
 	struct pv_chunk *pc, *npc;
 	struct rwlock *lock;
-	int64_t bit;
-	uint64_t inuse, bitmask;
-	int allfree, field, freed __pv_stat_used, idx;
 	bool superpage;
 
 	lock = NULL;
@@ -3981,14 +3979,14 @@ pmap_remove_pages(pmap_t pmap)
 	rw_rlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_pmlist, npc) {
-		allfree = 1;
-		freed = 0;
-		for (field = 0; field < _NPCM; field++) {
-			inuse = ~pc->pc_map[field] & pc_freemask[field];
+		bool allfree = true;
+		int freed __pv_stat_used = 0;
+		for (int field = 0; field < _NPCM; field++) {
+			uint64_t inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
-				bit = ffsl(inuse) - 1;
-				bitmask = 1UL << bit;
-				idx = field * 64 + bit;
+				int64_t bit = ffsl(inuse) - 1;
+				uint64_t bitmask = 1UL << bit;
+				int idx = field * 64 + bit;
 				pv = &pc->pc_pventry[idx];
 				inuse &= ~bitmask;
 
@@ -4014,15 +4012,16 @@ pmap_remove_pages(pmap_t pmap)
 				 * process' mapping at this time.
 				 */
 				if (tpte & PTE_SW_WIRED) {
-					allfree = 0;
+					allfree = false;
 					continue;
 				}
+				/* Mark free */
+				pc->pc_map[field] |= bitmask;
 
 				m = PHYS_TO_VM_PAGE(PTE_TO_PHYS(tpte));
 				KASSERT((m->flags & PG_FICTITIOUS) != 0 ||
 				    m < &vm_page_array[vm_page_array_size],
-				    ("pmap_remove_pages: bad pte %#jx",
-				    (uintmax_t)tpte));
+				    ("%s: bad pte %#jx", __func__, (uintmax_t)tpte));
 
 				pmap_clear(pte);
 
@@ -4040,9 +4039,6 @@ pmap_remove_pages(pmap_t pmap)
 
 				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
 
-				/* Mark free */
-				pc->pc_map[field] |= bitmask;
-
 				pmap_remove_pages_pv(pmap, m, pv, &free, superpage);
 				pmap_unuse_pt(pmap, pv->pv_va, ptepde, &free);
 				freed++;
@@ -4053,9 +4049,9 @@ pmap_remove_pages(pmap_t pmap)
 		PV_STAT(atomic_subtract_long(&pv_entry_count, freed));
 		if (allfree) {
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
-			free_pv_chunk(pc);
+			free_pv_chunk(pc); // remove from pv_chunks list
 		}
-	}
+	} // TAILQ_FOREACH_SAFE
 	if (lock != NULL)
 		rw_wunlock(lock);
 	pmap_invalidate_all(pmap);

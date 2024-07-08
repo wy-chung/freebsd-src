@@ -95,17 +95,19 @@ typedef struct pv_entry {
 	TAILQ_ENTRY(pv_chunk)	pc_pvclist;				\
 	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 
-// pv_chunk_header will be used by amd64 but not by riscv
+// pv_chunk_header will not be used by riscv
+#if !defined(__riscv)
 struct pv_chunk_header {
-#if !defined(WYC)
+ #if !defined(WYC)
 	PV_CHUNK_HEADER
-#else
+ #else
 	struct pmap		*pc_pmap;
 	TAILQ_ENTRY(pv_chunk)	pc_pmlist;
 	TAILQ_ENTRY(pv_chunk)	pc_pvclist;
 	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
-#endif
+ #endif
 };
+#endif
 
 struct pv_chunk {
 #if !defined(WYC)
