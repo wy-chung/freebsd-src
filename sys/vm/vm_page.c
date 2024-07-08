@@ -675,7 +675,7 @@ vm_page_startup(vm_offset_t vaddr)
 			high_avail = phys_avail[i + 1];
 	}
 	first_page = low_avail / PAGE_SIZE;
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 	size = 0;
 	for (i = 0; i < vm_phys_nsegs; i++)
 		size += vm_phys_segs[i].end - vm_phys_segs[i].start;
@@ -1226,12 +1226,12 @@ PHYS_TO_VM_PAGE(vm_paddr_t pa)
 {
 	vm_page_t m;
 
-#ifdef VM_PHYSSEG_SPARSE // false
+#ifdef VM_PHYSSEG_SPARSE // riscv
 	m = vm_phys_paddr_to_vm_page(pa);
 	if (m == NULL)
 		m = vm_phys_fictitious_to_vm_page(pa);
 	return (m);
-#elif defined(VM_PHYSSEG_DENSE) // true
+#elif defined(VM_PHYSSEG_DENSE) // amd64??
 	long pi;
 
 	pi = atop(pa);

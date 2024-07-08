@@ -253,7 +253,7 @@ struct rwlock *VM_PAGE_TO_PV_LIST_LOCK(vm_page_t m)
 {
 	return PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m));
 }
-#endif
+#endif // defined(WYC)
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");
 
@@ -1570,18 +1570,18 @@ fail:
 static vm_page_t
 pmap_alloc_l2(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
 {
-	pd_entry_t *l1, l1e;
+	pd_entry_t *l1;
 	vm_page_t l2pg;
 	vm_pindex_t l2pindex;
 
 retry:
 	l1 = pmap_l1(pmap, va);
-	if (l1 != NULL && ((l1e = pmap_load(l1)) & PTE_V)) {
-		KASSERT((l1e & PTE_RWX) == 0, // point to l2 page table
+	if (l1 != NULL && (pmap_load(l1) & PTE_V) != 0) {
+		KASSERT((pmap_load(l1) & PTE_RWX) == 0, // point to l2 page table
 		    ("%s: L1 entry %#lx for VA %#lx is a leaf", __func__,
-		    l1e, va));
+		    pmap_load(l1), va));
 		/* Add a reference to the L2 page. */
-		l2pg = PHYS_TO_VM_PAGE(PTE_TO_PHYS(l1e));
+		l2pg = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l1)));
 		l2pg->ref_count++;
 	} else {
 		/* Allocate a L2 page. */
@@ -2362,8 +2362,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (pmap_load(l1) == 0) {
 			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
 			if (va_next < sva)
-				//ori va_next = eva;
-				break; //wyc
+				va_next = eva;
+				//break; //wycpull can break immediately out of the for loop here
 			continue;
 		}
 
@@ -2632,8 +2632,7 @@ pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 		goto done;
 	if ((l2e & PTE_RWX) == 0) { // point to l3 page table
 		pte = pmap_l2_to_l3(l2, va);
-		olde = pmap_load(pte);
-		if ((olde & PTE_V) == 0)
+		if (((olde = pmap_load(pte)) & PTE_V) == 0)
 			goto done;
 	} else {
 		pte = l2;
@@ -2869,7 +2868,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3, stru
 		return (false);
 	}
 
-	if (firstl3e & PTE_SW_MANAGED)
+	if ((firstl3e & PTE_SW_MANAGED) != 0)
 		pmap_pv_promote_l2(pmap, va, PTE_TO_PHYS(firstl3e), lockp);
 
 	pmap_store(l2, firstl3e);
@@ -2917,17 +2916,16 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	new_l3e = PTE_V | PTE_R | PTE_A;
 	if (prot & VM_PROT_EXECUTE)
 		new_l3e |= PTE_X;
-	if (prot & VM_PROT_WRITE)
-		new_l3e |= PTE_W;
-
 	if (flags & VM_PROT_WRITE) // A write  access to the given virtual address triggered the call
 		new_l3e |= PTE_D;
-	if ((flags & PMAP_ENTER_WIRED) != 0) // The mapping should be marked as wired
-		new_l3e |= PTE_SW_WIRED;
+	if (prot & VM_PROT_WRITE)
+		new_l3e |= PTE_W;
 	if (va < VM_MAX_USER_ADDRESS)
 		new_l3e |= PTE_U;
 
 	new_l3e |= (pn << PTE_PPN0_S);
+	if ((flags & PMAP_ENTER_WIRED) != 0) // The mapping should be marked as wired
+		new_l3e |= PTE_SW_WIRED;
 
 	/*
 	 * Set modified bit gratuitously for writeable mappings if
@@ -3066,7 +3064,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		orig_l3e = pmap_load_clear(l3);
 		KASSERT(PTE_TO_PHYS(orig_l3e) == opa,
 		    ("%s: unexpected pa update for %#lx", __func__, va));
-		if (orig_l3e & PTE_SW_MANAGED) {
+		if ((orig_l3e & PTE_SW_MANAGED) != 0) {
 			om = PHYS_TO_VM_PAGE(opa);
 
 			/*
@@ -3258,17 +3256,16 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 					break;
 			}
 		vm_page_free_pages_toq(&free, true);
-		pd_entry_t l2e = pmap_load(l2);
 		if (va >= VM_MAXUSER_ADDRESS) {
 			/*
 			 * Both pmap_remove_l2() and pmap_remove_l3() will
 			 * leave the kernel page table page zero filled.
 			 */
-			vm_page_t mt = PHYS_TO_VM_PAGE(PTE_TO_PHYS(l2e));
+			vm_page_t mt = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
 			if (pmap_insert_pt_page(pmap, mt, false, false) != ESUCCESS)
 				panic("%s: trie insert failed", __func__);
 		} else
-			KASSERT(l2e == 0,
+			KASSERT(pmap_load(l2) == 0,
 			    ("%s: non-zero L2 entry %p", __func__, l2));
 	}
 
@@ -3290,7 +3287,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 		pmap_resident_count_inc(pmap, 1);
 		uwptpg->ref_count = Ln_ENTRIES;
 	}
-	if (new_l2e & PTE_SW_MANAGED) {
+	if ((new_l2e & PTE_SW_MANAGED) != 0) {
 		/*
 		 * Abort this mapping if its PV entry could not be created.
 		 */

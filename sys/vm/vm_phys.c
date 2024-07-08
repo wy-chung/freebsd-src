@@ -551,12 +551,12 @@ vm_phys_init(void)
 	 * Initialize the first_page and free_queues fields of each physical
 	 * memory segment.
 	 */
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 	npages = 0;
 #endif
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 		seg->first_page = &vm_page_array[npages];
 		npages += atop(seg->end - seg->start);
 #else
