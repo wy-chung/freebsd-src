@@ -74,7 +74,7 @@ struct pmap {
 	struct mtx		pm_mtx;
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 	pd_entry_t		*pm_top;	/* top-level page table page */
-	u_long			pm_satp;	/* value for SATP register */
+	u_long			pm_satp;	/* value for SATP register */ // Supervisor Address Translation and Protection
 	cpuset_t		pm_active;	/* active on cpus */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */

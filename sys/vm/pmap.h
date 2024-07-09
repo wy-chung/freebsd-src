@@ -103,9 +103,9 @@ extern vm_offset_t kernel_vm_end;
  * for the protection code (vm_prot_t) that describes the fault type.
  * Bits 24 through 31 are reserved for the pmap's internal use.
  */
-#define	PMAP_ENTER_NOSLEEP	0x00000100
-#define	PMAP_ENTER_WIRED	0x00000200
-#define	PMAP_ENTER_LARGEPAGE	0x00000400
+#define	PMAP_ENTER_NOSLEEP	0x00000100 // This function may not sleep
+#define	PMAP_ENTER_WIRED	0x00000200 // The mapping should be marked as wired
+#define	PMAP_ENTER_LARGEPAGE	0x00000400 // This flag is not used
 #define	PMAP_ENTER_RESERVED	0xFF000000
 
 /*

@@ -1350,6 +1350,7 @@ pmap_satp_mode(void)
 	return (pmap_mode == PMAP_MODE_SV39 ? SATP_MODE_SV39 : SATP_MODE_SV48);
 }
 
+// init the pmap of proc0 (swapper)
 void
 pmap_pinit0(pmap_t pmap)
 {
@@ -2115,7 +2116,7 @@ pmap_pv_demote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 		TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_pmlist);
 	}
 out:
-	if (pc_is_full(pc)) { //wycpull
+	if (pc_is_full(pc)) {
 		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
 		TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_pmlist);
 	}
@@ -2895,17 +2896,12 @@ int
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     u_int flags, int8_t psind)
 {
-	struct rwlock *lock;
-	pd_entry_t *l1, *l2, l2e;
-	pt_entry_t new_l3e, orig_l3e;
+	pd_entry_t *l2, l2e;
+	pt_entry_t new_l3e;
 	pt_entry_t *l3;
-	pv_entry_t pv;
-	vm_paddr_t opa, pa, l2_pa, l3_pa;
-	vm_page_t mpte, om, l2_m, l3_m;
-	pt_entry_t entry;
-	pn_t l2_pn, l3_pn, pn;
+	vm_paddr_t pa;
+	pn_t pn;
 	int rv;
-	bool nosleep;
 
 	va = trunc_page(va);
 	if ((m->oflags & VPO_UNMANAGED) == 0)
@@ -2940,8 +2936,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	CTR3(KTR_PMAP, "%s: %.16lx -> %.16lx", __func__, va, pa);
 
-	lock = NULL;
-	mpte = NULL;
+	struct rwlock *lock = NULL;
+	vm_page_t mpte = NULL;
 	rw_rlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	if (psind == 1) {
@@ -2962,7 +2958,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			mpte->ref_count++;
 		}
 	} else if (va < VM_MAXUSER_ADDRESS) {
-		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
+		bool nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
 		mpte = pmap_alloc_l3(pmap, va, nosleep ? NULL : &lock);
 		if (mpte == NULL && nosleep) {
 			CTR1(KTR_PMAP, "%s: mpte == NULL", __func__);
@@ -2978,29 +2974,28 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		/* TODO: This is not optimal, but should mostly work */
 		if (l3 == NULL) {
 			if (l2 == NULL) {
-				l2_m = vm_page_alloc_noobj(VM_ALLOC_WIRED |
-				    VM_ALLOC_ZERO);
+				vm_page_t l2_m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 				if (l2_m == NULL)
 					panic("%s: l2 pte_m == NULL", __func__);
 
-				l2_pa = VM_PAGE_TO_PHYS(l2_m);
-				l2_pn = (l2_pa / PAGE_SIZE);
+				vm_paddr_t l2_pa = VM_PAGE_TO_PHYS(l2_m);
+				pn_t l2_pn = (l2_pa / PAGE_SIZE);
 
-				l1 = pmap_l1(pmap, va);
-				entry = (PTE_V);
+				pd_entry_t *l1 = pmap_l1(pmap, va);
+				pt_entry_t entry = (PTE_V);
 				entry |= (l2_pn << PTE_PPN0_S);
 				pmap_store(l1, entry);
 				pmap_distribute_l1(pmap, pmap_l1_index(va), entry);
 				l2 = pmap_l1_to_l2(l1, va);
 			}
 
-			l3_m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+			vm_page_t l3_m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (l3_m == NULL)
 				panic("%s: l3 pte_m == NULL", __func__);
 
-			l3_pa = VM_PAGE_TO_PHYS(l3_m);
-			l3_pn = (l3_pa / PAGE_SIZE);
-			entry = (PTE_V);
+			vm_paddr_t l3_pa = VM_PAGE_TO_PHYS(l3_m);
+			pn_t l3_pn = (l3_pa / PAGE_SIZE);
+			pt_entry_t entry = (PTE_V);
 			entry |= (l3_pn << PTE_PPN0_S);
 			pmap_store(l2, entry);
 			l3 = pmap_l2_to_l3(l2, va);
@@ -3008,9 +3003,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pmap_invalidate_page(pmap, va);
 	}
 
-	orig_l3e = pmap_load(l3);
-	opa = PTE_TO_PHYS(orig_l3e);
-	pv = NULL;
+	pt_entry_t orig_l3e = pmap_load(l3);
+	vm_paddr_t opa = PTE_TO_PHYS(orig_l3e);
+	pv_entry_t pv = NULL;
 
 	/*
 	 * Is the specified virtual address already mapped?
@@ -3065,7 +3060,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		KASSERT(PTE_TO_PHYS(orig_l3e) == opa,
 		    ("%s: unexpected pa update for %#lx", __func__, va));
 		if ((orig_l3e & PTE_SW_MANAGED) != 0) {
-			om = PHYS_TO_VM_PAGE(opa);
+			vm_page_t om = PHYS_TO_VM_PAGE(opa);
 
 			/*
 			 * The pmap lock is sufficient to synchronize with
@@ -3196,11 +3191,11 @@ pmap_every_pte_zero(vm_paddr_t pa)
 /*
  * Tries to create the specified 2MB page mapping.  Returns KERN_SUCCESS if
  * the mapping was created, and one of KERN_FAILURE, KERN_NO_SPACE, or
- * KERN_RESOURCE_SHORTAGE otherwise.  Returns KERN_FAILURE if
+ * KERN_RESOURCE_SHORTAGE otherwise. ==> Returns KERN_FAILURE if
  * PMAP_ENTER_NOREPLACE was specified and a 4KB page mapping already exists
  * within the 2MB virtual address range starting at the specified virtual
- * address.  Returns KERN_NO_SPACE if PMAP_ENTER_NOREPLACE was specified and a
- * 2MB page mapping already exists at the specified virtual address.  Returns
+ * address. ==> Returns KERN_NO_SPACE if PMAP_ENTER_NOREPLACE was specified and a
+ * 2MB page mapping already exists at the specified virtual address. ==> Returns
  * KERN_RESOURCE_SHORTAGE if either (1) PMAP_ENTER_NOSLEEP was specified and a
  * page table page allocation failed or (2) PMAP_ENTER_NORECLAIM was specified
  * and a PV entry allocation failed.
@@ -4730,9 +4725,9 @@ pmap_activate_boot(pmap_t pmap)
 #ifdef SMP
 	CPU_SET_ATOMIC(hart, &pmap->pm_active);
 #else
-	CPU_SET(hart, &pmap->pm_active);
+	CPU_SET(hart, &pmap->pm_active); // (src, dst)
 #endif
-	PCPU_SET(pc_curpmap, pmap);
+	PCPU_SET(pc_curpmap, pmap); // (dst, src)
 }
 
 void
@@ -4900,7 +4895,7 @@ pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
 	l2p = pmap_l1_to_l2(l1p, va);
 	*l2 = l2p;
 
-	if (l2p == NULL || (pmap_load(l2p) & PTE_V) == 0)
+	if (/*l2p == NULL || */(pmap_load(l2p) & PTE_V) == 0) //wycpull
 		return (false);
 
 	if ((pmap_load(l2p) & PTE_RWX) != 0) { //ori PTE_RX

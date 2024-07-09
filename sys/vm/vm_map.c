@@ -335,10 +335,10 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 if (pinit != pmap_pinit) panic("%s: wyctest", __func__); // tested
 #if 1 //wyc
 	ret = pinit(vmspace_pmap(vm));
-#if defined(WYC)
+ #if defined(WYC)
 	ret = pmap_pinit(vmspace_pmap(vm)); // riscv: always returns 1
 	ret = pmap_pinit_type(vmspace_pmap(vm), PT_X86, pmap_flags); // amd64: always returns 1
-#endif
+ #endif
 	if (!ret) { //wyc always false
 		uma_zfree(vmspace_zone, vm);
 		return (NULL);

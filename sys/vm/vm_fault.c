@@ -573,8 +573,8 @@ vm_fault_populate(struct faultstate *fs)
 		    ("unaligned superpage m %p %#jx", m,
 		    (uintmax_t)VM_PAGE_TO_PHYS(m)));
 		rv = pmap_enter(fs->map->pmap, vaddr, m, fs->prot,
-		    fs->fault_type | (fs->wired ? PMAP_ENTER_WIRED : 0) |
-		    PMAP_ENTER_LARGEPAGE, bdry_idx);
+		    fs->fault_type | (fs->wired ? PMAP_ENTER_WIRED : 0) | PMAP_ENTER_LARGEPAGE,
+		    bdry_idx);
 		VM_OBJECT_WLOCK(fs->first_object);
 		vm_page_xunbusy(m);
 		if (rv != KERN_SUCCESS) {

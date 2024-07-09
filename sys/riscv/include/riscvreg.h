@@ -153,8 +153,10 @@
 #define	SATP_ASID_M	(0xffffUL << SATP_ASID_S)
 #define	SATP_MODE_S	60
 #define	SATP_MODE_M	(0xfUL << SATP_MODE_S)
-#define	SATP_MODE_SV39	(8ULL << SATP_MODE_S)
-#define	SATP_MODE_SV48	(9ULL << SATP_MODE_S)
+#define	SATP_MODE_SV39	 (8ULL << SATP_MODE_S)
+#define	SATP_MODE_SV48	 (9ULL << SATP_MODE_S)
+#define	SATP_MODE_SV57	(10ULL << SATP_MODE_S)
+#define	SATP_MODE_SV64	(11ULL << SATP_MODE_S)
 
 #define	XLEN		__riscv_xlen
 #define	XLEN_BYTES	(XLEN / 8)
