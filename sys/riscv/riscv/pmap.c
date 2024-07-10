@@ -1423,9 +1423,7 @@ panic("%s: wyctest\n", __func__); // tested
 static vm_page_t
 _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 {
-	vm_page_t m, pdpg;
-	pt_entry_t entry;
-	vm_paddr_t phys;
+	vm_page_t m;
 	pn_t pn;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -1471,7 +1469,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		KASSERT((pmap_load(l0) & PTE_V) == 0,
 		    ("%s: L0 entry %#lx is valid", __func__, pmap_load(l0)));
 
-		entry = PTE_V | (pn << PTE_PPN0_S);
+		pt_entry_t entry = PTE_V | (pn << PTE_PPN0_S);
 		pmap_store(l0, entry);
 	} else if (ptepindex >= NUL2E) {
 		pd_entry_t *l0, *l1;
@@ -1481,6 +1479,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		if (pmap_mode == PMAP_MODE_SV39) {
 			l1 = &pmap->pm_top[l1index];
 		} else {
+			vm_paddr_t phys;
 			l0index = l1index >> Ln_ENTRIES_SHIFT;
 			l0 = &pmap->pm_top[l0index];
 			if (pmap_load(l0) == 0) {
@@ -1491,7 +1490,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				phys = PTE_TO_PHYS(pmap_load(l0));
 			} else {
 				phys = PTE_TO_PHYS(pmap_load(l0));
-				pdpg = PHYS_TO_VM_PAGE(phys);
+				vm_page_t pdpg = PHYS_TO_VM_PAGE(phys);
 				pdpg->ref_count++;
 			}
 			l1 = (pd_entry_t *)PHYS_TO_DMAP(phys);
@@ -1500,7 +1499,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		KASSERT((pmap_load(l1) & PTE_V) == 0,
 		    ("%s: L1 entry %#lx is valid", __func__, pmap_load(l1)));
 
-		entry = PTE_V | (pn << PTE_PPN0_S);
+		pt_entry_t entry = PTE_V | (pn << PTE_PPN0_S);
 		pmap_store(l1, entry);
 		pmap_distribute_l1(pmap, l1index, entry);
 	} else {
@@ -1516,8 +1515,8 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				    lockp) == NULL)
 					goto fail;
 			} else {
-				phys = PTE_TO_PHYS(pmap_load(l1));
-				pdpg = PHYS_TO_VM_PAGE(phys);
+				vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l1));
+				vm_page_t pdpg = PHYS_TO_VM_PAGE(phys);
 				pdpg->ref_count++;
 			}
 		} else {
@@ -1528,33 +1527,33 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				if (_pmap_alloc_l3(pmap, NUL2E + l1index,
 				    lockp) == NULL)
 					goto fail;
-				phys = PTE_TO_PHYS(pmap_load(l0));
-				l1 = (pd_entry_t *)PHYS_TO_DMAP(phys);
-				l1 = &l1[l1index & Ln_ADDR_MASK];
+				vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l0));
+				pd_entry_t *l1pt = (pd_entry_t *)PHYS_TO_DMAP(phys);
+				l1 = &l1pt[l1index & Ln_ADDR_MASK];
 			} else {
-				phys = PTE_TO_PHYS(pmap_load(l0));
-				l1 = (pd_entry_t *)PHYS_TO_DMAP(phys);
-				l1 = &l1[l1index & Ln_ADDR_MASK];
+				vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l0));
+				pd_entry_t *l1pt = (pd_entry_t *)PHYS_TO_DMAP(phys);
+				l1 = &l1pt[l1index & Ln_ADDR_MASK];
 				if (pmap_load(l1) == 0) {
 					/* Recurse to allocate the L2 page. */
 					if (_pmap_alloc_l3(pmap,
 					    NUL2E + l1index, lockp) == NULL)
 						goto fail;
 				} else {
-					phys = PTE_TO_PHYS(pmap_load(l1));
-					pdpg = PHYS_TO_VM_PAGE(phys);
+					vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l1));
+					vm_page_t pdpg = PHYS_TO_VM_PAGE(phys);
 					pdpg->ref_count++;
 				}
 			}
 		}
 
-		phys = PTE_TO_PHYS(pmap_load(l1));
-		l2 = (pd_entry_t *)PHYS_TO_DMAP(phys);
-		l2 = &l2[ptepindex & Ln_ADDR_MASK];
+		vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l1));
+		pd_entry_t *l2pt = (pd_entry_t *)PHYS_TO_DMAP(phys);
+		l2 = &l2pt[ptepindex & Ln_ADDR_MASK];
 		KASSERT((pmap_load(l2) & PTE_V) == 0,
 		    ("%s: L2 entry %#lx is valid", __func__, pmap_load(l2)));
 
-		entry = PTE_V | (pn << PTE_PPN0_S);
+		pt_entry_t entry = PTE_V | (pn << PTE_PPN0_S);
 		pmap_store(l2, entry);
 	}
 
@@ -2912,7 +2911,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	new_l3e = PTE_V | PTE_R | PTE_A;
 	if (prot & VM_PROT_EXECUTE)
 		new_l3e |= PTE_X;
-	if (flags & VM_PROT_WRITE) // A write  access to the given virtual address triggered the call
+	if (flags & VM_PROT_WRITE) // A write access to the given virtual address triggered the call
 		new_l3e |= PTE_D;
 	if (prot & VM_PROT_WRITE)
 		new_l3e |= PTE_W;
