@@ -1277,41 +1277,35 @@ pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 static void
 _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 {
-	vm_paddr_t phys;
-
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (m->pindex >= NL3PTP + NL2PTP) {
+	if (m->pindex >= NL3PTP + NL2PTP) { // a L1PTP
 		pd_entry_t *l0;
 		l0 = pmap_l0(pmap, va);
 		pmap_clear(l0);
-	} else if (m->pindex >= NL3PTP) {
+	} else if (m->pindex >= NL3PTP) { // a L2PTP
 		pd_entry_t *l1;
 		l1 = pmap_l1(pmap, va);
 		pmap_clear(l1);
 		pmap_distribute_l1(pmap, pmap_l1_index(va), 0);
-	} else {
+	} else { // a L3PTP
 		pd_entry_t *l2;
 		l2 = pmap_l2(pmap, va);
 		pmap_clear(l2);
 	}
 	pmap_resident_count_dec(pmap, 1);
-	if (m->pindex < NL3PTP) {
-		pd_entry_t *l1;
-		vm_page_t pdpg;
 
-		l1 = pmap_l1(pmap, va);
-		phys = PTE_TO_PHYS(pmap_load(l1));
-		pdpg = PHYS_TO_VM_PAGE(phys);
-		pmap_unwire_ptp(pmap, va, pdpg, free);
-	} else if (m->pindex < NL3PTP + NL2PTP && pmap_mode != PMAP_MODE_SV39) {
-		pd_entry_t *l0;
-		vm_page_t pdpg;
-
+	if (m->pindex < NL3PTP) { // a L3PTP
+		pd_entry_t *l1 = pmap_l1(pmap, va);
+		vm_paddr_t l2pt_phys = PTE_TO_PHYS(pmap_load(l1));
+		vm_page_t  l2pt_m = PHYS_TO_VM_PAGE(l2pt_phys);
+		pmap_unwire_ptp(pmap, va, l2pt_m, free);
+	} else if (m->pindex < NL3PTP + NL2PTP && // 1 L2PTP
+		   pmap_mode != PMAP_MODE_SV39) {
 		MPASS(pmap_mode != PMAP_MODE_SV39);
-		l0 = pmap_l0(pmap, va);
-		phys = PTE_TO_PHYS(pmap_load(l0));
-		pdpg = PHYS_TO_VM_PAGE(phys);
-		pmap_unwire_ptp(pmap, va, pdpg, free);
+		pd_entry_t *l0 = pmap_l0(pmap, va);
+		vm_paddr_t l1pt_phys = PTE_TO_PHYS(pmap_load(l0));
+		vm_page_t  l1pt_m = PHYS_TO_VM_PAGE(l1pt_phys);
+		pmap_unwire_ptp(pmap, va, l1pt_m, free);
 	}
 	pmap_invalidate_page(pmap, va);
 
@@ -3249,7 +3243,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 	/*
 	 * Allocate leaf ptpage for wired userspace pages.
 	 */
-	vm_page_t uwptpg = NULL;
+	vm_page_t uwptpg = NULL; // use wired page table page
 	if ((new_l2e & PTE_SW_WIRED) != 0 && pmap != kernel_pmap) {
 		uwptpg = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 		if (uwptpg == NULL) {
