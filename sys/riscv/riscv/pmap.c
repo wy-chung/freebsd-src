@@ -169,9 +169,9 @@
  * ranges are not fully populated since there are at most Ln_ENTRIES^2 L3 pages
  * in a set of page tables.
  */
-#define	NUL0E		Ln_ENTRIES		// total number of l0 entries
-#define	NUL1E		(NUL0E * Ln_ENTRIES)	// total number of l1 entries
-#define	NUL2E		(NUL1E * Ln_ENTRIES)	// total number of l2 entries
+#define	NL1PTP		Ln_ENTRIES		// total number of l0 entries
+#define	NL2PTP		(NL1PTP * Ln_ENTRIES)	// total number of l1 entries
+#define	NL3PTP		(NL2PTP * Ln_ENTRIES)	// total number of l2 entries
 
 #ifdef PV_STATS
 #define PV_STAT(x)	do { x ; } while (0)
@@ -181,7 +181,7 @@
 #define	__pv_stat_used	__unused
 #endif
 
-//#define	pmap_l1_pindex(v)	(NUL2E + ((v) >> L1_SHIFT))
+//#define	pmap_l1_pindex(v)	(NL3PTP + ((v) >> L1_SHIFT))
 #define	pmap_l2_pindex(v)	((v) >> L2_SHIFT)
 #define	pa_to_pvh(pa)		(&pvh_table[pa_index(pa)])
 
@@ -1280,11 +1280,11 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 	vm_paddr_t phys;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (m->pindex >= NUL2E + NUL1E) {
+	if (m->pindex >= NL3PTP + NL2PTP) {
 		pd_entry_t *l0;
 		l0 = pmap_l0(pmap, va);
 		pmap_clear(l0);
-	} else if (m->pindex >= NUL2E) {
+	} else if (m->pindex >= NL3PTP) {
 		pd_entry_t *l1;
 		l1 = pmap_l1(pmap, va);
 		pmap_clear(l1);
@@ -1295,7 +1295,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		pmap_clear(l2);
 	}
 	pmap_resident_count_dec(pmap, 1);
-	if (m->pindex < NUL2E) {
+	if (m->pindex < NL3PTP) {
 		pd_entry_t *l1;
 		vm_page_t pdpg;
 
@@ -1303,7 +1303,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		phys = PTE_TO_PHYS(pmap_load(l1));
 		pdpg = PHYS_TO_VM_PAGE(phys);
 		pmap_unwire_ptp(pmap, va, pdpg, free);
-	} else if (m->pindex < NUL2E + NUL1E && pmap_mode != PMAP_MODE_SV39) {
+	} else if (m->pindex < NL3PTP + NL2PTP && pmap_mode != PMAP_MODE_SV39) {
 		pd_entry_t *l0;
 		vm_page_t pdpg;
 
@@ -1451,27 +1451,27 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 	 * it isn't already there.
 	 */
 	pn = VM_PAGE_TO_PHYS(m) >> PAGE_SHIFT;
-	if (ptepindex >= NUL2E + NUL1E) {
+	if (ptepindex >= NL3PTP + NL2PTP) {
 		pd_entry_t *l0;
 		vm_pindex_t l0index;
 
 		KASSERT(pmap_mode != PMAP_MODE_SV39,
 		    ("%s: pindex %#lx in SV39 mode", __func__, ptepindex));
-		KASSERT(ptepindex < NUL2E + NUL1E + NUL0E,
+		KASSERT(ptepindex < NL3PTP + NL2PTP + NL1PTP,
 		    ("%s: pindex %#lx out of range", __func__, ptepindex));
 
-		l0index = ptepindex - (NUL2E + NUL1E);
+		l0index = ptepindex - (NL3PTP + NL2PTP);
 		l0 = &pmap->pm_top[l0index];
 		KASSERT((pmap_load(l0) & PTE_V) == 0,
 		    ("%s: L0 entry %#lx is valid", __func__, pmap_load(l0)));
 
 		pt_entry_t entry = PTE_V | (pn << PTE_PPN0_S);
 		pmap_store(l0, entry);
-	} else if (ptepindex >= NUL2E) {
+	} else if (ptepindex >= NL3PTP) {
 		pd_entry_t *l0, *l1;
 		vm_pindex_t l0index, l1index;
 
-		l1index = ptepindex - NUL2E;
+		l1index = ptepindex - NL3PTP;
 		if (pmap_mode == PMAP_MODE_SV39) {
 			l1 = &pmap->pm_top[l1index];
 		} else {
@@ -1481,7 +1481,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			if (pmap_load(l0) == 0) {
 				/* Recurse to allocate the L1 page. */
 				if (_pmap_alloc_l3(pmap,
-				    NUL2E + NUL1E + l0index, lockp) == NULL)
+				    NL3PTP + NL2PTP + l0index, lockp) == NULL)
 					goto fail;
 				phys = PTE_TO_PHYS(pmap_load(l0));
 			} else {
@@ -1507,7 +1507,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			l1 = &pmap->pm_top[l1index];
 			if (pmap_load(l1) == 0) {
 				/* recurse for allocating page dir */
-				if (_pmap_alloc_l3(pmap, NUL2E + l1index,
+				if (_pmap_alloc_l3(pmap, NL3PTP + l1index,
 				    lockp) == NULL)
 					goto fail;
 			} else {
@@ -1520,7 +1520,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			l0 = &pmap->pm_top[l0index];
 			if (pmap_load(l0) == 0) {
 				/* Recurse to allocate the L1 entry. */
-				if (_pmap_alloc_l3(pmap, NUL2E + l1index,
+				if (_pmap_alloc_l3(pmap, NL3PTP + l1index,
 				    lockp) == NULL)
 					goto fail;
 				vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l0));
@@ -1533,7 +1533,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				if (pmap_load(l1) == 0) {
 					/* Recurse to allocate the L2 page. */
 					if (_pmap_alloc_l3(pmap,
-					    NUL2E + l1index, lockp) == NULL)
+					    NL3PTP + l1index, lockp) == NULL)
 						goto fail;
 				} else {
 					vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l1));
@@ -1582,7 +1582,7 @@ retry:
 	} else {
 		/* Allocate a L2 page. */
 		l2pindex = pmap_l2_pindex(va) >> Ln_ENTRIES_SHIFT;
-		l2pg = _pmap_alloc_l3(pmap, NUL2E + l2pindex, lockp);
+		l2pg = _pmap_alloc_l3(pmap, NL3PTP + l2pindex, lockp);
 		if (l2pg == NULL && lockp != NULL)
 			goto retry;
 	}
