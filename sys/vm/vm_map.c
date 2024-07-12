@@ -3478,16 +3478,15 @@ vm_map_wire_user_count_add(u_long npages)
  *	The map should be locked.
  */
 static void
-vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry,
-    vm_offset_t failed_addr)
+vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry, vm_offset_t failed_addr)
 {
 
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0 &&
 	    entry->wired_count == 1,
-	    ("vm_map_wire_entry_failure: entry %p isn't being wired", entry));
+	    ("%s: entry %p isn't being wired", __func__, entry));
 	KASSERT(failed_addr < entry->end,
-	    ("vm_map_wire_entry_failure: entry %p was fully wired", entry));
+	    ("%s: entry %p was fully wired", __func__, entry));
 
 	/*
 	 * If any pages at the start of this entry were successfully wired,
@@ -3526,12 +3525,9 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 int
 vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 {
-	vm_map_entry_t entry, first_entry, next_entry, prev_entry;
-	vm_offset_t faddr, saved_end, saved_start;
-	u_long incr, npages;
-	u_int bidx, last_timestamp;
+	vm_map_entry_t entry, first_entry, next_entry;
 	int rv;
-	bool holes_ok, need_wakeup, user_wire;
+	bool holes_ok, user_wire;
 	vm_prot_t prot;
 
 	VM_MAP_ASSERT_LOCKED(map);
@@ -3594,7 +3590,7 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 		} else if (entry->wired_count == 0) {
 			entry->wired_count++;
 
-			npages = atop(entry->end - entry->start);
+			u_long npages = atop(entry->end - entry->start);
 			if (user_wire && !vm_map_wire_user_count_add(npages)) {
 				vm_map_wire_entry_failure(map, entry,
 				    entry->start);
@@ -3607,14 +3603,15 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 			 * Release the map lock, relying on the in-transition
 			 * mark.  Mark the map busy for fork.
 			 */
-			saved_start = entry->start;
-			saved_end = entry->end;
-			last_timestamp = map->timestamp;
-			bidx = MAP_ENTRY_SPLIT_BOUNDARY_INDEX(entry);
-			incr =  pagesizes[bidx];
+			vm_offset_t saved_start = entry->start;
+			vm_offset_t saved_end = entry->end;
+			u_int last_timestamp = map->timestamp;
+			u_int bidx = MAP_ENTRY_SPLIT_BOUNDARY_INDEX(entry);
+			u_long incr =  pagesizes[bidx];
 			vm_map_busy(map);
 			vm_map_unlock(map);
 
+			vm_offset_t faddr;
 			for (faddr = saved_start; faddr < saved_end;
 			    faddr += incr) {
 				/*
@@ -3679,8 +3676,9 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 		}
 	}
 	rv = KERN_SUCCESS;
-done:
-	need_wakeup = false;
+done:;
+	vm_map_entry_t prev_entry;
+	bool need_wakeup = false;
 	if (first_entry == NULL &&
 	    !vm_map_lookup_entry(map, start, &first_entry)) {
 		KASSERT(holes_ok, ("vm_map_wire: lookup failed"));
