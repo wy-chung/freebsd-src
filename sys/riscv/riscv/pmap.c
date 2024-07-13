@@ -3547,36 +3547,36 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	pv_lists_locked = false;
 retry:
 	PMAP_LOCK(pmap);
-	for (; sva < eva; sva = va_next) {
+	for (vm_offset_t va = sva; va < eva; va = va_next) {
 		if (pmap_mode == PMAP_MODE_SV48) {
-			pd_entry_t *l0 = pmap_l0(pmap, sva);
+			pd_entry_t *l0 = pmap_l0(pmap, va);
 			if (pmap_load(l0) == 0) {
-				va_next = (sva + L0_SIZE) & ~L0_OFFSET;
-				if (va_next < sva)
+				va_next = (va + L0_SIZE) & ~L0_OFFSET;
+				if (va_next < va)
 					va_next = eva;
 				continue;
 			}
-			l1 = pmap_l0_to_l1(l0, sva);
+			l1 = pmap_l0_to_l1(l0, va);
 		} else {
-			l1 = pmap_l1(pmap, sva);
+			l1 = pmap_l1(pmap, va);
 		}
 
 		if (pmap_load(l1) == 0) {
-			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
-			if (va_next < sva)
+			va_next = (va + L1_SIZE) & ~L1_OFFSET;
+			if (va_next < va)
 				va_next = eva;
 			continue;
 		}
 
-		va_next = (sva + L2_SIZE) & ~L2_OFFSET;
-		if (va_next < sva)
+		va_next = (va + L2_SIZE) & ~L2_OFFSET;
+		if (va_next < va)
 			va_next = eva;
 
-		l2 = pmap_l1_to_l2(l1, sva);
+		l2 = pmap_l1_to_l2(l1, va);
 		if ((l2e = pmap_load(l2)) == 0)
 			continue;
 		if ((l2e & PTE_RWX) != 0) { // superpage
-			if (sva + L2_SIZE == va_next && eva >= va_next) {
+			if (va + L2_SIZE == va_next && eva >= va_next) {
 				if ((l2e & PTE_SW_WIRED) == 0)
 					panic("%s: l2 %#jx is missing "
 					    "PTE_SW_WIRED", __func__, (uintmax_t)l2e);
@@ -3588,18 +3588,19 @@ retry:
 					if (!rw_try_rlock(&pvh_global_lock)) {
 						PMAP_UNLOCK(pmap);
 						rw_rlock(&pvh_global_lock);
-						/* Repeat sva. */
+						/* Repeat va. */
 						goto retry;
 					}
 				}
-				if (!pmap_demote_l2(pmap, l2, sva))
+				if (!pmap_demote_l2(pmap, l2, va))
 					panic("%s: demotion failed", __func__);
 			}
 		}
 
 		if (va_next > eva)
 			va_next = eva;
-		for (pt_entry_t *l3 = pmap_l2_to_l3(l2, sva); sva != va_next; l3++, sva += L3_SIZE) {
+		for (pt_entry_t *l3 = pmap_l2_to_l3(l2, va);
+		     va != va_next; l3++, va += L3_SIZE) {
 			pt_entry_t l3e = pmap_load(l3);
 			if (l3e == 0)
 				continue;
@@ -3927,15 +3928,8 @@ void
 pmap_remove_pages(pmap_t pmap)
 {
 	struct spglist free;
-	pd_entry_t ptepde;
-	pt_entry_t *pte, tpte;
-	vm_page_t m, mt;
-	pv_entry_t pv;
 	struct pv_chunk *pc, *npc;
-	struct rwlock *lock;
-	bool superpage;
-
-	lock = NULL;
+	struct rwlock *lock = NULL;
 
 	SLIST_INIT(&free);
 	rw_rlock(&pvh_global_lock);
@@ -3946,16 +3940,17 @@ pmap_remove_pages(pmap_t pmap)
 		for (int field = 0; field < _NPCM; field++) {
 			uint64_t inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
+				bool superpage;
 				int64_t bit = ffsl(inuse) - 1;
 				uint64_t bitmask = 1UL << bit;
 				int idx = field * 64 + bit;
-				pv = &pc->pc_pventry[idx];
+				pv_entry_t pv = &pc->pc_pventry[idx];
 				inuse &= ~bitmask;
 
-				pte = pmap_l1(pmap, pv->pv_va);
-				ptepde = pmap_load(pte);
+				pt_entry_t *pte = pmap_l1(pmap, pv->pv_va);
+				pd_entry_t ptepde = pmap_load(pte);
 				pte = pmap_l1_to_l2(pte, pv->pv_va);
-				tpte = pmap_load(pte);
+				pt_entry_t tpte = pmap_load(pte);
 
 				KASSERT((tpte & PTE_V) != 0,
 				    ("L2 PTE is invalid... bogus PV entry? "
@@ -3980,7 +3975,7 @@ pmap_remove_pages(pmap_t pmap)
 				/* Mark free */
 				pc->pc_map[field] |= bitmask;
 
-				m = PHYS_TO_VM_PAGE(PTE_TO_PHYS(tpte));
+				vm_page_t m = PHYS_TO_VM_PAGE(PTE_TO_PHYS(tpte));
 				KASSERT((m->flags & PG_FICTITIOUS) != 0 ||
 				    m < &vm_page_array[vm_page_array_size],
 				    ("%s: bad pte %#jx", __func__, (uintmax_t)tpte));
@@ -3992,7 +3987,7 @@ pmap_remove_pages(pmap_t pmap)
 				 */
 				if ((tpte & (PTE_D | PTE_W)) == (PTE_D | PTE_W)) {
 					if (superpage)
-						for (mt = m;
+						for (vm_page_t mt = m;
 						    mt < &m[Ln_ENTRIES]; mt++)
 							vm_page_dirty(mt);
 					else
@@ -4257,6 +4252,13 @@ retry:
  *	dirty pages.  Those dirty pages will only be detected by a future call
  *	to pmap_is_modified().
  */
+static inline unsigned hash_pvp(vm_paddr_t pa, vm_offset_t va, uintptr_t pmap)
+{
+	return
+	    ((pa >> PAGE_SHIFT) ^ (va >> L2_SHIFT) ^ pmap) &
+	    (Ln_ENTRIES - 1);
+}
+
 int
 pmap_ts_referenced(vm_page_t m)
 {
@@ -4264,12 +4266,8 @@ pmap_ts_referenced(vm_page_t m)
 	struct md_page *pvh;
 	struct rwlock *lock;
 	pv_entry_t pv, pvf;
-	pmap_t pmap;
-	pd_entry_t *l2, l2e;
-	pt_entry_t *l3, l3e;
 	vm_paddr_t pa;
-	vm_offset_t va;
-	int cleared, md_gen, not_cleared, pvh_gen;
+	int cleared, not_cleared;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is not managed", __func__, m));
@@ -4287,9 +4285,9 @@ retry:
 		goto small_mappings;
 	pv = pvf;
 	do {
-		pmap = PV_PMAP(pv);
+		pmap_t pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
-			pvh_gen = pvh->pv_gen;
+			int pvh_gen = pvh->pv_gen;
 			rw_wunlock(lock);
 			PMAP_LOCK(pmap);
 			rw_wlock(lock);
@@ -4298,9 +4296,9 @@ retry:
 				goto retry;
 			}
 		}
-		va = pv->pv_va;
-		l2 = pmap_l2(pmap, va);
-		l2e = pmap_load(l2);
+		vm_offset_t va = pv->pv_va;
+		pd_entry_t *l2 = pmap_l2(pmap, va);
+		pd_entry_t l2e = pmap_load(l2);
 		if ((l2e & (PTE_W | PTE_D)) == (PTE_W | PTE_D)) {
 			/*
 			 * Although l2e is mapping a 2MB page, because
@@ -4328,8 +4326,7 @@ retry:
 			 * since the superpage is wired, the current state of
 			 * its reference bit won't affect page replacement.
 			 */
-			if ((((pa >> PAGE_SHIFT) ^ (pv->pv_va >> L2_SHIFT) ^
-			    (uintptr_t)pmap) & (Ln_ENTRIES - 1)) == 0 &&
+			if (hash_pvp(pa, pv->pv_va, (uintptr_t)pmap) == 0 &&
 			    (l2e & PTE_SW_WIRED) == 0) {
 				pmap_clear_bits(l2, PTE_A);
 				pmap_invalidate_page(pmap, va);
@@ -4352,10 +4349,10 @@ small_mappings:
 		goto out;
 	pv = pvf;
 	do {
-		pmap = PV_PMAP(pv);
+		pmap_t pmap = PV_PMAP(pv);
 		if (!PMAP_TRYLOCK(pmap)) {
-			pvh_gen = pvh->pv_gen;
-			md_gen = m->md.pv_gen;
+			int pvh_gen = pvh->pv_gen;
+			int md_gen = m->md.pv_gen;
 			rw_wunlock(lock);
 			PMAP_LOCK(pmap);
 			rw_wlock(lock);
@@ -4364,11 +4361,11 @@ small_mappings:
 				goto retry;
 			}
 		}
-		l2 = pmap_l2(pmap, pv->pv_va);
+		pd_entry_t *l2 = pmap_l2(pmap, pv->pv_va);
 		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //wycpull  //ori PTE_RX
 		    ("%s: found an invalid l2 table", __func__));
-		l3 = pmap_l2_to_l3(l2, pv->pv_va);
-		l3e = pmap_load(l3);
+		pt_entry_t *l3 = pmap_l2_to_l3(l2, pv->pv_va);
+		pt_entry_t l3e = pmap_load(l3);
 		if ((l3e & PTE_D) != 0)
 			vm_page_dirty(m);
 		if ((l3e & PTE_A) != 0) {
