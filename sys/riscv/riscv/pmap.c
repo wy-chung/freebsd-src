@@ -161,17 +161,17 @@
 /*
  * Boundary values for the page table page index space:
  *
- * L3 pages: [0, NUL2E)
- * L2 pages: [NUL2E, NUL2E + NUL1E)
- * L1 pages: [NUL2E + NUL1E, NUL2E + NUL1E + NUL0E)
+ * L3 pages: [0, NL3PTP)
+ * L2 pages: [NL3PTP, NL3PTP + NL2PTP)
+ * L1 pages: [NL3PTP + NL2PTP, NL3PTP + NL2PTP + NL1PTP)
  *
  * Note that these ranges are used in both SV39 and SV48 mode.  In SV39 mode the
  * ranges are not fully populated since there are at most Ln_ENTRIES^2 L3 pages
  * in a set of page tables.
  */
-#define	NL1PTP		Ln_ENTRIES		// total number of l0 entries
-#define	NL2PTP		(NL1PTP * Ln_ENTRIES)	// total number of l1 entries
-#define	NL3PTP		(NL2PTP * Ln_ENTRIES)	// total number of l2 entries
+#define	NL1PTP		Ln_ENTRIES		// total number of l1 page table pages
+#define	NL2PTP		(NL1PTP * Ln_ENTRIES)	// total number of l2 page table pages
+#define	NL3PTP		(NL2PTP * Ln_ENTRIES)	// total number of l3 page table pages
 
 #ifdef PV_STATS
 #define PV_STAT(x)	do { x ; } while (0)
@@ -181,8 +181,8 @@
 #define	__pv_stat_used	__unused
 #endif
 
-//#define	pmap_l1_pindex(v)	(NL3PTP + ((v) >> L1_SHIFT))
-#define	pmap_l2_pindex(v)	((v) >> L2_SHIFT)
+#define	pmap_l2_pindex(v)	((v) >> L2_SHIFT) // L2_SHIFT == 21
+#define	pmap_l1_pindex(v)	(NL3PTP + ((v) >> L1_SHIFT)) // not referenced
 #define	pa_to_pvh(pa)		(&pvh_table[pa_index(pa)])
 
 #define	NPV_LIST_LOCKS	MAXCPU
@@ -1413,15 +1413,12 @@ panic("%s: wyctest\n", __func__); // tested
 static vm_page_t
 _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 {
-	vm_page_t m;
-	pn_t pn;
-
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/*
 	 * Allocate a page table page.
 	 */
-	m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	vm_page_t m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 	if (m == NULL) {
 		if (lockp != NULL) {
 			RELEASE_PV_LIST_LOCK(lockp);
@@ -1444,34 +1441,30 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 	 * Map the pagetable page into the process address space, if
 	 * it isn't already there.
 	 */
-	pn = VM_PAGE_TO_PHYS(m) >> PAGE_SHIFT;
+	pn_t pn = VM_PAGE_TO_PHYS(m) >> PAGE_SHIFT;
 	if (ptepindex >= NL3PTP + NL2PTP) {
-		pd_entry_t *l0;
-		vm_pindex_t l0index;
-
 		KASSERT(pmap_mode != PMAP_MODE_SV39,
 		    ("%s: pindex %#lx in SV39 mode", __func__, ptepindex));
 		KASSERT(ptepindex < NL3PTP + NL2PTP + NL1PTP,
 		    ("%s: pindex %#lx out of range", __func__, ptepindex));
 
-		l0index = ptepindex - (NL3PTP + NL2PTP);
-		l0 = &pmap->pm_top[l0index];
+		vm_pindex_t l0index = ptepindex - (NL3PTP + NL2PTP);
+		pd_entry_t *l0 = &pmap->pm_top[l0index];
 		KASSERT((pmap_load(l0) & PTE_V) == 0,
 		    ("%s: L0 entry %#lx is valid", __func__, pmap_load(l0)));
 
 		pt_entry_t entry = PTE_V | (pn << PTE_PPN0_S);
 		pmap_store(l0, entry);
 	} else if (ptepindex >= NL3PTP) {
-		pd_entry_t *l0, *l1;
-		vm_pindex_t l0index, l1index;
+		pd_entry_t *l1;
 
-		l1index = ptepindex - NL3PTP;
+		vm_pindex_t l1index = ptepindex - NL3PTP;
 		if (pmap_mode == PMAP_MODE_SV39) {
 			l1 = &pmap->pm_top[l1index];
 		} else {
 			vm_paddr_t phys;
-			l0index = l1index >> Ln_ENTRIES_SHIFT;
-			l0 = &pmap->pm_top[l0index];
+			vm_pindex_t l0index = l1index >> Ln_ENTRIES_SHIFT;
+			pd_entry_t *l0 = &pmap->pm_top[l0index];
 			if (pmap_load(l0) == 0) {
 				/* Recurse to allocate the L1 page. */
 				if (_pmap_alloc_l3(pmap,
@@ -1493,10 +1486,9 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		pmap_store(l1, entry);
 		pmap_distribute_l1(pmap, l1index, entry);
 	} else {
-		vm_pindex_t l0index, l1index;
-		pd_entry_t *l0, *l1, *l2;
+		pd_entry_t *l1;
 
-		l1index = ptepindex >> (L1_SHIFT - L2_SHIFT);
+		vm_pindex_t l1index = ptepindex >> (L1_SHIFT - L2_SHIFT);
 		if (pmap_mode == PMAP_MODE_SV39) {
 			l1 = &pmap->pm_top[l1index];
 			if (pmap_load(l1) == 0) {
@@ -1510,8 +1502,8 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				pdpg->ref_count++;
 			}
 		} else {
-			l0index = l1index >> Ln_ENTRIES_SHIFT;
-			l0 = &pmap->pm_top[l0index];
+			vm_pindex_t l0index = l1index >> Ln_ENTRIES_SHIFT;
+			pd_entry_t *l0 = &pmap->pm_top[l0index];
 			if (pmap_load(l0) == 0) {
 				/* Recurse to allocate the L1 entry. */
 				if (_pmap_alloc_l3(pmap, NL3PTP + l1index,
@@ -1539,7 +1531,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 
 		vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l1));
 		pd_entry_t *l2pt = (pd_entry_t *)PHYS_TO_DMAP(phys);
-		l2 = &l2pt[ptepindex & Ln_ADDR_MASK];
+		pd_entry_t *l2 = &l2pt[ptepindex & Ln_ADDR_MASK];
 		KASSERT((pmap_load(l2) & PTE_V) == 0,
 		    ("%s: L2 entry %#lx is valid", __func__, pmap_load(l2)));
 
@@ -1562,7 +1554,6 @@ pmap_alloc_l2(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
 {
 	pd_entry_t *l1;
 	vm_page_t l2pg;
-	vm_pindex_t l2pindex;
 
 retry:
 	l1 = pmap_l1(pmap, va);
@@ -1575,7 +1566,7 @@ retry:
 		l2pg->ref_count++;
 	} else {
 		/* Allocate a L2 page. */
-		l2pindex = pmap_l2_pindex(va) >> Ln_ENTRIES_SHIFT;
+		vm_pindex_t l2pindex = pmap_l2_pindex(va) >> Ln_ENTRIES_SHIFT;
 		l2pg = _pmap_alloc_l3(pmap, NL3PTP + l2pindex, lockp);
 		if (l2pg == NULL && lockp != NULL)
 			goto retry;
@@ -1588,7 +1579,6 @@ pmap_alloc_l3(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
 {
 	vm_pindex_t ptepindex;
 	pd_entry_t *l2;
-	vm_paddr_t phys;
 	vm_page_t m;
 
 	/*
@@ -1606,7 +1596,7 @@ retry:
 	 * hold count, and activate it.
 	 */
 	if (l2 != NULL && pmap_load(l2) != 0) {
-		phys = PTE_TO_PHYS(pmap_load(l2));
+		vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l2));
 		m = PHYS_TO_VM_PAGE(phys);
 		m->ref_count++;
 	} else {
