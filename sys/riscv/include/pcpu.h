@@ -58,7 +58,7 @@ get_pcpu(void)
 {
 	struct pcpu *pcpu;
 
-	__asm __volatile("mv %0, tp" : "=&r"(pcpu));
+	__asm __volatile("mv %0, tp" : "=&r"(pcpu)); // tp(x4) points to thread local storage
 
 	return (pcpu);
 }
@@ -68,7 +68,7 @@ get_curthread(void)
 {
 	struct thread *td;
 
-	__asm __volatile("ld %0, 0(tp)" : "=&r"(td));
+	__asm __volatile("ld %0, 0(tp)" : "=&r"(td)); // tp(x4) points to thread local storage
 
 	return (td);
 }

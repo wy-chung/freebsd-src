@@ -653,7 +653,6 @@ void
 pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // < initriscv
 {
 	vm_paddr_t physmap[PHYS_AVAIL_ENTRIES];
-	uint64_t satp;
 	vm_offset_t dpcpu, freemempos, l0pv, msgbufpv;
 	vm_paddr_t l0pa, l1pa, max_pa, min_pa, pa;
 	pt_entry_t *l2p;
@@ -752,7 +751,7 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 
 		l0pa = pmap_early_vtophys(l1pt_va, l0pv);
 		csr_write(satp, (l0pa >> PAGE_SHIFT) | SATP_MODE_SV48);
-		satp = csr_read(satp);
+		uint64_t satp = csr_read(satp);
 		if ((satp & SATP_MODE_M) == SATP_MODE_SV48) {
 			pmap_mode = PMAP_MODE_SV48;
 			kernel_pmap_store.pm_top = l0pt;
@@ -1410,6 +1409,7 @@ panic("%s: wyctest\n", __func__); // tested
  * afterwards.  This conservative approach is easily argued to avoid
  * race conditions.
  */
+// ptepindex: the pagtable page index. It will be stored in vm_page.pindex
 static vm_page_t
 _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 {
@@ -1442,7 +1442,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 	 * it isn't already there.
 	 */
 	pn_t pn = VM_PAGE_TO_PHYS(m) >> PAGE_SHIFT;
-	if (ptepindex >= NL3PTP + NL2PTP) {
+	if (ptepindex >= NL3PTP + NL2PTP) { // L1 pagetable page, only exists in SV48 mode
 		KASSERT(pmap_mode != PMAP_MODE_SV39,
 		    ("%s: pindex %#lx in SV39 mode", __func__, ptepindex));
 		KASSERT(ptepindex < NL3PTP + NL2PTP + NL1PTP,
@@ -1455,7 +1455,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 
 		pt_entry_t entry = PTE_V | (pn << PTE_PPN0_S);
 		pmap_store(l0, entry);
-	} else if (ptepindex >= NL3PTP) {
+	} else if (ptepindex >= NL3PTP) { // L2 pagetable page
 		pd_entry_t *l1;
 
 		vm_pindex_t l1index = ptepindex - NL3PTP;
@@ -1484,8 +1484,8 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 
 		pt_entry_t entry = PTE_V | (pn << PTE_PPN0_S);
 		pmap_store(l1, entry);
-		pmap_distribute_l1(pmap, l1index, entry);
-	} else {
+		pmap_distribute_l1(pmap, l1index, entry); // do nothing
+	} else { // L3 pagetable page
 		pd_entry_t *l1;
 
 		vm_pindex_t l1index = ptepindex >> (L1_SHIFT - L2_SHIFT);
@@ -1501,7 +1501,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				vm_page_t pdpg = PHYS_TO_VM_PAGE(phys);
 				pdpg->ref_count++;
 			}
-		} else {
+		} else { // PMAP_MODE_SV48
 			vm_pindex_t l0index = l1index >> Ln_ENTRIES_SHIFT;
 			pd_entry_t *l0 = &pmap->pm_top[l0index];
 			if (pmap_load(l0) == 0) {
