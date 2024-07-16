@@ -956,10 +956,10 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 	td = curthread;
 	if (td->td_proc == p) {
 		u = cpu_ticks();
-		runtime = u - PCPU_GET(switchtime);
+		runtime = u - PCPU_GET(pc_switchtime);
 		td->td_runtime += runtime;
 		td->td_incruntime += runtime;
-		PCPU_SET(switchtime, u);
+		PCPU_SET(pc_switchtime, u);
 	}
 	/* Make sure the per-thread stats are current. */
 	FOREACH_THREAD_IN_PROC(p, td) {
@@ -988,10 +988,10 @@ rufetchtd(struct thread *td, struct rusage *ru)
 	 */
 	if (td == curthread) {
 		u = cpu_ticks();
-		runtime = u - PCPU_GET(switchtime);
+		runtime = u - PCPU_GET(pc_switchtime);
 		td->td_runtime += runtime;
 		td->td_incruntime += runtime;
-		PCPU_SET(switchtime, u);
+		PCPU_SET(pc_switchtime, u);
 	}
 	ruxagg_locked(p, td);
 	*ru = td->td_ru;

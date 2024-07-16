@@ -25,7 +25,7 @@ struct thread;
 #define	PAD_(t)	(sizeof(syscallarg_t) <= sizeof(t) ? \
 		0 : sizeof(syscallarg_t) - sizeof(t))
 
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if 1//BYTE_ORDER == LITTLE_ENDIAN
 #define	PADL_(t)	0
 #define	PADR_(t)	PAD_(t)
 #else
@@ -33,6 +33,7 @@ struct thread;
 #define	PADR_(t)	0
 #endif
 
+#if !defined(WYC)
 struct exit_args {
 	char rval_l_[PADL_(int)]; int rval; char rval_r_[PADR_(int)];
 };
@@ -1888,6 +1889,7 @@ struct getrlimitusage_args {
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 	char res_l_[PADL_(rlim_t *)]; rlim_t * res; char res_r_[PADR_(rlim_t *)];
 };
+#endif // !defined(WYC)
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);

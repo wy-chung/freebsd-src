@@ -655,7 +655,7 @@ free_large(void *addr, size_t size)
  *	the allocation fails.
  */
 void *
-(malloc)(size_t size, struct malloc_type *mtp, int flags)
+_malloc(size_t size, struct malloc_type *mtp, int flags)
 {
 	int indx;
 	caddr_t va;

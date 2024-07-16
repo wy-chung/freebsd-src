@@ -497,7 +497,7 @@ static void								\
 tsc_read_##x(void *arg)							\
 {									\
 	uint64_t *tsc = arg;						\
-	u_int cpu = PCPU_GET(cpuid);					\
+	u_int cpu = PCPU_GET(pc_cpuid);					\
 									\
 	__asm __volatile("cpuid" : : : "eax", "ebx", "ecx", "edx");	\
 	tsc[cpu * 3 + x] = rdtsc();					\
@@ -514,7 +514,7 @@ comp_smp_tsc(void *arg)
 {
 	uint64_t *tsc;
 	int64_t d1, d2;
-	u_int cpu = PCPU_GET(cpuid);
+	u_int cpu = PCPU_GET(pc_cpuid);
 	u_int i, j, size;
 
 	size = (mp_maxid + 1) * 3;
@@ -536,7 +536,7 @@ adj_smp_tsc(void *arg)
 {
 	uint64_t *tsc;
 	int64_t d, min, max;
-	u_int cpu = PCPU_GET(cpuid);
+	u_int cpu = PCPU_GET(pc_cpuid);
 	u_int first, i, size;
 
 	first = CPU_FIRST();

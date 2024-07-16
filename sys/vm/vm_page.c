@@ -62,6 +62,8 @@
  * rights to redistribute these changes.
  */
 
+//#define INVARIANTS //wyctodo
+
 /*
  *	Resident memory management module.
  */
@@ -187,8 +189,6 @@ static int vm_page_zone_import(void *arg, void **store, int cnt, int domain,
     int flags);
 static void vm_page_zone_release(void *arg, void **store, int cnt);
 
-SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
-
 static void
 vm_page_init(void *dummy)
 {
@@ -197,6 +197,7 @@ vm_page_init(void *dummy)
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	bogus_page = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 }
+SYSINIT(vm_page, SI_SUB_VM, SI_ORDER_SECOND, vm_page_init, NULL);
 
 static int pgcache_zone_max_pcpu;
 SYSCTL_INT(_vm, OID_AUTO, pgcache_zone_max_pcpu,
@@ -499,13 +500,14 @@ vm_page_domain_init(int domain)
  * lists.
  */
 void
-vm_page_init_page(vm_page_t m, vm_paddr_t pa, int segind)
+vm_page_init_page(struct vm_page *m, vm_paddr_t pa, int segind)
 {
 
 	m->object = NULL;
 	m->ref_count = 0;
 	m->busy_lock = VPB_FREED;
-	m->flags = m->a.flags = 0;
+	m->a.flags = 0;
+	m->flags = 0;
 	m->phys_addr = pa;
 	m->a.queue = PQ_NONE;
 	m->psind = 0;
@@ -554,7 +556,7 @@ vm_page_startup(vm_offset_t vaddr)
 {
 	struct vm_phys_seg *seg;
 	struct vm_domain *vmd;
-	vm_page_t m;
+	struct vm_page *m;
 	char *list, *listend;
 	vm_paddr_t end, high_avail, low_avail, new_end, size;
 	vm_paddr_t page_range __unused;
@@ -568,7 +570,7 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_offset_t mapped;
 	int witness_size;
 #endif
-#if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
+#if 0//defined(__i386__) && defined(VM_PHYSSEG_DENSE)
 	long ii;
 #endif
 
@@ -582,9 +584,9 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Initialize the page and queue locks.
 	 */
 	mtx_init(&vm_domainset_lock, "vm domainset lock", NULL, MTX_DEF);
-	for (i = 0; i < PA_LOCK_COUNT; i++)
+	for (i = 0; i < PA_LOCK_COUNT; i++) // PA_LOCK_COUNT == 256
 		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
-	for (i = 0; i < vm_ndomains; i++)
+	for (i = 0; i < vm_ndomains; i++) // vm_ndomains == 1
 		vm_page_domain_init(i);
 
 	new_end = end;
@@ -673,7 +675,7 @@ vm_page_startup(vm_offset_t vaddr)
 			high_avail = phys_avail[i + 1];
 	}
 	first_page = low_avail / PAGE_SIZE;
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 	size = 0;
 	for (i = 0; i < vm_phys_nsegs; i++)
 		size += vm_phys_segs[i].end - vm_phys_segs[i].start;
@@ -757,7 +759,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Initialize the page structures and add every available page to the
 	 * physical memory allocator's free lists.
 	 */
-#if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
+#if 0//defined(__i386__) && defined(VM_PHYSSEG_DENSE)
 	for (ii = 0; ii < vm_page_array_size; ii++) {
 		m = &vm_page_array[ii];
 		vm_page_init_page(m, (first_page + ii) << PAGE_SHIFT, 0);
@@ -1224,12 +1226,12 @@ PHYS_TO_VM_PAGE(vm_paddr_t pa)
 {
 	vm_page_t m;
 
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 	m = vm_phys_paddr_to_vm_page(pa);
 	if (m == NULL)
 		m = vm_phys_fictitious_to_vm_page(pa);
 	return (m);
-#elif defined(VM_PHYSSEG_DENSE)
+#elif defined(VM_PHYSSEG_DENSE) // amd64??
 	long pi;
 
 	pi = atop(pa);
@@ -3640,7 +3642,7 @@ vm_page_pqstate_commit(vm_page_t m, vm_page_astate_t *old, vm_page_astate_t new)
 static inline void
 vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m, uint8_t queue)
 {
-	vm_page_astate_t new, old;
+	vm_page_astate_t _new, old;
 
 	CRITICAL_ASSERT(curthread);
 	vm_pagequeue_assert_locked(pq);
@@ -3658,19 +3660,19 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m, uint8_t queue)
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 		    ("%s: page %p is unmanaged", __func__, m));
 
-		new = old;
+		_new = old;
 		if ((old.flags & PGA_DEQUEUE) != 0) {
-			new.flags &= ~PGA_QUEUE_OP_MASK;
-			new.queue = PQ_NONE;
+			_new.flags &= ~PGA_QUEUE_OP_MASK;
+			_new.queue = PQ_NONE;
 			if (__predict_true(_vm_page_pqstate_commit_dequeue(pq,
-			    m, &old, new))) {
+			    m, &old, _new))) {
 				counter_u64_add(queue_ops, 1);
 				break;
 			}
 		} else {
-			new.flags &= ~(PGA_REQUEUE | PGA_REQUEUE_HEAD);
+			_new.flags &= ~(PGA_REQUEUE | PGA_REQUEUE_HEAD);
 			if (__predict_true(_vm_page_pqstate_commit_requeue(pq,
-			    m, &old, new))) {
+			    m, &old, _new))) {
 				counter_u64_add(queue_ops, 1);
 				break;
 			}
@@ -3861,39 +3863,39 @@ vm_page_enqueue(vm_page_t m, uint8_t queue)
 static bool
 vm_page_free_prep(vm_page_t m)
 {
-
 	/*
 	 * Synchronize with threads that have dropped a reference to this
 	 * page.
 	 */
 	atomic_thread_fence_acq();
 
+#if !defined(WYC)
 #if defined(DIAGNOSTIC) && defined(PHYS_TO_DMAP)
 	if (PMAP_HAS_DMAP && (m->flags & PG_ZERO) != 0) {
 		uint64_t *p;
 		int i;
 		p = (uint64_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
 		for (i = 0; i < PAGE_SIZE / sizeof(uint64_t); i++, p++)
-			KASSERT(*p == 0, ("vm_page_free_prep %p PG_ZERO %d %jx",
-			    m, i, (uintmax_t)*p));
+			KASSERT(*p == 0, ("%s %p PG_ZERO %d %jx",
+			    __func__, m, i, (uintmax_t)*p));
 	}
 #endif
+#endif // !defined(WYC)
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		KASSERT(!pmap_page_is_mapped(m),
-		    ("vm_page_free_prep: freeing mapped page %p", m));
+		    ("%s: freeing mapped page %p", __func__, m));
 		KASSERT((m->a.flags & (PGA_EXECUTABLE | PGA_WRITEABLE)) == 0,
-		    ("vm_page_free_prep: mapping flags set in page %p", m));
+		    ("%s: mapping flags set in page %p", __func__, m));
 	} else {
 		KASSERT(m->a.queue == PQ_NONE,
-		    ("vm_page_free_prep: unmanaged page %p is queued", m));
+		    ("%s: unmanaged page %p is queued", __func__, m));
 	}
 	VM_CNT_INC(v_tfree);
 
 	if (m->object != NULL) {
 		KASSERT(((m->oflags & VPO_UNMANAGED) != 0) ==
 		    ((m->object->flags & OBJ_UNMANAGED) != 0),
-		    ("vm_page_free_prep: managed flag mismatch for page %p",
-		    m));
+		    ("%s: managed flag mismatch for page %p", __func__, m));
 		vm_page_assert_xbusied(m);
 
 		/*
@@ -3902,7 +3904,7 @@ vm_page_free_prep(vm_page_t m)
 		 */
 		KASSERT((m->flags & PG_FICTITIOUS) != 0 ||
 		    m->ref_count == VPRC_OBJREF,
-		    ("vm_page_free_prep: page %p has unexpected ref_count %u",
+		    ("%s: page %p has unexpected ref_count %u", __func__,
 		    m, m->ref_count));
 		vm_page_object_remove(m);
 		m->ref_count -= VPRC_OBJREF;
@@ -3935,7 +3937,7 @@ vm_page_free_prep(vm_page_t m)
 	vm_page_undirty(m);
 
 	if (m->ref_count != 0)
-		panic("vm_page_free_prep: page %p has references", m);
+		panic("%s: page %p has references", __func__, m);
 
 	/*
 	 * Restore the default memory attribute to the page.
@@ -4030,11 +4032,11 @@ vm_page_wire(vm_page_t m)
 #endif
 	KASSERT((m->flags & PG_FICTITIOUS) == 0 ||
 	    VPRC_WIRE_COUNT(m->ref_count) >= 1,
-	    ("vm_page_wire: fictitious page %p has zero wirings", m));
+	    ("%s: fictitious page %p has zero wirings", __func__, m));
 
 	old = atomic_fetchadd_int(&m->ref_count, 1);
 	KASSERT(VPRC_WIRE_COUNT(old) != VPRC_WIRE_COUNT_MAX,
-	    ("vm_page_wire: counter overflow for page %p", m));
+	    ("%s: counter overflow for page %p", __func__, m));
 	if (VPRC_WIRE_COUNT(old) == 0) {
 		if ((m->oflags & VPO_UNMANAGED) == 0)
 			vm_page_aflag_set(m, PGA_DEQUEUE);
@@ -4057,7 +4059,7 @@ vm_page_wire_mapped(vm_page_t m)
 	old = m->ref_count;
 	do {
 		KASSERT(old > 0,
-		    ("vm_page_wire_mapped: wiring unreferenced page %p", m));
+		    ("%s: wiring unreferenced page %p", __func__, m));
 		if ((old & VPRC_BLOCKED) != 0)
 			return (false);
 	} while (!atomic_fcmpset_int(&m->ref_count, &old, old + 1));
@@ -4078,8 +4080,6 @@ vm_page_wire_mapped(vm_page_t m)
 static void
 vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 {
-	u_int old;
-
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is unmanaged", __func__, m));
 
@@ -4088,10 +4088,10 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 	 * Use a release store when updating the reference count to
 	 * synchronize with vm_page_free_prep().
 	 */
-	old = m->ref_count;
+	u_int old = m->ref_count;
 	do {
 		KASSERT(VPRC_WIRE_COUNT(old) > 0,
-		    ("vm_page_unwire: wire count underflow for page %p", m));
+		    ("%s: wire count underflow for page %p", __func__, m));
 
 		if (old > VPRC_OBJREF + 1) {
 			/*
@@ -4137,8 +4137,7 @@ vm_page_unwire(vm_page_t m, uint8_t nqueue)
 {
 
 	KASSERT(nqueue < PQ_COUNT,
-	    ("vm_page_unwire: invalid queue %u request for page %p",
-	    nqueue, m));
+	    ("%s: invalid queue %u request for page %p", __func__, nqueue, m));
 
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		if (vm_page_unwire_noq(m) && m->ref_count == 0)
@@ -4513,6 +4512,9 @@ vm_page_grab_sleep(vm_object_t object, vm_page_t m, vm_pindex_t pindex,
 	 */
 	if (locked && (allocflags & VM_ALLOC_NOCREAT) == 0)
 		vm_page_reference(m);
+#if defined(WYC)
+		vm_page_aflag_set(m, PGA_REFERENCED);
+#endif
 
 	if (_vm_page_busy_sleep(object, m, pindex, wmesg, allocflags, locked) &&
 	    locked)
@@ -5038,7 +5040,7 @@ vm_page_bits_set(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t set)
 	 * of atomic_{set, clear}_{8, 16}.
 	 */
 	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
+#if 0//BYTE_ORDER == BIG_ENDIAN
 	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
 	shift *= NBBY;
@@ -5071,7 +5073,7 @@ vm_page_bits_clear(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t clear)
 	 * of atomic_{set, clear}_{8, 16}.
 	 */
 	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
+#if 0//BYTE_ORDER == BIG_ENDIAN
 	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
 	shift *= NBBY;
@@ -5120,7 +5122,7 @@ vm_page_bits_swap(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t newbits)
 	 * of atomic_{set, swap, clear}_{8, 16}.
 	 */
 	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
+#if 0//BYTE_ORDER == BIG_ENDIAN
 	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
 	shift *= NBBY;
@@ -5365,7 +5367,7 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 		pmap_remove_all(m);
 	KASSERT((bits == 0 && vm_page_all_valid(m)) ||
 	    !pmap_page_is_mapped(m),
-	    ("vm_page_set_invalid: page %p is mapped", m));
+	    ("%s: page %p is mapped", __func__, m));
 	if (vm_page_xbusied(m)) {
 		m->valid &= ~bits;
 		m->dirty &= ~bits;

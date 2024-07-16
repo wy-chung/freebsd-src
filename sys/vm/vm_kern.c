@@ -98,9 +98,9 @@
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-struct vm_map kernel_map_store;
-struct vm_map exec_map_store;
-struct vm_map pipe_map_store;
+struct _vm_map kernel_map_store;
+struct _vm_map exec_map_store;
+struct _vm_map pipe_map_store;
 
 const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
@@ -281,7 +281,7 @@ kmem_alloc_attr_domain(int domain, vm_size_t size, int flags, vm_paddr_t low,
 			return (0);
 		}
 		KASSERT(vm_page_domain(m) == domain,
-		    ("kmem_alloc_attr_domain: Domain mismatch %d != %d",
+		    ("%s: Domain mismatch %d != %d", __func__,
 		    vm_page_domain(m), domain));
 		if ((flags & M_ZERO) && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
@@ -799,13 +799,13 @@ kva_import_domain(void *arena, vmem_size_t size, int flags, vmem_addr_t *addrp)
  *	Create the kernel vmem arena and its per-domain children.
  */
 void
-kmem_init(vm_offset_t start, vm_offset_t end)
+kmem_init(vm_offset_t start, vm_offset_t end) // end == -1
 {
 	vm_size_t quantum;
 	int domain;
 
 	vm_map_init(kernel_map, kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
-	kernel_map->system_map = 1;
+	kernel_map->system_map = TRUE;
 	vm_map_lock(kernel_map);
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
 	(void)vm_map_insert(kernel_map, NULL, 0,
@@ -930,7 +930,7 @@ kmem_bootstrap_free(vm_offset_t start, vm_size_t size)
 #endif
 }
 
-#ifdef PMAP_WANT_ACTIVE_CPUS_NAIVE
+#ifdef PMAP_WANT_ACTIVE_CPUS_NAIVE //wyc this is only for arm64
 void
 pmap_active_cpus(pmap_t pmap, cpuset_t *res)
 {

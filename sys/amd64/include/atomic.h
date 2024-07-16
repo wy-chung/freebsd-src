@@ -513,10 +513,10 @@ atomic_swap_long(volatile u_long *p, u_long v)
 #define	atomic_fcmpset_rel_16	atomic_fcmpset_rel_short
 
 /* Operations on 32-bit double words. */
-#define	atomic_set_32		atomic_set_int
+#define	atomic_set_32		atomic_set_int	// atomic_set(p, v) { *p |= v; }
 #define	atomic_set_acq_32	atomic_set_acq_int
 #define	atomic_set_rel_32	atomic_set_rel_int
-#define	atomic_clear_32		atomic_clear_int
+#define	atomic_clear_32		atomic_clear_int // atomic_clear(p, v) { *p &= ~v; }
 #define	atomic_clear_acq_32	atomic_clear_acq_int
 #define	atomic_clear_rel_32	atomic_clear_rel_int
 #define	atomic_add_32		atomic_add_int

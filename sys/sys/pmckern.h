@@ -127,7 +127,7 @@ do {										\
 		intr = intr_disable();						\
 		PMC_FAKE_TRAPFRAME(&pmc_tf[curcpu]);				\
 		ks.pm_ev = pmc_##pr##_##mo##_##fu##_##na.ps_ev.pm_ev_code;	\
-		ks.pm_cpu = PCPU_GET(cpuid);					\
+		ks.pm_cpu = PCPU_GET(pc_cpuid);					\
 		ks.pm_tf = &pmc_tf[curcpu];					\
 		PMC_CALL_HOOK_UNLOCKED(curthread,				\
 		    PMC_FN_SOFT_SAMPLING, (void *) &ks);			\
@@ -151,7 +151,7 @@ do {										\
 		register_t intr;						\
 		intr = intr_disable();						\
 		ks.pm_ev = pmc_##pr##_##mo##_##fu##_##na.ps_ev.pm_ev_code;	\
-		ks.pm_cpu = PCPU_GET(cpuid);					\
+		ks.pm_cpu = PCPU_GET(pc_cpuid);					\
 		ks.pm_tf = tf;							\
 		PMC_CALL_HOOK_UNLOCKED(curthread,				\
 		    PMC_FN_SOFT_SAMPLING, (void *) &ks);			\

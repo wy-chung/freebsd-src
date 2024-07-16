@@ -79,9 +79,19 @@ extern u_long maxphys;		/* max raw I/O transfer size */
  * ever implemented (e.g. vendor-specific paravirtualization features).
  * Keep in sync with vm_guest_sysctl_names[].
  */
-enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
-		VM_GUEST_VMWARE, VM_GUEST_KVM, VM_GUEST_BHYVE, VM_GUEST_VBOX,
-		VM_GUEST_PARALLELS, VM_GUEST_NVMM, VM_LAST };
+enum VM_GUEST {
+	VM_GUEST_NO,
+	VM_GUEST_VM,	// in qemu
+	VM_GUEST_XEN,
+	VM_GUEST_HV,
+	VM_GUEST_VMWARE,
+	VM_GUEST_KVM,	// in kvm
+	VM_GUEST_BHYVE,
+	VM_GUEST_VBOX,	// in VirtualBox
+	VM_GUEST_PARALLELS,
+	VM_GUEST_NVMM,
+	VM_LAST,
+};
 
 #endif /* KERNEL */
 
@@ -260,7 +270,7 @@ void	*SAN_INTERCEPTOR(memset)(void *, int, size_t);
 void	*SAN_INTERCEPTOR(memcpy)(void *, const void *, size_t);
 void	*SAN_INTERCEPTOR(memmove)(void *, const void *, size_t);
 int	SAN_INTERCEPTOR(memcmp)(const void *, const void *, size_t);
-#ifndef SAN_RUNTIME
+ #ifndef SAN_RUNTIME
 #define bcopy(from, to, len)	SAN_INTERCEPTOR(memmove)((to), (from), (len))
 #define bzero(buf, len)		SAN_INTERCEPTOR(memset)((buf), 0, (len))
 #define bcmp(b1, b2, len)	SAN_INTERCEPTOR(memcmp)((b1), (b2), (len))
@@ -268,7 +278,7 @@ int	SAN_INTERCEPTOR(memcmp)(const void *, const void *, size_t);
 #define memcpy(to, from, len)	SAN_INTERCEPTOR(memcpy)((to), (from), (len))
 #define memmove(dest, src, n)	SAN_INTERCEPTOR(memmove)((dest), (src), (n))
 #define memcmp(b1, b2, len)	SAN_INTERCEPTOR(memcmp)((b1), (b2), (len))
-#endif /* !SAN_RUNTIME */
+ #endif /* !SAN_RUNTIME */
 #else /* !SAN_NEEDS_INTERCEPTORS */
 #define bcopy(from, to, len)	__builtin_memmove((to), (from), (len))
 #define bzero(buf, len)		__builtin_memset((buf), 0, (len))

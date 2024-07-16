@@ -55,7 +55,7 @@ mptramp_start:
 	orl	%ebx, jmp_64-mptramp_start+1
 
 	/*
-	 * Load the descriptor table pointer.  We'll need it when running
+	 * Load the descriptor table pointer.  We`ll need it when running
 	 * in 16 bit protected mode.
 	 */
 	lgdt	lgdt_desc-mptramp_start
@@ -115,7 +115,7 @@ protmode:
 	/*
 	 * Enable EFER.LME so that we get long mode when all the prereqs are
 	 * in place.  In this case, it turns on when CR0_PG is finally enabled.
-	 * Pick up a few other EFER bits that we'll use need we're here.
+	 * Pick up a few other EFER bits that we`ll use need we`re here.
 	 */
 	movl	$MSR_EFER, %ecx
 	rdmsr
@@ -126,7 +126,7 @@ protmode:
 	 * Load kernel page table pointer into %cr3.
 	 * %ebx is still our relocation base.
 	 *
-	 * Note that this only gets accessed after we're actually in 64 bit
+	 * Note that this only gets accessed after we`re actually in 64 bit
 	 * mode, however we can only set the bottom 32 bits of %cr3 in this
 	 * state.  This means we depend on the kernel page table being
 	 * allocated from the low 4G.
@@ -165,10 +165,10 @@ jmp_64:
 	.word	kernelcode-gdt		/* index in gdt for 64 bit code */
 
 	/*
-	 * Yeehar!  We're running in 64 bit mode!  We can mostly ignore our
+	 * Yeehar!  We`re running in 64 bit mode!  We can mostly ignore our
 	 * segment registers, and get on with it.
 	 * We are running at the correct virtual address space.
-	 * Note that the jmp is relative and that we've been relocated,
+	 * Note that the jmp is relative and that we`ve been relocated,
 	 * so use an indirect jump.
 	 */
 	.code64

@@ -167,6 +167,8 @@ static struct kproc_desc random_proc_kp = {
 	random_kthread,
 	&harvest_context.hc_kthread_proc,
 };
+/* This happens well after SI_SUB_RANDOM */
+SYSINIT(random_device_h_proc, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, kproc_start, &random_proc_kp);
 
 /* Pass the given event straight through to Fortuna/Whatever. */
 static __inline void
@@ -213,9 +215,6 @@ random_kthread(void)
 	kproc_exit(0);
 	/* NOTREACHED */
 }
-/* This happens well after SI_SUB_RANDOM */
-SYSINIT(random_device_h_proc, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, kproc_start,
-    &random_proc_kp);
 
 static void
 rs_epoch_init(void *dummy __unused)

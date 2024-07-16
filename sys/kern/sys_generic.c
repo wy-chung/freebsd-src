@@ -1110,7 +1110,7 @@ select_check_badfd(fd_set *fd_in, int nd, int ndu, int abi_nfdbits)
 	bits = 0; /* silence gcc */
 	for (i = nd; i < ndu; i++) {
 		b = i / NBBY;
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if 1//BYTE_ORDER == LITTLE_ENDIAN
 		addr = (char *)fd_in + b;
 #else
 		addr = (char *)fd_in;
@@ -1218,7 +1218,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	getbits(fd_ex, 2);
 #undef	getbits
 
-#if BYTE_ORDER == BIG_ENDIAN && defined(__LP64__)
+#if 0//BYTE_ORDER == BIG_ENDIAN && defined(__LP64__)
 	/*
 	 * XXX: swizzle_fdset assumes that if abi_nfdbits != NFDBITS,
 	 * we are running under 32-bit emulation. This should be more

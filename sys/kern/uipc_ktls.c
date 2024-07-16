@@ -2711,7 +2711,7 @@ ktls_buffer_alloc(struct ktls_wq *wq, struct mbuf *m)
 	}
 	buf = uma_zalloc(ktls_buffer_zone, M_NOWAIT | M_NORECLAIM);
 	if (buf == NULL) {
-		domain = PCPU_GET(domain);
+		domain = PCPU_GET(pc_domain);
 		wq->lastallocfail = ticks;
 
 		/*

@@ -321,17 +321,33 @@ vmspace_zdtor(void *mem, int size, void *arg)
  * Allocate a vmspace structure, including a vm_map and pmap,
  * and initialize those structures.  The refcnt is set to 1.
  */
+// @pinit: is ept_pinit     when called from ept_vmspace_alloc()
+//         is arm_vmm_pinit when called from vmmops_vmspace_alloc()
+//         is npt_pinit     when called from in svm_npt_alloc()
 struct vmspace *
 vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 {
 	struct vmspace *vm;
+	int ret;
 
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
 	KASSERT(vm->vm_map.pmap == NULL, ("vm_map.pmap must be NULL"));
-	if (!pinit(vmspace_pmap(vm))) {
+if (pinit != pmap_pinit) panic("%s: wyctest", __func__); // tested
+#if 1 //wyc
+	ret = pinit(vmspace_pmap(vm));
+ #if defined(WYC)
+	ret = pmap_pinit(vmspace_pmap(vm)); // riscv: always returns 1
+	ret = pmap_pinit_type(vmspace_pmap(vm), PT_X86, pmap_flags); // amd64: always returns 1
+ #endif
+	if (!ret) { //wyc always false
 		uma_zfree(vmspace_zone, vm);
 		return (NULL);
 	}
+#else
+	struct pmap *pmap = malloc(sizeof(*pmap), M_PMAP, M_WAITOK);
+	ret = pinit(pmap);
+	vm->vm_pmap = pmap;
+#endif
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
 	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), min, max);
 	refcount_init(&vm->vm_refcnt, 1);
@@ -406,7 +422,7 @@ vmspace_exitfree(struct proc *p)
 	vm = p->p_vmspace;
 	p->p_vmspace = NULL;
 	PROC_VMSPACE_UNLOCK(p);
-	KASSERT(vm == &vmspace0, ("vmspace_exitfree: wrong vmspace"));
+	KASSERT(vm == &vmspace0, ("%s: wrong vmspace", __func__));
 	vmspace_free(vm);
 }
 
@@ -888,12 +904,12 @@ vmspace_resident_count(struct vmspace *vmspace)
  * such as that in the vmspace structure.
  */
 static void
-_vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
+_vm_map_init(struct _vm_map *map, struct pmap *pmap, vm_offset_t min, vm_offset_t max)
 {
 
 	map->header.eflags = MAP_ENTRY_HEADER;
 	map->needs_wakeup = FALSE;
-	map->system_map = 0;
+	map->system_map = FALSE;
 	map->pmap = pmap;
 	map->header.end = min;
 	map->header.start = max;
@@ -909,7 +925,7 @@ _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 }
 
 void
-vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
+vm_map_init(struct _vm_map *map, struct pmap *pmap, vm_offset_t min, vm_offset_t max)
 {
 
 	_vm_map_init(map, pmap, min, max);
@@ -1847,13 +1863,14 @@ charged:
  *	prior to making call to account for the new entry.
  */
 int
-vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+vm_map_insert(struct _vm_map *map, struct vm_object *object, vm_ooffset_t offset,
     vm_offset_t start, vm_offset_t end, vm_prot_t prot, vm_prot_t max, int cow)
 {
 	vm_map_entry_t res;
+	int ret; //wyc
 
-	return (vm_map_insert1(map, object, offset, start, end, prot, max,
-	    cow, &res));
+	ret = vm_map_insert1(map, object, offset, start, end, prot, max, cow, &res);
+	return ret;
 }
 
 /*
@@ -2166,7 +2183,7 @@ vm_map_find_locked(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		if (curr_min_addr == 0)
 			cluster = false;
 	}
-	if (find_space != VMFS_NO_SPACE) {
+	if (find_space != VMFS_NO_SPACE) { // false
 		KASSERT(find_space == VMFS_ANY_SPACE ||
 		    find_space == VMFS_OPTIMAL_SPACE ||
 		    find_space == VMFS_SUPER_SPACE ||
@@ -2254,7 +2271,7 @@ again:
 		if (rv != KERN_SUCCESS)
 			return (rv);
 	}
-	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) {
+	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) { // true
 		rv = vm_map_stack_locked(map, *addr, length, sgrowsiz, prot,
 		    max, cow);
 	} else {
@@ -2271,7 +2288,7 @@ again:
 	    *addr < map->anon_loc))
 		map->anon_loc = *addr;
 	return (rv);
-}
+} // vm_map_find
 
 /*
  *	vm_map_find_min() is a variant of vm_map_find() that takes an
@@ -3477,16 +3494,15 @@ vm_map_wire_user_count_add(u_long npages)
  *	The map should be locked.
  */
 static void
-vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry,
-    vm_offset_t failed_addr)
+vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry, vm_offset_t failed_addr)
 {
 
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT((entry->eflags & MAP_ENTRY_IN_TRANSITION) != 0 &&
 	    entry->wired_count == 1,
-	    ("vm_map_wire_entry_failure: entry %p isn't being wired", entry));
+	    ("%s: entry %p isn't being wired", __func__, entry));
 	KASSERT(failed_addr < entry->end,
-	    ("vm_map_wire_entry_failure: entry %p was fully wired", entry));
+	    ("%s: entry %p was fully wired", __func__, entry));
 
 	/*
 	 * If any pages at the start of this entry were successfully wired,
@@ -3525,12 +3541,9 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 int
 vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 {
-	vm_map_entry_t entry, first_entry, next_entry, prev_entry;
-	vm_offset_t faddr, saved_end, saved_start;
-	u_long incr, npages;
-	u_int bidx, last_timestamp;
+	vm_map_entry_t entry, first_entry, next_entry;
 	int rv;
-	bool holes_ok, need_wakeup, user_wire;
+	bool holes_ok, user_wire;
 	vm_prot_t prot;
 
 	VM_MAP_ASSERT_LOCKED(map);
@@ -3593,7 +3606,7 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 		} else if (entry->wired_count == 0) {
 			entry->wired_count++;
 
-			npages = atop(entry->end - entry->start);
+			u_long npages = atop(entry->end - entry->start);
 			if (user_wire && !vm_map_wire_user_count_add(npages)) {
 				vm_map_wire_entry_failure(map, entry,
 				    entry->start);
@@ -3606,14 +3619,15 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 			 * Release the map lock, relying on the in-transition
 			 * mark.  Mark the map busy for fork.
 			 */
-			saved_start = entry->start;
-			saved_end = entry->end;
-			last_timestamp = map->timestamp;
-			bidx = MAP_ENTRY_SPLIT_BOUNDARY_INDEX(entry);
-			incr =  pagesizes[bidx];
+			vm_offset_t saved_start = entry->start;
+			vm_offset_t saved_end = entry->end;
+			u_int last_timestamp = map->timestamp;
+			u_int bidx = MAP_ENTRY_SPLIT_BOUNDARY_INDEX(entry);
+			u_long incr =  pagesizes[bidx];
 			vm_map_busy(map);
 			vm_map_unlock(map);
 
+			vm_offset_t faddr;
 			for (faddr = saved_start; faddr < saved_end;
 			    faddr += incr) {
 				/*
@@ -3678,8 +3692,9 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 		}
 	}
 	rv = KERN_SUCCESS;
-done:
-	need_wakeup = false;
+done:;
+	vm_map_entry_t prev_entry;
+	bool need_wakeup = false;
 	if (first_entry == NULL &&
 	    !vm_map_lookup_entry(map, start, &first_entry)) {
 		KASSERT(holes_ok, ("vm_map_wire: lookup failed"));
@@ -3883,7 +3898,7 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT(entry->wired_count > 0,
-	    ("vm_map_entry_unwire: entry %p isn't wired", entry));
+	    ("%s: entry %p isn't wired", __func__, entry));
 
 	size = entry->end - entry->start;
 	if ((entry->eflags & MAP_ENTRY_USER_WIRED) != 0)
@@ -4334,7 +4349,7 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  * The source map must not be locked.
  */
 struct vmspace *
-vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
+vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge /*OUT*/)
 {
 	struct vmspace *vm2;
 	vm_map_t new_map, old_map;
@@ -4345,8 +4360,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm2 = vmspace_alloc(vm_map_min(old_map), vm_map_max(old_map),
-	    pmap_pinit);
+	vm2 = vmspace_alloc(vm_map_min(old_map), vm_map_max(old_map), pmap_pinit);
 	if (vm2 == NULL)
 		return (NULL);
 
@@ -4360,7 +4374,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 		vm_map_wait_busy(old_map);
 	new_map = &vm2->vm_map;
 	locked = vm_map_trylock(new_map); /* trylock to silence WITNESS */
-	KASSERT(locked, ("vmspace_fork: lock failed"));
+	KASSERT(locked, ("%s: lock failed", __func__)); //wyc
 
 	error = pmap_vmspace_copy(new_map->pmap, old_map->pmap);
 	if (error != 0) {
@@ -4426,7 +4440,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				vm_object_clear_flag(object, OBJ_ONEMAPPING);
 				if (old_entry->cred != NULL) {
 					KASSERT(object->cred == NULL,
-					    ("vmspace_fork both cred"));
+					    ("%s: both cred", __func__)); //wyc
 					object->cred = old_entry->cred;
 					object->charge = old_entry->end -
 					    old_entry->start;
@@ -4443,11 +4457,11 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				    object->type == OBJT_VNODE) {
 					KASSERT(((struct vnode *)object->
 					    handle)->v_writecount > 0,
-					    ("vmspace_fork: v_writecount %p",
+					    ("%s: v_writecount %p", __func__, //wyc
 					    object));
 					KASSERT(object->un_pager.vnp.
 					    writemappings > 0,
-					    ("vmspace_fork: vnp.writecount %p",
+					    ("%s: vnp.writecount %p", __func__, //wyc
 					    object));
 				}
 				VM_OBJECT_WUNLOCK(object);
@@ -4964,6 +4978,7 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 	return (0);
 }
 
+#if 0 //wyc this code is never reached
 /*
  * Unshare the specified VM space for forcing COW.  This
  * is called by rfork, for the (RFMEM|RFPROC) == 0 case.
@@ -4997,6 +5012,7 @@ vmspace_unshare(struct proc *p)
 	vmspace_free(oldvmspace);
 	return (0);
 }
+#endif
 
 /*
  *	vm_map_lookup:
@@ -5028,7 +5044,7 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	      vm_object_t *object,		/* OUT */
 	      vm_pindex_t *pindex,		/* OUT */
 	      vm_prot_t *out_prot,		/* OUT */
-	      boolean_t *wired)			/* OUT */
+	      bool *wired)			/* OUT */
 {
 	vm_map_entry_t entry;
 	vm_map_t map = *var_map;
@@ -5199,7 +5215,7 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 		     vm_object_t *object,	/* OUT */
 		     vm_pindex_t *pindex,	/* OUT */
 		     vm_prot_t *out_prot,	/* OUT */
-		     boolean_t *wired)		/* OUT */
+		     bool *wired)		/* OUT */
 {
 	vm_map_entry_t entry;
 	vm_map_t map = *var_map;
@@ -5282,14 +5298,14 @@ vm_map_lookup_done(vm_map_t map, vm_map_entry_t entry)
 }
 
 vm_offset_t
-vm_map_max_KBI(const struct vm_map *map)
+vm_map_max_KBI(const struct _vm_map *map)
 {
 
 	return (vm_map_max(map));
 }
 
 vm_offset_t
-vm_map_min_KBI(const struct vm_map *map)
+vm_map_min_KBI(const struct _vm_map *map)
 {
 
 	return (vm_map_min(map));

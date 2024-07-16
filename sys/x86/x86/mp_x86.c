@@ -1075,17 +1075,17 @@ init_secondary_tail(void)
 		cpu_ops.cpu_init();
 
 	/* A quick check from sanity claus */
-	cpuid = PCPU_GET(cpuid);
-	if (PCPU_GET(apic_id) != lapic_id()) {
+	cpuid = PCPU_GET(pc_cpuid);
+	if (PCPU_GET(pc_apic_id) != lapic_id()) {
 		printf("SMP: cpuid = %d\n", cpuid);
 		printf("SMP: actual apic_id = %d\n", lapic_id());
-		printf("SMP: correct apic_id = %d\n", PCPU_GET(apic_id));
+		printf("SMP: correct apic_id = %d\n", PCPU_GET(pc_apic_id));
 		panic("cpuid mismatch! boom!!");
 	}
 
 	/* Initialize curthread. */
-	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
-	PCPU_SET(curthread, PCPU_GET(idlethread));
+	KASSERT(PCPU_GET(pc_idlethread) != NULL, ("no idle thread"));
+	PCPU_SET(pc_curthread, PCPU_GET(pc_idlethread));
 	schedinit_ap();
 
 	mtx_lock_spin(&ap_boot_mtx);
@@ -1108,7 +1108,7 @@ init_secondary_tail(void)
 		    cpuid, smp_cpus == mp_ncpus ? "\n" : " ");
 
 	/* Determine if we are a logical CPU. */
-	if (cpu_info[PCPU_GET(apic_id)].cpu_hyperthread)
+	if (cpu_info[PCPU_GET(pc_apic_id)].cpu_hyperthread)
 		CPU_SET(cpuid, &logical_cpus_mask);
 
 	if (bootverbose)
@@ -1327,7 +1327,7 @@ ipi_bitmap_handler(struct trapframe frame)
 {
 	struct trapframe *oldframe;
 	struct thread *td;
-	int cpu = PCPU_GET(cpuid);
+	int cpu = PCPU_GET(pc_cpuid);
 	u_int ipi_bitmap;
 
 	kasan_mark(&frame, sizeof(frame), sizeof(frame), 0);
@@ -1434,13 +1434,13 @@ ipi_all_but_self(u_int ipi)
 	 */
 	if (ipi == IPI_STOP_HARD) {
 		other_cpus = all_cpus;
-		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+		CPU_CLR(PCPU_GET(pc_cpuid), &other_cpus);
 		CPU_OR_ATOMIC(&ipi_stop_nmi_pending, &other_cpus);
 	}
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	if (IPI_IS_BITMAPED(ipi)) {
-		cpu = PCPU_GET(cpuid);
+		cpu = PCPU_GET(pc_cpuid);
 		CPU_FOREACH(c) {
 			if (c != cpu)
 				ipi_bitmap_set(c, ipi);
@@ -1476,7 +1476,7 @@ ipi_nmi_handler(void)
 	 * the global pending bitword an IPI_STOP_HARD has been issued
 	 * and should be handled.
 	 */
-	cpuid = PCPU_GET(cpuid);
+	cpuid = PCPU_GET(pc_cpuid);
 	if (!CPU_ISSET(cpuid, &ipi_stop_nmi_pending))
 		return (1);
 
@@ -1493,7 +1493,7 @@ nmi_call_kdb_smp(u_int type, struct trapframe *frame)
 	int cpu;
 	bool call_post;
 
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(pc_cpuid);
 	if (atomic_cmpset_acq_int(&nmi_kdb_lock, 0, 1)) {
 		nmi_call_kdb(cpu, type, frame);
 		call_post = false;
@@ -1520,14 +1520,14 @@ cpustop_handler(void)
 	u_int cpu;
 	bool use_mwait;
 
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(pc_cpuid);
 
 	savectx(&stoppcbs[cpu]);
 
 	use_mwait = (stop_mwait && (cpu_feature2 & CPUID2_MON) != 0 &&
 	    !mwait_cpustop_broken);
 	if (use_mwait) {
-		mb = PCPU_PTR(monitorbuf);
+		mb = PCPU_PTR(pc_monitorbuf);
 		atomic_store_int(&mb->stop_state,
 		    MONITOR_STOPSTATE_STOPPED);
 	}
@@ -1593,7 +1593,7 @@ cpususpend_handler(void)
 
 	mtx_assert(&smp_ipi_mtx, MA_NOTOWNED);
 
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(pc_cpuid);
 	if (savectx(&susppcbs[cpu]->sp_pcb)) {
 #ifdef __amd64__
 		fpususpend(susppcbs[cpu]->sp_fpususpend);
@@ -1635,8 +1635,8 @@ cpususpend_handler(void)
 #endif
 		pmap_init_pat();
 		initializecpu();
-		PCPU_SET(switchtime, 0);
-		PCPU_SET(switchticks, ticks);
+		PCPU_SET(pc_switchtime, 0);
+		PCPU_SET(pc_switchticks, ticks);
 
 		/* Indicate that we have restarted and restored the context. */
 		CPU_CLR_ATOMIC(cpu, &suspended_cpus);

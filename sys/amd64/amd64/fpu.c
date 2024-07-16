@@ -234,7 +234,11 @@ fpurestore_fxrstor(void *addr)
 	fxrstor((char *)addr);
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, void, fpusave, (void *))
+#else
+void fpusave(void *);
+#endif
 {
 	u_int cp[4];
 
@@ -249,7 +253,11 @@ DEFINE_IFUNC(, void, fpusave, (void *))
 	    fpusave_xsave64 : fpusave_xsave3264);
 }
 
+#if !defined(WYC)
 DEFINE_IFUNC(, void, fpurestore, (void *))
+#else
+void fpurestore(void *);
+#endif
 {
 	if (!use_xsave)
 		return (fpurestore_fxrstor);
@@ -487,11 +495,11 @@ fpuexit(struct thread *td)
 {
 
 	critical_enter();
-	if (curthread == PCPU_GET(fpcurthread)) {
+	if (curthread == PCPU_GET(pc_fpcurthread)) {
 		fpu_enable();
 		fpusave(curpcb->pcb_save);
 		fpu_disable();
-		PCPU_SET(fpcurthread, NULL);
+		PCPU_SET(pc_fpcurthread, NULL);
 	}
 	critical_exit();
 }
@@ -704,7 +712,7 @@ fputrap_x87(void)
 	 * state to memory.  Fetch the relevant parts of the state from
 	 * wherever they are.
 	 */
-	if (PCPU_GET(fpcurthread) != curthread) {
+	if (PCPU_GET(pc_fpcurthread) != curthread) {
 		pcb_save = curpcb->pcb_save;
 		control = pcb_save->sv_env.en_cw;
 		status = pcb_save->sv_env.en_sw;
@@ -723,7 +731,7 @@ fputrap_sse(void)
 	u_int mxcsr;
 
 	critical_enter();
-	if (PCPU_GET(fpcurthread) != curthread)
+	if (PCPU_GET(pc_fpcurthread) != curthread)
 		mxcsr = curpcb->pcb_save->sv_env.en_mxcsr;
 	else
 		stmxcsr(&mxcsr);
@@ -739,7 +747,7 @@ restore_fpu_curthread(struct thread *td)
 	/*
 	 * Record new context early in case frstor causes a trap.
 	 */
-	PCPU_SET(fpcurthread, td);
+	PCPU_SET(pc_fpcurthread, td);
 
 	fpu_enable();
 	fpu_clean_state();
@@ -796,7 +804,7 @@ fpudna(void)
 
 	KASSERT((curpcb->pcb_flags & PCB_FPUNOSAVE) == 0,
 	    ("fpudna while in fpu_kern_enter(FPU_KERN_NOCTX)"));
-	if (__predict_false(PCPU_GET(fpcurthread) == td)) {
+	if (__predict_false(PCPU_GET(pc_fpcurthread) == td)) {
 		/*
 		 * Some virtual machines seems to set %cr0.TS at
 		 * arbitrary moments.  Silently clear the TS bit
@@ -805,11 +813,11 @@ fpudna(void)
 		 */
 		fpu_enable();
 	} else {
-		if (__predict_false(PCPU_GET(fpcurthread) != NULL)) {
+		if (__predict_false(PCPU_GET(pc_fpcurthread) != NULL)) {
 			panic(
 		    "fpudna: fpcurthread = %p (%d), curthread = %p (%d)\n",
-			    PCPU_GET(fpcurthread),
-			    PCPU_GET(fpcurthread)->td_tid, td, td->td_tid);
+			    PCPU_GET(pc_fpcurthread),
+			    PCPU_GET(pc_fpcurthread)->td_tid, td, td->td_tid);
 		}
 		restore_fpu_curthread(td);
 	}
@@ -822,9 +830,9 @@ fpu_activate_sw(struct thread *td)
 {
 
 	if ((td->td_pflags & TDP_KTHREAD) != 0 || !PCB_USER_FPU(td->td_pcb)) {
-		PCPU_SET(fpcurthread, NULL);
+		PCPU_SET(pc_fpcurthread, NULL);
 		fpu_disable();
-	} else if (PCPU_GET(fpcurthread) != td) {
+	} else if (PCPU_GET(pc_fpcurthread) != td) {
 		restore_fpu_curthread(td);
 	}
 }
@@ -834,10 +842,10 @@ fpudrop(void)
 {
 	struct thread *td;
 
-	td = PCPU_GET(fpcurthread);
+	td = PCPU_GET(pc_fpcurthread);
 	KASSERT(td == curthread, ("fpudrop: fpcurthread != curthread"));
 	CRITICAL_ASSERT(td);
-	PCPU_SET(fpcurthread, NULL);
+	PCPU_SET(pc_fpcurthread, NULL);
 	clear_pcb_flags(td->td_pcb, PCB_FPUINITDONE);
 	fpu_disable();
 }
@@ -869,7 +877,7 @@ fpugetregs(struct thread *td)
 		critical_exit();
 		return (_MC_FPOWNED_PCB);
 	}
-	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
+	if (td == PCPU_GET(pc_fpcurthread) && PCB_USER_FPU(pcb)) {
 		fpusave(get_pcb_user_save_pcb(pcb));
 		owned = _MC_FPOWNED_FPU;
 	} else {
@@ -982,7 +990,7 @@ fpusetregs(struct thread *td, struct savefpu *addr, char *xfpustate,
 	pcb = td->td_pcb;
 	error = 0;
 	critical_enter();
-	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
+	if (td == PCPU_GET(pc_fpcurthread) && PCB_USER_FPU(pcb)) {
 		error = fpusetxstate(td, xfpustate, xfpustate_size);
 		if (error == 0) {
 			bcopy(addr, get_pcb_user_save_td(td), sizeof(*addr));
@@ -1161,11 +1169,11 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 	if ((flags & FPU_KERN_NOCTX) != 0) {
 		critical_enter();
 		fpu_enable();
-		if (curthread == PCPU_GET(fpcurthread)) {
+		if (curthread == PCPU_GET(pc_fpcurthread)) {
 			fpusave(curpcb->pcb_save);
-			PCPU_SET(fpcurthread, NULL);
+			PCPU_SET(pc_fpcurthread, NULL);
 		} else {
-			KASSERT(PCPU_GET(fpcurthread) == NULL,
+			KASSERT(PCPU_GET(pc_fpcurthread) == NULL,
 			    ("invalid fpcurthread"));
 		}
 
@@ -1206,7 +1214,7 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 
 	if ((pcb->pcb_flags & PCB_FPUNOSAVE) != 0) {
 		KASSERT(ctx == NULL, ("non-null ctx after FPU_KERN_NOCTX"));
-		KASSERT(PCPU_GET(fpcurthread) == NULL,
+		KASSERT(PCPU_GET(pc_fpcurthread) == NULL,
 		    ("non-NULL fpcurthread for PCB_FPUNOSAVE"));
 		CRITICAL_ASSERT(td);
 
@@ -1223,7 +1231,7 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 		KASSERT((ctx->flags & FPU_KERN_CTX_DUMMY) == 0,
 		    ("dummy ctx"));
 		critical_enter();
-		if (curthread == PCPU_GET(fpcurthread))
+		if (curthread == PCPU_GET(pc_fpcurthread))
 			fpudrop();
 		pcb->pcb_save = ctx->prev;
 	}

@@ -437,8 +437,8 @@ xen_hvm_cpu_init(void)
 	KASSERT((regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ||
 	    !xen_pv_domain(),
 	    ("Xen PV domain without vcpu_id in cpuid"));
-	PCPU_SET(vcpu_id, (regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ?
-	    regs[1] : PCPU_GET(acpi_id));
+	PCPU_SET(pc_vcpu_id, (regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ?
+	    regs[1] : PCPU_GET(pc_acpi_id));
 
 	if (xen_evtchn_needs_ack && !IS_BSP()) {
 		/*
@@ -448,7 +448,7 @@ xen_hvm_cpu_init(void)
 		 * vCPU. Note that FreeBSD uses the same vector for all vCPUs
 		 * because it's not dynamically allocated.
 		 */
-		rc = set_percpu_callback(PCPU_GET(vcpu_id));
+		rc = set_percpu_callback(PCPU_GET(pc_vcpu_id));
 		if (rc != 0)
 			panic("Event channel upcall vector setup failed: %d",
 			    rc);

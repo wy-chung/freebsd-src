@@ -265,7 +265,7 @@ struct socket;
  * they are correct.
  */
 typedef	void m_ext_free_t(struct mbuf *);
-struct m_ext {
+struct _m_ext {
 	union {
 		/*
 		 * If EXT_FLAG_EMBREF is set, then we use refcount in the
@@ -295,7 +295,7 @@ struct m_ext {
 			 *   into all mbufs that use same external storage.
 			 */
 			char 	*ext_buf;	/* start of buffer */
-#define	m_ext_copylen	offsetof(struct m_ext, ext_arg2)
+#define	m_ext_copylen	offsetof(struct _m_ext, ext_arg2)
 			void	*ext_arg2;
 		};
 		struct {
@@ -313,7 +313,7 @@ struct m_ext {
 #define	m_epg_pa	m_ext.extpg_pa
 #define	m_epg_trail	m_ext.extpg_trail
 #define	m_epg_hdr	m_ext.extpg_hdr
-#define	m_epg_ext_copylen	offsetof(struct m_ext, ext_free)
+#define	m_epg_ext_copylen	offsetof(struct _m_ext, ext_free)
 		};
 	};
 	/*
@@ -403,7 +403,7 @@ struct mbuf {
 			};
 			union {
 				/* M_EXT or M_EXTPG set. */
-				struct m_ext	m_ext;
+				struct _m_ext	m_ext;
 				/* M_PKTHDR set, neither M_EXT nor M_EXTPG. */
 				char		m_pktdat[0];
 			};

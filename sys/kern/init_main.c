@@ -257,7 +257,7 @@ symbol_name(vm_offset_t va, db_strategy_t strategy)
  * module.  Finally, it allows for optional "kernel threads".
  */
 void
-mi_startup(void)
+mi_startup(void) // < _start
 {
 
 	struct sysinit *sip;
@@ -452,6 +452,7 @@ struct sysentvec null_sysvec = {
 	.sv_regset_end  = NULL,
 };
 
+static void proc0_init(void *dummy __unused);
 /*
  * The two following SYSINIT's are proc0 specific glue code.  I am not
  * convinced that they can not be safely combined, but their order of
@@ -459,8 +460,9 @@ struct sysentvec null_sysvec = {
  * for right now.
  */
 /* ARGSUSED*/
+SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL);
 static void
-proc0_init(void *dummy __unused)
+proc0_init(void *dummy __unused) // kernel swapper
 {
 	struct proc *p;
 	struct thread *td;
@@ -575,7 +577,7 @@ proc0_init(void *dummy __unused)
 	p->p_sigacts = sigacts_alloc();
 
 	/* Initialize signal state for process 0. */
-	siginit(&proc0);
+	siginit(p); //wyc ori &proc0
 
 	/* Create the file descriptor table. */
 	p->p_pd = pdinit(NULL, false);
@@ -622,7 +624,11 @@ proc0_init(void *dummy __unused)
 	 * handling for sv_minuser here, like is done for exec_new_vmspace().
 	 */
 	vm_map_init(&vmspace0.vm_map, vmspace_pmap(&vmspace0),
-	    p->p_sysent->sv_minuser, p->p_sysent->sv_maxuser);
+	    p->p_sysent->sv_minuser, p->p_sysent->sv_maxuser // null_sysvec
+#if defined(WYC)
+	    , VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS
+#endif
+	    );
 
 	/*
 	 * Call the init and ctor for the new thread and proc.  We wait
@@ -645,7 +651,6 @@ proc0_init(void *dummy __unused)
 	racct_add_force(p, RACCT_NPROC, 1);
 	PROC_UNLOCK(p);
 }
-SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL);
 
 /* ARGSUSED*/
 static void
@@ -668,11 +673,11 @@ proc0_post(void *dummy __unused)
 		}
 		microuptime(&p->p_stats->p_start);
 		PROC_STATLOCK(p);
-		rufetch(p, &ru);	/* Clears thread stats */
-		p->p_rux.rux_runtime = 0;
-		p->p_rux.rux_uticks = 0;
-		p->p_rux.rux_sticks = 0;
-		p->p_rux.rux_iticks = 0;
+		 rufetch(p, &ru);	/* Clears thread stats */
+		 p->p_rux.rux_runtime = 0;
+		 p->p_rux.rux_uticks = 0;
+		 p->p_rux.rux_sticks = 0;
+		 p->p_rux.rux_iticks = 0;
 		PROC_STATUNLOCK(p);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			td->td_runtime = 0;
@@ -680,8 +685,8 @@ proc0_post(void *dummy __unused)
 		PROC_UNLOCK(p);
 	}
 	sx_sunlock(&allproc_lock);
-	PCPU_SET(switchtime, cpu_ticks());
-	PCPU_SET(switchticks, ticks);
+	PCPU_SET(pc_switchtime, cpu_ticks());
+	PCPU_SET(pc_switchticks, ticks);
 }
 SYSINIT(p0post, SI_SUB_INTRINSIC_POST, SI_ORDER_FIRST, proc0_post, NULL);
 
@@ -744,7 +749,7 @@ start_init(void *dummy)
 	kern_unsetenv("kern.geom.eli.passphrase");
 
 	/* For Multicons, report which console is primary to both */
-	if (boothowto & RB_MULTIPLE) {
+	if (boothowto & RB_MULTIPLE) { // boothowto == 0
 		if (boothowto & RB_SERIAL)
 			printf("Dual Console: Serial Primary, Video Secondary\n");
 		else
@@ -759,7 +764,7 @@ start_init(void *dummy)
 
 	while ((path = strsep(&tmp_init_path, ":")) != NULL) {
 		if (bootverbose)
-			printf("start_init: trying %s\n", path);
+			printf("%s: trying %s\n", __func__, path);
 
 		memset(&args, 0, sizeof(args));
 		error = exec_alloc_args(&args);
@@ -812,7 +817,7 @@ start_init(void *dummy)
  * runnable yet, init execution is started when userspace can be served.
  */
 static void
-create_init(const void *udata __unused)
+create_init(const void *udata __unused) // init process has pid 1
 {
 	struct fork_req fr;
 	struct ucred *newcred, *oldcred;
@@ -825,7 +830,7 @@ create_init(const void *udata __unused)
 	error = fork1(&thread0, &fr);
 	if (error)
 		panic("cannot fork init: %d\n", error);
-	KASSERT(initproc->p_pid == 1, ("create_init: initproc->p_pid != 1"));
+	KASSERT(initproc->p_pid == 1, ("%s: initproc->p_pid != 1", __func__));
 	/* divorce init's credentials from the kernel's */
 	newcred = crget();
 	sx_xlock(&proctree_lock);

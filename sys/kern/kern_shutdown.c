@@ -484,7 +484,7 @@ kern_reboot(int howto)
 		thread_lock(curthread);
 		sched_bind(curthread, CPU_FIRST());
 		thread_unlock(curthread);
-		KASSERT(PCPU_GET(cpuid) == CPU_FIRST(),
+		KASSERT(PCPU_GET(pc_cpuid) == CPU_FIRST(),
 		    ("%s: not running on cpu 0", __func__));
 	}
 #endif
@@ -911,7 +911,7 @@ vpanic(const char *fmt, va_list ap)
 	 */
 	if (panicstr == NULL && !kdb_active) {
 		other_cpus = all_cpus;
-		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+		CPU_CLR(PCPU_GET(pc_cpuid), &other_cpus);
 		stop_cpus_hard(other_cpus);
 	}
 #endif
@@ -944,7 +944,7 @@ vpanic(const char *fmt, va_list ap)
 		printf("\n");
 	}
 #ifdef SMP
-	printf("cpuid = %d\n", PCPU_GET(cpuid));
+	printf("cpuid = %d\n", PCPU_GET(pc_cpuid));
 #endif
 	printf("time = %jd\n", (intmax_t )time_second);
 #ifdef KDB

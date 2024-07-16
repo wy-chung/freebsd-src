@@ -77,8 +77,8 @@ struct strpush {
  * contains information about the current file being read.
  */
 
-struct parsefile {
-	struct parsefile *prev;	/* preceding file on stack */
+struct _parsefile {
+	struct _parsefile *prev;	/* preceding file on stack */
 	int linno;		/* current line */
 	int fd;			/* file descriptor (or -1 if string) */
 	int nleft;		/* number of chars left in this line */
@@ -89,18 +89,17 @@ struct parsefile {
 	struct strpush basestrpush; /* so pushing one is fast */
 };
 
-
 int plinno = 1;			/* input line number */
 int parsenleft;			/* copy of parsefile->nleft */
 static int parselleft;		/* copy of parsefile->lleft */
 const char *parsenextc;		/* copy of parsefile->nextc */
 static char basebuf[BUFSIZ + 1];/* buffer for top level input file */
-static struct parsefile basepf = {	/* top level input file */
+static struct _parsefile basepf = {	/* top level input file */
 	.nextc = basebuf,
 	.buf = basebuf
 };
-static struct parsefile *parsefile = &basepf;	/* current input file */
-int whichprompt;		/* 1 == PS1, 2 == PS2 */
+static struct _parsefile *parsefile = &basepf;	/* current input file */
+enum prompt whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 static void pushfile(void);
 static int preadfd(void);
@@ -113,19 +112,15 @@ resetinput(void)
 	parselleft = parsenleft = 0;	/* clear input buffer */
 }
 
-
-
 /*
  * Read a character from the script, returning PEOF on end of file.
  * Nul characters in the input are silently discarded.
  */
-
 int
 pgetc(void)
 {
 	return pgetc_macro();
 }
-
 
 static int
 preadfd(void)
@@ -189,7 +184,6 @@ retry:
  * 3) If there is more in this buffer, use it else call read to fill it.
  * 4) Process input up to the next newline, deleting nul characters.
  */
-
 int
 preadbuffer(void)
 {
@@ -274,7 +268,6 @@ again:
  * Returns if we are certain we are at EOF. Does not cause any more input
  * to be read from the outside world.
  */
-
 int
 preadateof(void)
 {
@@ -291,7 +284,6 @@ preadateof(void)
  * Undo the last call to pgetc.  Only one character may be pushed back.
  * PEOF may be pushed back.
  */
-
 void
 pungetc(void)
 {
@@ -357,9 +349,8 @@ popstring(void)
  *    0: Do not verify
  *    1: Do verify
  */
-
 void
-setinputfile(const char *fname, int push, int verify)
+setinputfile(const char *fname, bool push, int verify)
 {
 	int e;
 	int fd;
@@ -386,14 +377,12 @@ setinputfile(const char *fname, int push, int verify)
 	INTON;
 }
 
-
 /*
  * Like setinputfile, but takes an open file descriptor (which should have
  * its FD_CLOEXEC flag already set).  Call this with interrupts off.
  */
-
 void
-setinputfd(int fd, int push)
+setinputfd(int fd, bool push)
 {
 	if (push) {
 		pushfile();
@@ -412,9 +401,8 @@ setinputfd(int fd, int push)
 /*
  * Like setinputfile, but takes input from a string.
  */
-
 void
-setinputstring(const char *string, int push)
+setinputstring(const char *string, bool push) // @push are true from all callers
 {
 	INTOFF;
 	if (push)
@@ -426,23 +414,20 @@ setinputstring(const char *string, int push)
 	INTON;
 }
 
-
-
 /*
  * To handle the "." command, a stack of input files is used.  Pushfile
  * adds a new entry to the stack and popfile restores the previous level.
  */
-
 static void
 pushfile(void)
 {
-	struct parsefile *pf;
+	struct _parsefile *pf;
 
 	parsefile->nleft = parsenleft;
 	parsefile->lleft = parselleft;
 	parsefile->nextc = parsenextc;
 	parsefile->linno = plinno;
-	pf = (struct parsefile *)ckmalloc(sizeof (struct parsefile));
+	pf = (struct _parsefile *)ckmalloc(sizeof (struct _parsefile));
 	pf->prev = parsefile;
 	pf->fd = -1;
 	pf->strpush = NULL;
@@ -450,11 +435,10 @@ pushfile(void)
 	parsefile = pf;
 }
 
-
 void
 popfile(void)
 {
-	struct parsefile *pf = parsefile;
+	struct _parsefile *pf = parsefile;
 
 	INTOFF;
 	if (pf->fd >= 0)
@@ -472,26 +456,22 @@ popfile(void)
 	INTON;
 }
 
-
 /*
  * Return current file (to go back to it later using popfilesupto()).
  */
-
-struct parsefile *
+struct _parsefile *
 getcurrentfile(void)
 {
 	return parsefile;
 }
-
 
 /*
  * Pop files until the given file is on top again. Useful for regular
  * builtins that read shell commands from files or strings.
  * If the given file is not an active file, an error is raised.
  */
-
 void
-popfilesupto(struct parsefile *file)
+popfilesupto(struct _parsefile *file)
 {
 	while (parsefile != file && parsefile != &basepf)
 		popfile();
@@ -502,7 +482,6 @@ popfilesupto(struct parsefile *file)
 /*
  * Return to top level.
  */
-
 void
 popallfiles(void)
 {
@@ -510,13 +489,10 @@ popallfiles(void)
 		popfile();
 }
 
-
-
 /*
  * Close the file(s) that the shell is reading commands from.  Called
  * after a fork is done.
  */
-
 void
 closescript(void)
 {

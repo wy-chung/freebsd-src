@@ -161,7 +161,7 @@ SYSCTL_ULONG(_vm_memguard, OID_AUTO, frequency_hits, CTLFLAG_RD,
  * the kernel_arena.
  */
 unsigned long
-memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
+memguard_fudge(unsigned long km_size, const struct _vm_map *parent_map)
 {
 	u_long mem_pgs, parent_size;
 

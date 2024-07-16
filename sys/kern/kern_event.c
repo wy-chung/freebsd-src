@@ -833,7 +833,7 @@ filt_timerattach(struct knote *kn)
 	kn->kn_ptr.p_v = kc = malloc(sizeof(*kc), M_KQUEUE, M_WAITOK);
 	kc->kn = kn;
 	kc->p = curproc;
-	kc->cpuid = PCPU_GET(cpuid);
+	kc->cpuid = PCPU_GET(pc_cpuid);
 	kc->flags = 0;
 	callout_init(&kc->c, 1);
 	filt_timerstart(kn, to);

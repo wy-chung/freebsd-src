@@ -51,10 +51,10 @@
 #define	MAXDSIZ		(1*1024*1024*1024)	/* max data size */
 #endif
 #ifndef DFLSSIZ
-#define	DFLSSIZ		(128*1024*1024)		/* initial stack size limit */
+#define	DFLSSIZ		(16*1024*1024) //ori (128*1024*1024)		/* initial stack size limit */
 #endif
 #ifndef MAXSSIZ
-#define	MAXSSIZ		(1*1024*1024*1024)	/* max stack size */
+#define	MAXSSIZ		(256*1024*1024) //ori (1*1024*1024*1024)	/* max stack size */
 #endif
 #ifndef SGROWSIZ
 #define	SGROWSIZ	(128*1024)		/* amount to grow stack */
@@ -204,7 +204,7 @@
 #define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
 #define	SHAREDPAGE_SV39		(VM_MAX_USER_ADDRESS_SV39 - PAGE_SIZE)
 #define	SHAREDPAGE_SV48		(VM_MAX_USER_ADDRESS_SV48 - PAGE_SIZE)
-#define	SHAREDPAGE		SHAREDPAGE_SV48
+//#define	SHAREDPAGE		SHAREDPAGE_SV48	// verifed, this is not used
 #define	USRSTACK_SV39		SHAREDPAGE_SV39
 #define	USRSTACK_SV48		SHAREDPAGE_SV48
 #define	USRSTACK		USRSTACK_SV48
