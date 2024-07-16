@@ -78,7 +78,7 @@ struct pmap {
 	cpuset_t		pm_active;	/* active on cpus */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
-	struct vm_radix		pm_root;
+	struct vm_radix		pm_root;	// a tree of pagetable pages for this pmap
 };
 
 typedef struct pmap *pmap_t;

@@ -394,22 +394,20 @@ vm_radix_zinit(void)
  * Panics if the key already exists.
  */
 int
-vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
+vm_radix_insert(struct vm_radix *rtree, vm_page_t page /*value*/)
 {
 	vm_pindex_t index, newind;
-	struct vm_radix_node *leaf, *parent, *rnode;
-	smrnode_t *parentp;
 	int slot;
 
-	index = page->pindex;
-	leaf = vm_radix_toleaf(page);
+	index = page->pindex; // key
+	struct vm_radix_node *leaf = vm_radix_toleaf(page);
 
 	/*
 	 * The owner of record for root is not really important because it
 	 * will never be used.
 	 */
-	rnode = vm_radix_root_load(rtree, LOCKED);
-	parent = NULL;
+	struct vm_radix_node *rnode = vm_radix_root_load(rtree, LOCKED);
+	struct vm_radix_node *parent = NULL;
 	for (;;) {
 		if (vm_radix_isleaf(rnode)) {
 			if (rnode == VM_RADIX_NULL) {
@@ -439,7 +437,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_page_t page)
 	 * Setup the new intermediate node and add the 2 children: the
 	 * new object and the older edge or object.
 	 */
-	parentp = (parent != NULL) ? &parent->rn_child[slot]:
+	smrnode_t *parentp = (parent != NULL) ? &parent->rn_child[slot]:
 	    (smrnode_t *)&rtree->rt_root;
 	parent = vm_radix_node_get(index, newind);
 	if (parent == NULL)
@@ -654,7 +652,7 @@ vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index)
  * that index.  If the index is not present, return NULL.
  */
 vm_page_t
-vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index)
+vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index/*key*/)
 {
 	struct vm_radix_node *child, *parent, *rnode;
 	vm_page_t m;

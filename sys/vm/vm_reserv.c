@@ -956,7 +956,7 @@ vm_reserv_break_all(vm_object_t object)
  * Frees the given page if it belongs to a reservation.  Returns TRUE if the
  * page is freed and FALSE otherwise.
  */
-boolean_t
+bool
 vm_reserv_free_page(vm_page_t m)
 {
 	vm_reserv_t rv;

@@ -2219,15 +2219,12 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 		pmap->pm_stats.wired_count -= L2_SIZE / PAGE_SIZE;
 	pmap_resident_count_dec(pmap, L2_SIZE / PAGE_SIZE);
 	if (oldl2e & PTE_SW_MANAGED) {
-		vm_offset_t eva, va;
-		vm_page_t m;
-
 		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, PTE_TO_PHYS(oldl2e));
 		struct md_page *pvh = pa_to_pvh(PTE_TO_PHYS(oldl2e));
 		pmap_pv_pvh_free(pvh, pmap, sva);
-		eva = sva + L2_SIZE;
-		for (va = sva, m = PHYS_TO_VM_PAGE(PTE_TO_PHYS(oldl2e));
-		    va < eva; va += PAGE_SIZE, m++) {
+		vm_offset_t eva = sva + L2_SIZE;
+		vm_page_t m = PHYS_TO_VM_PAGE(PTE_TO_PHYS(oldl2e));
+		for (vm_offset_t va = sva; va < eva; va += PAGE_SIZE, m++) {
 			if ((oldl2e & PTE_D) != 0)
 				vm_page_dirty(m);
 			if ((oldl2e & PTE_A) != 0)
@@ -2655,12 +2652,10 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
     struct rwlock **lockp)
 {
 	vm_page_t mpte;
-	pd_entry_t newl2e, oldl2e;
-	pt_entry_t *firstl3, newl3e;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	oldl2e = pmap_load(l2);
+	pd_entry_t oldl2e = pmap_load(l2);
 	KASSERT((oldl2e & PTE_RWX) != 0, // assert superpage
 	    ("%s: oldl2e is not a leaf entry", __func__));
 	if ((oldl2e & PTE_A) == 0 || (mpte = pmap_remove_pt_page(pmap, va)) == NULL) {
@@ -2671,8 +2666,9 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 		    VM_ALLOC_WIRED)) == NULL) {
 			struct spglist free;
 			SLIST_INIT(&free);
+			pd_entry_t l1e = pmap_load(pmap_l1(pmap, va));
 			(void)pmap_remove_l2(pmap, l2, va & ~L2_OFFSET,
-			    pmap_load(pmap_l1(pmap, va)), &free, lockp);
+			    l1e, &free, lockp);
 			vm_page_free_pages_toq(&free, true);
 			CTR3(KTR_PMAP, "%s: "
 			    "failure for va %#lx in pmap %p", __func__, va, pmap);
@@ -2685,11 +2681,11 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 		}
 	}
 	vm_paddr_t mptepa = VM_PAGE_TO_PHYS(mpte);
-	firstl3 = (pt_entry_t *)PHYS_TO_DMAP(mptepa);
-	newl2e = ((mptepa / PAGE_SIZE) << PTE_PPN0_S) | PTE_V;
+	pt_entry_t *firstl3 = (pt_entry_t *)PHYS_TO_DMAP(mptepa);
+	pd_entry_t newl2e = ((mptepa / PAGE_SIZE) << PTE_PPN0_S) | PTE_V;
 	KASSERT((oldl2e & PTE_A) != 0, ("%s: oldl2e is missing PTE_A", __func__));
 	KASSERT((oldl2e & (PTE_D | PTE_W)) != PTE_W, ("%s: oldl2e is missing PTE_D", __func__));
-	newl3e = oldl2e;
+	pt_entry_t newl3e = oldl2e;
 
 	/*
 	 * If the page table page is not leftover from an earlier promotion,

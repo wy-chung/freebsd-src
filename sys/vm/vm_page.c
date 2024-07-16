@@ -3895,8 +3895,7 @@ vm_page_free_prep(vm_page_t m)
 	if (m->object != NULL) {
 		KASSERT(((m->oflags & VPO_UNMANAGED) != 0) ==
 		    ((m->object->flags & OBJ_UNMANAGED) != 0),
-		    ("%s: managed flag mismatch for page %p", __func__,
-		    m));
+		    ("%s: managed flag mismatch for page %p", __func__, m));
 		vm_page_assert_xbusied(m);
 
 		/*
