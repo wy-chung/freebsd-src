@@ -69,7 +69,7 @@ idle_setup(void *dummy)
 #else
 		error = kproc_kthread_add(sched_idletd, NULL, &p, &td,
 		    RFSTOPPED | RFHIGHPID, 0, "idle", "idle");
-		PCPU_SET(idlethread, td);
+		PCPU_SET(pc_idlethread, td);
 #endif
 		if (error)
 			panic("idle_setup: kproc_create error %d\n", error);

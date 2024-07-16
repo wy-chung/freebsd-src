@@ -58,7 +58,7 @@ get_pcpu(void)
 {
 	struct pcpu *pcpu;
 
-	__asm __volatile("mv %0, tp" : "=&r"(pcpu));
+	__asm __volatile("mv %0, tp" : "=&r"(pcpu)); // tp(x4) points to thread local storage
 
 	return (pcpu);
 }
@@ -68,17 +68,17 @@ get_curthread(void)
 {
 	struct thread *td;
 
-	__asm __volatile("ld %0, 0(tp)" : "=&r"(td));
+	__asm __volatile("ld %0, 0(tp)" : "=&r"(td)); // tp(x4) points to thread local storage
 
 	return (td);
 }
 
 #define	curthread get_curthread()
 
-#define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
-#define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
-#define	PCPU_PTR(member)	(&get_pcpu()->pc_ ## member)
-#define	PCPU_SET(member,value)	(get_pcpu()->pc_ ## member = (value))
+#define	PCPU_GET(member)	(get_pcpu()->/*pc_ ## */member)
+#define	PCPU_ADD(member, value)	(get_pcpu()->/*pc_ ## */member += (value))
+#define	PCPU_PTR(member)	(&get_pcpu()->/*pc_ ## */member)
+#define	PCPU_SET(member,value)	(get_pcpu()->/*pc_ ## */member = (value))
 
 #endif	/* _KERNEL */
 

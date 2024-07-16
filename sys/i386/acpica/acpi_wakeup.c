@@ -198,7 +198,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 #ifdef SMP
 	suspcpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &suspcpus);
+	CPU_CLR(PCPU_GET(pc_cpuid), &suspcpus);
 #endif
 
 	if (acpi_resume_beep != 0)
@@ -283,8 +283,8 @@ acpi_wakeup_machdep(struct acpi_softc *sc, int state, int sleep_result,
 			ucode_reload();
 			pmap_init_pat();
 			initializecpu();
-			PCPU_SET(switchtime, 0);
-			PCPU_SET(switchticks, ticks);
+			PCPU_SET(pc_switchtime, 0);
+			PCPU_SET(pc_switchticks, ticks);
 #ifdef DEV_APIC
 			lapic_xapic_mode();
 #endif

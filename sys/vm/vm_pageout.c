@@ -126,9 +126,6 @@ static int vm_pageout_cluster(vm_page_t m);
 static void vm_pageout_mightbe_oom(struct vm_domain *vmd, int page_shortage,
     int starting_page_shortage);
 
-SYSINIT(pagedaemon_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, vm_pageout_init,
-    NULL);
-
 struct proc *pageproc;
 
 static struct kproc_desc page_kp = {
@@ -136,8 +133,7 @@ static struct kproc_desc page_kp = {
 	vm_pageout,
 	&pageproc
 };
-SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, kproc_start,
-    &page_kp);
+SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, kproc_start, &page_kp);
 
 SDT_PROVIDER_DEFINE(vm);
 SDT_PROBE_DEFINE(vm, , , vm__lowmem_scan);
@@ -488,10 +484,10 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 	 */
 	for (i = 0; i < count; i++) {
 		KASSERT(vm_page_all_valid(mc[i]),
-		    ("vm_pageout_flush: partially invalid page %p index %d/%d",
-			mc[i], i, count));
+		    ("%s: partially invalid page %p index %d/%d",
+			__func__, mc[i], i, count));
 		KASSERT((mc[i]->a.flags & PGA_WRITEABLE) == 0,
-		    ("vm_pageout_flush: writeable page %p", mc[i]));
+		    ("%s: writeable page %p", __func__, mc[i]));
 		vm_page_busy_downgrade(mc[i]);
 	}
 	vm_object_pip_add(object, count);
@@ -506,7 +502,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen,
 
 		KASSERT(pageout_status[i] == VM_PAGER_PEND ||
 		    !pmap_page_is_write_mapped(mt),
-		    ("vm_pageout_flush: page %p is not write protected", mt));
+		    ("%s: page %p is not write protected", __func__, mt));
 		switch (pageout_status[i]) {
 		case VM_PAGER_OK:
 			/*
@@ -1162,27 +1158,22 @@ vm_pageout_active_target(struct vm_domain *vmd)
  * Scan the active queue.  If there is no shortage of inactive pages, scan a
  * small portion of the queue in order to maintain quasi-LRU.
  */
-static void
+static void // < vm_pageout_worker < vm_pageout
 vm_pageout_scan_active(struct vm_domain *vmd, int page_shortage)
 {
 	struct scan_state ss;
-	vm_object_t object;
-	vm_page_t m, marker;
-	struct vm_pagequeue *pq;
-	vm_page_astate_t old, new;
+	vm_page_t m;
 	long min_scan;
-	int act_delta, max_scan, ps_delta, refs, scan_tick;
-	uint8_t nqueue;
 
-	marker = &vmd->vmd_markers[PQ_ACTIVE];
-	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
+	vm_page_t marker = &vmd->vmd_markers[PQ_ACTIVE];
+	struct vm_pagequeue *pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
 	vm_pagequeue_lock(pq);
 
 	/*
 	 * If we're just idle polling attempt to visit every
 	 * active page within 'update_period' seconds.
 	 */
-	scan_tick = ticks;
+	int scan_tick = ticks;
 	if (vm_pageout_update_period != 0) {
 		min_scan = pq->pq_cnt;
 		min_scan *= scan_tick - vmd->vmd_last_active_scan;
@@ -1205,7 +1196,7 @@ vm_pageout_scan_active(struct vm_domain *vmd, int page_shortage)
 	 * they are moved back to the head and tail of the queue, respectively,
 	 * and scanning resumes.
 	 */
-	max_scan = page_shortage > 0 ? pq->pq_cnt : min_scan;
+	int max_scan = page_shortage > 0 ? pq->pq_cnt : min_scan;
 act_scan:
 	vm_pageout_init_scan(&ss, pq, marker, &vmd->vmd_clock[0], max_scan);
 	while ((m = vm_pageout_next(&ss, false)) != NULL) {
@@ -1237,7 +1228,7 @@ act_scan:
 		 * A page's object pointer may be set to NULL before
 		 * the object lock is acquired.
 		 */
-		object = atomic_load_ptr(&m->object);
+		vm_object_t object = atomic_load_ptr(&m->object);
 		if (__predict_false(object == NULL))
 			/*
 			 * The page has been removed from its object.
@@ -1271,9 +1262,11 @@ act_scan:
 		 *    This race delays the detection of a new reference.  At
 		 *    worst, we will deactivate and reactivate the page.
 		 */
-		refs = object->ref_count != 0 ? pmap_ts_referenced(m) : 0;
+		int refs = object->ref_count != 0 ? pmap_ts_referenced(m) : 0;
 
-		old = vm_page_astate_load(m);
+		vm_page_astate_t old = vm_page_astate_load(m);
+		vm_page_astate_t new;
+		int ps_delta;
 		do {
 			/*
 			 * Check to see if the page has been removed from the
@@ -1290,7 +1283,7 @@ act_scan:
 			 * Advance or decay the act_count based on recent usage.
 			 */
 			new = old;
-			act_delta = refs;
+			int act_delta = refs;
 			if ((old.flags & PGA_REFERENCED) != 0) {
 				new.flags &= ~PGA_REFERENCED;
 				act_delta++;
@@ -1299,10 +1292,8 @@ act_scan:
 				new.act_count += ACT_ADVANCE + act_delta;
 				if (new.act_count > ACT_MAX)
 					new.act_count = ACT_MAX;
-			} else {
-				new.act_count -= min(new.act_count,
-				    ACT_DECLINE);
-			}
+			} else
+				new.act_count -= min(new.act_count, ACT_DECLINE);
 
 			if (new.act_count > 0) {
 				/*
@@ -1342,6 +1333,7 @@ act_scan:
 				 * the opportunistic updates to the page's dirty
 				 * field by the pmap.
 				 */
+				uint8_t nqueue;
 				if (page_shortage <= 0) {
 					nqueue = PQ_INACTIVE;
 					ps_delta = 0;
@@ -2087,31 +2079,21 @@ vm_pageout_lowmem(void)
 }
 
 static void
-vm_pageout_worker(void *arg)
+vm_pageout_worker(void *arg) // < vm_pageout
 {
-	struct vm_domain *vmd;
-	u_int ofree;
-	int addl_shortage, domain, shortage;
-	bool target_met;
-
-	domain = (uintptr_t)arg;
-	vmd = VM_DOMAIN(domain);
-	shortage = 0;
-	target_met = true;
+	int domain = (uintptr_t)arg;
+	struct vm_domain *vmd = VM_DOMAIN(domain);
+	bool target_met = true;
 
 	/*
 	 * XXXKIB It could be useful to bind pageout daemon threads to
 	 * the cores belonging to the domain, from which vm_page_array
 	 * is allocated.
 	 */
-
 	KASSERT(vmd->vmd_segs != 0, ("domain without segments"));
 	vmd->vmd_last_active_scan = ticks;
 
-	/*
-	 * The pageout daemon worker is never done, so loop forever.
-	 */
-	while (TRUE) {
+	while (TRUE) { // The pageout daemon worker is never done, so loop forever.
 		vm_domain_pageout_lock(vmd);
 
 		/*
@@ -2143,7 +2125,6 @@ vm_pageout_worker(void *arg)
 			    "psleep", hz / VM_INACT_SCAN_RATE) == 0)
 				VM_CNT_INC(v_pdwakeups);
 		}
-
 		/* Prevent spurious wakeups by ensuring that wanted is set. */
 		atomic_store_int(&vmd->vmd_pageout_wanted, 1);
 
@@ -2153,14 +2134,13 @@ vm_pageout_worker(void *arg)
 		 * handlers appear to have freed up some pages, subtract the
 		 * difference from the inactive queue scan target.
 		 */
-		shortage = pidctrl_daemon(&vmd->vmd_pid, vmd->vmd_free_count);
+		int addl_shortage;
+		int shortage = pidctrl_daemon(&vmd->vmd_pid, vmd->vmd_free_count);
 		if (shortage > 0) {
-			ofree = vmd->vmd_free_count;
+			u_int ofree = vmd->vmd_free_count;
 			if (vm_pageout_lowmem() && vmd->vmd_free_count > ofree)
-				shortage -= min(vmd->vmd_free_count - ofree,
-				    (u_int)shortage);
-			target_met = vm_pageout_inactive(vmd, shortage,
-			    &addl_shortage);
+				shortage -= min(vmd->vmd_free_count - ofree, (u_int)shortage);
+			target_met = vm_pageout_inactive(vmd, shortage, &addl_shortage);
 		} else
 			addl_shortage = 0;
 
@@ -2341,11 +2321,13 @@ vm_pageout_init(void)
 	if (vm_page_max_user_wired == 0)
 		vm_page_max_user_wired = 4 * freecount / 5;
 }
+SYSINIT(pagedaemon_init, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, vm_pageout_init, NULL);
 
 /*
  *     vm_pageout is the high level pageout daemon.
  */
-static void
+// the pagedaemon process is created by kproc_start
+static void // < SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, kproc_start, &page_kp);
 vm_pageout(void)
 {
 	struct proc *p;
@@ -2360,8 +2342,7 @@ vm_pageout(void)
 	for (first = -1, i = 0; i < vm_ndomains; i++) {
 		if (VM_DOMAIN_EMPTY(i)) {
 			if (bootverbose)
-				printf("domain %d empty; skipping pageout\n",
-				    i);
+				printf("domain %d empty; skipping pageout\n", i);
 			continue;
 		}
 		if (first == -1)
@@ -2369,26 +2350,25 @@ vm_pageout(void)
 		else {
 			error = kthread_add(vm_pageout_worker,
 			    (void *)(uintptr_t)i, p, NULL, 0, 0, "dom%d", i);
-			if (error != 0)
-				panic("starting pageout for domain %d: %d\n",
-				    i, error);
+			if (error != ESUCCESS)
+				panic("starting pageout for domain %d: %d\n", i, error);
 		}
 		pageout_threads = VM_DOMAIN(i)->vmd_inactive_threads;
 		for (j = 0; j < pageout_threads - 1; j++) {
 			error = kthread_add(vm_pageout_helper,
 			    (void *)(uintptr_t)i, p, NULL, 0, 0,
 			    "dom%d helper%d", i, j);
-			if (error != 0)
+			if (error != ESUCCESS)
 				panic("starting pageout helper %d for domain "
 				    "%d: %d\n", j, i, error);
 		}
 		error = kthread_add(vm_pageout_laundry_worker,
 		    (void *)(uintptr_t)i, p, NULL, 0, 0, "laundry: dom%d", i);
-		if (error != 0)
+		if (error != ESUCCESS)
 			panic("starting laundry for domain %d: %d", i, error);
 	}
 	error = kthread_add(uma_reclaim_worker, NULL, p, NULL, 0, 0, "uma");
-	if (error != 0)
+	if (error != ESUCCESS)
 		panic("starting uma_reclaim helper, error %d\n", error);
 
 	snprintf(td->td_name, sizeof(td->td_name), "dom%d", first);

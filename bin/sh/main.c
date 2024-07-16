@@ -43,6 +43,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #endif
 #endif /* not lint */
+#include <sys/param.h>
 #include <sys/cdefs.h>
 #include <stdio.h>
 #include <signal.h>
@@ -78,14 +79,21 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/28/95";
 #endif
 
 int rootpid;
-int rootshell;
+_Thread_local bool rootshell;
 struct jmploc main_handler;
 int localeisutf8, initial_localeisutf8;
 
 static void reset(void);
-static void cmdloop(int);
+static void cmdloop(bool);
 static void read_profile(const char *);
 static char *find_dot_file(char *);
+static int sh_main(int argc, char *argv[]);
+
+int
+main(int argc, char *argv[])
+{
+	return sh_main(argc, argv);
+}
 
 /*
  * Main routine.  We initialize things, parse the arguments, execute
@@ -94,9 +102,8 @@ static char *find_dot_file(char *);
  * exception occurs.  When an exception occurs the variable "state"
  * is used to figure out how far we had gotten.
  */
-
-int
-main(int argc, char *argv[])
+static int
+sh_main(int argc, char *argv[])
 {
 	/*
 	 * As smark is accessed after a longjmp, it cannot be a local in main().
@@ -106,14 +113,13 @@ main(int argc, char *argv[])
 	 */
 	static struct stackmark smark, smark2;
 	volatile int state;
-	char *shinit;
 
+	fprintf(stderr, "%s: revert eval.c and jobs.c\n", __func__);
 	(void) setlocale(LC_ALL, "");
 	initcharset();
 	state = 0;
-	if (setjmp(main_handler.loc)) {
-		if (state == 0 || iflag == 0 || ! rootshell ||
-		    exception == EXEXIT)
+	if (setjmp(main_handler.loc)) { // return from longjmp
+		if (state == 0 || iflag == 0 || ! rootshell || exception == EXEXIT)
 			exitshell(exitstatus);
 		reset();
 		if (exception == EXINT)
@@ -126,8 +132,10 @@ main(int argc, char *argv[])
 			goto state2;
 		else if (state == 3)
 			goto state3;
-		else
+		else if (state == 4) //wyc
 			goto state4;
+		else //wyc
+			goto state5;
 	}
 	handler = &main_handler;
 #ifdef DEBUG
@@ -135,7 +143,7 @@ main(int argc, char *argv[])
 	trputs("Shell args:  ");  trargs(argv);
 #endif
 	rootpid = getpid();
-	rootshell = 1;
+	rootshell = true;
 	INTOFF;
 	initvar();
 	setstackmark(&smark);
@@ -145,8 +153,8 @@ main(int argc, char *argv[])
 	pwd_init(iflag);
 	INTON;
 	if (iflag)
-		chkmail(1);
-	if (argv[0] && argv[0][0] == '-') {
+		chkmail(true);
+	if (argv[0] && argv[0][0] == '-') { // run during login
 		state = 1;
 		read_profile("/etc/profile");
 state1:
@@ -159,6 +167,7 @@ state1:
 state2:
 	state = 3;
 	if (!privileged && iflag) {
+		char *shinit;
 		if ((shinit = lookupvar("ENV")) != NULL && *shinit != '\0') {
 			state = 3;
 			read_profile(shinit);
@@ -175,13 +184,15 @@ state3:
 		evalstring(minusc, sflag ? 0 : EV_EXIT);
 	}
 state4:
-	if (sflag || minusc == NULL) {
-		cmdloop(1);
+	state = 5; //wyc
+	if (sflag || minusc == NULL) { // stdin or -c
+		cmdloop(true);
 	}
+state5: //wyc
 	exitshell(exitstatus);
 	/*NOTREACHED*/
 	return 0;
-}
+} // sh_main
 
 static void
 reset(void)
@@ -194,25 +205,24 @@ reset(void)
  * Read and execute commands.  "Top" is nonzero for the top level command
  * loop; it turns on prompting if the shell is interactive.
  */
-
 static void
-cmdloop(int top)
+cmdloop(bool top) // top is true only when called from sh_main
 {
 	union node *n;
 	struct stackmark smark;
-	int inter;
-	int numeof = 0;
+	bool inter; // interactive
+	int numeof = 0; // number of EOF
 
-	TRACE(("cmdloop(%d) called\n", top));
+	TRACE(("%s(%d) called\n", __func__, top));
 	setstackmark(&smark);
 	for (;;) {
 		if (pendingsig)
 			dotrap();
-		inter = 0;
+		inter = false;
 		if (iflag && top) {
-			inter++;
-			showjobs(1, SHOWJOBS_DEFAULT);
-			chkmail(0);
+			inter = true;
+			showjobs(true, SHOWJOBS_DEFAULT);
+			chkmail(false);
 			flushout(&output);
 		}
 		n = parsecmd(inter);
@@ -229,16 +239,16 @@ cmdloop(int top)
 		} else if (n != NULL && nflag == 0) {
 			job_warning = (job_warning == 2) ? 1 : 0;
 			numeof = 0;
-			evaltree(n, 0);
+			evaltree(n, 0/*flags*/);
 		}
 		popstackmark(&smark);
-		setstackmark(&smark);
-		if (evalskip != 0) {
+		//setstackmark(&smark);
+		if (evalskip != SKIPNONE) {
 			if (evalskip == SKIPRETURN)
-				evalskip = 0;
+				evalskip = SKIPNONE;
 			break;
 		}
-	}
+	} // for (;;)
 	popstackmark(&smark);
 	if (top && iflag) {
 		out2c('\n');
@@ -246,12 +256,9 @@ cmdloop(int top)
 	}
 }
 
-
-
 /*
  * Read /etc/profile or .profile.  Return on error.
  */
-
 static void
 read_profile(const char *name)
 {
@@ -267,36 +274,29 @@ read_profile(const char *name)
 		return;
 	INTOFF;
 	if ((fd = open(expandedname, oflags)) >= 0)
-		setinputfd(fd, 1);
+		setinputfd(fd, true);
 	INTON;
 	if (fd < 0)
 		return;
-	cmdloop(0);
+	cmdloop(false);
 	popfile();
 }
-
-
 
 /*
  * Read a file containing shell functions.
  */
-
 void
 readcmdfile(const char *name, int verify)
 {
-	setinputfile(name, 1, verify);
-	cmdloop(0);
+	setinputfile(name, true, verify);
+	cmdloop(false);
 	popfile();
 }
-
-
 
 /*
  * Take commands from a file.  To be compatible we should do a path
  * search for the file, which is necessary to find sub-commands.
  */
-
-
 static char *
 find_dot_file(char *basename)
 {
@@ -323,7 +323,7 @@ find_dot_file(char *basename)
 }
 
 int
-dotcmd(int argc, char **argv)
+dotcmd(int argc, char **argv) // refer to builtins.def
 {
 	char *filename, *fullname;
 
@@ -339,16 +339,15 @@ dotcmd(int argc, char **argv)
 	filename = argc > 2 && strcmp(argv[1], "--") == 0 ? argv[2] : argv[1];
 
 	fullname = find_dot_file(filename);
-	setinputfile(fullname, 1, -1 /* verify */);
+	setinputfile(fullname, true, -1 /* verify */);
 	commandname = fullname;
-	cmdloop(0);
+	cmdloop(false);
 	popfile();
 	return exitstatus;
 }
 
-
 int
-exitcmd(int argc, char **argv)
+exitcmd(int argc, char **argv) // refer to builtins.def
 {
 	if (stoppedjobs())
 		return 0;

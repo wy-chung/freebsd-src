@@ -56,21 +56,25 @@
 /*
  * Virtual memory related constants, all in bytes
  */
-#define	MAXTSIZ		(32768UL*1024*1024)	/* max text size */
+//#define	MAXTSIZ		(32768UL*1024*1024)	/* max text size */	//wyc 128M for i386
+  #define	MAXTSIZ		(128UL*1024*1024)	/* max text size */	//wyc
 #ifndef DFLDSIZ
-#define	DFLDSIZ		(32768UL*1024*1024)	/* initial data size limit */
+//#define	DFLDSIZ		(32768UL*1024*1024)	/* initial data size limit */	//wyc 128M for i386
+  #define	DFLDSIZ		(128UL*1024*1024)	/* initial data size limit */	//wyc
 #endif
 #ifndef MAXDSIZ
-#define	MAXDSIZ		(32768UL*1024*1024)	/* max data size */
+//#define	MAXDSIZ		(32768UL*1024*1024)	/* max data size */	//wyc 512M for i386
+  #define	MAXDSIZ		(512UL*1024*1024)	/* max data size */	//wyc
 #endif
 #ifndef	DFLSSIZ
-#define	DFLSSIZ		(8UL*1024*1024)		/* initial stack size limit */
+#define	DFLSSIZ		(8UL*1024*1024)		/* initial stack size limit */	// the same
 #endif
 #ifndef	MAXSSIZ
-#define	MAXSSIZ		(512UL*1024*1024)	/* max stack size */
+//#define	MAXSSIZ		(512UL*1024*1024)	/* max stack size */	//wyc 64M for i386
+  #define	MAXSSIZ		(64UL*1024*1024)	/* max stack size */	//wyc
 #endif
 #ifndef SGROWSIZ
-#define	SGROWSIZ	(128UL*1024)		/* amount to grow stack */
+#define	SGROWSIZ	(128UL*1024)		/* amount to grow stack */	// the same
 #endif
 
 /*
@@ -85,7 +89,8 @@
 /*
  * The physical address space is densely populated.
  */
-#define	VM_PHYSSEG_DENSE
+#define	VM_PHYSSEG_DENSE //wyc ori
+//#define VM_PHYSSEG_SPARSE //wyctest amd64 pass. risc-v uses this model
 
 /*
  * The number of PHYSSEG entries must be one greater than the number
@@ -160,34 +165,35 @@
  * Needs to be aligned at 2MB superpage boundary.
  */
 #ifndef KERNLOAD
-#define	KERNLOAD	0x200000
+#define	KERNLOAD	0x200000 //wyc 2M
 #endif
 
-/*
+/* //wyc virtual address space is 48 bits == 256T
  * Virtual addresses of things.  Derived from the page directory and
  * page table indexes from pmap.h for precision.
  *
- * 0x0000000000000000 - 0x00007fffffffffff   user map
- * 0x0000800000000000 - 0xffff7fffffffffff   does not exist (hole)
- * 0xffff800000000000 - 0xffff804020100fff   recursive page table (512GB slot)
- * 0xffff804020100fff - 0xffff807fffffffff   unused
- * 0xffff808000000000 - 0xffff847fffffffff   large map (can be tuned up)
- * 0xffff848000000000 - 0xfffff77fffffffff   unused (large map extends there)
- * 0xfffff60000000000 - 0xfffff7ffffffffff   2TB KMSAN origin map, optional
- * 0xfffff78000000000 - 0xfffff7bfffffffff   512GB KASAN shadow map, optional
- * 0xfffff80000000000 - 0xfffffbffffffffff   4TB direct map
- * 0xfffffc0000000000 - 0xfffffdffffffffff   2TB KMSAN shadow map, optional
- * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
+ * 0x0000,0000,0000,0000 - 0x0000,7fff,ffff,ffff   user map //wyc == 2^47 == 128T
+ * 0x0000,8000,0000,0000 - 0xffff,7fff,ffff,ffff   does not exist (hole)
+     UPT_MIN_ADDRESS     -   UPT_MAX_ADDRESS
+ * 0xffff,8000,0000,0000 - 0xffff,8040,2010,0fff   recursive page table (512GB slot)
+ * 0xffff,8040,2010,0fff - 0xffff,807f,ffff,ffff   unused
+ * 0xffff,8080,0000,0000 - 0xffff,847f,ffff,ffff   large map (can be tuned up)
+ * 0xffff,8480,0000,0000 - 0xffff,f77f,ffff,ffff   unused (large map extends there)
+ * 0xffff,f600,0000,0000 - 0xffff,f7ff,ffff,ffff   2TB KMSAN origin map, optional
+ * 0xffff,f780,0000,0000 - 0xffff,f7bf,ffff,ffff   512GB KASAN shadow map, optional
+ * 0xffff,f800,0000,0000 - 0xffff,fbff,ffff,ffff   4TB direct map
+ * 0xffff,fc00,0000,0000 - 0xffff,fdff,ffff,ffff   2TB KMSAN shadow map, optional
+ * 0xffff,fe00,0000,0000 - 0xffff,ffff,ffff,ffff   2TB kernel map (VM_MIN_KERNEL_ADDRESS - VM_MAX_KERNEL_ADDRESS)
  *
  * Within the kernel map:
  *
- * 0xfffffe0000000000                        vm_page_array
- * 0xffffffff80000000                        KERNBASE
+ * 0xffff,fe00,0000,0000                        vm_page_array
+ * 0xffff,ffff,8000,0000                        KERNBASE
  */
 
-#define	VM_MIN_KERNEL_ADDRESS	KV4ADDR(KPML4BASE, 0, 0, 0)
-#define	VM_MAX_KERNEL_ADDRESS	KV4ADDR(KPML4BASE + NKPML4E - 1, \
-					NPDPEPG-1, NPDEPG-1, NPTEPG-1)
+#define	VM_MIN_KERNEL_ADDRESS	KV4ADDR(KPML4BASE, 0, 0, 0) // == vm_page_array
+#define	VM_MAX_KERNEL_ADDRESS	KV4ADDR(/*KPML4BASE + NKPML4E*/NPML4EPG - 1, \
+					NPDPEPG-1, NPDEPG-1, NPTEPG-1) // == -1
 
 #define	DMAP_MIN_ADDRESS	KV4ADDR(DMPML4I, 0, 0, 0)
 #define	DMAP_MAX_ADDRESS	KV4ADDR(DMPML4I + NDMPML4E, 0, 0, 0)
@@ -215,18 +221,19 @@
  * KERNSTART is where the first actual kernel page is mapped, after
  * the compatibility mapping.
  */
-#define	KERNBASE		KV4ADDR(KPML4I, KPDPI, 0, 0)
-#define	KERNSTART		(KERNBASE + NBPDR)
+#define	KERNBASE		KV4ADDR(KPML4I, KPDPI, 0, 0) // kernbase at -2GB
+#define	KERNSTART		(KERNBASE + NBPDR) // -2GB + 2MB
 
-#define	UPT_MAX_ADDRESS		KV4ADDR(PML4PML4I, PML4PML4I, PML4PML4I, PML4PML4I)
-#define	UPT_MIN_ADDRESS		KV4ADDR(PML4PML4I, 0, 0, 0)
+#define	UPT_MIN_ADDRESS		KV4ADDR(PML4PML4I, 0, 0, 0) // user page table min addr
+#define	UPT_MAX_ADDRESS		KV4ADDR(PML4PML4I, PML4PML4I, PML4PML4I, PML4PML4I) // user page table max addr
 
 #define	VM_MAXUSER_ADDRESS_LA57	UVADDR(NUPML5E, 0, 0, 0, 0)
 #define	VM_MAXUSER_ADDRESS_LA48	UVADDR(0, NUP4ML4E, 0, 0, 0)
-#define	VM_MAXUSER_ADDRESS	VM_MAXUSER_ADDRESS_LA57
+//#define	VM_MAXUSER_ADDRESS	VM_MAXUSER_ADDRESS_LA57	//wyc?
+ #define	VM_MAXUSER_ADDRESS	0x100000000UL //wyc
 
-#define	SHAREDPAGE_LA57		(VM_MAXUSER_ADDRESS_LA57 - PAGE_SIZE)
-#define	SHAREDPAGE_LA48		(VM_MAXUSER_ADDRESS_LA48 - PAGE_SIZE)
+#define	SHAREDPAGE_LA57		(VM_MAXUSER_ADDRESS/*_LA57*/ - PAGE_SIZE)
+#define	SHAREDPAGE_LA48		(VM_MAXUSER_ADDRESS/*_LA48*/ - PAGE_SIZE)
 #define	USRSTACK_LA57		SHAREDPAGE_LA57
 #define	USRSTACK_LA48		SHAREDPAGE_LA48
 #define	USRSTACK		USRSTACK_LA48
@@ -247,6 +254,7 @@
     (va) < (DMAP_MIN_ADDRESS + dmaplimit))
 
 #define	PMAP_HAS_DMAP	1
+#if !defined(WYC)
 #define	PHYS_TO_DMAP(x)	({						\
 	KASSERT(PHYS_IN_DMAP(x),					\
 	    ("physical address %#jx not covered by the DMAP",		\
@@ -258,7 +266,20 @@
 	    ("virtual address %#jx not covered by the DMAP",		\
 	    (uintmax_t)x));						\
 	(x) & ~DMAP_MIN_ADDRESS; })
-
+#else
+static inline vm_offset_t PHYS_TO_DMAP(vm_paddr_t x) {
+	KASSERT(PHYS_IN_DMAP(x),
+	    ("physical address %#jx not covered by the DMAP",
+	    (uintmax_t)x));
+	return (x | DMAP_MIN_ADDRESS);
+}
+static inline vm_paddr_t DMAP_TO_PHYS(vm_offset_t x) {						\
+	KASSERT(VIRT_IN_DMAP(x),					\
+	    ("virtual address %#jx not covered by the DMAP",		\
+	    (uintmax_t)x));						\
+	return (x & ~DMAP_MIN_ADDRESS);
+}
+#endif
 /*
  * amd64 maps the page array into KVA so that it can be more easily
  * allocated on the correct memory domains.

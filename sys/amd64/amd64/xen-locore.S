@@ -86,7 +86,7 @@ reload_cs:
 
 	movl	$VTOP(bootstack), %esp
 
-	/* Don't trust what the loader gives for eflags. */
+	/* Don`t trust what the loader gives for eflags. */
 	pushl	$PSL_KERNEL
 	popfl
 
@@ -142,14 +142,14 @@ pgbuild_done:
 	orl	$CR0_PG, %eax
 	movl	%eax, %cr0
 
-	/* Now we're in compatibility mode. Set %cs for long mode */
+	/* Now we`re in compatibility mode. Set %cs for long mode */
 	movl	$VTOP(gdtdesc), %eax
 	lgdt	(%eax)
 	ljmp	$GDT_CODE, $VTOP(longmode)
 
 	.code64
 longmode:
-	/* We're still running V=P, jump to entry point */
+	/* We`re still running V=P, jump to entry point */
 	movq	$bootstack, %rsp
 	movq	$start_kernel, %rax
 	pushq	%rax

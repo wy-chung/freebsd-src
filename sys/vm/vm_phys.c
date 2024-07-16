@@ -84,7 +84,7 @@ SYSCTL_INT(_vm_numa, OID_AUTO, disabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &numa_disabled, 0, "NUMA-awareness in the allocators is disabled");
 #endif
 
-int __read_mostly vm_ndomains = 1;
+int __read_mostly vm_ndomains = 1; // sysctl == 1
 domainset_t __read_mostly all_domains = DOMAINSET_T_INITIALIZER(0x1);
 
 struct vm_phys_seg __read_mostly vm_phys_segs[VM_PHYSSEG_MAX];
@@ -134,8 +134,8 @@ static int __read_mostly vm_nfreelists;
  * allocations remove extents from phys_avail that may still be included
  * in dumps.
  */
-vm_paddr_t phys_avail[PHYS_AVAIL_COUNT];
-vm_paddr_t dump_avail[PHYS_AVAIL_COUNT];
+vm_paddr_t phys_avail[PHYS_AVAIL_COUNT]; // initialized by getmemsize
+vm_paddr_t dump_avail[PHYS_AVAIL_COUNT]; // initialized by getmemsize
 
 /*
  * Provides the mapping from VM_FREELIST_* to free list indices (flind).
@@ -404,9 +404,9 @@ _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int domain)
 	struct vm_phys_seg *seg;
 
 	KASSERT(vm_phys_nsegs < VM_PHYSSEG_MAX,
-	    ("vm_phys_create_seg: increase VM_PHYSSEG_MAX"));
+	    ("%s: increase VM_PHYSSEG_MAX", __func__));
 	KASSERT(domain >= 0 && domain < vm_ndomains,
-	    ("vm_phys_create_seg: invalid domain provided"));
+	    ("%s: invalid domain provided", __func__));
 	seg = &vm_phys_segs[vm_phys_nsegs++];
 	while (seg > vm_phys_segs && (seg - 1)->start >= end) {
 		*seg = *(seg - 1);
@@ -551,12 +551,12 @@ vm_phys_init(void)
 	 * Initialize the first_page and free_queues fields of each physical
 	 * memory segment.
 	 */
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 	npages = 0;
 #endif
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 		seg->first_page = &vm_page_array[npages];
 		npages += atop(seg->end - seg->start);
 #else
@@ -1132,31 +1132,26 @@ vm_phys_fictitious_unreg_range(vm_paddr_t start, vm_paddr_t end)
 void
 vm_phys_free_pages(vm_page_t m, int order)
 {
-	struct vm_freelist *fl;
 	struct vm_phys_seg *seg;
-	vm_paddr_t pa;
-	vm_page_t m_buddy;
 
 	KASSERT(m->order == VM_NFREEORDER,
-	    ("vm_phys_free_pages: page %p has unexpected order %d",
-	    m, m->order));
+	    ("vm_phys_free_pages: page %p has unexpected order %d", m, m->order));
 	KASSERT(m->pool < VM_NFREEPOOL,
-	    ("vm_phys_free_pages: page %p has unexpected pool %d",
-	    m, m->pool));
+	    ("vm_phys_free_pages: page %p has unexpected pool %d", m, m->pool));
 	KASSERT(order < VM_NFREEORDER,
 	    ("vm_phys_free_pages: order %d is out of range", order));
 	seg = &vm_phys_segs[m->segind];
 	vm_domain_free_assert_locked(VM_DOMAIN(seg->domain));
 	if (order < VM_NFREEORDER - 1) {
-		pa = VM_PAGE_TO_PHYS(m);
+		vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
 		do {
 			pa ^= ((vm_paddr_t)1 << (PAGE_SHIFT + order));
 			if (pa < seg->start || pa >= seg->end)
 				break;
-			m_buddy = &seg->first_page[atop(pa - seg->start)];
+			vm_page_t m_buddy = &seg->first_page[atop(pa - seg->start)];
 			if (m_buddy->order != order)
 				break;
-			fl = (*seg->free_queues)[m_buddy->pool];
+			struct vm_freelist *fl = (*seg->free_queues)[m_buddy->pool];
 			vm_freelist_rem(fl, m_buddy, order);
 			if (m_buddy->pool != m->pool)
 				vm_phys_set_pool(m->pool, m_buddy, order);
@@ -1165,7 +1160,7 @@ vm_phys_free_pages(vm_page_t m, int order)
 			m = &seg->first_page[atop(pa - seg->start)];
 		} while (order < VM_NFREEORDER - 1);
 	}
-	fl = (*seg->free_queues)[m->pool];
+	struct vm_freelist *fl = (*seg->free_queues)[m->pool];
 	vm_freelist_add(fl, m, order, 1);
 }
 

@@ -77,23 +77,27 @@ typedef struct {
 		/* after checking the image ABI specification, if needed. */
 } Elf_Brandnote;
 
+#define	BI_CAN_EXEC_DYN		0x0001
+#define	BI_BRAND_NOTE		0x0002	/* May have note.ABI-tag section. */
+#define	BI_BRAND_NOTE_MANDATORY	0x0004	/* Must have note.ABI-tag section. */
+#define	BI_BRAND_ONLY_STATIC	0x0008	/* Match only interp-less binaries. */
 typedef struct {
 	int brand;
 	int machine;
 	const char *compat_3_brand;	/* pre Binutils 2.10 method (FBSD 3) */
 	const char *interp_path;
-	struct sysentvec *sysvec;
+	struct sysentvec *sysvec;	// elf64_freebsd_sysvec_la48
 	const char *interp_newpath;
 	int flags;
 	Elf_Brandnote *brand_note;
 	bool		(*header_supported)(struct image_params *,
 	    int32_t *, uint32_t *);
 		/* High 8 bits of flags is private to the ABI */
-#define	BI_CAN_EXEC_DYN		0x0001
-#define	BI_BRAND_NOTE		0x0002	/* May have note.ABI-tag section. */
-#define	BI_BRAND_NOTE_MANDATORY	0x0004	/* Must have note.ABI-tag section. */
-#define	BI_BRAND_ONLY_STATIC	0x0008	/* Match only interp-less binaries. */
+#if !defined(WYC)
 } __ElfN(Brandinfo);
+#else
+} Elf_Brandinfo;
+#endif
 
 __ElfType(Auxargs);
 __ElfType(Brandinfo);

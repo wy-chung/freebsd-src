@@ -53,6 +53,7 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
  * to each CPU's data can be set up for things like "check curproc on all
  * other processors"
  */
+#if !defined(WYC)
 #define	PCPU_MD_FIELDS							\
 	struct monitorbuf pc_monitorbuf __aligned(128);	/* cache line */\
 	struct	pcpu *pc_prvspace;	/* Self-reference */		\
@@ -91,7 +92,6 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	uint8_t	pc_mds_tmp[64];						\
 	u_int 	pc_ipi_bitmap;						\
 	struct amd64tss pc_common_tss;					\
-	struct user_segment_descriptor pc_gdt[NGDT];			\
 	void	*pc_smp_tlb_pmap;					\
 	uint64_t pc_smp_tlb_addr1;					\
 	uint64_t pc_smp_tlb_addr2;					\
@@ -101,7 +101,9 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	u_int	pc_small_core;						\
 	u_int	pc_pcid_invlpg_workaround;				\
 	struct pmap_pcid pc_kpmap_store;				\
+	struct user_segment_descriptor pc_gdt[NGDT];			\
 	char	__pad[2900]		/* pad to UMA_PCPU_ALLOC_SIZE */
+#endif
 
 #define	PC_DBREG_CMD_NONE	0
 #define	PC_DBREG_CMD_LOAD	1
@@ -266,12 +268,12 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 })
 #endif /* !__SEG_GS */
 
-#define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
-#define	PCPU_ADD(member, val)	__PCPU_ADD(pc_ ## member, val)
-#define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
-#define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
+#define	PCPU_GET(member)	__PCPU_GET(/*pc_ ## */member)
+#define	PCPU_ADD(member, val)	__PCPU_ADD(/*pc_ ## */member, val)
+#define	PCPU_PTR(member)	__PCPU_PTR(/*pc_ ## */member)
+#define	PCPU_SET(member, val)	__PCPU_SET(/*pc_ ## */member, val)
 
-#define	IS_BSP()	(PCPU_GET(cpuid) == 0)
+#define	IS_BSP()	(PCPU_GET(pc_cpuid) == 0)
 
 #define zpcpu_offset_cpu(cpu)	((uintptr_t)&__pcpu[0] + UMA_PCPU_ALLOC_SIZE * cpu)
 #define zpcpu_base_to_offset(base) (void *)((uintptr_t)(base) - (uintptr_t)&__pcpu[0])

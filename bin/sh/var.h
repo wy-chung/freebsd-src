@@ -70,7 +70,7 @@ struct localvar {
 
 
 extern struct localvar *localvars;
-extern int forcelocal;
+extern _Thread_local int forcelocal;
 
 extern struct var vifs;
 extern struct var vmail;

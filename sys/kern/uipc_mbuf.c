@@ -208,15 +208,15 @@ CTASSERT(offsetof(struct mbuf, m_pktdat) % 8 == 0);
 #if defined(__LP64__)
 CTASSERT(offsetof(struct mbuf, m_dat) == 32);
 CTASSERT(sizeof(struct pkthdr) == 64);
-CTASSERT(sizeof(struct m_ext) == 160);
+CTASSERT(sizeof(struct _m_ext) == 160);
 #else
 CTASSERT(offsetof(struct mbuf, m_dat) == 24);
 CTASSERT(sizeof(struct pkthdr) == 56);
 #if defined(__powerpc__) && defined(BOOKE)
 /* PowerPC booke has 64-bit physical pointers. */
-CTASSERT(sizeof(struct m_ext) == 176);
+CTASSERT(sizeof(struct _m_ext) == 176);
 #else
-CTASSERT(sizeof(struct m_ext) == 172);
+CTASSERT(sizeof(struct _m_ext) == 172);
 #endif
 #endif
 
@@ -263,7 +263,7 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 		    __rangeof(struct mbuf, m_epg_startcopy, m_epg_endcopy));
 		bcopy(&m->m_ext, &n->m_ext, m_epg_ext_copylen);
 	} else if (m->m_ext.ext_type == EXT_EXTREF)
-		bcopy(&m->m_ext, &n->m_ext, sizeof(struct m_ext));
+		bcopy(&m->m_ext, &n->m_ext, sizeof(struct _m_ext));
 	else
 		bcopy(&m->m_ext, &n->m_ext, m_ext_copylen);
 

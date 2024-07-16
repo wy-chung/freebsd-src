@@ -1477,16 +1477,16 @@ ENTRY(lgdt)
 	jmp	1f
 	nop
 1:
-	movl	$KDSEL,%eax
-	movl	%eax,%ds
-	movl	%eax,%es
-	movl	%eax,%fs	/* Beware, use wrmsr to set 64 bit base */
-	movl	%eax,%gs
-	movl	%eax,%ss
+	movl	$KDSEL,%eax	// == GDATA_SEL(5) << 3
+	movl	%eax,%ds //wyctest pass, can be removed
+	movl	%eax,%es //wyctest pass, can be removed
+	movl	%eax,%fs //wyctest pass, can be removed	/* Beware, use wrmsr to set 64 bit base */
+	movl	%eax,%gs //wyctest pass, can be removed
+	movl	%eax,%ss //wyctest fail, cannot be removed
 
 	/* reload code selector by turning return into intersegmental return */
 	popq	%rax
-	pushq	$KCSEL
+	pushq	$KCSEL	// == GCODE_SEL(4) << 3
 	pushq	%rax
 	lretq
 END(lgdt)
@@ -1601,7 +1601,7 @@ ENTRY(pmap_pti_pcid_invlpg)
 	pushfq
 	cli
 	movq	%rdi,%cr3	/* to user page table */
-	invlpg	(%rdx)
+	invlpg	(%rdx)		// @va
 	movq	%rsi,%cr3	/* back to kernel */
 	popfq
 	retq
@@ -1626,12 +1626,16 @@ ENTRY(pmap_pti_pcid_invlrng)
 	retq
 
 	.altmacro
+// rsb_seq_label
 	.macro	rsb_seq_label l
 rsb_seq_\l:
 	.endm
+
+// rsb_call_label
 	.macro	rsb_call_label l
 	call	rsb_seq_\l
 	.endm
+
 	.macro	rsb_seq count
 	ll=1
 	.rept	\count
@@ -1643,6 +1647,7 @@ rsb_seq_\l:
 	.endr
 	.endm
 
+// this function write different return addresses to stack for 32 times
 ENTRY(rsb_flush)
 	rsb_seq	32
 	ret

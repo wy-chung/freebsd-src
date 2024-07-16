@@ -209,12 +209,16 @@ struct vm_object {
  * OBJ_MAX_SIZE specifies the maximum page index corresponding to the
  *   maximum unsigned offset.
  */
+#if !defined(WYC)
 #define	IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
 #define	OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
+#else
+vm_ooffset_t IDX_TO_OFF(vm_pindex_t idx) { return (vm_ooffset_t)idx << PAGE_SHIFT; }
+vm_pindex_t OFF_TO_IDX(vm_ooffset_t off) { return ((vm_pindex_t)off) >> PAGE_SHIFT; }
+#endif
 #define	OBJ_MAX_SIZE	(OFF_TO_IDX(UINT64_MAX) + 1)
 
 #ifdef	_KERNEL
-
 #define OBJPC_SYNC	0x1			/* sync I/O */
 #define OBJPC_INVAL	0x2			/* invalidate */
 #define OBJPC_NOSYNC	0x4			/* skip if PGA_NOSYNC */

@@ -254,7 +254,7 @@ linux_synchronize_rcu_cb(ck_epoch_t *epoch __unused, ck_epoch_record_t *epoch_re
 	struct task_struct *ts;
 
 	/* check if blocked on the current CPU */
-	if (record->cpuid == PCPU_GET(cpuid)) {
+	if (record->cpuid == PCPU_GET(pc_cpuid)) {
 		bool is_sleeping = 0;
 		u_char prio = 0;
 
@@ -328,7 +328,7 @@ linux_synchronize_rcu(unsigned type)
 	 */
 	thread_lock(td);
 
-	old_cpu = PCPU_GET(cpuid);
+	old_cpu = PCPU_GET(pc_cpuid);
 	old_pinned = td->td_pinned;
 	old_prio = td->td_priority;
 	was_bound = sched_is_bound(td);

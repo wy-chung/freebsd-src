@@ -331,7 +331,7 @@ ktr_getrequest_entered(struct thread *td, int type)
 		req->ktr_header.ktr_type |= KTR_VERSIONED;
 		req->ktr_header.ktr_pid = p->p_pid;
 		req->ktr_header.ktr_tid = td->td_tid;
-		req->ktr_header.ktr_cpu = PCPU_GET(cpuid);
+		req->ktr_header.ktr_cpu = PCPU_GET(pc_cpuid);
 		req->ktr_header.ktr_version = KTR_VERSION1;
 		bcopy(td->td_name, req->ktr_header.ktr_comm,
 		    sizeof(req->ktr_header.ktr_comm));

@@ -101,7 +101,7 @@ int	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,
 #define	callout_reset_sbt(c, sbt, pr, fn, arg, flags)			\
     callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), -1, (flags))
 #define	callout_reset_sbt_curcpu(c, sbt, pr, fn, arg, flags)		\
-    callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), PCPU_GET(cpuid),\
+    callout_reset_sbt_on((c), (sbt), (pr), (fn), (arg), PCPU_GET(pc_cpuid),\
         (flags))
 #define	callout_reset_on(c, to_ticks, fn, arg, cpu)			\
     callout_reset_sbt_on((c), tick_sbt * (to_ticks), 0, (fn), (arg),	\
@@ -109,18 +109,18 @@ int	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,
 #define	callout_reset(c, on_tick, fn, arg)				\
     callout_reset_on((c), (on_tick), (fn), (arg), -1)
 #define	callout_reset_curcpu(c, on_tick, fn, arg)			\
-    callout_reset_on((c), (on_tick), (fn), (arg), PCPU_GET(cpuid))
+    callout_reset_on((c), (on_tick), (fn), (arg), PCPU_GET(pc_cpuid))
 #define	callout_schedule_sbt_on(c, sbt, pr, cpu, flags)			\
     callout_reset_sbt_on((c), (sbt), (pr), (c)->c_func, (c)->c_arg,	\
         (cpu), (flags))
 #define	callout_schedule_sbt(c, sbt, pr, flags)				\
     callout_schedule_sbt_on((c), (sbt), (pr), -1, (flags))
 #define	callout_schedule_sbt_curcpu(c, sbt, pr, flags)			\
-    callout_schedule_sbt_on((c), (sbt), (pr), PCPU_GET(cpuid), (flags))
+    callout_schedule_sbt_on((c), (sbt), (pr), PCPU_GET(pc_cpuid), (flags))
 int	callout_schedule(struct callout *, int);
 int	callout_schedule_on(struct callout *, int, int);
 #define	callout_schedule_curcpu(c, on_tick)				\
-    callout_schedule_on((c), (on_tick), PCPU_GET(cpuid))
+    callout_schedule_on((c), (on_tick), PCPU_GET(pc_cpuid))
 #define	callout_stop(c)		_callout_stop_safe(c, 0, NULL)
 int	_callout_stop_safe(struct callout *, int, void (*)(void *));
 void	callout_process(sbintime_t now);

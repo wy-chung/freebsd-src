@@ -227,7 +227,7 @@ extern db_expr_t db_tab_stop_width;
 extern db_expr_t db_lines_per_page;
 
 struct thread;
-struct vm_map;
+struct _vm_map;
 
 void		db_check_interrupt(void);
 void		db_clear_watchpoints(void);
@@ -240,9 +240,9 @@ int		db_get_variable(db_expr_t *valuep);
 void		db_iprintf(const char *,...) __printflike(1, 2);
 struct proc	*db_lookup_proc(db_expr_t addr);
 struct thread	*db_lookup_thread(db_expr_t addr, bool check_pid);
-struct vm_map	*db_map_addr(vm_offset_t);
-bool		db_map_current(struct vm_map *);
-bool		db_map_equal(struct vm_map *, struct vm_map *);
+struct _vm_map	*db_map_addr(vm_offset_t);
+bool		db_map_current(struct _vm_map *);
+bool		db_map_equal(struct _vm_map *, struct _vm_map *);
 void		db_md_list_watchpoints(void);
 void		db_print_loc_and_inst(db_addr_t loc);
 void		db_print_thread(void);

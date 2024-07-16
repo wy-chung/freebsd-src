@@ -109,7 +109,7 @@ union pmc_md_pmc {
 
 #define	PMC_IN_KERNEL_STACK(va)	kstack_contains(curthread, (va), sizeof(va))
 #define	PMC_IN_KERNEL(va)	INKERNEL(va)
-#define	PMC_IN_USERSPACE(va)	((va) <= VM_MAXUSER_ADDRESS)
+#define	PMC_IN_USERSPACE(va)	((va) <= VM_MAXUSER_ADDRESS_LA48)
 
 /* Build a fake kernel trapframe from current instruction pointer. */
 #define PMC_FAKE_TRAPFRAME(TF)						\

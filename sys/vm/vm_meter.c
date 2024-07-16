@@ -552,5 +552,5 @@ vm_stats_init(void *arg __unused)
 	for (i = 0; i < vm_ndomains; i++)
 		vm_domain_stats_init(VM_DOMAIN(i), oid);
 }
-
 SYSINIT(vmstats_init, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_stats_init, NULL);
+

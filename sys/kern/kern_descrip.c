@@ -5073,7 +5073,7 @@ file_to_first_proc(struct file *fp)
 }
 
 static void
-db_print_file(struct file *fp, int header)
+db_print_file(struct file *fp, bool header) //wyc
 {
 #define XPTRWIDTH ((int)howmany(sizeof(void *) * NBBY, 4))
 	struct proc *p;
@@ -5101,7 +5101,7 @@ DB_SHOW_COMMAND(file, db_show_file)
 		return;
 	}
 	fp = (struct file *)addr;
-	db_print_file(fp, 1);
+	db_print_file(fp, true);
 }
 
 DB_SHOW_COMMAND_FLAGS(files, db_show_files, DB_CMD_MEMSAFE)
@@ -5109,10 +5109,10 @@ DB_SHOW_COMMAND_FLAGS(files, db_show_files, DB_CMD_MEMSAFE)
 	struct filedesc *fdp;
 	struct file *fp;
 	struct proc *p;
-	int header;
+	bool header; //wyc
 	int n;
 
-	header = 1;
+	header = true;
 	FOREACH_PROC_IN_SYSTEM(p) {
 		if (p->p_state == PRS_NEW)
 			continue;
@@ -5122,7 +5122,7 @@ DB_SHOW_COMMAND_FLAGS(files, db_show_files, DB_CMD_MEMSAFE)
 			if ((fp = fdp->fd_ofiles[n].fde_file) == NULL)
 				continue;
 			db_print_file(fp, header);
-			header = 0;
+			header = false;
 		}
 	}
 }

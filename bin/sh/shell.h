@@ -49,7 +49,6 @@
  * a quit signal will generate a core dump.
  */
 
-
 #define	JOBS 1
 /* #define DEBUG 1 */
 
@@ -64,6 +63,7 @@ typedef intmax_t arith_t;
 typedef void *pointer;
 
 #include <sys/cdefs.h>
+#include <stdbool.h>
 
 extern char nullstr[1];		/* null string */
 

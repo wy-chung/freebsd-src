@@ -380,7 +380,7 @@ void
 ucode_reload(void)
 {
 
-	ucode_load_ap(PCPU_GET(cpuid));
+	ucode_load_ap(PCPU_GET(pc_cpuid));
 }
 
 /*

@@ -344,7 +344,7 @@ ucode_intel_load_rv(void *arg)
 	struct ucode_update_data *d;
 
 	d = arg;
-	if (PCPU_GET(cpuid) == d->cpu)
+	if (PCPU_GET(pc_cpuid) == d->cpu)
 		d->ret = ucode_intel_load(d->ptr, true, NULL, NULL);
 }
 

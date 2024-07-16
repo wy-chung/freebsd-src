@@ -38,7 +38,9 @@
 #endif
 
 #ifndef __ELF_WORD_SIZE
+#if !defined(WYC)
 #define	__ELF_WORD_SIZE	32	/* Used by <sys/elf_generic.h> */
+#endif
 #endif
 
 #include <sys/elf_generic.h>

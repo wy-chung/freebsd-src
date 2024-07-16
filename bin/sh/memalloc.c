@@ -31,7 +31,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
@@ -58,7 +57,6 @@ badalloc(const char *message)
 /*
  * Like malloc, but returns an error when out of space.
  */
-
 pointer
 ckmalloc(size_t nbytes)
 {
@@ -72,11 +70,9 @@ ckmalloc(size_t nbytes)
 	return p;
 }
 
-
 /*
  * Same for realloc.
  */
-
 pointer
 ckrealloc(pointer p, int nbytes)
 {
@@ -96,11 +92,9 @@ ckfree(pointer p)
 	free(p);
 }
 
-
 /*
  * Make a copy of a string in safe storage.
  */
-
 char *
 savestr(const char *s)
 {
@@ -113,7 +107,6 @@ savestr(const char *s)
 	return p;
 }
 
-
 /*
  * Parse trees for commands are allocated in lifo order, so we use a stack
  * to make this more efficient, and also to avoid all sorts of exception
@@ -122,9 +115,7 @@ savestr(const char *s)
  * The size 496 was chosen because with 16-byte alignment the total size
  * for the allocated block is 512.
  */
-
 #define MINSIZE 496		/* minimum size of a block. */
-
 
 struct stack_block {
 	struct stack_block *prev;
@@ -132,14 +123,13 @@ struct stack_block {
 };
 #define SPACE(sp)	((char*)(sp) + ALIGN(sizeof(struct stack_block)))
 
-static struct stack_block *stackp;
-char *stacknxt;
-int stacknleft;
-char *sstrend;
-
+_Thread_local static struct stack_block *stackp;
+_Thread_local char *stacknxt;
+_Thread_local int stacknleft;
+_Thread_local char *sstrend;
 
 static void
-stnewblock(int nbytes)
+stnewblock(int nbytes) // allocate at least 496 bytes
 {
 	struct stack_block *sp;
 	int allocsize;
@@ -159,7 +149,6 @@ stnewblock(int nbytes)
 	INTON;
 }
 
-
 pointer
 stalloc(int nbytes)
 {
@@ -174,7 +163,9 @@ stalloc(int nbytes)
 	return p;
 }
 
-
+/*
+NOTE: can only unalloc recently allocated memory buffer
+*/
 void
 stunalloc(pointer p)
 {
@@ -185,7 +176,6 @@ stunalloc(pointer p)
 	stacknleft += stacknxt - (char *)p;
 	stacknxt = p;
 }
-
 
 char *
 stsavestr(const char *s)
@@ -199,7 +189,6 @@ stsavestr(const char *s)
 	return p;
 }
 
-
 void
 setstackmark(struct stackmark *mark)
 {
@@ -207,10 +196,9 @@ setstackmark(struct stackmark *mark)
 	mark->stacknxt = stacknxt;
 	mark->stacknleft = stacknleft;
 	/* Ensure this block stays in place. */
-	if (stackp != NULL && stacknxt == SPACE(stackp))
+	if (stackp != NULL && stacknxt == SPACE(stackp)) //wyc??
 		stalloc(1);
 }
-
 
 void
 popstackmark(struct stackmark *mark)
@@ -225,13 +213,27 @@ popstackmark(struct stackmark *mark)
 	}
 	stacknxt = mark->stacknxt;
 	stacknleft = mark->stacknleft;
-	if (stacknleft != 0)
+	//if (stacknleft != 0) //wyctodo
 		sstrend = stacknxt + stacknleft;
-	else
-		sstrend = stacknxt;
+	//else
+	//	sstrend = stacknxt;
 	INTON;
 }
 
+//wyc: free all the stack blocks
+void
+stfree(void)
+{
+	struct stack_block *sp;
+
+	INTOFF;
+	while (stackp != NULL) {
+		sp = stackp;
+		stackp = stackp->prev;
+		ckfree(sp);
+	}
+	INTON;
+}
 
 /*
  * When the parser reads in a string, it wants to stick the string on the
@@ -242,7 +244,6 @@ popstackmark(struct stackmark *mark)
  * possibly moving it (like realloc).  Grabstackblock actually allocates the
  * part of the block that has been used.
  */
-
 static void
 growstackblock(int min)
 {
@@ -281,15 +282,13 @@ growstackblock(int min)
 		newlen -= ALIGN(sizeof(struct stack_block));
 		p = stalloc(newlen);
 		if (oldlen != 0)
-			memcpy(p, oldspace, oldlen);
+			memcpy(p, oldspace, oldlen); // dst, src, len
 		stunalloc(p);
 	}
 }
 
-
-
 /*
- * The following routines are somewhat easier to use that the above.
+ * The following routines are somewhat easier to use then the above.
  * The user declares a variable of type STACKSTR, which may be declared
  * to be a register.  The macro STARTSTACKSTR initializes things.  Then
  * the user uses the macro STPUTC to add characters to the string.  In
@@ -305,7 +304,6 @@ growstackblock(int min)
  * CHECKSTACKSPACE can be called before USTPUTC to ensure that there
  * is space for at least one character.
  */
-
 static char *
 growstrstackblock(int n, int min)
 {
@@ -322,11 +320,9 @@ growstackstr(void)
 	return (growstrstackblock(len, 0));
 }
 
-
 /*
  * Called from CHECKSTRSPACE.
  */
-
 char *
 makestrspace(int min, char *p)
 {
@@ -335,7 +331,6 @@ makestrspace(int min, char *p)
 	len = p - stackblock();
 	return (growstrstackblock(len, min));
 }
-
 
 char *
 stputbin(const char *data, size_t len, char *p)

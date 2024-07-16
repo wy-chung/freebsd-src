@@ -62,7 +62,7 @@
  */
 ENTRY(btext)
 
-	/* Don't trust what the loader gives for rflags. */
+	/* Don`t trust what the loader gives for rflags. */
 	pushq	$PSL_KERNEL
 	popfq
 

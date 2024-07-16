@@ -71,22 +71,22 @@ typedef char vm_inherit_t;	/* inheritance codes */
 #define	VM_INHERIT_ZERO		((vm_inherit_t) 3)
 #define	VM_INHERIT_DEFAULT	VM_INHERIT_COPY
 
-typedef u_char vm_prot_t;	/* protection codes */
+typedef enum vm_prot : u_char {	/* protection codes */
+	VM_PROT_NONE	= 0x00,
+	VM_PROT_READ	= 0x01,
+	VM_PROT_WRITE	= 0x02,
+	VM_PROT_EXECUTE	= 0x04,
+	VM_PROT_COPY	= 0x08,	/* copy-on-read */
+	VM_PROT_ALL	= (VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE),
+	VM_PROT_RW	= (VM_PROT_READ|VM_PROT_WRITE),
+	VM_PROT_DEFAULT = VM_PROT_ALL,
 
-#define	VM_PROT_NONE		((vm_prot_t) 0x00)
-#define	VM_PROT_READ		((vm_prot_t) 0x01)
-#define	VM_PROT_WRITE		((vm_prot_t) 0x02)
-#define	VM_PROT_EXECUTE		((vm_prot_t) 0x04)
-#define	VM_PROT_COPY		((vm_prot_t) 0x08)	/* copy-on-read */
-#define	VM_PROT_PRIV_FLAG	((vm_prot_t) 0x10)
-#define	VM_PROT_FAULT_LOOKUP	VM_PROT_PRIV_FLAG
-#define	VM_PROT_QUICK_NOFAULT	VM_PROT_PRIV_FLAG	/* same to save bits */
+	VM_PROT_PRIV_FLAG = 0x10,
+	VM_PROT_FAULT_LOOKUP	= VM_PROT_PRIV_FLAG,
+	VM_PROT_QUICK_NOFAULT	= VM_PROT_PRIV_FLAG,	/* same to save bits */
+} vm_prot_t;
 
-#define	VM_PROT_ALL		(VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE)
-#define VM_PROT_RW		(VM_PROT_READ|VM_PROT_WRITE)
-#define	VM_PROT_DEFAULT		VM_PROT_ALL
-
-enum obj_type {
+typedef enum obj_type : u_char {
 	OBJT_RESERVED = 0,	/* was OBJT_DEFAULT */
 	OBJT_SWAP,
 	OBJT_DEFAULT = OBJT_SWAP,
@@ -97,8 +97,7 @@ enum obj_type {
 	OBJT_SG,
 	OBJT_MGTDEVICE,
 	OBJT_FIRST_DYN,
-};
-typedef u_char objtype_t;
+} objtype_t;
 
 union vm_map_object;
 typedef union vm_map_object vm_map_object_t;
@@ -106,8 +105,8 @@ typedef union vm_map_object vm_map_object_t;
 struct vm_map_entry;
 typedef struct vm_map_entry *vm_map_entry_t;
 
-struct vm_map;
-typedef struct vm_map *vm_map_t;
+struct _vm_map;
+typedef struct _vm_map *vm_map_t;
 
 struct vm_object;
 typedef struct vm_object *vm_object_t;

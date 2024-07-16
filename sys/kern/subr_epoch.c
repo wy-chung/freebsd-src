@@ -724,7 +724,7 @@ epoch_wait_preempt(epoch_t epoch)
 	DROP_GIANT();
 	thread_lock(td);
 
-	old_cpu = PCPU_GET(cpuid);
+	old_cpu = PCPU_GET(pc_cpuid);
 	old_pinned = td->td_pinned;
 	old_prio = td->td_priority;
 	was_bound = sched_is_bound(td);
@@ -981,7 +981,7 @@ epoch_drain_callbacks(epoch_t epoch)
 
 	td = curthread;
 	thread_lock(td);
-	old_cpu = PCPU_GET(cpuid);
+	old_cpu = PCPU_GET(pc_cpuid);
 	old_pinned = td->td_pinned;
 	was_bound = sched_is_bound(td);
 	sched_unbind(td);

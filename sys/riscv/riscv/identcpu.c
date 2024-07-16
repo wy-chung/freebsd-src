@@ -76,17 +76,19 @@ u_int mmu_caps;
 bool __read_frequently has_sstc;
 bool __read_frequently has_sscofpmf;
 
+enum s_ext : u_int { // smode extensions
+	SV_SSTC		= (1 << 0),
+	SV_SVNAPOT	= (1 << 1),
+	SV_SVPBMT	= (1 << 2),
+	SV_SVINVAL	= (1 << 3),
+	SV_SSCOFPMF	= (1 << 4),
+};
 struct cpu_desc {
 	const char	*cpu_mvendor_name;
 	const char	*cpu_march_name;
 	u_int		isa_extensions;		/* Single-letter extensions. */
 	u_int		mmu_caps;
-	u_int		smode_extensions;
-#define	 SV_SSTC	(1 << 0)
-#define	 SV_SVNAPOT	(1 << 1)
-#define	 SV_SVPBMT	(1 << 2)
-#define	 SV_SVINVAL	(1 << 3)
-#define	 SV_SSCOFPMF	(1 << 4)
+	enum s_ext	smode_extensions;
 };
 
 struct cpu_desc cpu_desc[MAXCPU];
@@ -302,7 +304,7 @@ parse_riscv_isa(struct cpu_desc *desc, char *isa, int len)
 	return (0);
 }
 
-#ifdef FDT
+#ifdef FDT // Flattened Device Tree
 static void
 parse_mmu_fdt(struct cpu_desc *desc, phandle_t node)
 {

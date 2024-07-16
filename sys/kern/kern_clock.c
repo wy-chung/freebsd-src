@@ -510,7 +510,7 @@ hardclock(int cnt, int usermode)
 		hardclock_itimer(td, pstats, cnt, usermode);
 
 #ifdef	HWPMC_HOOKS
-	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
+	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(pc_cpuid)))
 		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
 	if (td->td_intr_frame != NULL)
 		PMC_SOFT_CALL_TF( , , clock, hard, td->td_intr_frame);
@@ -695,7 +695,7 @@ statclock(int cnt, int usermode)
 	td = curthread;
 	p = td->td_proc;
 
-	cp_time = (long *)PCPU_PTR(cp_time);
+	cp_time = (long *)PCPU_PTR(pc_cp_time);
 	if (usermode) {
 		/*
 		 * Charge the time as appropriate.
@@ -752,10 +752,10 @@ statclock(int cnt, int usermode)
 	 * thread was running, and add that to its total so far.
 	 */
 	new_switchtime = cpu_ticks();
-	runtime = new_switchtime - PCPU_GET(switchtime);
+	runtime = new_switchtime - PCPU_GET(pc_switchtime);
 	td->td_runtime += runtime;
 	td->td_incruntime += runtime;
-	PCPU_SET(switchtime, new_switchtime);
+	PCPU_SET(pc_switchtime, new_switchtime);
 
 	sched_clock(td, cnt);
 	thread_unlock(td);

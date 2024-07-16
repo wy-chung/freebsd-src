@@ -45,7 +45,7 @@ struct pti_frame {
 };
 
 #ifdef _KERNEL
-#define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
+#define	CS_SECURE(cs)		(SEL_PL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 #endif
 

@@ -140,11 +140,9 @@ cpu_startup(void *dummy)
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
-	if (bootverbose) {
-		int indx;
-
+	//if (bootverbose) {
 		printf("Physical memory chunk(s):\n");
-		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
+		for (int indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
 			vm_paddr_t size;
 
 			size = phys_avail[indx + 1] - phys_avail[indx];
@@ -154,7 +152,18 @@ cpu_startup(void *dummy)
 			    (uintmax_t)phys_avail[indx + 1] - 1,
 			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
 		}
-	}
+	//wycprint
+	extern vm_paddr_t phys_avail[];
+	extern long Maxmem;
+	extern const u_long vm_maxuser_address;
+
+	printf("MaxMem: %lx\n", Maxmem);
+	printf("vm_maxuser_address: %lx\n", vm_maxuser_address);
+	printf( "dmap_phys_base %016lx\n"
+		"dmap_phys_max	%016lx\n"
+		"dmap_max_addr	%016lx\n",
+		dmap_phys_base, dmap_phys_max, dmap_max_addr);
+	//}
 
 	vm_ksubmap_init(&kmi);
 
@@ -167,7 +176,6 @@ cpu_startup(void *dummy)
 	bufinit();
 	vm_pager_bufferinit();
 }
-
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 int
@@ -419,7 +427,7 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 }
 
 /* Support for FDT configurations only. */
-CTASSERT(FDT);
+CTASSERT(FDT); // flattened device tree
 
 #ifdef FDT
 static void
@@ -472,7 +480,7 @@ parse_metadata(void)
 }
 
 void
-initriscv(struct riscv_bootparams *rvbp)
+initriscv(struct riscv_bootparams *rvbp) // < _start
 {
 	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	struct pcpu *pcpup;
@@ -494,7 +502,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	/* Set the pcpu pointer */
 	__asm __volatile("mv tp, %0" :: "r"(pcpup));
 
-	PCPU_SET(curthread, &thread0);
+	PCPU_SET(pc_curthread, &thread0);
 
 	/* Initialize SBI interface. */
 	sbi_init();
