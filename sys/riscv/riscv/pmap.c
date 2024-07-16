@@ -526,7 +526,7 @@ pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index, pt_entry_t entry)
 	 * Distribute new kernel L1 entry to all the user pmaps.  This is only
 	 * necessary with three-level paging configured: with four-level paging
 	 * the kernel's half of the top-level page table page is static and can
-	 * simply be copied at pmap initialization time.
+	 * simply be copied at pmap initialization time (i.e. pmap_pinit)
 	 */
 	if (pmap != kernel_pmap || pmap_mode != PMAP_MODE_SV39)
 		return;
@@ -584,13 +584,9 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 {
 	vm_offset_t va;
 	vm_paddr_t pa;
-	pd_entry_t *l1pt;
-	u_int l1_slot;
-	pt_entry_t entry;
-	pn_t pn;
 
-	l1pt = (pd_entry_t *)kern_l1;
-	l1_slot = pmap_l1_index(DMAP_MIN_ADDRESS);
+	pd_entry_t *l1pt = (pd_entry_t *)kern_l1;
+	u_int l1_slot = pmap_l1_index(DMAP_MIN_ADDRESS);
 	dmap_phys_base = min_pa & ~L1_OFFSET;
 
 	for (va = DMAP_MIN_ADDRESS, pa = dmap_phys_base;
@@ -599,8 +595,8 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 		KASSERT(l1_slot < Ln_ENTRIES, ("Invalid L1 index"));
 
 		/* 1G pages */
-		pn = (pa / PAGE_SIZE);
-		entry = PTE_KERN; // accessed and dirty are both 1
+		pn_t pn = (pa / PAGE_SIZE);
+		pt_entry_t entry = PTE_KERN; // accessed and dirty are both 1
 		entry |= (pn << PTE_PPN0_S);
 		pmap_store(&l1pt[l1_slot++], entry);
 	}
@@ -657,7 +653,6 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	vm_paddr_t l0pa, l1pa, max_pa, min_pa, pa;
 	pt_entry_t *l2p;
 	u_int l1_slot __unused, l2_slot;
-	u_int physmap_idx;
 	int i, mode;
 
 	printf("%s %lx %lx %lx\n", __func__, l1pt_va, kernstart, kernlen);
@@ -680,7 +675,7 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	/* Assume the address we were loaded to is a valid physical address. */
 	min_pa = max_pa = kernstart;
 
-	physmap_idx = physmem_avail(physmap, nitems(physmap));
+	u_int physmap_idx = physmem_avail(physmap, nitems(physmap));
 	physmap_idx /= 2;
 
 	/*
@@ -1359,7 +1354,6 @@ pmap_pinit(pmap_t pmap)
 {
 	vm_paddr_t topphys;
 	vm_page_t mtop;
-	size_t i;
 
 	mtop = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_WAITOK);
 
@@ -1379,16 +1373,16 @@ pmap_pinit(pmap_t pmap)
 		 */
 		mtx_lock(&allpmaps_lock);
 		LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
-		for (i = pmap_l1_index(VM_MIN_KERNEL_ADDRESS);
+		for (int i = pmap_l1_index(VM_MIN_KERNEL_ADDRESS);
 		    i < pmap_l1_index(VM_MAX_KERNEL_ADDRESS); i++)
 			pmap->pm_top[i] = kernel_pmap->pm_top[i];
-		for (i = pmap_l1_index(DMAP_MIN_ADDRESS);
+		for (int i = pmap_l1_index(DMAP_MIN_ADDRESS);
 		    i < pmap_l1_index(DMAP_MAX_ADDRESS); i++)
 			pmap->pm_top[i] = kernel_pmap->pm_top[i];
 		mtx_unlock(&allpmaps_lock);
 	} else {
 panic("%s: wyctest\n", __func__); // tested
-		i = pmap_l0_index(VM_MIN_KERNEL_ADDRESS);
+		int i = pmap_l0_index(VM_MIN_KERNEL_ADDRESS);
 		pmap->pm_top[i] = kernel_pmap->pm_top[i];
 	}
 
