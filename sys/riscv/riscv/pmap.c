@@ -258,8 +258,8 @@ static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");
 
 /* The list of all the user pmaps */
-LIST_HEAD(pmaplist, pmap);
-static struct pmaplist allpmaps = LIST_HEAD_INITIALIZER();
+typedef LIST_HEAD(, pmap) pmaplist_t;
+static pmaplist_t allpmaps = LIST_HEAD_INITIALIZER();
 
 enum _pmap_mode __read_frequently pmap_mode = PMAP_MODE_SV39;
 SYSCTL_INT(_vm_pmap, OID_AUTO, mode, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
@@ -648,13 +648,6 @@ pmap_bootstrap_l3(vm_offset_t l1pt_va, vm_offset_t va, vm_offset_t l3_start)
 void
 pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // < initriscv
 {
-	vm_paddr_t physmap[PHYS_AVAIL_ENTRIES];
-	vm_offset_t dpcpu, freemempos, l0pv, msgbufpv;
-	vm_paddr_t l0pa, l1pa, max_pa, min_pa, pa;
-	pt_entry_t *l2p;
-	u_int l1_slot __unused, l2_slot;
-	int i, mode;
-
 	printf("%s %lx %lx %lx\n", __func__, l1pt_va, kernstart, kernlen);
 
 	/* Set this early so we can use the pagetable walking functions */
@@ -673,8 +666,10 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	CPU_SET(PCPU_GET(pc_hart), &kernel_pmap->pm_active);
 
 	/* Assume the address we were loaded to is a valid physical address. */
+	vm_paddr_t max_pa, min_pa;
 	min_pa = max_pa = kernstart;
 
+	vm_paddr_t physmap[PHYS_AVAIL_ENTRIES];
 	u_int physmap_idx = physmem_avail(physmap, nitems(physmap));
 	physmap_idx /= 2;
 
@@ -682,7 +677,7 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	 * Find the minimum physical address. physmap is sorted,
 	 * but may contain empty ranges.
 	 */
-	for (i = 0; i < physmap_idx * 2; i += 2) {
+	for (int i = 0; i < physmap_idx * 2; i += 2) {
 		if (physmap[i] == physmap[i + 1])
 			continue;
 		if (physmap[i] <= min_pa)
@@ -702,12 +697,13 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	 * This assumes we have mapped a block of memory from KERNBASE
 	 * using a single L1 entry.
 	 */
+	u_int l1_slot __unused, l2_slot;
 	(void)pmap_early_page_idx(l1pt_va, KERNBASE, &l1_slot, &l2_slot);
 
 	/* Sanity check the index, KERNBASE should be the first VA */
 	KASSERT(l2_slot == 0, ("The L2 index is non-zero"));
 
-	freemempos = roundup2(KERNBASE + kernlen, PAGE_SIZE);
+	vm_offset_t freemempos = roundup2(KERNBASE + kernlen, PAGE_SIZE);
 
 	/* Create the l3 tables for the early devmap */
 	freemempos = pmap_bootstrap_l3(l1pt_va,
@@ -718,7 +714,7 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	 * has been created, and we no longer need it. We want to avoid the
 	 * possibility of an aliased mapping in the future.
 	 */
-	l2p = pmap_l2(kernel_pmap, VM_EARLY_DTB_ADDRESS);
+	pt_entry_t *l2p = pmap_l2(kernel_pmap, VM_EARLY_DTB_ADDRESS);
 	if ((pmap_load(l2p) & PTE_V) != 0)
 		pmap_clear(l2p);
 
@@ -729,7 +725,7 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	freemempos += (np * PAGE_SIZE);					\
 	memset((char *)(var), 0, ((np) * PAGE_SIZE));
 
-	mode = 0;
+	int mode = 0;
 	TUNABLE_INT_FETCH("vm.pmap.mode", &mode); // vm.pmap.mode == PMAP_MODE_SV39
 	if (mode == PMAP_MODE_SV48 && (mmu_caps & MMU_SV48) != 0) {
 		/*
@@ -738,13 +734,14 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 		 * the mode read back from the (WARL) SATP register will be
 		 * unchanged, and we continue in SV39 mode.
 		 */
+		vm_offset_t l0pv;
 		alloc_pages(l0pv, 1);
 		pd_entry_t *l0pt = (pd_entry_t *)l0pv;
-		l1pa = pmap_early_vtophys(l1pt_va, l1pt_va);
+		vm_paddr_t l1pa = pmap_early_vtophys(l1pt_va, l1pt_va);
 		l0pt[pmap_l0_index(KERNBASE)] = PTE_V |
 		    ((l1pa >> PAGE_SHIFT) << PTE_PPN0_S);
 
-		l0pa = pmap_early_vtophys(l1pt_va, l0pv);
+		vm_paddr_t l0pa = pmap_early_vtophys(l1pt_va, l0pv);
 		csr_write(satp, (l0pa >> PAGE_SHIFT) | SATP_MODE_SV48);
 		uint64_t satp = csr_read(satp);
 		if ((satp & SATP_MODE_M) == SATP_MODE_SV48) {
@@ -757,10 +754,12 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	}
 
 	/* Allocate dynamic per-cpu area. */
+	vm_offset_t dpcpu;
 	alloc_pages(dpcpu, DPCPU_SIZE / PAGE_SIZE);
 	dpcpu_init((void *)dpcpu, 0);
 
 	/* Allocate memory for the msgbuf, e.g. for /sbin/dmesg */
+	vm_offset_t msgbufpv;
 	alloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 	msgbufp = (void *)msgbufpv;
 
@@ -768,7 +767,7 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	virtual_end = VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE;
 	kernel_vm_end = virtual_avail;
 
-	pa = pmap_early_vtophys(l1pt_va, freemempos);
+	vm_paddr_t pa = pmap_early_vtophys(l1pt_va, freemempos);
 
 	physmem_exclude_region(kernstart, pa - kernstart, EXFLAG_NOALLOC);
 }
