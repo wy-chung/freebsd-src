@@ -1141,7 +1141,7 @@ pmap_qremove(vm_offset_t sva, int count)
 
 	for (va = sva; count-- > 0; va += PAGE_SIZE) {
 		pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
-		KASSERT(l3 != NULL, ("pmap_kremove: Invalid address"));
+		KASSERT(l3 != NULL, ("%s: Invalid address", __func__));
 		pmap_clear(l3);
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
@@ -1306,7 +1306,7 @@ pmap_satp_mode(void)
 
 // init the pmap of proc0 (swapper)
 void
-pmap_pinit0(pmap_t pmap)
+pmap_pinit0(pmap_t pmap) // < proc0_init
 {
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
@@ -1633,36 +1633,30 @@ SYSCTL_PROC(_vm, OID_AUTO, kvm_free, CTLTYPE_LONG | CTLFLAG_RD | CTLFLAG_MPSAFE,
 void
 pmap_growkernel(vm_offset_t addr)
 {
-	vm_paddr_t paddr;
-	vm_page_t nkpg;
-	pd_entry_t *l1, *l2;
-	pt_entry_t entry;
-	pn_t pn;
-
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 
 	addr = roundup2(addr, L2_SIZE);
 	if (addr - 1 >= vm_map_max(kernel_map))
 		addr = vm_map_max(kernel_map);
 	while (kernel_vm_end < addr) {
-		l1 = pmap_l1(kernel_pmap, kernel_vm_end);
+		pd_entry_t *l1 = pmap_l1(kernel_pmap, kernel_vm_end);
 		if (pmap_load(l1) == 0) {
 			/* We need a new PDP entry */
-			nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
+			vm_page_t nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT |
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
-				panic("pmap_growkernel: no memory to grow kernel");
+				panic("%s: no memory to grow kernel", __func__);
 			nkpg->pindex = kernel_vm_end >> L1_SHIFT;
-			paddr = VM_PAGE_TO_PHYS(nkpg);
+			vm_paddr_t paddr = VM_PAGE_TO_PHYS(nkpg);
 
-			pn = (paddr / PAGE_SIZE);
-			entry = (PTE_V);
+			pn_t pn = (paddr / PAGE_SIZE);
+			pt_entry_t entry = (PTE_V);
 			entry |= (pn << PTE_PPN0_S);
 			pmap_store(l1, entry);
 			pmap_distribute_l1(kernel_pmap, pmap_l1_index(kernel_vm_end), entry);
 			continue; /* try again */
 		}
-		l2 = pmap_l1_to_l2(l1, kernel_vm_end);
+		pd_entry_t *l2 = pmap_l1_to_l2(l1, kernel_vm_end);
 		if ((pmap_load(l2) & PTE_V) != 0 &&
 		    (pmap_load(l2) & PTE_RWX) == 0) { // point to l3 page table
 			kernel_vm_end = (kernel_vm_end + L2_SIZE) & ~L2_OFFSET;
@@ -1673,15 +1667,15 @@ pmap_growkernel(vm_offset_t addr)
 			continue;
 		}
 
-		nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
+		vm_page_t nkpg = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
 		if (nkpg == NULL)
-			panic("pmap_growkernel: no memory to grow kernel");
+			panic("%s: no memory to grow kernel", __func__);
 		nkpg->pindex = kernel_vm_end >> L2_SHIFT;
-		paddr = VM_PAGE_TO_PHYS(nkpg);
+		vm_paddr_t paddr = VM_PAGE_TO_PHYS(nkpg);
 
-		pn = (paddr / PAGE_SIZE);
-		entry = (PTE_V);
+		pn_t pn = (paddr / PAGE_SIZE);
+		pt_entry_t entry = (PTE_V);
 		entry |= (pn << PTE_PPN0_S);
 		pmap_store(l2, entry);
 
