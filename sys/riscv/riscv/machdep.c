@@ -153,7 +153,6 @@ cpu_startup(void *dummy)
 			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
 		}
 	//wycprint
-	extern vm_paddr_t phys_avail[];
 	extern long Maxmem;
 	extern const u_long vm_maxuser_address;
 

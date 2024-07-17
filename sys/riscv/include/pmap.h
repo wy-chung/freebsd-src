@@ -70,6 +70,11 @@ struct md_page {
 	vm_memattr_t		pv_memattr;
 };
 
+/* satp register
+  mode: bit 63 .. 60
+  ASID: bit 59 .. 44
+  PPN : bit 43 .. 0
+*/
 struct pmap {
 	struct mtx		pm_mtx;		// pmap lock
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
