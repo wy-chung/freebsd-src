@@ -71,7 +71,7 @@ struct md_page {
 };
 
 struct pmap {
-	struct mtx		pm_mtx;
+	struct mtx		pm_mtx;		// pmap lock
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 	pd_entry_t		*pm_top;	/* top-level page table page */
 	u_long			pm_satp;	/* value for SATP register */ // Supervisor Address Translation and Protection

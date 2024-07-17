@@ -326,7 +326,7 @@ try_load_dtb(caddr_t kmdp)
 #endif
 
 	if (dtbp == (vm_offset_t)NULL) {
-		printf("ERROR loading DTB\n");
+		printf("ERROR loading DTB\n"); // Device tree blob
 		return;
 	}
 
@@ -389,7 +389,7 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 	PRELOAD_PUSH_VALUE(uint32_t, sizeof(size_t));
 	PRELOAD_PUSH_VALUE(uint64_t, (size_t)((vm_offset_t)&end - KERNBASE));
 
-	/* Copy the DTB to KVA space. */
+	/* Copy the DTB(Device tree blob) to KVA space. */
 	lastaddr = roundup(lastaddr, sizeof(int));
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_METADATA | MODINFOMD_DTBP);
 	PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
@@ -411,7 +411,7 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 	PRELOAD_PUSH_VALUE(uint32_t, 0);
 	preload_metadata = (caddr_t)fake_preload;
 
-	/* Check if bootloader clobbered part of the kernel with the DTB. */
+	/* Check if bootloader clobbered part of the kernel with the DTB(Device tree blob). */
 	KASSERT(rvbp->dtbp_phys + dtb_size <= rvbp->kern_phys ||
 		rvbp->dtbp_phys >= rvbp->kern_phys + (lastaddr - KERNBASE),
 	    ("FDT (%lx-%lx) and kernel (%lx-%lx) overlap", rvbp->dtbp_phys,
