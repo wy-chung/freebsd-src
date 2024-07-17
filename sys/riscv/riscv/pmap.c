@@ -282,7 +282,7 @@ CTASSERT((DMAP_MAX_ADDRESS  & ~L1_OFFSET) == DMAP_MAX_ADDRESS);
 
 /*
  * This code assumes that the early DEVMAP is L2_SIZE aligned and is fully
- * contained within a single L2 entry. The early DTB is mapped immediately
+ * contained within a single L2 entry. The early DTB(Device tree blob) is mapped immediately
  * before the devmap L2 entry.
  */
 CTASSERT((PMAP_MAPDEV_EARLY_SIZE & L2_OFFSET) == 0);
@@ -611,28 +611,21 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 static vm_offset_t
 pmap_bootstrap_l3(vm_offset_t l1pt_va, vm_offset_t va, vm_offset_t l3_start)
 {
-	vm_offset_t l3pt_va;
-	pt_entry_t entry;
-	pd_entry_t *l2pt;
-	vm_paddr_t pa;
-	u_int l2_slot;
-	pn_t pn;
-
 	KASSERT((va & L2_OFFSET) == 0, ("Invalid virtual address"));
 
 	vm_offset_t l2_va = (vm_offset_t)pmap_l2(kernel_pmap, va);
-	l2pt = (pd_entry_t *)(l2_va & ~(PAGE_SIZE - 1));
-	l2_slot = pmap_l2_index(va);
-	l3pt_va = l3_start;
+	pd_entry_t *l2pt = (pd_entry_t *)(l2_va & ~(PAGE_SIZE - 1));
+	u_int l2_slot = pmap_l2_index(va);
+	vm_offset_t l3pt_va = l3_start;
 
-	for (; va < VM_MAX_KERNEL_ADDRESS; l2_slot++, va += L2_SIZE) {
+	for (; va < VM_MAX_KERNEL_ADDRESS; va += L2_SIZE) {
 		KASSERT(l2_slot < Ln_ENTRIES, ("Invalid L2 index"));
 
-		pa = pmap_early_vtophys(l1pt_va, l3pt_va);
-		pn = (pa / PAGE_SIZE);
-		entry = (PTE_V);
+		vm_paddr_t pa = pmap_early_vtophys(l1pt_va, l3pt_va);
+		pn_t pn = (pa / PAGE_SIZE);
+		pt_entry_t entry = (PTE_V);
 		entry |= (pn << PTE_PPN0_S);
-		pmap_store(&l2pt[l2_slot], entry);
+		pmap_store(&l2pt[l2_slot++], entry);
 		l3pt_va += PAGE_SIZE;
 	}
 
@@ -710,7 +703,7 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	    VM_MAX_KERNEL_ADDRESS - PMAP_MAPDEV_EARLY_SIZE, freemempos);
 
 	/*
-	 * Invalidate the mapping we created for the DTB. At this point a copy
+	 * Invalidate the mapping we created for the DTB(Device tree blob). At this point a copy
 	 * has been created, and we no longer need it. We want to avoid the
 	 * possibility of an aliased mapping in the future.
 	 */
@@ -929,20 +922,17 @@ pmap_invalidate_all(pmap_t pmap)
 vm_paddr_t 
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
-	pd_entry_t *l2p, l2e;
-	pt_entry_t *l3p;
-	vm_paddr_t pa;
-
-	pa = 0;
+	pd_entry_t l2e;
+	vm_paddr_t pa = 0;
 
 	/*
 	 * Start with an L2 lookup, L1 superpages are currently not implemented.
 	 */
 	PMAP_LOCK(pmap);
-	l2p = pmap_l2(pmap, va);
+	pd_entry_t *l2p = pmap_l2(pmap, va);
 	if (l2p != NULL && ((l2e = pmap_load(l2p)) & PTE_V) != 0) {
 		if ((l2e & PTE_RWX) == 0) { // point to l3 page table
-			l3p = pmap_l2_to_l3(l2p, va);
+			pt_entry_t *l3p = pmap_l2_to_l3(l2p, va);
 			pa = PTE_TO_PHYS(pmap_load(l3p));
 			pa |= (va & L3_OFFSET);
 		} else {
@@ -987,17 +977,15 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
-	pd_entry_t *l2, l2e;
-	pt_entry_t *l3;
 	vm_paddr_t pa;
 
 	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS) {
 		pa = DMAP_TO_PHYS(va);
 	} else {
-		l2 = pmap_l2(kernel_pmap, va);
+		pd_entry_t *l2 = pmap_l2(kernel_pmap, va);
 		if (l2 == NULL)
 			panic("%s: No l2", __func__);
-		l2e = pmap_load(l2);
+		pd_entry_t l2e = pmap_load(l2);
 		/*
 		 * Beware of concurrent promotion and demotion! We must
 		 * use l2e rather than loading from l2 multiple times to
@@ -1006,16 +994,15 @@ pmap_kextract(vm_offset_t va)
 		 * to use an old l2e because the L3 page is preserved by
 		 * promotion.
 		 */
-		if ((l2e & PTE_RWX) != 0) { //ori PTE_RX
+		if ((l2e & PTE_RWX) == 0) { //ori PTE_RX, point to l3 page table
+			pt_entry_t *l3 = pmap_l2_to_l3(&l2e, va);
+			pa = PTE_TO_PHYS(pmap_load(l3));
+			pa |= (va & PAGE_MASK);
+		} else {
 			/* superpages */
 			pa = L2PTE_TO_PHYS(l2e);
 			pa |= (va & L2_OFFSET);
-			return (pa);
 		}
-
-		l3 = pmap_l2_to_l3(&l2e, va);
-		pa = PTE_TO_PHYS(pmap_load(l3));
-		pa |= (va & PAGE_MASK);
 	}
 	return (pa);
 }
@@ -1026,11 +1013,6 @@ pmap_kextract(vm_offset_t va)
 void
 pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode __unused)
 {
-	pt_entry_t entry;
-	pt_entry_t *l3;
-	vm_offset_t va;
-	pn_t pn;
-
 	KASSERT((pa & L3_OFFSET) == 0,
 	   ("%s: Invalid physical address", __func__));
 	KASSERT((sva & L3_OFFSET) == 0,
@@ -1038,13 +1020,13 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode __unused)
 	KASSERT((size & PAGE_MASK) == 0,
 	    ("%s: Mapping is not page-sized", __func__));
 
-	va = sva;
+	vm_offset_t va = sva;
 	while (size != 0) {
-		l3 = pmap_l3(kernel_pmap, va);
+		pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("Invalid page table, va: 0x%lx", va));
 
-		pn = (pa / PAGE_SIZE);
-		entry = PTE_KERN; // accessed and dirty are both 1
+		pn_t pn = (pa / PAGE_SIZE);
+		pt_entry_t entry = PTE_KERN; // accessed and dirty are both 1
 		entry |= (pn << PTE_PPN0_S);
 		pmap_store(l3, entry);
 
@@ -4822,10 +4804,9 @@ bool
 pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
     pt_entry_t **l3)
 {
-	pd_entry_t *l1p, *l2p;
-
+if (pmap != kernel_pmap) panic("%s:\n", __func__); //wyctest the @pmap is always kernel_pmap
 	/* Get l1 directory entry. */
-	l1p = pmap_l1(pmap, va);
+	pd_entry_t *l1p = pmap_l1(pmap, va);
 	*l1 = l1p;
 
 	if (l1p == NULL || (pmap_load(l1p) & PTE_V) == 0)
@@ -4838,7 +4819,7 @@ pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
 	}
 
 	/* Get l2 directory entry. */
-	l2p = pmap_l1_to_l2(l1p, va);
+	pd_entry_t *l2p = pmap_l1_to_l2(l1p, va);
 	*l2 = l2p;
 
 	if (/*l2p == NULL || */(pmap_load(l2p) & PTE_V) == 0) //wycpull
