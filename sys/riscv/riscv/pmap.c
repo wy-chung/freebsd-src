@@ -431,7 +431,7 @@ pmap_l1(pmap_t pmap, vm_offset_t va)
 	if (pmap_mode == PMAP_MODE_SV39) {
 		return (&pmap->pm_top[pmap_l1_index(va)]);
 	} else {
-panic("%s: wyctest\n", __func__); //tested. not reach here
+panic("%s: wyctest\n", __func__); // tested. not reach here
 		pd_entry_t *l0 = pmap_l0(pmap, va);
 		if ((pmap_load(l0) & PTE_V) == 0)
 			return (NULL);
@@ -1053,7 +1053,7 @@ pmap_kremove(vm_offset_t va)
 	pt_entry_t *l3;
 
 	l3 = pmap_l3(kernel_pmap, va);
-	KASSERT(l3 != NULL, ("pmap_kremove: Invalid address"));
+	KASSERT(l3 != NULL, ("%s: Invalid address", __func__));
 
 	pmap_clear(l3);
 	sfence_vma();
@@ -1062,17 +1062,14 @@ pmap_kremove(vm_offset_t va)
 void
 pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 {
-	pt_entry_t *l3;
-	vm_offset_t va;
-
 	KASSERT((sva & L3_OFFSET) == 0,
 	   ("pmap_kremove_device: Invalid virtual address"));
 	KASSERT((size & PAGE_MASK) == 0,
 	    ("pmap_kremove_device: Mapping is not page-sized"));
 
-	va = sva;
+	vm_offset_t va = sva;
 	while (size != 0) {
-		l3 = pmap_l3(kernel_pmap, va);
+		pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("Invalid page table, va: 0x%lx", va));
 		pmap_clear(l3);
 
@@ -1114,21 +1111,14 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 void
 pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 {
-	pt_entry_t *l3, pa;
-	vm_offset_t va;
-	vm_page_t m;
-	pt_entry_t entry;
-	pn_t pn;
-	int i;
-
-	va = sva;
-	for (i = 0; i < count; i++) {
-		m = ma[i];
-		pa = VM_PAGE_TO_PHYS(m);
-		pn = (pa / PAGE_SIZE);
-		l3 = pmap_l3(kernel_pmap, va);
+	vm_offset_t va = sva;
+	for (int i = 0; i < count; i++) {
+		vm_page_t m = ma[i];
+		pt_entry_t pa = VM_PAGE_TO_PHYS(m);
+		pn_t pn = (pa / PAGE_SIZE);
+		pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("%s: Invalid address", __func__)); //wycpull
-		entry = PTE_KERN; // accessed and dirty are both 1
+		pt_entry_t entry = PTE_KERN; // accessed and dirty are both 1
 		entry |= (pn << PTE_PPN0_S);
 		pmap_store(l3, entry);
 
@@ -1145,13 +1135,12 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 void
 pmap_qremove(vm_offset_t sva, int count)
 {
-	pt_entry_t *l3;
 	vm_offset_t va;
 
 	KASSERT(sva >= VM_MIN_KERNEL_ADDRESS, ("usermode va %lx", sva));
 
 	for (va = sva; count-- > 0; va += PAGE_SIZE) {
-		l3 = pmap_l3(kernel_pmap, va);
+		pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("pmap_kremove: Invalid address"));
 		pmap_clear(l3);
 	}
@@ -1322,8 +1311,7 @@ pmap_pinit0(pmap_t pmap)
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 	pmap->pm_top = kernel_pmap->pm_top;
-	pmap->pm_satp = pmap_satp_mode() |
-	    (vtophys(pmap->pm_top) >> PAGE_SHIFT);
+	pmap->pm_satp = pmap_satp_mode() | (vtophys(pmap->pm_top) >> PAGE_SHIFT);
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	vm_radix_init(&pmap->pm_root);
@@ -4804,7 +4792,7 @@ bool
 pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
     pt_entry_t **l3)
 {
-if (pmap != kernel_pmap) panic("%s:\n", __func__); //wyctest the @pmap is always kernel_pmap
+if (pmap != kernel_pmap) panic("%s: wyctest\n", __func__); // tested. the @pmap is always kernel_pmap
 	/* Get l1 directory entry. */
 	pd_entry_t *l1p = pmap_l1(pmap, va);
 	*l1 = l1p;
