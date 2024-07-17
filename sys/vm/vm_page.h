@@ -343,7 +343,7 @@ struct vm_page {
 	} plinks;
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) */
 	vm_object_t object;		/* which object am I in (O) */
-	vm_pindex_t pindex;		/* offset into object (O,P) */
+	vm_pindex_t pindex; // index of the pagetable page or	/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page (C) */
 	struct md_page md; // 4k pv_list	/* machine dependent stuff */
 	u_int ref_count;		/* page references (A) */

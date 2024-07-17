@@ -236,11 +236,13 @@ struct _vm_map {
 
 #ifdef	_KERNEL
 #if defined(KLD_MODULE) && !defined(KLD_TIED)
+ #if !defined(WYC)
 #define	vm_map_max(map)		vm_map_max_KBI((map))
 #define	vm_map_min(map)		vm_map_min_KBI((map))
 #define	vm_map_pmap(map)	vm_map_pmap_KBI((map))
 #define	vm_map_range_valid(map, start, end)	\
 	vm_map_range_valid_KBI((map), (start), (end))
+ #endif
 #else
 static __inline vm_offset_t
 vm_map_max(const struct _vm_map *map)
