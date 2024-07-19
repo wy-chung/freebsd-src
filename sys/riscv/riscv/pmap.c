@@ -1374,15 +1374,15 @@ panic("%s: wyctest\n", __func__); // tested
  */
 // ptepindex: the pagtable page index. It will be stored in vm_page.pindex
 static vm_page_t
-_pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
+_pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 {
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/*
 	 * Allocate a page table page.
 	 */
-	vm_page_t m = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
-	if (m == NULL) {
+	vm_page_t mpte = vm_page_alloc_noobj(VM_ALLOC_WIRED | VM_ALLOC_ZERO);
+	if (mpte == NULL) {
 		if (lockp != NULL) {
 			RELEASE_PV_LIST_LOCK(lockp);
 			PMAP_UNLOCK(pmap);
@@ -1398,13 +1398,13 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		 */
 		return (NULL);
 	}
-	m->pindex = ptepindex;
+	mpte->pindex = ptepindex;
 
 	/*
 	 * Map the pagetable page into the process address space, if
 	 * it isn't already there.
 	 */
-	pn_t pn = VM_PAGE_TO_PHYS(m) >> PAGE_SHIFT;
+	pn_t pn = VM_PAGE_TO_PHYS(mpte) >> PAGE_SHIFT;
 	if (ptepindex >= NL3PTP + NL2PTP) { // L1 pagetable page, only exists in SV48 mode
 		KASSERT(pmap_mode != PMAP_MODE_SV39,
 		    ("%s: pindex %#lx in SV39 mode", __func__, ptepindex));
@@ -1430,7 +1430,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			pd_entry_t *l0 = &pmap->pm_top[l0index];
 			if (pmap_load(l0) == 0) {
 				/* Recurse to allocate the L1 page. */
-				if (_pmap_alloc_l3(pmap,
+				if (_pmap_alloc_l123(pmap,
 				    NL3PTP + NL2PTP + l0index, lockp) == NULL)
 					goto fail;
 				phys = PTE_TO_PHYS(pmap_load(l0));
@@ -1456,7 +1456,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			l1 = &pmap->pm_top[l1index];
 			if (pmap_load(l1) == 0) {
 				/* recurse for allocating page dir */
-				if (_pmap_alloc_l3(pmap, NL3PTP + l1index,
+				if (_pmap_alloc_l123(pmap, NL3PTP + l1index,
 				    lockp) == NULL)
 					goto fail;
 			} else {
@@ -1469,7 +1469,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			pd_entry_t *l0 = &pmap->pm_top[l0index];
 			if (pmap_load(l0) == 0) {
 				/* Recurse to allocate the L1 entry. */
-				if (_pmap_alloc_l3(pmap, NL3PTP + l1index,
+				if (_pmap_alloc_l123(pmap, NL3PTP + l1index,
 				    lockp) == NULL)
 					goto fail;
 				vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l0));
@@ -1481,7 +1481,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				l1 = &l1pt[l1index & Ln_ADDR_MASK];
 				if (pmap_load(l1) == 0) {
 					/* Recurse to allocate the L2 page. */
-					if (_pmap_alloc_l3(pmap,
+					if (_pmap_alloc_l123(pmap,
 					    NL3PTP + l1index, lockp) == NULL)
 						goto fail;
 				} else {
@@ -1504,74 +1504,62 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 
 	pmap_resident_count_inc(pmap, 1);
 
-	return (m);
+	return (mpte);
 
 fail:
-	vm_page_unwire_noq(m);
-	vm_page_free_zero(m);
+	vm_page_unwire_noq(mpte);
+	vm_page_free_zero(mpte);
 	return (NULL);
 }
 
 static vm_page_t
 pmap_alloc_l2(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
 {
-	pd_entry_t *l1;
-	vm_page_t l2pg;
-
-retry:
-	l1 = pmap_l1(pmap, va);
+retry:;
+	pd_entry_t *l1 = pmap_l1(pmap, va);
+	vm_page_t mpte;
 	if (l1 != NULL && (pmap_load(l1) & PTE_V) != 0) {
 		KASSERT((pmap_load(l1) & PTE_RWX) == 0, // point to l2 page table
 		    ("%s: L1 entry %#lx for VA %#lx is a leaf", __func__,
 		    pmap_load(l1), va));
 		/* Add a reference to the L2 page. */
-		l2pg = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l1)));
-		l2pg->ref_count++;
-	} else {
+		mpte = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l1)));
+		mpte->ref_count++;
+	} else { //wyc if the l2 pagetable page has been deallocated
 		/* Allocate a L2 page. */
 		vm_pindex_t l2pindex = pmap_l2_pindex(va) >> Ln_ENTRIES_SHIFT;
-		l2pg = _pmap_alloc_l3(pmap, NL3PTP + l2pindex, lockp);
-		if (l2pg == NULL && lockp != NULL)
+		mpte = _pmap_alloc_l123(pmap, NL3PTP + l2pindex, lockp);
+		if (mpte == NULL && lockp != NULL)
 			goto retry;
 	}
-	return (l2pg);
+	return (mpte);
 }
 
 static vm_page_t
 pmap_alloc_l3(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
 {
-	vm_pindex_t ptepindex;
-	pd_entry_t *l2;
-	vm_page_t m;
-
-	/*
-	 * Calculate pagetable page index
-	 */
-	ptepindex = pmap_l2_pindex(va);
-retry:
-	/*
-	 * Get the page directory entry
-	 */
-	l2 = pmap_l2(pmap, va);
-
-	/*
-	 * If the page table page is mapped, we just increment the
-	 * hold count, and activate it.
-	 */
+retry:;
+	pd_entry_t *l2 = pmap_l2(pmap, va); // Get the page directory entry
+	vm_page_t mpte;
 	if (l2 != NULL && pmap_load(l2) != 0) {
-		vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l2));
-		m = PHYS_TO_VM_PAGE(phys);
-		m->ref_count++;
-	} else {
 		/*
-		 * Here if the pte page isn't mapped, or if it has been
+		 * If the page table page is mapped, we just increment the
+		 * hold count, and activate it.
+		 */
+		vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l2));
+		mpte = PHYS_TO_VM_PAGE(phys);
+		mpte->ref_count++;
+	} else { //wyc if the l3 pagetable page has been deallocated
+		/*
+		 * If the pte page isn't mapped, or if it has been
 		 * deallocated.
 		 */
-		m = _pmap_alloc_l3(pmap, ptepindex, lockp);
-		if (m == NULL && lockp != NULL)
+		vm_pindex_t ptepindex = pmap_l2_pindex(va); // Calculate pagetable page index
+		mpte = _pmap_alloc_l123(pmap, ptepindex, lockp);
+		if (mpte == NULL && lockp != NULL)
 			goto retry;
 	}
-	return (m);
+	return (mpte);
 }
 
 /***************************************************
@@ -1635,7 +1623,7 @@ pmap_growkernel(vm_offset_t addr)
 {
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 
-	addr = roundup2(addr, L2_SIZE);
+	addr = roundup2(addr, L2_SIZE); // 2M
 	if (addr - 1 >= vm_map_max(kernel_map))
 		addr = vm_map_max(kernel_map);
 	while (kernel_vm_end < addr) {
@@ -1646,7 +1634,7 @@ pmap_growkernel(vm_offset_t addr)
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
 				panic("%s: no memory to grow kernel", __func__);
-			nkpg->pindex = kernel_vm_end >> L1_SHIFT;
+			nkpg->pindex = kernel_vm_end >> L1_SHIFT; //wyc???
 			vm_paddr_t paddr = VM_PAGE_TO_PHYS(nkpg);
 
 			pn_t pn = (paddr / PAGE_SIZE);
@@ -1671,7 +1659,7 @@ pmap_growkernel(vm_offset_t addr)
 		    VM_ALLOC_ZERO);
 		if (nkpg == NULL)
 			panic("%s: no memory to grow kernel", __func__);
-		nkpg->pindex = kernel_vm_end >> L2_SHIFT;
+		nkpg->pindex = kernel_vm_end >> L2_SHIFT; //wyc???
 		vm_paddr_t paddr = VM_PAGE_TO_PHYS(nkpg);
 
 		pn_t pn = (paddr / PAGE_SIZE);
@@ -2816,20 +2804,13 @@ int
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     u_int flags, int8_t psind)
 {
-	pd_entry_t *l2, l2e;
-	pt_entry_t new_l3e;
-	pt_entry_t *l3;
-	vm_paddr_t pa;
-	pn_t pn;
-	int rv;
-
 	va = trunc_page(va);
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		VM_PAGE_OBJECT_BUSY_ASSERT(m);
-	pa = VM_PAGE_TO_PHYS(m);
-	pn = (pa / PAGE_SIZE);
+	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
+	pn_t pn = (pa / PAGE_SIZE);
 
-	new_l3e = PTE_V | PTE_R | PTE_A;
+	pt_entry_t new_l3e = PTE_V | PTE_R | PTE_A;
 	if (prot & VM_PROT_EXECUTE)
 		new_l3e |= PTE_X;
 	if (prot & VM_PROT_WRITE)
@@ -2855,6 +2836,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	CTR3(KTR_PMAP, "%s: %.16lx -> %.16lx", __func__, va, pa);
 
+	int rv;
 	struct rwlock *lock = NULL;
 	vm_page_t mpte = NULL;
 	rw_rlock(&pvh_global_lock);
@@ -2868,7 +2850,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		goto out;
 	}
 
-	l2 = pmap_l2(pmap, va);
+	pd_entry_t *l2 = pmap_l2(pmap, va);
+	pd_entry_t l2e;
+	pt_entry_t *l3;
 	if (l2 != NULL && ((l2e = pmap_load(l2)) & PTE_V) != 0 &&
 	    ((l2e & PTE_RWX) == 0 || pmap_demote_l2_locked(pmap, l2, va, &lock))) {
 		l3 = pmap_l2_to_l3(l2, va);
@@ -2888,7 +2872,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			return (KERN_RESOURCE_SHORTAGE);
 		}
 		l3 = pmap_l3(pmap, va);
-	} else {
+	} else { //wyc for kernel_pmap
+//if (pmap != kernel_pmap) panic("%s: wyctest\n", __func__); // tested, pmap will be kernel_pmap
 		l3 = pmap_l3(pmap, va);
 		/* TODO: This is not optimal, but should mostly work */
 		if (l3 == NULL) {
@@ -3129,29 +3114,29 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	vm_page_t l2pg = pmap_alloc_l2(pmap, va, flags & PMAP_ENTER_NOSLEEP ? NULL : lockp);
-	if (l2pg == NULL) {
+	vm_page_t mpte = pmap_alloc_l2(pmap, va, flags & PMAP_ENTER_NOSLEEP ? NULL : lockp);
+	if (mpte == NULL) {
 		CTR3(KTR_PMAP, "%s: failed to allocate PT page"
 		    " for va %#lx in pmap %p", __func__, va, pmap);
 		return (KERN_RESOURCE_SHORTAGE);
 	}
 
-	pd_entry_t *l2pt = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(l2pg));
+	pd_entry_t *l2pt = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mpte));
 	pd_entry_t *l2 = &l2pt[pmap_l2_index(va)];
 	pd_entry_t oldl2e = pmap_load(l2);
 	if (oldl2e != 0) {
-		KASSERT(l2pg->ref_count > 1,
-		    ("%s: l2pg's ref count is too low", __func__));
+		KASSERT(mpte->ref_count > 1,
+		    ("%s: mpte's ref count is too low", __func__));
 		if ((flags & PMAP_ENTER_NOREPLACE) != 0) {
 			if ((oldl2e & PTE_RWX) != 0) { // superpage
-				l2pg->ref_count--;
+				mpte->ref_count--;
 				CTR3(KTR_PMAP,
 				    "%s: no space for va %#lx"
 				    " in pmap %p", __func__, va, pmap);
 				return (KERN_NO_SPACE);
 			} else if (va < VM_MAXUSER_ADDRESS ||
 			    !pmap_every_pte_zero(L2PTE_TO_PHYS(oldl2e))) {
-				l2pg->ref_count--;
+				mpte->ref_count--;
 				CTR3(KTR_PMAP, "%s:"
 				    " failed to replace existing mapping"
 				    " for va %#lx in pmap %p", __func__, va, pmap);
@@ -3207,7 +3192,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 		 */
 		if (!pmap_pv_insert_l2(pmap, va, new_l2e, flags, lockp)) {
 			SLIST_INIT(&free);
-			if (pmap_unwire_ptp(pmap, va, l2pg, &free)) {
+			if (pmap_unwire_ptp(pmap, va, mpte, &free)) {
 				/*
 				 * Although "va" is not mapped, paging-structure
 				 * caches could nonetheless have entries that
@@ -3377,7 +3362,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				 * Pass NULL instead of the PV list lock
 				 * pointer, because we don't intend to sleep.
 				 */
-				mpte = _pmap_alloc_l3(pmap, l2pindex, NULL);
+				mpte = _pmap_alloc_l123(pmap, l2pindex, NULL);
 				if (mpte == NULL)
 					return (mpte);
 			}
