@@ -961,7 +961,7 @@ MALLOC_DECLARE(M_SUBPROC);
  * We use process IDs <= pid_max <= PID_MAX; PID_MAX + 1 must also fit
  * in a pid_t, as it is used to represent "no process group".
  */
-#define	PID_MAX		 32767	//wyc bc there are only 15 bits (128T/4G) available for process ID
+#define	PID_MAX		32768	//wyc bc there are only 15 bits (128T/4G) available for process ID
 #define	NO_PID		100000
 #define TID_START	NO_PID
 #define	THREAD0_TID	TID_START
