@@ -337,10 +337,6 @@ static enum fault_status
 vm_fault_soft_fast(struct faultstate *fs)
 {
 	vm_page_t m, m_map;
-#if VM_NRESERVLEVEL > 0
-	vm_page_t m_super;
-	int flags;
-#endif
 	int psind;
 	vm_offset_t vaddr;
 
@@ -381,6 +377,8 @@ vm_fault_soft_fast(struct faultstate *fs)
 	m_map = m;
 	psind = 0;
 #if VM_NRESERVLEVEL > 0
+	vm_page_t m_super;
+	int flags;
 	if ((m->flags & PG_FICTITIOUS) == 0 &&
 	    (m_super = vm_reserv_to_superpage(m)) != NULL &&
 	    rounddown2(vaddr, pagesizes[m_super->psind]) >= fs->entry->start &&
