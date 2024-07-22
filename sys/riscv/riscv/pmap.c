@@ -353,7 +353,7 @@ static int	pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2,
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte, struct rwlock **lockp);
 static bool pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t sva,
-    pd_entry_t ptepde, struct spglist *free, struct rwlock **lockp);
+    pd_entry_t ptepde, spglist_t *free, struct rwlock **lockp);
 static bool pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
     vm_page_t m, struct rwlock **lockp);
 
@@ -361,8 +361,8 @@ static vm_page_t _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex,
 		struct rwlock **lockp);
 
 static void _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m,
-    struct spglist *free);
-static bool pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t, struct spglist *);
+    spglist_t *free);
+static bool pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t, spglist_t *);
 
 static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode);
 
@@ -1163,8 +1163,7 @@ pmap_ps_enabled(pmap_t pmap __unused)
  * physical memory manager after the TLB has been updated.
  */
 static __inline void
-pmap_add_delayed_free_list(vm_page_t m, struct spglist *free,
-    boolean_t set_PG_ZERO)
+pmap_add_delayed_free_list(vm_page_t m, spglist_t *free, boolean_t set_PG_ZERO)
 {
 
 	if (set_PG_ZERO)
@@ -1224,7 +1223,7 @@ pmap_remove_pt_page(pmap_t pmap, vm_offset_t va)
  * page table page was unmapped and FALSE otherwise.
  */
 static inline bool
-pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
+pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, spglist_t *free)
 {
 	KASSERT(m->ref_count > 0,
 	    ("%s: page %p ref count underflow", __func__, m));
@@ -1239,7 +1238,7 @@ pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 }
 
 static void
-_pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
+_pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, spglist_t *free)
 {
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if (m->pindex >= NL3PTP + NL2PTP) { // a L1PTP
@@ -1287,7 +1286,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
  * conditionally free the page, and manage the reference count.
  */
 static bool
-pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde, struct spglist *free)
+pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde, spglist_t *free)
 {
 	vm_page_t mpte;
 
@@ -1439,8 +1438,8 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				vm_page_t pdpg = PHYS_TO_VM_PAGE(phys);
 				pdpg->ref_count++;
 			}
-			l1 = (pd_entry_t *)PHYS_TO_DMAP(phys);
-			l1 = &l1[ptepindex & Ln_ADDR_MASK];
+			pd_entry_t *l1pt = (pd_entry_t *)PHYS_TO_DMAP(phys);
+			l1 = &l1pt[ptepindex & Ln_ADDR_MASK];
 		}
 		KASSERT((pmap_load(l1) & PTE_V) == 0,
 		    ("%s: L1 entry %#lx is valid", __func__, pmap_load(l1)));
@@ -2144,7 +2143,7 @@ pmap_remove_kernel_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t va)
  */
 static bool
 pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
-    pd_entry_t l1e, struct spglist *free, struct rwlock **lockp)
+    pd_entry_t l1e, spglist_t *free, struct rwlock **lockp)
 {
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT((sva & L2_OFFSET) == 0, ("%s: sva is not aligned", __func__));
@@ -2202,7 +2201,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
  */
 static bool
 pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va, 
-    pd_entry_t l2e, struct spglist *free, struct rwlock **lockp)
+    pd_entry_t l2e, spglist_t *free, struct rwlock **lockp)
 {
 	pt_entry_t old_l3e;
 
@@ -2241,7 +2240,6 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	struct spglist free;
 	vm_offset_t va, va_next;
 	pd_entry_t *l0, *l1, *l2, l2e;
 	pt_entry_t *l3;
@@ -2252,7 +2250,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap->pm_stats.resident_count == 0)
 		return;
 
-	SLIST_INIT(&free);
+	spglist_t free = SLIST_HEAD_INITIALIZER(free);
 
 	rw_rlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
@@ -2356,13 +2354,12 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_remove_all(vm_page_t m)
 {
-	struct spglist free;
 	pd_entry_t *l2, l2e __diagused;
 	pv_entry_t pv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is not managed", __func__, m));
-	SLIST_INIT(&free);
+	spglist_t free = SLIST_HEAD_INITIALIZER(free);
 	struct md_page *pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy :
 	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
 
@@ -2609,7 +2606,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 		if ((oldl2e & PTE_A) == 0 || (mpte = vm_page_alloc_noobj(
 		    (VIRT_IN_DMAP(va) ? VM_ALLOC_INTERRUPT : 0) |
 		    VM_ALLOC_WIRED)) == NULL) {
-			struct spglist free;
+			spglist_t free = SLIST_HEAD_INITIALIZER(free);
 			SLIST_INIT(&free);
 			pd_entry_t l1e = pmap_load(pmap_l1(pmap, va));
 			(void)pmap_remove_l2(pmap, l2, va & ~L2_OFFSET,
@@ -2789,11 +2786,11 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3, stru
 #endif
 
 /*
- *	Insert the given physical page (p) at
- *	the specified virtual address (v) in the
- *	target physical map with the protection requested.
+ *	Insert the given physical page @m at
+ *	the specified virtual address @va in the
+ *	target physical map @pmap with the protection requested.
  *
- *	If specified, the page will be wired down, meaning
+ *	If PMAP_ENTER_WIRED specified, the page will be wired down, meaning
  *	that the related pte can not be reclaimed.
  *
  *	NB:  This is the only routine which MAY NOT lazy-evaluate
@@ -3110,8 +3107,6 @@ static int
 pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
     vm_page_t m, struct rwlock **lockp)
 {
-	struct spglist free;
-
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	vm_page_t mpte = pmap_alloc_l2(pmap, va, flags & PMAP_ENTER_NOSLEEP ? NULL : lockp);
@@ -3128,7 +3123,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 		KASSERT(mpte->ref_count > 1,
 		    ("%s: mpte's ref count is too low", __func__));
 		if ((flags & PMAP_ENTER_NOREPLACE) != 0) {
-			if ((oldl2e & PTE_RWX) != 0) { // superpage
+			if ((oldl2e & PTE_RWX) != 0) { // it's a superpage
 				mpte->ref_count--;
 				CTR3(KTR_PMAP,
 				    "%s: no space for va %#lx"
@@ -3143,8 +3138,8 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 				return (KERN_FAILURE);
 			}
 		}
-		SLIST_INIT(&free);
-		if ((oldl2e & PTE_RWX) != 0) // superpage
+		spglist_t free = SLIST_HEAD_INITIALIZER(free);
+		if ((oldl2e & PTE_RWX) != 0) // it's a superpage
 			(void)pmap_remove_l2(pmap, l2, va,
 			    pmap_load(pmap_l1(pmap, va)), &free, lockp);
 		else
@@ -3171,7 +3166,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 	/*
 	 * Allocate leaf ptpage for wired userspace pages.
 	 */
-	vm_page_t uwptpg = NULL; // use wired page table page
+	vm_page_t uwptpg = NULL; // userspace wired page table page
 	if ((new_l2e & PTE_SW_WIRED) != 0 && pmap != kernel_pmap) {
 		uwptpg = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 		if (uwptpg == NULL) {
@@ -3191,7 +3186,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 		 * Abort this mapping if its PV entry could not be created.
 		 */
 		if (!pmap_pv_insert_l2(pmap, va, new_l2e, flags, lockp)) {
-			SLIST_INIT(&free);
+			spglist_t free = SLIST_HEAD_INITIALIZER(free);
 			if (pmap_unwire_ptp(pmap, va, mpte, &free)) {
 				/*
 				 * Although "va" is not mapped, paging-structure
@@ -3387,8 +3382,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((m->oflags & VPO_UNMANAGED) == 0 &&
 	    !pmap_try_insert_pv_entry(pmap, va, m, lockp)) {
 		if (mpte != NULL) {
-			struct spglist free;
-			SLIST_INIT(&free);
+			spglist_t free = SLIST_HEAD_INITIALIZER(free);
 			if (pmap_unwire_ptp(pmap, va, mpte, &free))
 				vm_page_free_pages_toq(&free, false);
 		}
@@ -3797,7 +3791,7 @@ pmap_page_is_mapped(vm_page_t m)
 // remove @pv from @m's pv_list
 static void
 pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
-    struct spglist *free, bool superpage)
+    spglist_t *free, bool superpage)
 {
 	struct md_page *pvh;
 	vm_page_t mpte, mt;
@@ -3855,11 +3849,10 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 void
 pmap_remove_pages(pmap_t pmap)
 {
-	struct spglist free;
 	struct pv_chunk *pc, *npc;
 	struct rwlock *lock = NULL;
 
-	SLIST_INIT(&free);
+	spglist_t free = SLIST_HEAD_INITIALIZER(free);
 	rw_rlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_pmlist, npc) {
@@ -4190,7 +4183,6 @@ static inline unsigned hash_pvp(vm_paddr_t pa, vm_offset_t va, uintptr_t pmap)
 int
 pmap_ts_referenced(vm_page_t m)
 {
-	struct spglist free;
 	struct md_page *pvh;
 	struct rwlock *lock;
 	pv_entry_t pv, pvf;
@@ -4199,7 +4191,7 @@ pmap_ts_referenced(vm_page_t m)
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is not managed", __func__, m));
-	SLIST_INIT(&free);
+	spglist_t free = SLIST_HEAD_INITIALIZER(free);
 	cleared = 0;
 	pa = VM_PAGE_TO_PHYS(m);
 	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pvh_dummy : pa_to_pvh(pa);
