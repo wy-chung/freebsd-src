@@ -2810,7 +2810,6 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
     vm_paddr_t high)
 {
 	struct vm_domain *vmd;
-	struct spglist free;
 	vm_object_t object;
 	vm_paddr_t pa;
 	vm_page_t m, m_end, m_new;
@@ -2818,7 +2817,7 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
 
 	KASSERT((req_class & VM_ALLOC_CLASS_MASK) == req_class,
 	    ("req_class is not an allocation class"));
-	SLIST_INIT(&free);
+	spglist_t free = SLIST_HEAD_INITIALIZER(free);
 	error = 0;
 	m = m_run;
 	m_end = m_run + npages;
