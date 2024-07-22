@@ -181,14 +181,14 @@
 #define	__pv_stat_used	__unused
 #endif
 
-#define	pmap_l2_pindex(v)	((v) >> L2_SHIFT) // L2_SHIFT == 21
-#define	pmap_l1_pindex(v)	(NL3PTP + ((v) >> L1_SHIFT)) // not referenced
+#define	pmap_l3_pindex(v)	((v) >> L2_SHIFT) // L2_SHIFT == 21
+#define	pmap_l2_pindex(v)	(NL3PTP + ((v) >> L1_SHIFT))
 #define	pa_to_pvh(pa)		(&pvh_table[pa_index(pa)])
 
 #define	NPV_LIST_LOCKS	MAXCPU
 #if !defined(WYC)
 #define	PHYS_TO_PV_LIST_LOCK(pa)	\
-			(&pv_list_locks[pmap_l2_pindex(pa) % NPV_LIST_LOCKS])
+			(&pv_list_locks[pmap_l3_pindex(pa) % NPV_LIST_LOCKS])
 
 #define	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa)	do {	\
 	struct rwlock **_lockp = (lockp);		\
@@ -220,7 +220,7 @@
 #else
 struct rwlock *PHYS_TO_PV_LIST_LOCK(vm_paddr_t pa)
 {
-	return &pv_list_locks[pmap_l2_pindex(pa) % NPV_LIST_LOCKS];
+	return &pv_list_locks[pmap_l3_pindex(pa) % NPV_LIST_LOCKS];
 }
 
 void CHANGE_PV_LIST_LOCK_TO_PHYS(struct rwlock **_lockp, vm_paddr_t pa)
@@ -1213,7 +1213,7 @@ pmap_remove_pt_page(pmap_t pmap, vm_offset_t va)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	return (vm_radix_remove(&pmap->pm_root, pmap_l2_pindex(va)));
+	return (vm_radix_remove(&pmap->pm_root, pmap_l3_pindex(va)));
 }
 
 /*
@@ -1526,8 +1526,8 @@ retry:;
 		mpte->ref_count++;
 	} else { //wyc if the l2 pagetable page has been deallocated
 		/* Allocate a L2 page. */
-		vm_pindex_t l2pindex = pmap_l2_pindex(va) >> Ln_ENTRIES_SHIFT;
-		mpte = _pmap_alloc_l123(pmap, NL3PTP + l2pindex, lockp);
+		vm_pindex_t l2pindex = pmap_l2_pindex(va);
+		mpte = _pmap_alloc_l123(pmap, l2pindex, lockp);
 		if (mpte == NULL && lockp != NULL)
 			goto retry;
 	}
@@ -1553,7 +1553,7 @@ retry:;
 		 * If the pte page isn't mapped, or if it has been
 		 * deallocated.
 		 */
-		vm_pindex_t ptepindex = pmap_l2_pindex(va); // Calculate pagetable page index
+		vm_pindex_t ptepindex = pmap_l3_pindex(va); // Calculate pagetable page index
 		mpte = _pmap_alloc_l123(pmap, ptepindex, lockp);
 		if (mpte == NULL && lockp != NULL)
 			goto retry;
@@ -2616,7 +2616,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 			    "failure for va %#lx in pmap %p", __func__, va, pmap);
 			return (false);
 		}
-		mpte->pindex = pmap_l2_pindex(va);
+		mpte->pindex = pmap_l3_pindex(va);
 		if (va < VM_MAXUSER_ADDRESS) {
 			mpte->ref_count = Ln_ENTRIES;
 			pmap_resident_count_inc(pmap, 1);
@@ -2765,7 +2765,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3, stru
 	 */
 	if (ml3 == NULL)
 		ml3 = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
-	KASSERT(ml3->pindex == pmap_l2_pindex(va),
+	KASSERT(ml3->pindex == pmap_l3_pindex(va),
 	    ("%s: page table page's pindex is wrong", __func__));
 	if (pmap_insert_pt_page(pmap, ml3, true, all_l3e_PTE_A != 0)) {
 		CTR3(KTR_PMAP, "%s: failure for va %#lx pmap %p",
@@ -3172,7 +3172,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 		if (uwptpg == NULL) {
 			return (KERN_RESOURCE_SHORTAGE);
 		}
-		uwptpg->pindex = pmap_l2_pindex(va);
+		uwptpg->pindex = pmap_l3_pindex(va);
 		if (pmap_insert_pt_page(pmap, uwptpg, true, false) != ESUCCESS) {
 			vm_page_unwire_noq(uwptpg);
 			vm_page_free(uwptpg);
@@ -3326,13 +3326,13 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 * resident, we are creating it here.
 	 */
 	if (va < VM_MAXUSER_ADDRESS) {
-		vm_pindex_t l2pindex;
+		vm_pindex_t l3pindex;
 
 		/*
 		 * Calculate pagetable page index
 		 */
-		l2pindex = pmap_l2_pindex(va);
-		if (mpte && (mpte->pindex == l2pindex)) {
+		l3pindex = pmap_l3_pindex(va);
+		if (mpte && (mpte->pindex == l3pindex)) {
 			mpte->ref_count++;
 		} else {
 			/*
@@ -3357,7 +3357,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				 * Pass NULL instead of the PV list lock
 				 * pointer, because we don't intend to sleep.
 				 */
-				mpte = _pmap_alloc_l123(pmap, l2pindex, NULL);
+				mpte = _pmap_alloc_l123(pmap, l3pindex, NULL);
 				if (mpte == NULL)
 					return (mpte);
 			}
