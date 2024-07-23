@@ -343,10 +343,12 @@ struct vm_page {
 	} plinks;
 	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) */
 	vm_object_t object;		/* which object am I in (O) */
-	vm_pindex_t pindex; // index of the pagetable page or	/* offset into object (O,P) */
+	vm_pindex_t pindex;	// for page table page, index of the pagetable page
+				/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page (C) */
-	struct md_page md; // 4k pv_list	/* machine dependent stuff */
-	u_int ref_count;		/* page references (A) */
+	struct md_page md;	// 4k pv_list /* machine dependent stuff */
+	u_int ref_count; 	// for pagetable page, the number of valid PTEs within this page
+				/* page references (A) */
 	u_int busy_lock;		/* busy owners lock (A) */
 	union vm_page_astate a;		/* state accessed atomically (A) */
 	uint8_t order;			/* index of the buddy queue (F) */
