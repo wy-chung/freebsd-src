@@ -1956,7 +1956,7 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 {
 	struct pglist alloctail;
 	vm_offset_t addr, zkva;
-	int cpu, flags;
+	int flags;
 	vm_page_t p, p_next;
 #ifdef NUMA
 	struct pcpu *pc;
@@ -1967,7 +1967,7 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	TAILQ_INIT(&alloctail);
 	flags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED | malloc2vm_flags(wait);
 	*pflag = UMA_SLAB_KERNEL;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+	for (int cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (CPU_ABSENT(cpu)) {
 			p = vm_page_alloc_noobj(flags);
 		} else {
