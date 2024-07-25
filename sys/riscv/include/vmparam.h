@@ -139,8 +139,7 @@
  * 0x0000,0000,0000,0000 - 0x0000,7fff,ffff,ffff    128TB user map
  * 0x0000,8000,0000,0000 - 0xffff,7fff,ffff,ffff    unmappable
 //wyc should be
- * 0xffff,8000,0000,0000 - 0xffff,ff7f,ffff,ffff    127.5TB hole
- * 0xffff,ff80,0000,0000 - 0xffff,ffc7,ffff,ffff    288GB kernel map
+ * 0xffff,8000,0000,0000 - 0xffff,ffbf,ffff,ffff    127.75TB hole
 //wyc ori
  * 0xffff,8000,0000,0000 - 0xffff,ffc7,ffff,ffff    127.75TB hole
  * 0xffff,ffc0,0000,0000 - 0xffff,ffc7,ffff,ffff    32GB kernel map
