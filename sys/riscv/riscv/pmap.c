@@ -431,7 +431,6 @@ pmap_l1(pmap_t pmap, vm_offset_t va)
 	if (pmap_mode == PMAP_MODE_SV39) {
 		return (&pmap->pm_top[pmap_l1_index(va)]);
 	} else {
-panic("%s: wyctest\n", __func__); // tested. not reach here
 		pd_entry_t *l0 = pmap_l0(pmap, va);
 		if ((pmap_load(l0) & PTE_V) == 0)
 			return (NULL);
@@ -718,7 +717,9 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	memset((char *)(var), 0, ((np) * PAGE_SIZE));
 
 	int mode = 0;
-	TUNABLE_INT_FETCH("vm.pmap.mode", &mode); // vm.pmap.mode == PMAP_MODE_SV39
+	// the tunables are in /boot/loader.conf
+	TUNABLE_INT_FETCH("vm.pmap.mode", &mode);
+	mode = PMAP_MODE_SV48; //wyc force it to SV48 mode
 	if (mode == PMAP_MODE_SV48 && (mmu_caps & MMU_SV48) != 0) {
 		/*
 		 * Enable SV48 mode: allocate an L0 page and set SV48 mode in
@@ -1263,7 +1264,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mptp /*ori m*/, spglist_
 		pmap_unwire_ptp(pmap, va, l2pt_m, free);
 	} else if (mptp->pindex < NL3PTP + NL2PTP && // a L2PTP
 		   pmap_mode != PMAP_MODE_SV39) {
-		//MPASS(pmap_mode != PMAP_MODE_SV39);
+		//MPASS(pmap_mode != PMAP_MODE_SV39); //wycpush
 		pd_entry_t *l0 = pmap_l0(pmap, va);
 		vm_paddr_t l1pt_phys = PTE_TO_PHYS(pmap_load(l0));
 		vm_page_t  l1pt_m = PHYS_TO_VM_PAGE(l1pt_phys);
@@ -1348,7 +1349,6 @@ pmap_pinit(pmap_t pmap)
 			pmap->pm_top[i] = kernel_pmap->pm_top[i];
 		mtx_unlock(&allpmaps_lock);
 	} else {
-panic("%s: wyctest\n", __func__); // tested
 		int i = pmap_l0_index(VM_MIN_KERNEL_ADDRESS);
 		pmap->pm_top[i] = kernel_pmap->pm_top[i];
 	}
@@ -3238,15 +3238,15 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 
 /*
  * Maps a sequence of resident pages belonging to the same object.
- * The sequence begins with the given page m_start.  This page is
- * mapped at the given virtual address start.  Each subsequent page is
- * mapped at a virtual address that is offset from start by the same
- * amount as the page is offset from m_start within the object.  The
+ * The sequence begins with the given page @m_start.  This page is
+ * mapped at the given virtual address @start.  Each subsequent page is
+ * mapped at a virtual address that is offset from @start by the same
+ * amount as the page is offset from @m_start within the object.  The
  * last page in the sequence is the page with the largest offset from
- * m_start that can be mapped at a virtual address less than the given
- * virtual address end.  Not every virtual page between start and end
+ * @m_start that can be mapped at a virtual address less than the given
+ * virtual address @end.  Not every virtual page between @start and @end
  * is mapped; only those for which a resident page exists with the
- * corresponding offset from m_start are mapped.
+ * corresponding offset from @m_start are mapped.
  */
 void
 pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
@@ -3258,12 +3258,13 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	VM_OBJECT_ASSERT_LOCKED(m_start->object);
 
 	vm_pindex_t psize = atop(end - start);
-	vm_page_t mptp = NULL;
+	vm_pindex_t start_pindex = m_start->pindex;
 	vm_page_t m = m_start;
+	vm_page_t mptp = NULL;
 	struct rwlock *lock = NULL;
 	rw_rlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
+	while (m != NULL && (diff = m->pindex - start_pindex) < psize) {
 		vm_offset_t va = start + ptoa(diff);
 		if ((va & L2_OFFSET) == 0 && va + L2_SIZE <= end &&
 		    m->psind == 1 && pmap_ps_enabled(pmap) &&
@@ -3273,7 +3274,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 		else
 			mptp = pmap_enter_quick_locked(pmap, va, m, prot, mptp,
 			    &lock);
-		m = TAILQ_NEXT(m, listq); // pages in same object
+		m = TAILQ_NEXT(m, listq); // next page in same object
 	}
 	if (lock != NULL)
 		rw_wunlock(lock);
@@ -3308,21 +3309,19 @@ static vm_page_t
 pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, vm_page_t mptp, struct rwlock **lockp)
 {
-	pd_entry_t *l2;
-	pt_entry_t *l3;
-
 	KASSERT(!VA_IS_CLEANMAP(va) ||
 	    (m->oflags & VPO_UNMANAGED) != 0,
-	    ("pmap_enter_quick_locked: managed mapping within the clean submap"));
+	    ("%s: managed mapping within the clean submap", __func__));
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	l2 = NULL;
 
-	CTR2(KTR_PMAP, "pmap_enter_quick_locked: %p %lx", pmap, va);
+	CTR3(KTR_PMAP, "%s: %p %lx", __func__, pmap, va);
 	/*
 	 * In the case that a page table page is not
 	 * resident, we are creating it here.
 	 */
+	pd_entry_t *l2 = NULL;
+	pt_entry_t *l3;
 	if (va < VM_MAXUSER_ADDRESS) {
 		/*
 		 * Calculate pagetable page index
@@ -3355,7 +3354,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				 */
 				mptp = _pmap_alloc_l123(pmap, l3pindex, NULL);
 				if (mptp == NULL)
-					return (mptp);
+					return (NULL);
 			}
 		}
 		pt_entry_t *l3pt = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mptp));
@@ -3363,9 +3362,9 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	} else {
 		mptp = NULL;
 		l3 = pmap_l3(kernel_pmap, va);
+		if (l3 == NULL)
+			panic("%s: No l3", __func__);
 	}
-	if (l3 == NULL)
-		panic("pmap_enter_quick_locked: No l3");
 	if (pmap_load(l3) != 0) {
 		if (mptp != NULL)
 			mptp->ref_count--;

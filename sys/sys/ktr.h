@@ -70,7 +70,7 @@ extern int ktr_verbose;
 extern volatile int ktr_idx;
 extern struct ktr_entry *ktr_buf;
 
-#ifdef KTR
+#ifdef KTR // not defined. A circular buffer of events that can be logged
 
 void	ktr_tracepoint(uint64_t mask, const char *file, int line,
 	    const char *format, u_long arg1, u_long arg2, u_long arg3,
