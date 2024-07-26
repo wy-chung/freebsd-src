@@ -1179,15 +1179,15 @@ pmap_add_delayed_free_list(vm_page_t m, spglist_t *free, boolean_t set_PG_ZERO)
  * for mapping a distinct range of virtual addresses.  The pmap's collection is
  * ordered by this virtual address range.
  *
- * If "promoted" is false, then the page table page "mpte" must be zero filled;
- * "mpte"'s valid field will be set to 0.
+ * If @promoted is false, then the page table page @mptp must be zero filled;
+ * @mptp's valid field will be set to 0.
  *
- * If "promoted" is true and "all_l3e_PTE_A_set" is false, then "mpte" must
+ * If @promoted is true and @all_l3e_PTE_A_set is false, then @mptp must
  * contain valid mappings with identical attributes except for PTE_A;
- * "mpte"'s valid field will be set to 1.
+ * @mptp's valid field will be set to 1.
  *
- * If "promoted" and "all_l3e_PTE_A_set" are both true, then "mpte" must contain
- * valid mappings with identical attributes including PTE_A; "mpte"'s valid
+ * If @promoted and @all_l3e_PTE_A_set are both true, then @mptp must contain
+ * valid mappings with identical attributes including PTE_A; @mptp's valid
  * field will be set to VM_PAGE_BITS_ALL.
  */
 // returns ENOMEM or ESUCCESS
@@ -2105,22 +2105,18 @@ pmap_pv_insert_l2(pmap_t pmap, vm_offset_t va, pd_entry_t l2e, u_int flags,
 }
 
 static void
-pmap_remove_kernel_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t va)
+pmap_remove_kernel_l2(pt_entry_t *l2, vm_offset_t va)
 {
-	pt_entry_t newl2e, oldl2e __diagused;
-	vm_page_t ml3;
-	vm_paddr_t ml3pa;
-
 	KASSERT(!VIRT_IN_DMAP(va), ("removing direct mapping of %#lx", va));
-	KASSERT(pmap == kernel_pmap, ("pmap %p is not kernel_pmap", pmap));
-	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	//KASSERT(pmap == kernel_pmap, ("pmap %p is not kernel_pmap", pmap));
+	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
 
-	ml3 = pmap_remove_pt_page(pmap, va);
+	vm_page_t ml3 = pmap_remove_pt_page(kernel_pmap, va);
 	if (ml3 == NULL)
-		panic("pmap_remove_kernel_l2: Missing pt page");
+		panic("%s: Missing pt page", __func__);
 
-	ml3pa = VM_PAGE_TO_PHYS(ml3);
-	newl2e = ml3pa | PTE_V;
+	vm_paddr_t ml3pa = VM_PAGE_TO_PHYS(ml3);
+	pt_entry_t newl2e = ml3pa | PTE_V;
 
 	/*
 	 * If this page table page was unmapped by a promotion, then it
@@ -2132,7 +2128,7 @@ pmap_remove_kernel_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t va)
 	/*
 	 * Demote the mapping.
 	 */
-	oldl2e = pmap_load_store(l2, newl2e);
+	pt_entry_t oldl2e __diagused = pmap_load_store(l2, newl2e);
 	KASSERT(oldl2e == 0, ("%s: found existing mapping at %p: %#lx",
 	    __func__, l2, oldl2e));
 }
@@ -2178,7 +2174,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 		}
 	}
 	if (pmap == kernel_pmap) {
-		pmap_remove_kernel_l2(pmap, l2, sva);
+		pmap_remove_kernel_l2(l2, sva);
 	} else {
 		vm_page_t ml3 = pmap_remove_pt_page(pmap, sva);
 		if (ml3 != NULL) {
@@ -3055,13 +3051,10 @@ static int
 pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     struct rwlock **lockp)
 {
-	pd_entry_t new_l2e;
-	pn_t pn;
-
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	pn = VM_PAGE_TO_PHYS(m) / PAGE_SIZE;
-	new_l2e = (pd_entry_t)((pn << PTE_PPN0_S) | PTE_R | PTE_V);
+	pn_t pn = VM_PAGE_TO_PHYS(m) / PAGE_SIZE;
+	pd_entry_t new_l2e = (pd_entry_t)((pn << PTE_PPN0_S) | PTE_R | PTE_V);
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		new_l2e |= PTE_SW_MANAGED;
 	if ((prot & VM_PROT_EXECUTE) != 0)
