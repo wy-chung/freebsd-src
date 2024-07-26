@@ -1192,12 +1192,13 @@ pmap_add_delayed_free_list(vm_page_t m, spglist_t *free, boolean_t set_PG_ZERO)
  */
 // returns ENOMEM or ESUCCESS
 static __inline int
-pmap_insert_pt_page(pmap_t pmap, vm_page_t mptp, bool promoted, bool all_l3e_PTE_A_set)
+pmap_insert_l3pt_page(pmap_t pmap, vm_page_t mptp, bool promoted, bool all_l3e_PTE_A_set)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(promoted || !all_l3e_PTE_A_set,
 	    ("a zero-filled PTP can't have PTE_A set in every PTE"));
+if (mptp->pindex >= NL3PTP) panic("%s: wyctest\n", __func__);
 	mptp->valid = promoted ? (all_l3e_PTE_A_set ? VM_PAGE_BITS_ALL : 1) : 0;
 	return (vm_radix_insert(&pmap->pm_root, mptp)); // returns ENOMEM or ESUCCESS
 }
@@ -1209,7 +1210,7 @@ pmap_insert_pt_page(pmap_t pmap, vm_page_t mptp, bool promoted, bool all_l3e_PTE
  * specified virtual address.
  */
 static __inline vm_page_t
-pmap_remove_pt_page(pmap_t pmap, vm_offset_t va)
+pmap_remove_l3pt_page(pmap_t pmap, vm_offset_t va)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -2111,7 +2112,7 @@ pmap_remove_kernel_l2(pt_entry_t *l2, vm_offset_t va)
 	//KASSERT(pmap == kernel_pmap, ("pmap %p is not kernel_pmap", pmap));
 	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
 
-	vm_page_t ml3 = pmap_remove_pt_page(kernel_pmap, va);
+	vm_page_t ml3 = pmap_remove_l3pt_page(kernel_pmap, va);
 	if (ml3 == NULL)
 		panic("%s: Missing pt page", __func__);
 
@@ -2176,7 +2177,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 	if (pmap == kernel_pmap) {
 		pmap_remove_kernel_l2(l2, sva);
 	} else {
-		vm_page_t ml3 = pmap_remove_pt_page(pmap, sva);
+		vm_page_t ml3 = pmap_remove_l3pt_page(pmap, sva);
 		if (ml3 != NULL) {
 			KASSERT(vm_page_any_valid(ml3),
 			    ("%s: l3 page not promoted", __func__));
@@ -2348,7 +2349,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva) // pmap_remove_pages
 void
 pmap_remove_all(vm_page_t m)
 {
-	pd_entry_t *l2, l2e __diagused;
+	pd_entry_t *l2;
 	pv_entry_t pv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
@@ -2372,7 +2373,7 @@ pmap_remove_all(vm_page_t m)
 		pmap_resident_count_dec(pmap, 1);
 		l2 = pmap_l2(pmap, pv->pv_va);
 		KASSERT(l2 != NULL, ("%s: no l2 table found", __func__));
-		l2e = pmap_load(l2);
+		pd_entry_t l2e __diagused = pmap_load(l2);
 
 		KASSERT((l2e & PTE_RWX) == 0, //ori PTE_RX
 		    ("%s: found a superpage in %p's pv list", __func__, m));
@@ -2594,14 +2595,13 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 	pd_entry_t oldl2e = pmap_load(l2);
 	KASSERT((oldl2e & PTE_RWX) != 0, // assert superpage
 	    ("%s: oldl2e is not a leaf entry", __func__));
-	if ((oldl2e & PTE_A) == 0 || (mptp = pmap_remove_pt_page(pmap, va)) == NULL) {
+	if ((oldl2e & PTE_A) == 0 || (mptp = pmap_remove_l3pt_page(pmap, va)) == NULL) {
 		KASSERT((oldl2e & PTE_SW_WIRED) == 0,
 		    ("%s: page table page for a wired mapping is missing", __func__));
 		if ((oldl2e & PTE_A) == 0 || (mptp = vm_page_alloc_noobj(
 		    (VIRT_IN_DMAP(va) ? VM_ALLOC_INTERRUPT : 0) |
 		    VM_ALLOC_WIRED)) == NULL) {
 			spglist_t free = SLIST_HEAD_INITIALIZER(free);
-			SLIST_INIT(&free);
 			pd_entry_t l1e = pmap_load(pmap_l1(pmap, va));
 			(void)pmap_remove_l2(pmap, l2, va & ~L2_OFFSET,
 			    l1e, &free, lockp);
@@ -2761,7 +2761,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3, stru
 		ml3 = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
 	KASSERT(ml3->pindex == pmap_l3_pindex(va),
 	    ("%s: page table page's pindex is wrong", __func__));
-	if (pmap_insert_pt_page(pmap, ml3, true, all_l3e_PTE_A != 0)) {
+	if (pmap_insert_l3pt_page(pmap, ml3, true, all_l3e_PTE_A != 0)) {
 		CTR3(KTR_PMAP, "%s: failure for va %#lx pmap %p",
 		    __func__, va, pmap);
 		atomic_add_long(&pmap_l2_p_failures, 1);
@@ -3150,8 +3150,8 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 			 * Both pmap_remove_l2() and pmap_remove_l3() will
 			 * leave the kernel page table page zero filled.
 			 */
-			vm_page_t mt = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
-			if (pmap_insert_pt_page(pmap, mt, false, false) != ESUCCESS)
+			vm_page_t ml3 = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
+			if (pmap_insert_l3pt_page(pmap, ml3, false, false) != ESUCCESS)
 				panic("%s: trie insert failed", __func__);
 		} else
 			KASSERT(pmap_load(l2) == 0,
@@ -3161,20 +3161,20 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 	/*
 	 * Allocate leaf ptpage for wired userspace pages.
 	 */
-	vm_page_t uwptp = NULL; // userspace wired page table page
+	vm_page_t uwml3 = NULL; // userspace wired l3 pagetable page
 	if ((new_l2e & PTE_SW_WIRED) != 0 && pmap != kernel_pmap) {
-		uwptp = vm_page_alloc_noobj(VM_ALLOC_WIRED);
-		if (uwptp == NULL) {
+		uwml3 = vm_page_alloc_noobj(VM_ALLOC_WIRED);
+		if (uwml3 == NULL) {
 			return (KERN_RESOURCE_SHORTAGE);
 		}
-		uwptp->pindex = pmap_l3_pindex(va);
-		if (pmap_insert_pt_page(pmap, uwptp, true, false) != ESUCCESS) {
-			vm_page_unwire_noq(uwptp);
-			vm_page_free(uwptp);
+		uwml3->pindex = pmap_l3_pindex(va);
+		if (pmap_insert_l3pt_page(pmap, uwml3, true, false) != ESUCCESS) {
+			vm_page_unwire_noq(uwml3);
+			vm_page_free(uwml3);
 			return (KERN_RESOURCE_SHORTAGE);
 		}
 		pmap_resident_count_inc(pmap, 1);
-		uwptp->ref_count = Ln_ENTRIES;
+		uwml3->ref_count = Ln_ENTRIES;
 	}
 	if ((new_l2e & PTE_SW_MANAGED) != 0) {
 		/*
@@ -3192,14 +3192,14 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 				pmap_invalidate_page(pmap, va);
 				vm_page_free_pages_toq(&free, true);
 			}
-			if (uwptp != NULL) {
-				vm_page_t mt __unused = pmap_remove_pt_page(pmap, va);
-				KASSERT(mt == uwptp,
-				    ("removed pt page %p, expected %p", mt, uwptp));
+			if (uwml3 != NULL) {
+				vm_page_t mt __unused = pmap_remove_l3pt_page(pmap, va);
+				KASSERT(mt == uwml3,
+				    ("removed pt page %p, expected %p", mt, uwml3));
 				pmap_resident_count_dec(pmap, 1);
-				uwptp->ref_count = 1;
-				vm_page_unwire_noq(uwptp);
-				vm_page_free(uwptp);
+				uwml3->ref_count = 1;
+				vm_page_unwire_noq(uwml3);
+				vm_page_free(uwml3);
 			}
 			CTR3(KTR_PMAP,
 			    "%s: failed to create PV entry"
@@ -3795,7 +3795,7 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 				    (mt->a.flags & PGA_WRITEABLE) != 0)
 					vm_page_aflag_clear(mt, PGA_WRITEABLE);
 		}
-		mptp = pmap_remove_pt_page(pmap, pv->pv_va);
+		mptp = pmap_remove_l3pt_page(pmap, pv->pv_va);
 		if (mptp != NULL) {
 			KASSERT(vm_page_any_valid(mptp),
 			    ("%s: pte page not promoted", __func__));
