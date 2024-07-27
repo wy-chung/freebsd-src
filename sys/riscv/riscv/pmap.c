@@ -1198,7 +1198,7 @@ pmap_insert_l3pt_page(pmap_t pmap, vm_page_t mptp, bool promoted, bool all_l3e_P
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(promoted || !all_l3e_PTE_A_set,
 	    ("a zero-filled PTP can't have PTE_A set in every PTE"));
-if (mptp->pindex >= NL3PTP) panic("%s: wyctest\n", __func__);
+//if (mptp->pindex >= NL3PTP) panic("%s: wyctest\n", __func__); // tested. always l3 ptp
 	mptp->valid = promoted ? (all_l3e_PTE_A_set ? VM_PAGE_BITS_ALL : 1) : 0;
 	return (vm_radix_insert(&pmap->pm_root, mptp)); // returns ENOMEM or ESUCCESS
 }
@@ -1218,10 +1218,12 @@ pmap_remove_l3pt_page(pmap_t pmap, vm_offset_t va)
 }
 
 /*
- * Decrements a page table page's reference count, which is used to record the
- * number of valid page table entries within the page.  If the reference count
- * drops to zero, then the page table page is unmapped.  Returns TRUE if the
- * page table page was unmapped and FALSE otherwise.
+   Decrements a page table page's reference count, which is used to record the
+   number of valid page table entries within the page.  If the reference count
+   drops to zero, then the page table page is unmapped.
+ Returns
+   true  if the page table page was unmapped
+   false otherwise.
  */
 static inline bool
 pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mptp /*ori m*/, spglist_t *free)
@@ -1242,19 +1244,19 @@ static void
 _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mptp /*ori m*/, spglist_t *free)
 {
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	if (mptp->pindex >= NL3PTP + NL2PTP) { // a L1PTP
-		pd_entry_t *l0;
-		l0 = pmap_l0(pmap, va);
-		pmap_clear(l0);
-	} else if (mptp->pindex >= NL3PTP) { // a L2PTP
+	if (mptp->pindex < NL3PTP) { // a L3PTP
+		pd_entry_t *l2;
+		l2 = pmap_l2(pmap, va);
+		pmap_clear(l2);
+	} else if (mptp->pindex < NL3PTP + NL2PTP) { // a L2PTP
 		pd_entry_t *l1;
 		l1 = pmap_l1(pmap, va);
 		pmap_clear(l1);
 		pmap_distribute_l1(pmap, pmap_l1_index(va), 0);
-	} else { // a L3PTP
-		pd_entry_t *l2;
-		l2 = pmap_l2(pmap, va);
-		pmap_clear(l2);
+	} else { // a L1PTP
+		pd_entry_t *l0;
+		l0 = pmap_l0(pmap, va);
+		pmap_clear(l0);
 	}
 	pmap_resident_count_dec(pmap, 1);
 
