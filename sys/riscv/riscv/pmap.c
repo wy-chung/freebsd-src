@@ -636,6 +636,7 @@ pmap_bootstrap_l3(vm_offset_t l1pt_va, vm_offset_t va, vm_offset_t l3_start)
 /*
  *	Bootstrap the system enough to run with virtual memory.
  */
+uint64_t satp; // == 0x90000000000b8d7a
 void
 pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // < initriscv
 {
@@ -736,7 +737,7 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 
 		vm_paddr_t l0pa = pmap_early_vtophys(l1pt_va, l0pv);
 		csr_write(satp, (l0pa >> PAGE_SHIFT) | SATP_MODE_SV48);
-		uint64_t satp = csr_read(satp);
+		satp = csr_read(satp);
 		if ((satp & SATP_MODE_M) == SATP_MODE_SV48) {
 			pmap_mode = PMAP_MODE_SV48;
 			kernel_pmap_store.pm_top = l0pt;
@@ -2260,7 +2261,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva) // pmap_remove_pages
 			if (pmap_load(l0) == 0) {
 				va_next = (sva + L0_SIZE) & ~L0_OFFSET;
 				if (va_next < sva)
-					va_next = eva;
+					va_next = eva; // continue will cause it to break out of for loop
 				continue;
 			}
 			l1 = pmap_l0_to_l1(l0, sva);
@@ -2271,8 +2272,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva) // pmap_remove_pages
 		if (pmap_load(l1) == 0) {
 			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
 			if (va_next < sva)
-				va_next = eva;
-				//break; //wycpull can break immediately out of the for loop here
+				va_next = eva; // continue will cause it to break out of for loop
 			continue;
 		}
 

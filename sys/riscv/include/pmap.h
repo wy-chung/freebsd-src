@@ -123,7 +123,7 @@ extern vm_offset_t virtual_end;
 enum _pmap_mode {
 	PMAP_MODE_SV39,
 	PMAP_MODE_SV48, // <== set to this mode in pmap_bootstrap()
-	//PMAP_MODE_SV57, // currently not supported
+	PMAP_MODE_SV57, // currently not supported
 };
 
 extern enum _pmap_mode pmap_mode;

@@ -155,6 +155,7 @@ cpu_startup(void *dummy)
 	//wycprint
 	extern long Maxmem;
 	extern const u_long vm_maxuser_address;
+	extern uint64_t satp;
 
 	printf("MaxMem: %lx\n", Maxmem);
 	printf("vm_maxuser_address: %lx\n", vm_maxuser_address);
@@ -162,6 +163,7 @@ cpu_startup(void *dummy)
 		"dmap_phys_max	%016lx\n"
 		"dmap_max_addr	%016lx\n",
 		dmap_phys_base, dmap_phys_max, dmap_max_addr);
+	printf("satp %lx\n", satp);
 	//}
 
 	vm_ksubmap_init(&kmi);
