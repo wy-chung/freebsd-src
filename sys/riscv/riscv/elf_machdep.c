@@ -121,6 +121,9 @@ elf64_register_sysvec(void *arg)
 
 	sv = arg;
 	switch (pmap_mode) {
+	case PMAP_MODE_SV57:
+		panic("%s: PMAP_MODE_SV57 not implemented yet\n", __func__);	//wyc
+		break;
 	case PMAP_MODE_SV48:
 		sv->sv_maxuser = VM_MAX_USER_ADDRESS_SV48;
 		sv->sv_usrstack = USRSTACK_SV48;
