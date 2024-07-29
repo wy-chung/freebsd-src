@@ -4155,9 +4155,7 @@ vm_page_unwire(vm_page_t m, uint8_t nqueue)
 bool
 vm_page_unwire_noq(vm_page_t m)
 {
-	u_int old;
-
-	old = vm_page_drop(m, 1);
+	u_int old = vm_page_drop(m, 1); // drop the reference count
 	KASSERT(VPRC_WIRE_COUNT(old) != 0,
 	    ("%s: counter underflow for page %p", __func__,  m));
 	KASSERT((m->flags & PG_FICTITIOUS) == 0 || VPRC_WIRE_COUNT(old) > 1,

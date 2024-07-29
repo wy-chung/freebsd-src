@@ -682,7 +682,7 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	printf("max_pa %lx\n", max_pa);
 
 	/* Create a direct map region early so we can use it for pa -> va */
-	pmap_bootstrap_dmap(l1pt_va, min_pa, max_pa);
+	pmap_bootstrap_dmap(l1pt_va, min_pa, max_pa); // kernel_pmap->pm_top == l1pt_va
 
 	/*
 	 * Read the page table to find out what is already mapped.
@@ -1739,18 +1739,15 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 static void
 free_pv_entry(pmap_t pmap, pv_entry_t pv)
 {
-	struct pv_chunk *pc;
-	int idx, field, bit;
-
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	PV_STAT(atomic_add_long(&pv_entry_frees, 1));
 	PV_STAT(atomic_add_int(&pv_entry_spare, 1));
 	PV_STAT(atomic_subtract_long(&pv_entry_count, 1));
-	pc = pv_to_chunk(pv);
-	idx = pv - &pc->pc_pventry[0];
-	field = idx / 64;
-	bit = idx % 64;
+	struct pv_chunk *pc = pv_to_chunk(pv);
+	int idx = pv - &pc->pc_pventry[0];
+	int field = idx / 64;
+	int bit = idx % 64;
 	pc->pc_map[field] |= 1ul << bit; // 1 means free
 	if (pc_is_free(pc)) {
 		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
@@ -1766,8 +1763,6 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 static void
 free_pv_chunk(struct pv_chunk *pc)
 {
-	vm_page_t m;
-
 	mtx_lock(&pv_chunks_mutex);
 	TAILQ_REMOVE(&pv_chunks, pc, pc_pvclist);
 	mtx_unlock(&pv_chunks_mutex);
@@ -1775,7 +1770,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(atomic_subtract_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 	/* entire chunk is free, return it */
-	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+	vm_page_t m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
@@ -1860,12 +1855,6 @@ retry:
 static void
 reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
 {
-	pvc_tailq_t new_tail;
-	struct pv_chunk *pc;
-	vm_page_t m;
-	int avail, free;
-	bool reclaimed;
-
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(lockp != NULL, ("reserve_pv_entries: lockp is NULL"));
@@ -1876,10 +1865,12 @@ reserve_pv_entries(pmap_t pmap, int needed, struct rwlock **lockp)
 	 * reclaim_pv_chunk() could recycle one of these chunks.  In
 	 * contrast, these chunks must be added to the pmap upon allocation.
 	 */
-	TAILQ_INIT(&new_tail);
-retry:
-	avail = 0;
+	pvc_tailq_t new_tail = TAILQ_HEAD_INITIALIZER(new_tail);
+retry:;
+	int avail = 0;
+	struct pv_chunk *pc;
 	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_pmlist) {
+		int free;
 		bit_count((bitstr_t *)pc->pc_map, 0,
 		    sizeof(pc->pc_map) * NBBY, &free);
 		if (free == 0)
@@ -1888,8 +1879,8 @@ retry:
 		if (avail >= needed)
 			break;
 	}
-	for (reclaimed = false; avail < needed; avail += _NPCPV) {
-		m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
+	for (bool reclaimed = false; avail < needed; avail += _NPCPV) {
+		vm_page_t m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
 		if (m == NULL) {
 			m = reclaim_pv_chunk(pmap, lockp);
 			if (m == NULL)
@@ -1953,9 +1944,7 @@ pmap_pv_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 static void
 pmap_pv_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 {
-	pv_entry_t pv;
-
-	pv = pmap_pv_pvh_remove(pvh, pmap, va);
+	pv_entry_t pv = pmap_pv_pvh_remove(pvh, pmap, va);
 
 	KASSERT(pv != NULL, ("%s: pv not found for %#lx", __func__, va));
 	free_pv_entry(pmap, pv);
@@ -3783,21 +3772,18 @@ static void
 pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
     spglist_t *free, bool superpage)
 {
-	struct md_page *pvh;
-	vm_page_t mptp, mt;
-
 	if (superpage) {
 		pmap_resident_count_dec(pmap, Ln_ENTRIES);
-		pvh = pa_to_pvh(m->phys_addr);
+		struct md_page *pvh = pa_to_pvh(m->phys_addr);
 		TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
 		pvh->pv_gen++;
 		if (TAILQ_EMPTY(&pvh->pv_list)) {
-			for (mt = m; mt < &m[Ln_ENTRIES]; mt++)
+			for (vm_page_t mt = m; mt < &m[Ln_ENTRIES]; mt++)
 				if (TAILQ_EMPTY(&mt->md.pv_list) &&
 				    (mt->a.flags & PGA_WRITEABLE) != 0)
 					vm_page_aflag_clear(mt, PGA_WRITEABLE);
 		}
-		mptp = pmap_remove_l3pt_page(pmap, pv->pv_va);
+		vm_page_t mptp = pmap_remove_l3pt_page(pmap, pv->pv_va);
 		if (mptp != NULL) {
 			KASSERT(vm_page_any_valid(mptp),
 			    ("%s: pte page not promoted", __func__));
@@ -3813,7 +3799,7 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
 		m->md.pv_gen++;
 		if (TAILQ_EMPTY(&m->md.pv_list) &&
 		    (m->a.flags & PGA_WRITEABLE) != 0) {
-			pvh = pa_to_pvh(m->phys_addr);
+			struct md_page *pvh = pa_to_pvh(m->phys_addr);
 			if (TAILQ_EMPTY(&pvh->pv_list))
 				vm_page_aflag_clear(m, PGA_WRITEABLE);
 		}
@@ -3852,10 +3838,10 @@ pmap_remove_pages(pmap_t pmap) // reference pmap_remove()
 			uint64_t inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
 				int64_t bit = ffsl(inuse) - 1;
-				int idx = field * 64 + bit;
-				pv_entry_t pv = &pc->pc_pventry[idx];
 				uint64_t bitmask = 1UL << bit;
 				inuse &= ~bitmask;
+				int idx = field * 64 + bit;
+				pv_entry_t pv = &pc->pc_pventry[idx];
 
 				pt_entry_t *ln = pmap_l1(pmap, pv->pv_va); // point to an entry in ln
 				pd_entry_t lme = pmap_load(ln); // a page table entry in lm
