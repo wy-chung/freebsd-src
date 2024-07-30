@@ -518,7 +518,7 @@ vm_page_init_page(struct vm_page *m, vm_paddr_t pa, int segind)
 	pmap_page_init(m);
 }
 
-#ifndef PMAP_HAS_PAGE_ARRAY
+#ifndef PMAP_HAS_PAGE_ARRAY // riscv: true
 static vm_paddr_t
 vm_page_array_alloc(vm_offset_t *vaddr, vm_paddr_t end, vm_paddr_t page_range)
 {
@@ -687,12 +687,12 @@ vm_page_startup(vm_offset_t vaddr)
 #error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
 #endif
 
-#ifdef PMAP_HAS_PAGE_ARRAY
+#ifdef PMAP_HAS_PAGE_ARRAY // riscv: false
 	pmap_page_array_startup(size / PAGE_SIZE);
 	biggestone = vm_phys_avail_largest();
 	end = new_end = phys_avail[biggestone + 1];
 #else
-#ifdef VM_PHYSSEG_DENSE
+ #ifdef VM_PHYSSEG_DENSE
 	/*
 	 * In the VM_PHYSSEG_DENSE case, the number of pages can account for
 	 * the overhead of a page structure per page only if vm_page_array is
@@ -703,7 +703,7 @@ vm_page_startup(vm_offset_t vaddr)
 	if (new_end != high_avail)
 		page_range = size / PAGE_SIZE;
 	else
-#endif
+ #endif
 	{
 		page_range = size / (PAGE_SIZE + sizeof(struct vm_page));
 
@@ -723,7 +723,7 @@ vm_page_startup(vm_offset_t vaddr)
 	}
 	end = new_end;
 	new_end = vm_page_array_alloc(&vaddr, end, page_range);
-#endif
+#endif // !PMAP_HAS_PAGE_ARRAY
 
 #if VM_NRESERVLEVEL > 0
 	/*

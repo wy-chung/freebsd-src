@@ -91,7 +91,7 @@
  * The number of bits by which a physical address is shifted to obtain the
  * reservation number
  */
-#define	VM_LEVEL_0_SHIFT	(VM_LEVEL_0_ORDER + PAGE_SHIFT)
+#define	VM_LEVEL_0_SHIFT	(VM_LEVEL_0_ORDER + PAGE_SHIFT) // 9 + 12
 
 /*
  * The size of a level 0 reservation in bytes
