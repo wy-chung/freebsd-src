@@ -61,6 +61,8 @@ typedef struct pv_entry {
  * is the value of all the other entries in the pc_map[] array when a
  * chunk is completely free.
  */
+//#define WYC_PV_TEST 1 //wyctest failed
+
 #if PAGE_SIZE == 4 * 1024
 #ifdef __LP64__
 #define	_NPCPV	168
@@ -110,13 +112,18 @@ struct pv_chunk_header {
 #endif
 
 struct pv_chunk {
-#if !defined(WYC)
+#if !defined(__riscv)
 	PV_CHUNK_HEADER
 #else
 	struct pmap		*pc_pmap;
 	TAILQ_ENTRY(pv_chunk)	pc_pmlist; // for pmap.pm_pvchunk list
 	TAILQ_ENTRY(pv_chunk)	pc_pvclist;  // for pv_chunks list
+ #ifdef WYC_PV_TEST
+	TAILQ_HEAD(, pv_entry)	pc_free_pv_head;
+	int			pc_free_pv_count;
+ #else
 	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
+ #endif
 #endif
 	struct pv_entry		pc_pventry[_NPCPV];
 	unsigned long		pc_pad[_NPAD];
@@ -128,21 +135,29 @@ _Static_assert(sizeof(struct pv_chunk) == PAGE_SIZE, "PV entry chunk size mismat
 static __inline bool
 pc_is_full(struct pv_chunk *pc)
 {
+#ifdef WYC_PV_TEST
+	return (pc->pc_free_pv_count == 0);
+#else
 	for (u_int i = 0; i < _NPCM; i++) {
 		if (pc->pc_map[i] != 0)
 			return (false);
 	}
 	return (true);
+#endif
 }
 
 static __inline bool
 pc_is_free(struct pv_chunk *pc)
 {
+#ifdef WYC_PV_TEST
+	return (pc->pc_free_pv_count == _NPCPV);
+#else
 	for (u_int i = 0; i < _NPCM - 1; i++) {
 		if (pc->pc_map[i] != PC_FREEN)
 			return (false);
 	}
 	return (pc->pc_map[_NPCM - 1] == PC_FREEL);
+#endif
 }
 
 static __inline struct pv_chunk *

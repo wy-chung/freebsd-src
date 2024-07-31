@@ -1683,10 +1683,12 @@ pmap_growkernel(vm_offset_t addr)
  * page management routines.
  ***************************************************/
 
+#ifndef WYC_PV_TEST
 static const uint64_t pc_freemask[_NPCM] = {
 	[0 ... _NPCM - 2] = PC_FREEN,
 	[_NPCM - 1] = PC_FREEL
 };
+#endif
 
 #if 0
 #ifdef PV_STATS
@@ -1745,10 +1747,15 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	PV_STAT(atomic_add_int(&pv_entry_spare, 1));
 	PV_STAT(atomic_subtract_long(&pv_entry_count, 1));
 	struct pv_chunk *pc = pv_to_chunk(pv);
+#ifdef WYC_PV_TEST
+	TAILQ_INSERT_HEAD(&pc->pc_free_pv_head, pv, pv_next);
+	pc->pc_free_pv_count++;
+#else
 	int idx = pv - &pc->pc_pventry[0];
 	int field = idx / 64;
 	int bit = idx % 64;
 	pc->pc_map[field] |= 1ul << bit; // 1 means free
+#endif
 	if (pc_is_free(pc)) {
 		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
 		free_pv_chunk(pc);
@@ -1793,6 +1800,21 @@ get_pv_entry(pmap_t pmap, struct rwlock **lockp)
 retry:;
 	struct pv_chunk *pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 	if (pc != NULL) {
+#ifdef WYC_PV_TEST
+		pv_entry_t pv = TAILQ_FIRST(&pc->pc_free_pv_head);
+		if (pv != NULL) {
+			TAILQ_REMOVE_HEAD(&pc->pc_free_pv_head, pv_next);
+			pc->pc_free_pv_count--;
+			/* If this was the last item, move it to tail */
+			if (pc_is_full(pc)) {
+				TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
+				TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_pmlist);
+			}
+			PV_STAT(atomic_add_long(&pv_entry_count, 1));
+			PV_STAT(atomic_subtract_int(&pv_entry_spare, 1));
+			return pv;
+		}
+#else
 		int bit, field;
 		for (field = 0; field < _NPCM; field++) {
 			if (pc->pc_map[field]) {
@@ -1812,6 +1834,7 @@ retry:;
 			PV_STAT(atomic_subtract_int(&pv_entry_spare, 1));
 			return (pv);
 		}
+#endif
 	}
 	/* No free items, allocate another chunk */
 	vm_page_t m = vm_page_alloc_noobj(VM_ALLOC_WIRED);
@@ -1829,9 +1852,16 @@ retry:;
 	dump_add_page(m->phys_addr);
 	pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 	pc->pc_pmap = pmap;
+#ifdef WYC_PV_TEST
+	TAILQ_INIT(&pc->pc_free_pv_head);
+	for (int i = 1; i < _NPCPV; ++i)
+		TAILQ_INSERT_HEAD(&pc->pc_free_pv_head, &pc->pc_pventry[i], pv_next);
+	pc->pc_free_pv_count = _NPCPV - 1;	/* preallocated entry 0 */
+#else
 	pc->pc_map[0] = PC_FREEN & ~1ul;	/* preallocated bit 0 */
 	pc->pc_map[1] = PC_FREEN;
 	pc->pc_map[2] = PC_FREEL;
+#endif
 	mtx_lock(&pv_chunks_mutex);
 	TAILQ_INSERT_TAIL(&pv_chunks, pc, pc_pvclist);
 	mtx_unlock(&pv_chunks_mutex);
@@ -1867,8 +1897,12 @@ retry:;
 	struct pv_chunk *pc;
 	TAILQ_FOREACH(pc, &pmap->pm_pvchunk, pc_pmlist) {
 		int free;
+#ifdef WYC_PV_TEST
+		free = pc->pc_free_pv_count;
+#else
 		bit_count((bitstr_t *)pc->pc_map, 0,
 		    sizeof(pc->pc_map) * NBBY, &free);
+#endif
 		if (free == 0)
 			break;
 		avail += free;
@@ -1889,9 +1923,16 @@ retry:;
 #endif
 		pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 		pc->pc_pmap = pmap;
+#ifdef WYC_PV_TEST
+		TAILQ_INIT(&pc->pc_free_pv_head);
+		for (int i = 0; i< _NPCPV; ++i)
+			TAILQ_INSERT_HEAD(&pc->pc_free_pv_head, &pc->pc_pventry[i], pv_next);
+		pc->pc_free_pv_count = _NPCPV;
+#else
 		pc->pc_map[0] = PC_FREEN;
 		pc->pc_map[1] = PC_FREEN;
 		pc->pc_map[2] = PC_FREEL;
+#endif
 		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_pmlist);
 		TAILQ_INSERT_TAIL(&new_tail, pc, pc_pvclist);
 
@@ -2000,6 +2041,22 @@ pmap_pv_demote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	for (;;) {
 		pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 		KASSERT(!pc_is_full(pc), ("%s: missing spare", __func__));
+#ifdef WYC_PV_TEST
+		pv_entry_t npv;
+		TAILQ_FOREACH_SAFE(pv, &pc->pc_free_pv_head, pv_next, npv) {
+			TAILQ_REMOVE_HEAD(&pc->pc_free_pv_head, pv_next);
+			pc->pc_free_pv_count--;
+			va += PAGE_SIZE;
+			pv->pv_va = va;
+			m++;
+			KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+		    ("%s: page %p is not managed", __func__, m));
+			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
+			m->md.pv_gen++;
+			if (va == va_last)
+				goto out;
+		}
+#else
 		for (int field = 0; field < _NPCM; field++) {
 			while (pc->pc_map[field] != 0) {
 				int bit = ffsl(pc->pc_map[field]) - 1;
@@ -2016,6 +2073,7 @@ pmap_pv_demote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 					goto out;
 			}
 		}
+#endif
 		TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_pmlist);
 		TAILQ_INSERT_TAIL(&pmap->pm_pvchunk, pc, pc_pmlist);
 	}
@@ -2737,7 +2795,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3, stru
 		ml3 = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
 	KASSERT(ml3->pindex == pmap_l3_pindex(va),
 	    ("%s: page table page's pindex is wrong", __func__));
-	if (pmap_insert_l3pt_page(pmap, ml3, true, all_l3e_PTE_A != 0)) {
+	if (pmap_insert_l3pt_page(pmap, ml3, true, all_l3e_PTE_A != ESUCCESS)) {
 		CTR3(KTR_PMAP, "%s: failure for va %#lx pmap %p",
 		    __func__, va, pmap);
 		atomic_add_long(&pmap_l2_p_failures, 1);
@@ -3820,6 +3878,67 @@ pmap_remove_pages(pmap_t pmap) // reference pmap_remove()
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_pmlist, npc) {
 		bool allfree = true;
 		int freed __pv_stat_used = 0;
+#ifdef WYC_PV_TEST //failed here.  Want to iterate the inused entries, not the free entries
+		pv_entry_t pv, npv;
+		TAILQ_FOREACH_SAFE(pv, &pc->pc_free_pv_head, pv_next, npv) {
+			bool superpage;
+			vm_page_t m;
+
+			pt_entry_t *ln = pmap_l1(pmap, pv->pv_va); // point to an l2 or l3 entry
+			pd_entry_t lme = pmap_load(ln); // the parent of lne
+			ln = pmap_l1_to_l2(ln, pv->pv_va);
+			pt_entry_t lne = pmap_load(ln); // an entry in l2 or l3
+
+			KASSERT((lne & PTE_V) != 0,
+			    ("L2 PTE is invalid... bogus PV entry? "
+			    "va=%#lx, pte=%#lx", pv->pv_va, lne));
+			if ((lne & PTE_RWX) != 0) { // superpage
+				superpage = true;
+			} else { // point to l3 page table
+				superpage = false;
+				lme = lne;
+				ln = pmap_l2_to_l3(ln, pv->pv_va);
+				lne = pmap_load(ln);
+			}
+
+			/*
+			 * We cannot remove wired pages from a
+			 * process' mapping at this time.
+			 */
+			if (lne & PTE_SW_WIRED) {
+				allfree = false;
+				continue;
+			}
+
+			m = PHYS_TO_VM_PAGE(PTE_TO_PHYS(lne));
+			KASSERT((m->flags & PG_FICTITIOUS) != 0 ||
+			    m < &vm_page_array[vm_page_array_size],
+			    ("%s: bad pte %#jx", __func__, (uintmax_t)lne));
+
+			pmap_clear(ln);
+
+			/*
+			 * Update the vm_page_t clean/reference bits.
+			 */
+			if ((lne & (PTE_D | PTE_W)) == (PTE_D | PTE_W)) {
+				if (superpage)
+					for (vm_page_t mt = m;
+					    mt < &m[Ln_ENTRIES]; mt++)
+						vm_page_dirty(mt);
+				else
+					vm_page_dirty(m);
+			}
+
+			CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
+
+			// remove pv and insert it into free list
+			pmap_remove_pages_pv(pmap, m, pv, &free, superpage);
+			TAILQ_INSERT_HEAD(&pc->pc_free_pv_head, pv, pv_next);
+			pc->pc_free_pv_count++;
+			pmap_unuse_pt(pmap, pv->pv_va, lme, &free);
+			freed++;
+		}
+#else
 		for (int field = 0; field < _NPCM; field++) {
 			uint64_t inuse = ~pc->pc_map[field] & pc_freemask[field];
 			while (inuse != 0) {
@@ -3884,6 +4003,7 @@ pmap_remove_pages(pmap_t pmap) // reference pmap_remove()
 				freed++;
 			}
 		}
+#endif
 		PV_STAT(atomic_add_long(&pv_entry_frees, freed));
 		PV_STAT(atomic_add_int(&pv_entry_spare, freed));
 		PV_STAT(atomic_subtract_long(&pv_entry_count, freed));
