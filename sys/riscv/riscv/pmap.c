@@ -3878,9 +3878,9 @@ pmap_remove_pages(pmap_t pmap) // reference pmap_remove()
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_pmlist, npc) {
 		bool allfree = true;
 		int freed __pv_stat_used = 0;
-#ifdef WYC_PV_TEST //failed here.  Want to iterate the inused entries, not the free entries
+#ifdef WYC_PV_TEST //failed here.  Want to iterate the used entries, not the free entries
 		pv_entry_t pv, npv;
-		TAILQ_FOREACH_SAFE(pv, &pc->pc_free_pv_head, pv_next, npv) {
+		TAILQ_FOREACH_SAFE(pv, &pc->pc_free_pv_head, pv_next, npv) { // iterate the free entries
 			bool superpage;
 			vm_page_t m;
 
