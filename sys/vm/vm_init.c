@@ -100,8 +100,6 @@ long physmem;
 /*
  * System initialization
  */
-static void vm_mem_init(void *);
-SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL);
 
 /*
  *	vm_mem_init() initializes the virtual memory system.
@@ -144,6 +142,7 @@ vm_mem_init(void *dummy)
 	pmap_init();
 	vm_pager_init();
 }
+SYSINIT(vm_mem, SI_SUB_VM, SI_ORDER_FIRST, vm_mem_init, NULL);
 
 void
 vm_ksubmap_init(struct kva_md_info *kmi)
