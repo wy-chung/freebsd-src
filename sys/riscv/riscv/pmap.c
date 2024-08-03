@@ -181,8 +181,8 @@
 #define	__pv_stat_used	__unused
 #endif
 
-#define	pmap_l3_pindex(v)	((v) >> L2_SHIFT) // L2_SHIFT == 21
 #define	pmap_l2_pindex(v)	(NL3PTP + ((v) >> L1_SHIFT))
+#define	pmap_l3_pindex(v)	((v) >> L2_SHIFT) // L2_SHIFT == 21
 #define	pa_to_pvh(pa)		(&pvh_table[pa_index(pa)])
 
 #define	NPV_LIST_LOCKS	MAXCPU
@@ -967,7 +967,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 		if ((l3e & PTE_W) != 0 || (prot & VM_PROT_WRITE) == 0) {
 			phys = PTE_TO_PHYS(l3e);
 			m = PHYS_TO_VM_PAGE(phys);
-			if (!vm_page_wire_mapped(m))
+			if (!vm_page_wire_mapped(m)) // false most of the time
 				m = NULL;
 		}
 	}
@@ -1253,7 +1253,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mptp /*ori m*/, spglist_
 		pd_entry_t *l1;
 		l1 = pmap_l1(pmap, va);
 		pmap_clear(l1);
-		pmap_distribute_l1(pmap, pmap_l1_index(va), 0);
+		pmap_distribute_l1(pmap, pmap_l1_index(va), 0); // do nothing in sv48
 	} else { // a L1PTP
 		pd_entry_t *l0;
 		l0 = pmap_l0(pmap, va);
@@ -1268,7 +1268,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mptp /*ori m*/, spglist_
 		pmap_unwire_ptp(pmap, va, l2pt_m, free);
 	} else if (mptp->pindex < NL3PTP + NL2PTP && // a L2PTP
 		   pmap_mode != PMAP_MODE_SV39) {
-		//MPASS(pmap_mode != PMAP_MODE_SV39); //wycpush
+		//MPASS(pmap_mode != PMAP_MODE_SV39); //wycpull
 		pd_entry_t *l0 = pmap_l0(pmap, va);
 		vm_paddr_t l1pt_phys = PTE_TO_PHYS(pmap_load(l0));
 		vm_page_t  l1pt_m = PHYS_TO_VM_PAGE(l1pt_phys);
@@ -2272,7 +2272,7 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
  *	rounded to the page size.
  */
 void
-pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva) // pmap_remove_pages
+pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva) // ref pmap_remove_pages()
 {
 	vm_offset_t va_next;
 	pd_entry_t *l1;
@@ -2386,7 +2386,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva) // pmap_remove_pages
 void
 pmap_remove_all(vm_page_t m)
 {
-	pd_entry_t *l2;
 	pv_entry_t pv;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
@@ -2400,7 +2399,7 @@ pmap_remove_all(vm_page_t m)
 		pmap_t pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		vm_offset_t va = pv->pv_va;
-		l2 = pmap_l2(pmap, va);
+		pd_entry_t *l2 = pmap_l2(pmap, va);
 		(void)pmap_demote_l2(pmap, l2, va);
 		PMAP_UNLOCK(pmap);
 	}
@@ -2408,7 +2407,7 @@ pmap_remove_all(vm_page_t m)
 		pmap_t pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pmap_resident_count_dec(pmap, 1);
-		l2 = pmap_l2(pmap, pv->pv_va);
+		pd_entry_t *l2 = pmap_l2(pmap, pv->pv_va);
 		KASSERT(l2 != NULL, ("%s: no l2 table found", __func__));
 		pd_entry_t l2e __diagused = pmap_load(l2);
 
@@ -3867,7 +3866,7 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
  * this function starts.
  */
 void
-pmap_remove_pages(pmap_t pmap) // reference pmap_remove()
+pmap_remove_pages(pmap_t pmap) // ref pmap_remove()
 {
 	struct pv_chunk *pc, *npc;
 	struct rwlock *lock = NULL;
@@ -3971,6 +3970,7 @@ pmap_remove_pages(pmap_t pmap) // reference pmap_remove()
 				 * process' mapping at this time.
 				 */
 				if (lne & PTE_SW_WIRED) {
+panic("%s: wyctest\n", __func__); // tested. never runs here
 					allfree = false;
 					continue;
 				}
@@ -4659,7 +4659,7 @@ pmap_activate_sw(struct thread *td)
 
 	oldpmap = PCPU_GET(pc_curpmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
-	if (pmap == oldpmap)
+	if (pmap == oldpmap) // don't switch virtual address if running on the same pmap
 		return;
 	csr_write(satp, pmap->pm_satp);
 

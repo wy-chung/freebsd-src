@@ -205,7 +205,7 @@ END(fpe_state_clear)
  * void cpu_throw(struct thread *old __unused, struct thread *new)
  */
 ENTRY(cpu_throw)
-	/* Activate the new thread's pmap. */
+	/* Activate the new thread`s pmap. */
 	mv	s0, a1
 	mv	a0, a1
 	call	_C_LABEL(pmap_activate_sw)
@@ -305,7 +305,7 @@ ENTRY(cpu_switch)
 	__fpe_state_save x13
 1:
 
-	/* Activate the new thread's pmap */
+	/* Activate the new thread`s pmap */
 	mv	s0, a0
 	mv	s1, a1
 	mv	s2, a2

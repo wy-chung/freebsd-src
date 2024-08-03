@@ -520,7 +520,7 @@ vm_page_init_page(struct vm_page *m, vm_paddr_t pa, int segind)
 
 #ifndef PMAP_HAS_PAGE_ARRAY // riscv: true
 static vm_paddr_t
-vm_page_array_alloc(vm_offset_t *vaddr, vm_paddr_t end, vm_paddr_t page_range)
+vm_page_array_alloc(vm_offset_t *vaddr, vm_paddr_t end, vm_paddr_t page_range) // < vm_page_startup
 {
 	vm_paddr_t new_end;
 
@@ -552,7 +552,7 @@ vm_page_array_alloc(vm_offset_t *vaddr, vm_paddr_t end, vm_paddr_t page_range)
  *	page queues.
  */
 vm_offset_t
-vm_page_startup(vm_offset_t vaddr)
+vm_page_startup(vm_offset_t vaddr) // < vm_mem_init
 {
 	struct vm_phys_seg *seg;
 	struct vm_domain *vmd;
