@@ -259,7 +259,7 @@ static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 
 /* The list of all the user pmaps */
 typedef LIST_HEAD(, pmap) pmaplist_t;
-static pmaplist_t allpmaps = LIST_HEAD_INITIALIZER();
+static pmaplist_t allpmaps = LIST_HEAD_INITIALIZER(); // only used in SV39 mode
 
 enum _pmap_mode __read_frequently pmap_mode = PMAP_MODE_SV39;
 SYSCTL_INT(_vm_pmap, OID_AUTO, mode, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
@@ -525,7 +525,7 @@ pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index, pt_entry_t entry)
 	 * Distribute new kernel L1 entry to all the user pmaps.  This is only
 	 * necessary with three-level paging configured: with four-level paging
 	 * the kernel's half of the top-level page table page is static and can
-	 * simply be copied at pmap initialization time (i.e. pmap_pinit)
+	 * simply be copied at pmap initialization time (wyc i.e. pmap_pinit).
 	 */
 	if (pmap == kernel_pmap && pmap_mode == PMAP_MODE_SV39) {
 		mtx_lock(&allpmaps_lock);
@@ -606,6 +606,7 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 	sfence_vma();
 }
 
+/* Create the l3 tables for the early devmap */
 static vm_offset_t
 pmap_bootstrap_l3(vm_offset_t l1pt_va, vm_offset_t va, vm_offset_t l3_start)
 {
@@ -1222,6 +1223,7 @@ pmap_remove_l3pt_page(pmap_t pmap, vm_offset_t va)
    Decrements a page table page's reference count, which is used to record the
    number of valid page table entries within the page.  If the reference count
    drops to zero, then the page table page is unmapped.
+
  Returns
    true  if the page table page was unmapped
    false otherwise.
@@ -1295,7 +1297,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde, spglist_t *free)
 	vm_page_t mptp;
 
 	if (va >= VM_MAXUSER_ADDRESS)
-		return (0);
+		return (false);
 	KASSERT(ptepde != 0, ("%s: ptepde != 0", __func__));
 	mptp = PHYS_TO_VM_PAGE(PTE_TO_PHYS(ptepde));
 	return (pmap_unwire_ptp(pmap, va, mptp, free));
@@ -1353,7 +1355,7 @@ pmap_pinit(pmap_t pmap)
 			pmap->pm_top[i] = kernel_pmap->pm_top[i];
 		mtx_unlock(&allpmaps_lock);
 	} else {
-		int i = pmap_l0_index(VM_MIN_KERNEL_ADDRESS);
+		int i = pmap_l0_index(VM_MIN_KERNEL_ADDRESS); // it will be the last entry of l0pt
 		pmap->pm_top[i] = kernel_pmap->pm_top[i];
 	}
 
@@ -2016,8 +2018,7 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
  * entries for each of the 4KB page mappings.
  */
 static void// __unused
-pmap_pv_demote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
-    struct rwlock **lockp)
+pmap_pv_demote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa, struct rwlock **lockp)
 {
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -2144,7 +2145,7 @@ pmap_pv_insert_l2(pmap_t pmap, vm_offset_t va, pd_entry_t l2e, u_int flags,
 }
 
 static void
-pmap_remove_kernel_l2(pt_entry_t *l2, vm_offset_t va)
+pmap_remove_kernel_l2(/*pmap_t pmap, */pt_entry_t *l2, vm_offset_t va)
 {
 	KASSERT(!VIRT_IN_DMAP(va), ("removing direct mapping of %#lx", va));
 	//KASSERT(pmap == kernel_pmap, ("pmap %p is not kernel_pmap", pmap));
@@ -2175,6 +2176,7 @@ pmap_remove_kernel_l2(pt_entry_t *l2, vm_offset_t va)
 /*
  * pmap_remove_l2: Do the things to unmap a level 2 superpage.
  */
+// the return value is ignored by all the calling functions
 static bool
 pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
     pd_entry_t l1e, spglist_t *free, struct rwlock **lockp)
@@ -2794,7 +2796,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3, stru
 		ml3 = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
 	KASSERT(ml3->pindex == pmap_l3_pindex(va),
 	    ("%s: page table page's pindex is wrong", __func__));
-	if (pmap_insert_l3pt_page(pmap, ml3, true, all_l3e_PTE_A != ESUCCESS)) {
+	if (pmap_insert_l3pt_page(pmap, ml3, true, all_l3e_PTE_A != 0) != ESUCCESS) {
 		CTR3(KTR_PMAP, "%s: failure for va %#lx pmap %p",
 		    __func__, va, pmap);
 		atomic_add_long(&pmap_l2_p_failures, 1);
@@ -3877,7 +3879,7 @@ pmap_remove_pages(pmap_t pmap) // ref pmap_remove()
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_pmlist, npc) {
 		bool allfree = true;
 		int freed __pv_stat_used = 0;
-#ifdef WYC_PV_TEST //failed here.  Want to iterate the used entries, not the free entries
+#ifdef WYC_PV_TEST //failed here.  Want to iterate the inuse entries, not the free entries
 		pv_entry_t pv, npv;
 		TAILQ_FOREACH_SAFE(pv, &pc->pc_free_pv_head, pv_next, npv) { // iterate the free entries
 			bool superpage;
@@ -4255,11 +4257,10 @@ retry:
  *	dirty pages.  Those dirty pages will only be detected by a future call
  *	to pmap_is_modified().
  */
-static inline unsigned hash_pvp(vm_paddr_t pa, vm_offset_t va, uintptr_t pmap)
+static inline unsigned hash_pvp(vm_paddr_t pa, vm_offset_t va, uintptr_t pmap) //wyc added
 {
-	return
-	    ((pa >> PAGE_SHIFT) ^ (va >> L2_SHIFT) ^ pmap) &
-	    (Ln_ENTRIES - 1);
+	return ((pa >> PAGE_SHIFT) ^ (va >> L2_SHIFT) ^ pmap) &
+	       (Ln_ENTRIES - 1);
 }
 
 int
