@@ -515,6 +515,7 @@ pmap_resident_count_dec(pmap_t pmap, int count)
 	pmap->pm_stats.resident_count -= count;
 }
 
+// do nothing in sv48
 static void
 pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index, pt_entry_t entry)
 {
@@ -527,7 +528,7 @@ pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index, pt_entry_t entry)
 	 * the kernel's half of the top-level page table page is static and can
 	 * simply be copied at pmap initialization time (wyc i.e. pmap_pinit).
 	 */
-	if (pmap == kernel_pmap && pmap_mode == PMAP_MODE_SV39) {
+	if (pmap == kernel_pmap && pmap_mode == PMAP_MODE_SV39) { //wyc always false
 		mtx_lock(&allpmaps_lock);
 		LIST_FOREACH(user_pmap, &allpmaps, pm_list) {
 			l1 = &user_pmap->pm_top[l1index];
@@ -1339,7 +1340,7 @@ pmap_pinit(pmap_t pmap)
 
 	CPU_ZERO(&pmap->pm_active);
 
-	if (pmap_mode == PMAP_MODE_SV39) {
+	if (pmap_mode == PMAP_MODE_SV39) { //wyc always false for sv48
 		/*
 		 * Copy L1 entries from the kernel pmap.  This must be done with
 		 * the allpmaps lock held to avoid races with
@@ -1355,8 +1356,8 @@ pmap_pinit(pmap_t pmap)
 			pmap->pm_top[i] = kernel_pmap->pm_top[i];
 		mtx_unlock(&allpmaps_lock);
 	} else {
-		int i = pmap_l0_index(VM_MIN_KERNEL_ADDRESS); // it will be the last entry of l0pt
-		pmap->pm_top[i] = kernel_pmap->pm_top[i];
+		int l0i = pmap_l0_index(VM_MIN_KERNEL_ADDRESS); // it will be the last entry of l0pt
+		pmap->pm_top[l0i] = kernel_pmap->pm_top[l0i];
 	}
 
 	TAILQ_INIT(&pmap->pm_pvchunk);
@@ -1451,7 +1452,7 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 
 		pt_entry_t entry = PTE_V | (pn << PTE_PPN0_S);
 		pmap_store(l1, entry);
-		pmap_distribute_l1(pmap, l1index, entry);
+		pmap_distribute_l1(pmap, l1index, entry); // do nothing in sv48
 	} else { // L3 pagetable page
 		pd_entry_t *l1;
 
@@ -1638,14 +1639,14 @@ pmap_growkernel(vm_offset_t addr)
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
 				panic("%s: no memory to grow kernel", __func__);
-			nkpg->pindex = kernel_vm_end >> L1_SHIFT; //wyc???
+			nkpg->pindex = pmap_l2_pindex(kernel_vm_end); //wycpull kernel_vm_end >> L1_SHIFT;
 			vm_paddr_t paddr = VM_PAGE_TO_PHYS(nkpg);
 
 			pn_t pn = (paddr / PAGE_SIZE);
 			pt_entry_t entry = (PTE_V);
 			entry |= (pn << PTE_PPN0_S);
 			pmap_store(l1, entry);
-			pmap_distribute_l1(kernel_pmap, pmap_l1_index(kernel_vm_end), entry);
+			pmap_distribute_l1(kernel_pmap, pmap_l1_index(kernel_vm_end), entry); // do nothing in sv48
 			continue; /* try again */
 		}
 		pd_entry_t *l2 = pmap_l1_to_l2(l1, kernel_vm_end);
@@ -1663,7 +1664,7 @@ pmap_growkernel(vm_offset_t addr)
 		    VM_ALLOC_ZERO);
 		if (nkpg == NULL)
 			panic("%s: no memory to grow kernel", __func__);
-		nkpg->pindex = kernel_vm_end >> L2_SHIFT; //wyc???
+		nkpg->pindex = pmap_l3_pindex(kernel_vm_end); //wycpull kernel_vm_end >> L2_SHIFT;
 		vm_paddr_t paddr = VM_PAGE_TO_PHYS(nkpg);
 
 		pn_t pn = (paddr / PAGE_SIZE);
@@ -2918,7 +2919,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				pt_entry_t entry = (PTE_V);
 				entry |= (l2_pn << PTE_PPN0_S);
 				pmap_store(l1, entry);
-				pmap_distribute_l1(pmap, pmap_l1_index(va), entry);
+				pmap_distribute_l1(pmap, pmap_l1_index(va), entry); // do nothing in sv48
 				l2 = pmap_l1_to_l2(l1, va);
 			}
 
