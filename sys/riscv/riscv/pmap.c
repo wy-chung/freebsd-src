@@ -515,8 +515,7 @@ pmap_resident_count_dec(pmap_t pmap, int count)
 	pmap->pm_stats.resident_count -= count;
 }
 
-// do nothing in sv48
-static void
+static void	// do nothing in sv48 mode
 pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index, pt_entry_t entry)
 {
 	struct pmap *user_pmap;

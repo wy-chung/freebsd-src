@@ -147,12 +147,12 @@
 #define	SIP_SSIP	(1 << 1)
 #define	SIP_STIP	(1 << 5)
 
-#define	SATP_PPN_S	0
-#define	SATP_PPN_M	(0xfffffffffffUL << SATP_PPN_S)
-#define	SATP_ASID_S	44
-#define	SATP_ASID_M	(0xffffUL << SATP_ASID_S)
-#define	SATP_MODE_S	60
-#define	SATP_MODE_M	(0xfUL << SATP_MODE_S)
+#define	SATP_PPN_S	0				// PPN starts at bit 0
+#define	SATP_PPN_M	(0xfffffffffffUL << SATP_PPN_S)	// PPN size is 44 bits
+#define	SATP_ASID_S	44			  // ASID starts at bit 44
+#define	SATP_ASID_M	(0xffffUL << SATP_ASID_S) // ASID size 16 bits
+#define	SATP_MODE_S	60			// MODE starts at bit 60
+#define	SATP_MODE_M	(0xfUL << SATP_MODE_S)	// MODE size is 4 bits
 #define	SATP_MODE_SV39	 (8ULL << SATP_MODE_S)
 #define	SATP_MODE_SV48	 (9ULL << SATP_MODE_S) // <== QEMU v9.0.1
 #define	SATP_MODE_SV57	(10ULL << SATP_MODE_S)
