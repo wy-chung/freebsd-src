@@ -481,7 +481,7 @@ parse_metadata(void)
 }
 
 void
-initriscv(struct riscv_bootparams *rvbp) // < _start
+initriscv(struct riscv_bootparams *rvbp) // < _start(locore.S)
 {
 	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	struct pcpu *pcpup;
