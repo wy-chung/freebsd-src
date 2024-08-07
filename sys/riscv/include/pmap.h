@@ -71,9 +71,9 @@ struct md_page {
 };
 
 /* satp register
-  mode: bit 63 .. 60
-  ASID: bit 59 .. 44
-  PPN : bit 43 .. 0
+  mode(04): bit 63 .. 60
+  ASID(16): bit 59 .. 44
+  PPN (44): bit 43 .. 0
 */
 struct pmap {
 	struct mtx		pm_mtx;		// pmap lock
