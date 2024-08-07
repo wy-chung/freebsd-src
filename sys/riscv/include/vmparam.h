@@ -89,7 +89,7 @@
 
 /*
  * An allocation size of 16MB is supported in order to optimize the
- * use of the direct map by UMA.  Specifically, a cache line contains
+ * use of the direct map by UMA (Uniform Memory Access).  Specifically, a cache line contains
  * at most four TTEs, collectively mapping 16MB of physical memory.
  * By reducing the number of distinct 16MB "pages" that are used by UMA,
  * the physical memory allocator reduces the likelihood of both 4MB

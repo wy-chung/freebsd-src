@@ -357,7 +357,7 @@ static bool pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t sva,
 static bool pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
     vm_page_t m, struct rwlock **lockp);
 
-static vm_page_t _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex,
+static vm_page_t _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptepindex,
 		struct rwlock **lockp);
 
 static void _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m,
@@ -1997,6 +1997,7 @@ static bool
 pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct rwlock **lockp)
 {
+if (pmap == kernel_pmap) panic("%s: wyctest\n", __func__);
 	pv_entry_t pv;
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
@@ -3267,15 +3268,15 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 
 /*
  * Maps a sequence of resident pages belonging to the same object.
- * The sequence begins with the given page @m_start.  This page is
- * mapped at the given virtual address @start.  Each subsequent page is
- * mapped at a virtual address that is offset from @start by the same
- * amount as the page is offset from @m_start within the object.  The
+ * The sequence begins with the given page %m_start.  This page is
+ * mapped at the given virtual address %start.  Each subsequent page is
+ * mapped at a virtual address that is offset from %start by the same
+ * amount as the page is offset from %m_start within the object.  The
  * last page in the sequence is the page with the largest offset from
- * @m_start that can be mapped at a virtual address less than the given
- * virtual address @end.  Not every virtual page between @start and @end
+ * %m_start that can be mapped at a virtual address less than the given
+ * virtual address %end.  Not every virtual page between %start and %end
  * is mapped; only those for which a resident page exists with the
- * corresponding offset from @m_start are mapped.
+ * corresponding offset from %m_start are mapped.
  */
 void
 pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
@@ -3389,6 +3390,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pt_entry_t *l3pt = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mptp));
 		l3 = &l3pt[pmap_l3_index(va)];
 	} else {
+if (pmap != kernel_pmap) panic("%s: wyctest\n", __func__);
 		mptp = NULL;
 		l3 = pmap_l3(kernel_pmap, va);
 		if (l3 == NULL)
@@ -4518,7 +4520,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 */
 	if ((m->flags & PG_FICTITIOUS) == 0 &&
 	    pmap_change_attr(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
-	    m->md.pv_memattr) != 0)
+	    m->md.pv_memattr) != ESUCCESS)
 		panic("memory attribute change on the direct map failed");
 }
 
@@ -4546,7 +4548,7 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 }
 
 static int
-pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
+pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode __unused)
 {
 	vm_offset_t base, offset, tmpva;
 	pd_entry_t *l1, l1e;
@@ -4602,7 +4604,7 @@ panic("%s: wyctest\n", __func__); // tested. not reach here
 		tmpva += PAGE_SIZE;
 	}
 
-	return (0);
+	return (ESUCCESS);
 }
 
 /*
@@ -4660,7 +4662,7 @@ pmap_activate_sw(struct thread *td)
 
 	oldpmap = PCPU_GET(pc_curpmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
-	if (pmap == oldpmap) // don't switch virtual address if running on the same pmap
+	if (pmap->pm_satp == oldpmap->pm_satp) //wyc don't switch address space
 		return;
 	csr_write(satp, pmap->pm_satp);
 
