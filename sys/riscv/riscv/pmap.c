@@ -1315,7 +1315,7 @@ pmap_pinit0(pmap_t pmap) // < proc0_init
 {
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
-	pmap->pm_top = kernel_pmap->pm_top;
+	pmap->pm_top = kernel_pmap_store.pm_top; //wyc
 	pmap->pm_satp = pmap_satp_mode() | (vtophys(pmap->pm_top) >> PAGE_SHIFT);
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
@@ -1376,8 +1376,8 @@ pmap_pinit(pmap_t pmap)
  * afterwards.  This conservative approach is easily argued to avoid
  * race conditions.
  */
-// ptepindex: the pagtable page index. It will be stored in vm_page.pindex
-static vm_page_t
+// %ptepindex: the pagtable page index. It will be stored in vm_page.pindex
+static vm_page_t // ori: _pmap_alloc_l3
 _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 {
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -4662,8 +4662,8 @@ pmap_activate_sw(struct thread *td)
 
 	oldpmap = PCPU_GET(pc_curpmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
-	if (pmap->pm_satp == oldpmap->pm_satp) //wyc don't switch address space
-		return;
+	if (pmap->pm_satp == oldpmap->pm_satp)
+		return;	//wyc don't switch address space
 	csr_write(satp, pmap->pm_satp);
 
 	hart = PCPU_GET(pc_hart);

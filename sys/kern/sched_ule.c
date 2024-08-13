@@ -2736,11 +2736,11 @@ tdq_add(struct tdq *tdq, struct thread *td, int flags)
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	THREAD_LOCK_BLOCKED_ASSERT(td, MA_OWNED);
 	KASSERT((td->td_inhibitors == 0),
-	    ("sched_add: trying to run inhibited thread"));
+	    ("%s: trying to run inhibited thread", __func__));
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
-	    ("sched_add: bad thread state"));
+	    ("%s: bad thread state", __func__));
 	KASSERT(td->td_flags & TDF_INMEM,
-	    ("sched_add: thread swapped out"));
+	    ("%s: thread swapped out", __func__));
 
 	lowpri = tdq->tdq_lowpri;
 	if (td->td_priority < lowpri)
