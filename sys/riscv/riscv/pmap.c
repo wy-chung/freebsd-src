@@ -344,6 +344,8 @@ static pv_entry_t get_pv_entry(pmap_t pmap, struct rwlock **lockp);
 static vm_page_t reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp);
 static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
+static void	pmap_pv_free(struct md_page *pvl, pmap_t pmap, vm_offset_t va);
+static pv_entry_t pmap_pv_remove(struct md_page *pvl, pmap_t pmap, vm_offset_t va);
 static bool	pmap_demote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va);
 static bool	pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2,
 		    vm_offset_t va, struct rwlock **lockp);
@@ -1974,6 +1976,22 @@ pmap_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 	return (pv);
 }
 
+static __inline pv_entry_t
+pmap_pv_remove(struct md_page *pvl, pmap_t pmap, vm_offset_t va)
+{
+	pv_entry_t pv;
+
+	rw_assert(&pvh_global_lock, RA_LOCKED);
+	TAILQ_FOREACH(pv, &pvl->pv_list, pv_next) {
+		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
+			TAILQ_REMOVE(&pvl->pv_list, pv, pv_next);
+			pvl->pv_gen++;
+			break;
+		}
+	}
+	return (pv);
+}
+
 /*
  * First find and then destroy the pv entry for the specified pmap and virtual
  * address.  This operation can be performed on pv lists for either 4KB or 2MB
@@ -1983,6 +2001,15 @@ static void
 pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 {
 	pv_entry_t pv = pmap_pvh_remove(pvh, pmap, va);
+
+	KASSERT(pv != NULL, ("%s: pv not found for %#lx", __func__, va));
+	free_pv_entry(pmap, pv);
+}
+
+static void
+pmap_pv_free(struct md_page *pvl, pmap_t pmap, vm_offset_t va)
+{
+	pv_entry_t pv = pmap_pv_remove(pvl, pmap, va);
 
 	KASSERT(pv != NULL, ("%s: pv not found for %#lx", __func__, va));
 	free_pv_entry(pmap, pv);
@@ -2099,7 +2126,7 @@ pmap_pv_promote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 
 	vm_page_t m = PHYS_TO_VM_PAGE(pa);
 	va = va & ~L2_OFFSET;
-	pv_entry_t pv = pmap_pvh_remove(&m->md, pmap, va);
+	pv_entry_t pv = pmap_pv_remove(&m->md, pmap, va);
 	KASSERT(pv != NULL, ("%s: pv for %#lx not found", __func__, va));
 	struct md_page *pvh = pa_to_pvh(pa);
 	TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
@@ -2112,7 +2139,7 @@ pmap_pv_promote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 		va += PAGE_SIZE;
 		if (va >= va_last)
 			break;
-		pmap_pvh_free(&m->md, pmap, va);
+		pmap_pv_free(&m->md, pmap, va);
 	}
 }
 #endif /* VM_NRESERVLEVEL > 0 */
@@ -2255,7 +2282,7 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 		if (old_l3e & PTE_A)
 			vm_page_aflag_set(m, PGA_REFERENCED);
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
-		pmap_pvh_free(&m->md, pmap, va);
+		pmap_pv_free(&m->md, pmap, va);
 		if (TAILQ_EMPTY(&m->md.pv_list) &&
 		    (m->flags & PG_FICTITIOUS) == 0) {
 			struct md_page *pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
@@ -3005,7 +3032,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			if ((orig_l3e & PTE_A) != 0)
 				vm_page_aflag_set(om, PGA_REFERENCED);
 			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, orig_pa);
-			pv = pmap_pvh_remove(&om->md, pmap, va);
+			pv = pmap_pv_remove(&om->md, pmap, va);
 			KASSERT(pv != NULL, ("%s: no PV entry for %#lx", __func__, va));
 			if (!(new_l3e & PTE_SW_MANAGED))
 				free_pv_entry(pmap, pv);
