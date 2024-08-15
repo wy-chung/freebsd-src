@@ -342,8 +342,8 @@ static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t pmap, struct rwlock **lockp);
 static vm_page_t reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp);
-static void	pmap_pv_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
-static pv_entry_t pmap_pv_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
+static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
+static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static bool	pmap_demote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va);
 static bool	pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2,
 		    vm_offset_t va, struct rwlock **lockp);
