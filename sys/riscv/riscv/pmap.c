@@ -343,8 +343,7 @@ static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t pmap, struct rwlock **lockp);
 static vm_page_t reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp);
 static void	pmap_pv_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
-static pv_entry_t pmap_pv_pvh_remove(struct md_page *pvh, pmap_t pmap,
-		    vm_offset_t va);
+static pv_entry_t pmap_pv_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static bool	pmap_demote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va);
 static bool	pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2,
 		    vm_offset_t va, struct rwlock **lockp);
@@ -608,7 +607,7 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 
 /* Create the l3 tables for the early devmap */
 static vm_offset_t
-pmap_bootstrap_l3(vm_offset_t l1pt_va, vm_offset_t va, vm_offset_t l3_start)
+pmap_bootstrap_l3(vm_offset_t l1pt_va, vm_offset_t va, const vm_offset_t l3_start)
 {
 	KASSERT((va & L2_OFFSET) == 0, ("Invalid virtual address"));
 
@@ -628,7 +627,7 @@ pmap_bootstrap_l3(vm_offset_t l1pt_va, vm_offset_t va, vm_offset_t l3_start)
 		l3pt_va += PAGE_SIZE;
 	}
 
-	/* Clean the L2 page table */
+	/* Clean the L3 page table */ //wyc L2 to L3
 	memset((void *)l3_start, 0, l3pt_va - l3_start);
 
 	return (l3pt_va);
@@ -2348,8 +2347,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva) // ref pmap_remove_pa
 			va_next = eva;
 
 		vm_offset_t va = va_next;
-		for (pt_entry_t *l3 = pmap_l2_to_l3(l2, sva);
-		    sva != va_next; l3++, sva += L3_SIZE) {
+		pt_entry_t *l3 = pmap_l2_to_l3(l2, sva);
+		for (; sva != va_next; l3++, sva += L3_SIZE) {
 			if (pmap_load(l3) == 0) {
 				if (va != va_next) {
 					pmap_invalidate_range(pmap, va, sva);
@@ -4655,7 +4654,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 }
 
 void
-pmap_activate_sw(struct thread *td)
+pmap_activate_sw(struct thread *td) // < cpu_switch(swtch.S) < sched_switch < mi_switch
 {
 	pmap_t oldpmap, pmap;
 	u_int hart;
