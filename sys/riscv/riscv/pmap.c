@@ -1959,7 +1959,7 @@ retry:;
  * 2MB page mappings.
  */
 static __inline pv_entry_t
-pmap_pv_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
+pmap_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 {
 	pv_entry_t pv;
 
@@ -1980,9 +1980,9 @@ pmap_pv_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
  * page mappings.
  */
 static void
-pmap_pv_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
+pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 {
-	pv_entry_t pv = pmap_pv_pvh_remove(pvh, pmap, va);
+	pv_entry_t pv = pmap_pvh_remove(pvh, pmap, va);
 
 	KASSERT(pv != NULL, ("%s: pv not found for %#lx", __func__, va));
 	free_pv_entry(pmap, pv);
@@ -2031,7 +2031,7 @@ pmap_pv_demote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa, struct rwlock **lo
 	 */
 	struct md_page *pvh = pa_to_pvh(pa);
 	va &= ~L2_OFFSET;
-	pv_entry_t pv = pmap_pv_pvh_remove(pvh, pmap, va);
+	pv_entry_t pv = pmap_pvh_remove(pvh, pmap, va);
 	KASSERT(pv != NULL, ("%s: pv not found", __func__));
 	vm_page_t m = PHYS_TO_VM_PAGE(pa);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
@@ -2099,7 +2099,7 @@ pmap_pv_promote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 
 	vm_page_t m = PHYS_TO_VM_PAGE(pa);
 	va = va & ~L2_OFFSET;
-	pv_entry_t pv = pmap_pv_pvh_remove(&m->md, pmap, va);
+	pv_entry_t pv = pmap_pvh_remove(&m->md, pmap, va);
 	KASSERT(pv != NULL, ("%s: pv for %#lx not found", __func__, va));
 	struct md_page *pvh = pa_to_pvh(pa);
 	TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
@@ -2112,7 +2112,7 @@ pmap_pv_promote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 		va += PAGE_SIZE;
 		if (va >= va_last)
 			break;
-		pmap_pv_pvh_free(&m->md, pmap, va);
+		pmap_pvh_free(&m->md, pmap, va);
 	}
 }
 #endif /* VM_NRESERVLEVEL > 0 */
@@ -2201,7 +2201,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 	if (oldl2e & PTE_SW_MANAGED) {
 		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, PTE_TO_PHYS(oldl2e));
 		struct md_page *pvh = pa_to_pvh(PTE_TO_PHYS(oldl2e));
-		pmap_pv_pvh_free(pvh, pmap, sva);
+		pmap_pvh_free(pvh, pmap, sva);
 		vm_offset_t eva = sva + L2_SIZE;
 		vm_page_t m = PHYS_TO_VM_PAGE(PTE_TO_PHYS(oldl2e));
 		for (vm_offset_t va = sva; va < eva; va += PAGE_SIZE, m++) {
@@ -2255,7 +2255,7 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 		if (old_l3e & PTE_A)
 			vm_page_aflag_set(m, PGA_REFERENCED);
 		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
-		pmap_pv_pvh_free(&m->md, pmap, va);
+		pmap_pvh_free(&m->md, pmap, va);
 		if (TAILQ_EMPTY(&m->md.pv_list) &&
 		    (m->flags & PG_FICTITIOUS) == 0) {
 			struct md_page *pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
@@ -3005,7 +3005,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			if ((orig_l3e & PTE_A) != 0)
 				vm_page_aflag_set(om, PGA_REFERENCED);
 			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, orig_pa);
-			pv = pmap_pv_pvh_remove(&om->md, pmap, va);
+			pv = pmap_pvh_remove(&om->md, pmap, va);
 			KASSERT(pv != NULL, ("%s: no PV entry for %#lx", __func__, va));
 			if (!(new_l3e & PTE_SW_MANAGED))
 				free_pv_entry(pmap, pv);
