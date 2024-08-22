@@ -1024,8 +1024,8 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode __unused)
 	    ("%s: Mapping is not page-sized", __func__));
 
 	vm_offset_t va = sva;
+	pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
 	while (size != 0) {
-		pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("Invalid page table, va: 0x%lx", va));
 
 		pn_t pn = (pa / PAGE_SIZE);
@@ -1036,6 +1036,8 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode __unused)
 		va += PAGE_SIZE;
 		pa += PAGE_SIZE;
 		size -= PAGE_SIZE;
+		if (__is_aligned(++l3, PAGE_SIZE) && size != 0) //wycpull
+			l3 = pmap_l3(kernel_pmap, va);
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
 }
@@ -1071,13 +1073,15 @@ pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 	    ("pmap_kremove_device: Mapping is not page-sized"));
 
 	vm_offset_t va = sva;
+	pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
 	while (size != 0) {
-		pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("Invalid page table, va: 0x%lx", va));
 		pmap_clear(l3);
 
 		va += PAGE_SIZE;
 		size -= PAGE_SIZE;
+		if (__is_aligned(++l3, PAGE_SIZE) && size != 0) //wycpull
+			l3 = pmap_l3(kernel_pmap, va);
 	}
 
 	pmap_invalidate_range(kernel_pmap, sva, va);
@@ -1115,17 +1119,19 @@ void
 pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 {
 	vm_offset_t va = sva;
+	pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
 	for (int i = 0; i < count; i++) {
+		KASSERT(l3 != NULL, ("%s: Invalid address", __func__)); //wycpull
 		vm_page_t m = ma[i];
 		pt_entry_t pa = VM_PAGE_TO_PHYS(m);
 		pn_t pn = (pa / PAGE_SIZE);
-		pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
-		KASSERT(l3 != NULL, ("%s: Invalid address", __func__)); //wycpull
 		pt_entry_t entry = PTE_KERN; // accessed and dirty are both 1
 		entry |= (pn << PTE_PPN0_S);
 		pmap_store(l3, entry);
 
 		va += L3_SIZE;
+		if (__is_aligned(++l3, PAGE_SIZE) && (i + 1) < count) //wycpull
+			l3 = pmap_l3(kernel_pmap, va);
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
 }
@@ -1141,11 +1147,14 @@ pmap_qremove(vm_offset_t sva, int count)
 	vm_offset_t va;
 
 	KASSERT(sva >= VM_MIN_KERNEL_ADDRESS, ("usermode va %lx", sva));
-
-	for (va = sva; count-- > 0; va += PAGE_SIZE) {
-		pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
+	va = sva;
+	pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
+	while (count-- > 0) {
 		KASSERT(l3 != NULL, ("%s: Invalid address", __func__));
 		pmap_clear(l3);
+		va += PAGE_SIZE;
+		if (__is_aligned(++l3, PAGE_SIZE) && (count - 1) > 0) //wycpull
+			l3 = pmap_l3(kernel_pmap, va);
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
 }
@@ -1983,6 +1992,7 @@ pmap_pv_remove(struct md_page *pvl, pmap_t pmap, vm_offset_t va)
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	TAILQ_FOREACH(pv, &pvl->pv_list, pv_next) {
+//if (pmap != PV_PMAP(pv)) panic("%s: wyctest\n", __func__); // test failed
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
 			TAILQ_REMOVE(&pvl->pv_list, pv, pv_next);
 			pvl->pv_gen++;
