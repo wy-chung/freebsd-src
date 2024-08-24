@@ -383,7 +383,7 @@ vm_batchqueue_pop(struct vm_batchqueue *bq)
 
 void vm_domain_set(struct vm_domain *vmd);
 void vm_domain_clear(struct vm_domain *vmd);
-int vm_domain_allocate(struct vm_domain *vmd, int req, int npages);
+bool vm_domain_allocate(struct vm_domain *vmd, int req, int npages);
 
 /*
  *      vm_pagequeue_domain:

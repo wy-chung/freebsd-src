@@ -1958,7 +1958,7 @@ vm_page_alloc_after(vm_object_t object, vm_pindex_t pindex,
  * Returns true if the number of free pages exceeds the minimum
  * for the request class and false otherwise.
  */
-static int
+static bool
 _vm_domain_allocate(struct vm_domain *vmd, int req_class, int npages)
 {
 	u_int limit, old, new;
@@ -1993,7 +1993,7 @@ _vm_domain_allocate(struct vm_domain *vmd, int req_class, int npages)
 	return (1);
 }
 
-int
+bool
 vm_domain_allocate(struct vm_domain *vmd, int req, int npages)
 {
 	int req_class;
@@ -2434,6 +2434,7 @@ vm_page_alloc_freelist_domain(int domain, int freelist, int req)
 	return (_vm_page_alloc_noobj_domain(domain, freelist, req));
 }
 
+//wyc the page allocated will have m->oflags == VPO_UNMANAGED
 vm_page_t
 vm_page_alloc_noobj(int req)
 {

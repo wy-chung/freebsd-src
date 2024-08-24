@@ -1241,6 +1241,7 @@ pmap_remove_l3pt_page(pmap_t pmap, vm_offset_t va)
 static inline bool
 pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mptp /*ori m*/, spglist_t *free)
 {
+if (pmap == kernel_pmap) panic("%s:\n", __func__); // wyctest pass
 	KASSERT(mptp->ref_count > 0,
 	    ("%s: page %p ref count underflow", __func__, mptp));
 
@@ -1427,8 +1428,9 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 
 		vm_pindex_t l0index = ptpindex - (NL3PTP + NL2PTP);
 		pd_entry_t *l0 = &pmap->pm_top[l0index];
-		KASSERT((pmap_load(l0) & PTE_V) == 0,
-		    ("%s: L0 entry %#lx is valid", __func__, pmap_load(l0)));
+		pd_entry_t l0e __diagused = pmap_load(l0);
+		KASSERT((l0e & PTE_V) == 0,
+		    ("%s: L0 entry %#lx is valid", __func__, l0e));
 
 		pt_entry_t entry = PTE_V | (pn << PTE_PPN0_S);
 		pmap_store(l0, entry);
@@ -1442,71 +1444,82 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 			vm_paddr_t phys;
 			vm_pindex_t l0index = l1index >> Ln_ENTRIES_SHIFT;
 			pd_entry_t *l0 = &pmap->pm_top[l0index];
-			if (pmap_load(l0) == 0) {
+			pd_entry_t l0e = pmap_load(l0); //wycpull
+			if (l0e == 0) {
 				/* Recurse to allocate the L1 page. */
 				if (_pmap_alloc_l123(pmap,
 				    NL3PTP + NL2PTP + l0index, lockp) == NULL)
 					goto fail;
-				phys = PTE_TO_PHYS(pmap_load(l0));
+				l0e = pmap_load(l0); // must reload l0e after the recursive call
+				phys = PTE_TO_PHYS(l0e);
 			} else {
-				phys = PTE_TO_PHYS(pmap_load(l0));
+				phys = PTE_TO_PHYS(l0e);
 				vm_page_t pdpg = PHYS_TO_VM_PAGE(phys);
 				pdpg->ref_count++;
 			}
 			pd_entry_t *l1pt = (pd_entry_t *)PHYS_TO_DMAP(phys);
 			l1 = &l1pt[ptpindex & Ln_ADDR_MASK];
 		}
-		KASSERT((pmap_load(l1) & PTE_V) == 0,
-		    ("%s: L1 entry %#lx is valid", __func__, pmap_load(l1)));
+		pd_entry_t l1e __diagused = pmap_load(l1);
+		KASSERT((l1e & PTE_V) == 0,
+		    ("%s: L1 entry %#lx is valid", __func__, l1e));
 
 		pt_entry_t entry = PTE_V | (pn << PTE_PPN0_S);
 		pmap_store(l1, entry);
 		pmap_distribute_l1(pmap, l1index, entry); // do nothing in sv48
 	} else { // L3 pagetable page
 		pd_entry_t *l1;
+		pd_entry_t l1e; //wycpull
 
 		vm_pindex_t l1index = ptpindex >> (L1_SHIFT - L2_SHIFT);
 		if (pmap_mode == PMAP_MODE_SV39) {
 			l1 = &pmap->pm_top[l1index];
-			if (pmap_load(l1) == 0) {
+			l1e = pmap_load(l1);
+			if (l1e == 0) {
 				/* recurse for allocating page dir */
 				if (_pmap_alloc_l123(pmap, NL3PTP + l1index,
 				    lockp) == NULL)
 					goto fail;
+				l1e = pmap_load(l1); // must reload l1e after the recursive call
 			} else {
-				vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l1));
+				vm_paddr_t phys = PTE_TO_PHYS(l1e);
 				vm_page_t pdpg = PHYS_TO_VM_PAGE(phys);
 				pdpg->ref_count++;
 			}
 		} else { // PMAP_MODE_SV48
 			vm_pindex_t l0index = l1index >> Ln_ENTRIES_SHIFT;
 			pd_entry_t *l0 = &pmap->pm_top[l0index];
-			if (pmap_load(l0) == 0) {
+			pd_entry_t l0e = pmap_load(l0); //wycpull
+			if (l0e == 0) {
 				/* Recurse to allocate the L1 entry. */
 				if (_pmap_alloc_l123(pmap, NL3PTP + l1index,
 				    lockp) == NULL)
 					goto fail;
-				vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l0));
+				l0e = pmap_load(l0); // must reload l0e after the recursive call
+				vm_paddr_t phys = PTE_TO_PHYS(l0e);
 				pd_entry_t *l1pt = (pd_entry_t *)PHYS_TO_DMAP(phys);
 				l1 = &l1pt[l1index & Ln_ADDR_MASK];
+				l1e = pmap_load(l1);
 			} else {
-				vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l0));
+				vm_paddr_t phys = PTE_TO_PHYS(l0e);
 				pd_entry_t *l1pt = (pd_entry_t *)PHYS_TO_DMAP(phys);
 				l1 = &l1pt[l1index & Ln_ADDR_MASK];
-				if (pmap_load(l1) == 0) {
+				l1e = pmap_load(l1);
+				if (l1e == 0) {
 					/* Recurse to allocate the L2 page. */
 					if (_pmap_alloc_l123(pmap,
 					    NL3PTP + l1index, lockp) == NULL)
 						goto fail;
+					l1e = pmap_load(l1); // must reload l1e after the recursive call
 				} else {
-					vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l1));
+					vm_paddr_t phys = PTE_TO_PHYS(l1e);
 					vm_page_t pdpg = PHYS_TO_VM_PAGE(phys);
 					pdpg->ref_count++;
 				}
 			}
 		}
 
-		vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l1));
+		vm_paddr_t phys = PTE_TO_PHYS(l1e);
 		pd_entry_t *l2pt = (pd_entry_t *)PHYS_TO_DMAP(phys);
 		pd_entry_t *l2 = &l2pt[ptpindex & Ln_ADDR_MASK];
 		KASSERT((pmap_load(l2) & PTE_V) == 0,
@@ -2335,7 +2348,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva) // ref pmap_remove_pa
 			if (pmap_load(l0) == 0) {
 				va_next = (sva + L0_SIZE) & ~L0_OFFSET;
 				if (va_next < sva)
-					va_next = eva; // continue will cause it to break out of for loop
+					//va_next = eva; // continue will cause it to break out of for loop
+					break; //wyctest
 				continue;
 			}
 			l1 = pmap_l0_to_l1(l0, sva);
@@ -2346,7 +2360,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva) // ref pmap_remove_pa
 		if (pmap_load(l1) == 0) {
 			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
 			if (va_next < sva)
-				va_next = eva; // continue will cause it to break out of for loop
+				//va_next = eva; // continue will cause it to break out of for loop
+				break; //wyctest
 			continue;
 		}
 
@@ -3407,10 +3422,11 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			 * attempt to allocate a page table page.  If this
 			 * attempt fails, we don't retry.  Instead, we give up.
 			 */
-			if (l2 != NULL && pmap_load(l2) != 0) {
-				if ((pmap_load(l2) & PTE_RWX) != 0) // superpage
+			pd_entry_t l2e; //wycpull
+			if (l2 != NULL && (l2e = pmap_load(l2)) != 0) {
+				if ((l2e & PTE_RWX) != 0) // superpage
 					return (NULL);
-				vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l2));
+				vm_paddr_t phys = PTE_TO_PHYS(l2e);
 				mptp = PHYS_TO_VM_PAGE(phys);
 				mptp->ref_count++;
 			} else {
@@ -3427,6 +3443,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		l3 = &l3pt[pmap_l3_index(va)];
 	} else {
 if (pmap != kernel_pmap) panic("%s: wyctest\n", __func__);
+if (mptp != NULL) panic("%s:wyctest\n", __func__);
 		mptp = NULL;
 		l3 = pmap_l3(kernel_pmap, va);
 		if (l3 == NULL)
