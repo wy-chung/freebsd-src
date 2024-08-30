@@ -375,7 +375,7 @@ struct vm_page {
  * attempting to tear down all mappings of a given page.  The page busy lock and
  * object write lock must both be held in order to set or clear this bit.
  *
- * VPRC_OBJREF is the reference held by the containing object.  It can be set or //wycpull
+ * VPRC_OBJREF is the reference held by the containing object.  It can *be* set or //wycpull
  * cleared only when the corresponding object's write lock is held.
  */
 #define	VPRC_BLOCKED	0x40000000u	/* mappings are being removed */

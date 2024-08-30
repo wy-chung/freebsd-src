@@ -1121,7 +1121,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 	vm_offset_t va = sva;
 	pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
 	for (int i = 0; i < count; i++) {
-		KASSERT(l3 != NULL, ("%s: Invalid address", __func__)); //wycpull
+		KASSERT(l3 != NULL, ("%s: Invalid address", __func__));
 		vm_page_t m = ma[i];
 		pt_entry_t pa = VM_PAGE_TO_PHYS(m);
 		pn_t pn = (pa / PAGE_SIZE);
@@ -1450,7 +1450,8 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 				if (_pmap_alloc_l123(pmap,
 				    NL3PTP + NL2PTP + l0index, lockp) == NULL)
 					goto fail;
-				l0e = pmap_load(l0); // must reload l0e after the recursive call
+				// must reload l0e after the recursive call
+				l0e = pmap_load(l0);
 				phys = PTE_TO_PHYS(l0e);
 			} else {
 				phys = PTE_TO_PHYS(l0e);
@@ -1480,7 +1481,8 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 				if (_pmap_alloc_l123(pmap, NL3PTP + l1index,
 				    lockp) == NULL)
 					goto fail;
-				l1e = pmap_load(l1); // must reload l1e after the recursive call
+				// must reload l1e after the recursive call
+				l1e = pmap_load(l1);
 			} else {
 				vm_paddr_t phys = PTE_TO_PHYS(l1e);
 				vm_page_t pdpg = PHYS_TO_VM_PAGE(phys);
@@ -1495,7 +1497,8 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 				if (_pmap_alloc_l123(pmap, NL3PTP + l1index,
 				    lockp) == NULL)
 					goto fail;
-				l0e = pmap_load(l0); // must reload l0e after the recursive call
+				// must reload l0e after the recursive call
+				l0e = pmap_load(l0);
 				vm_paddr_t phys = PTE_TO_PHYS(l0e);
 				pd_entry_t *l1pt = (pd_entry_t *)PHYS_TO_DMAP(phys);
 				l1 = &l1pt[l1index & Ln_ADDR_MASK];
@@ -1510,7 +1513,8 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 					if (_pmap_alloc_l123(pmap,
 					    NL3PTP + l1index, lockp) == NULL)
 						goto fail;
-					l1e = pmap_load(l1); // must reload l1e after the recursive call
+					// must reload l1e after the recursive call
+					l1e = pmap_load(l1);
 				} else {
 					vm_paddr_t phys = PTE_TO_PHYS(l1e);
 					vm_page_t pdpg = PHYS_TO_VM_PAGE(phys);
@@ -1552,7 +1556,7 @@ retry:;
 		/* Add a reference to the L2 page. */
 		mptp = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l1)));
 		mptp->ref_count++;
-	} else { //wyc if the l2 pagetable page has been deallocated
+	} else { //wyc if the l2 pagetable page does not exist
 		/* Allocate a L2 page. */
 		vm_pindex_t l2pindex = pmap_l2_pindex(va);
 		mptp = _pmap_alloc_l123(pmap, l2pindex, lockp);
@@ -1661,7 +1665,7 @@ pmap_growkernel(vm_offset_t addr)
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (nkpg == NULL)
 				panic("%s: no memory to grow kernel", __func__);
-			nkpg->pindex = pmap_l2_pindex(kernel_vm_end); //wycpull kernel_vm_end >> L1_SHIFT;
+			nkpg->pindex = pmap_l2_pindex(kernel_vm_end); //wycpull ori: kernel_vm_end >> L1_SHIFT;
 			vm_paddr_t paddr = VM_PAGE_TO_PHYS(nkpg);
 
 			pn_t pn = (paddr / PAGE_SIZE);
@@ -1686,7 +1690,7 @@ pmap_growkernel(vm_offset_t addr)
 		    VM_ALLOC_ZERO);
 		if (nkpg == NULL)
 			panic("%s: no memory to grow kernel", __func__);
-		nkpg->pindex = pmap_l3_pindex(kernel_vm_end); //wycpull kernel_vm_end >> L2_SHIFT;
+		nkpg->pindex = pmap_l3_pindex(kernel_vm_end); //wycpull ori: kernel_vm_end >> L2_SHIFT;
 		vm_paddr_t paddr = VM_PAGE_TO_PHYS(nkpg);
 
 		pn_t pn = (paddr / PAGE_SIZE);
@@ -3812,7 +3816,8 @@ restart:;
 			}
 		}
 		pd_entry_t *l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //wycpull assert pointing to page table
+		//wycpull (l2 != NULL)
+		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		pt_entry_t *l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		if ((pmap_load(l3) & PTE_SW_WIRED) != 0)
@@ -4113,7 +4118,8 @@ restart:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //wycpull assert pointing to page table
+		//wycpull (l2 != NULL)
+		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		rv = (pmap_load(l3) & mask) == mask;
@@ -4276,7 +4282,8 @@ retry_pv_loop:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //wycpull assert pointing to page table
+		//wycpull (l2 != NULL)
+		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		oldl3e = pmap_load(l3);
@@ -4312,6 +4319,7 @@ retry:
  *	dirty pages.  Those dirty pages will only be detected by a future call
  *	to pmap_is_modified().
  */
+// hash using physical address, virtual address and pmap address
 static inline unsigned hash_pvp(vm_paddr_t pa, vm_offset_t va, uintptr_t pmap) //wyc added
 {
 	return ((pa >> PAGE_SHIFT) ^ (va >> L2_SHIFT) ^ pmap) &
@@ -4420,7 +4428,8 @@ small_mappings:
 			}
 		}
 		pd_entry_t *l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //wycpull  //ori PTE_RX
+		//wycpull (l2 != NULL)
+		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //ori PTE_RX
 		    ("%s: found an invalid l2 table", __func__));
 		pt_entry_t *l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		pt_entry_t l3e = pmap_load(l3);
@@ -4532,7 +4541,8 @@ restart:
 			}
 		}
 		pd_entry_t *l2 = pmap_l2(pmap, pv->pv_va);
-		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //wycpull assert pointing to page table
+		//wycpull (l2 != NULL)
+		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		pt_entry_t *l3 = pmap_l2_to_l3(l2, pv->pv_va);
 		if ((pmap_load(l3) & (PTE_D | PTE_W)) == (PTE_D | PTE_W)) {
