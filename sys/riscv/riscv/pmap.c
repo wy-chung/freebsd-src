@@ -1281,7 +1281,6 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mptp /*ori m*/, spglist_
 		pmap_unwire_ptp(pmap, va, l2pt_m, free);
 	} else if (mptp->pindex < NL3PTP + NL2PTP && // a L2PTP
 		   pmap_mode != PMAP_MODE_SV39) {
-		//MPASS(pmap_mode != PMAP_MODE_SV39); //wycpull
 		pd_entry_t *l0 = pmap_l0(pmap, va);
 		vm_paddr_t l1pt_phys = PTE_TO_PHYS(pmap_load(l0));
 		vm_page_t  l1pt_m = PHYS_TO_VM_PAGE(l1pt_phys);
@@ -1450,7 +1449,7 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 				if (_pmap_alloc_l123(pmap,
 				    NL3PTP + NL2PTP + l0index, lockp) == NULL)
 					goto fail;
-				// must reload l0e after the recursive call
+				// reload l0e after the recursive call
 				l0e = pmap_load(l0);
 				phys = PTE_TO_PHYS(l0e);
 			} else {
@@ -1481,7 +1480,7 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 				if (_pmap_alloc_l123(pmap, NL3PTP + l1index,
 				    lockp) == NULL)
 					goto fail;
-				// must reload l1e after the recursive call
+				// reload l1e after the recursive call
 				l1e = pmap_load(l1);
 			} else {
 				vm_paddr_t phys = PTE_TO_PHYS(l1e);
@@ -1497,7 +1496,7 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 				if (_pmap_alloc_l123(pmap, NL3PTP + l1index,
 				    lockp) == NULL)
 					goto fail;
-				// must reload l0e after the recursive call
+				// reload l0e after the recursive call
 				l0e = pmap_load(l0);
 				vm_paddr_t phys = PTE_TO_PHYS(l0e);
 				pd_entry_t *l1pt = (pd_entry_t *)PHYS_TO_DMAP(phys);
@@ -1513,7 +1512,7 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 					if (_pmap_alloc_l123(pmap,
 					    NL3PTP + l1index, lockp) == NULL)
 						goto fail;
-					// must reload l1e after the recursive call
+					// reload l1e after the recursive call
 					l1e = pmap_load(l1);
 				} else {
 					vm_paddr_t phys = PTE_TO_PHYS(l1e);
