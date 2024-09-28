@@ -1036,7 +1036,7 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode __unused)
 		va += PAGE_SIZE;
 		pa += PAGE_SIZE;
 		size -= PAGE_SIZE;
-		if (__is_aligned(++l3, PAGE_SIZE) && size != 0) //wycpull
+		if (__is_aligned(++l3, PAGE_SIZE) && size != 0) //wyc pull
 			l3 = pmap_l3(kernel_pmap, va);
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
@@ -1080,7 +1080,7 @@ pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 
 		va += PAGE_SIZE;
 		size -= PAGE_SIZE;
-		if (__is_aligned(++l3, PAGE_SIZE) && size != 0) //wycpull
+		if (__is_aligned(++l3, PAGE_SIZE) && size != 0) //wyc pull
 			l3 = pmap_l3(kernel_pmap, va);
 	}
 
@@ -1130,7 +1130,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		pmap_store(l3, entry);
 
 		va += L3_SIZE;
-		if (__is_aligned(++l3, PAGE_SIZE) && (i + 1) < count) //wycpull
+		if (__is_aligned(++l3, PAGE_SIZE) && (i + 1) < count) //wyc pull
 			l3 = pmap_l3(kernel_pmap, va);
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
@@ -1153,7 +1153,7 @@ pmap_qremove(vm_offset_t sva, int count)
 		KASSERT(l3 != NULL, ("%s: Invalid address", __func__));
 		pmap_clear(l3);
 		va += PAGE_SIZE;
-		if (__is_aligned(++l3, PAGE_SIZE) && (count - 1) > 0) //wycpull
+		if (__is_aligned(++l3, PAGE_SIZE) && (count - 1) > 0) //wyc pull
 			l3 = pmap_l3(kernel_pmap, va);
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
@@ -2871,9 +2871,9 @@ printf("**** %s success\n", __func__); //wyctest
 #endif
 
 /*
- *	Insert the given physical page @m at
- *	the specified virtual address @va in the
- *	target physical map @pmap with the protection requested.
+ *	Insert the given physical page %m at
+ *	the specified virtual address %va in the
+ *	target physical map %pmap with the protection requested.
  *
  *	If PMAP_ENTER_WIRED specified, the page will be wired down, meaning
  *	that the related pte can not be reclaimed.
@@ -2898,7 +2898,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l3e |= PTE_W;
 	if (prot & VM_PROT_EXECUTE)
 		new_l3e |= PTE_X;
-	if (flags & VM_PROT_WRITE) // A write access to the given virtual address triggered the call
+	if (flags & VM_PROT_WRITE) // This is a write access to the given %va
 		new_l3e |= PTE_D;
 	if ((flags & PMAP_ENTER_WIRED) != 0) // The mapping should be marked as wired
 		new_l3e |= PTE_SW_WIRED;
@@ -2923,7 +2923,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	struct rwlock *lock = NULL;
 	rw_rlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
-	if (psind == 1) {
+	if (psind == 1) { // 1 means superpage
 		/* Assert the required virtual and physical alignment. */
 		KASSERT((va & L2_OFFSET) == 0,
 		    ("%s: va %#lx unaligned", __func__, va));
@@ -3187,7 +3187,7 @@ pmap_every_pte_zero(vm_paddr_t pa)
       (1) PMAP_ENTER_NOSLEEP was specified and a page table page allocation failed or
       (2) PMAP_ENTER_NORECLAIM was specified and a PV entry allocation failed.
 
-  The parameter "m" is only used when creating a managed, writeable mapping.
+  The parameter %m is only used when creating a managed, writeable mapping.
  */
 static int
 pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
@@ -3425,7 +3425,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			 * attempt to allocate a page table page.  If this
 			 * attempt fails, we don't retry.  Instead, we give up.
 			 */
-			pd_entry_t l2e; //wycpull
+			pd_entry_t l2e; //wyc pull
 			if (l2 != NULL && (l2e = pmap_load(l2)) != 0) {
 				if ((l2e & PTE_RWX) != 0) // superpage
 					return (NULL);
@@ -3815,7 +3815,7 @@ restart:;
 			}
 		}
 		pd_entry_t *l2 = pmap_l2(pmap, pv->pv_va);
-		//wycpull (l2 != NULL)
+		//wyc pull (l2 != NULL)
 		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		pt_entry_t *l3 = pmap_l2_to_l3(l2, pv->pv_va);
@@ -4117,7 +4117,7 @@ restart:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-		//wycpull (l2 != NULL)
+		//wyc pull (l2 != NULL)
 		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
@@ -4281,7 +4281,7 @@ retry_pv_loop:
 			}
 		}
 		l2 = pmap_l2(pmap, pv->pv_va);
-		//wycpull (l2 != NULL)
+		//wyc pull (l2 != NULL)
 		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		l3 = pmap_l2_to_l3(l2, pv->pv_va);
@@ -4427,7 +4427,7 @@ small_mappings:
 			}
 		}
 		pd_entry_t *l2 = pmap_l2(pmap, pv->pv_va);
-		//wycpull (l2 != NULL)
+		//wyc pull (l2 != NULL)
 		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, //ori PTE_RX
 		    ("%s: found an invalid l2 table", __func__));
 		pt_entry_t *l3 = pmap_l2_to_l3(l2, pv->pv_va);
@@ -4540,7 +4540,7 @@ restart:
 			}
 		}
 		pd_entry_t *l2 = pmap_l2(pmap, pv->pv_va);
-		//wycpull (l2 != NULL)
+		//wyc pull (l2 != NULL)
 		KASSERT(l2 != NULL && (pmap_load(l2) & PTE_RWX) == 0, // assert pointing to page table
 		    ("%s: found a 2mpage in page %p's pv list", __func__, m));
 		pt_entry_t *l3 = pmap_l2_to_l3(l2, pv->pv_va);
@@ -4928,7 +4928,7 @@ if (pmap != kernel_pmap) panic("%s: wyctest\n", __func__); // tested. the @pmap 
 	pd_entry_t *l2p = pmap_l1_to_l2(l1p, va);
 	*l2 = l2p;
 
-	if (/*l2p == NULL || */(pmap_load(l2p) & PTE_V) == 0) //wycpull
+	if (/*l2p == NULL || */(pmap_load(l2p) & PTE_V) == 0) //wyc pull
 		return (false);
 
 	if ((pmap_load(l2p) & PTE_RWX) != 0) { //ori PTE_RX
