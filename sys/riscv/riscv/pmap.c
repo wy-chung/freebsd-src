@@ -186,6 +186,7 @@
 #define	pa_to_pvh(pa)		(&pvh_table[pa_index(pa)])
 
 #define	NPV_LIST_LOCKS	MAXCPU
+
 #if !defined(WYC)
 #define	PHYS_TO_PV_LIST_LOCK(pa)	\
 			(&pv_list_locks[pmap_l3_pindex(pa) % NPV_LIST_LOCKS])
@@ -223,29 +224,31 @@ struct rwlock *PHYS_TO_PV_LIST_LOCK(vm_paddr_t pa)
 	return &pv_list_locks[pmap_l3_pindex(pa) % NPV_LIST_LOCKS];
 }
 
-void CHANGE_PV_LIST_LOCK_TO_PHYS(struct rwlock **_lockp, vm_paddr_t pa)
+// *%lockp might be changed by this function
+void CHANGE_PV_LIST_LOCK_TO_PHYS(struct rwlock **lockp/*IN/OUT*/, vm_paddr_t pa)
 {
 	struct rwlock *_new_lock;
 
 	_new_lock = PHYS_TO_PV_LIST_LOCK(pa);
-	if (_new_lock != *_lockp) {
-		if (*_lockp != NULL)
-			rw_wunlock(*_lockp);
-		*_lockp = _new_lock;
-		rw_wlock(*_lockp);
+	if (_new_lock != *lockp) {
+		if (*lockp != NULL)
+			rw_wunlock(*lockp);
+		*lockp = _new_lock;
+		rw_wlock(*lockp);
 	}
 }
 
-void CHANGE_PV_LIST_LOCK_TO_VM_PAGE(struct rwlock **lockp, vm_page_t m)
+// *%lockp might be changed by this function
+void CHANGE_PV_LIST_LOCK_TO_VM_PAGE(struct rwlock **lockp/*IN/OUT*/, vm_page_t m)
 {
 	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, VM_PAGE_TO_PHYS(m));
 }
 
-void RELEASE_PV_LIST_LOCK(struct rwlock **_lockp)
+void RELEASE_PV_LIST_LOCK(struct rwlock **lockp)
 {
-	if (*_lockp != NULL) {
-		rw_wunlock(*_lockp);
-		*_lockp = NULL;
+	if (*lockp != NULL) {
+		rw_wunlock(*lockp);
+		*lockp = NULL;
 	}
 }
 
@@ -254,6 +257,7 @@ struct rwlock *VM_PAGE_TO_PV_LIST_LOCK(vm_page_t m)
 	return PHYS_TO_PV_LIST_LOCK(VM_PAGE_TO_PHYS(m));
 }
 #endif // defined(WYC)
+
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VM/pmap parameters");
 
@@ -1390,6 +1394,8 @@ pmap_pinit(pmap_t pmap)
 static vm_page_t // ori: _pmap_alloc_l3
 _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 {
+//if (lockp == NULL) panic("%s: lockp == NULL\n", __func__); //wyctest failed
+if (lockp != NULL && *lockp != NULL) panic("%s: *lockp != NULL\n", __func__); //wyctest *lockp is always NULL
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/*
@@ -2057,7 +2063,7 @@ if (pmap == kernel_pmap) panic("%s: wyctest\n", __func__);
 	/* Pass NULL instead of the lock pointer to disable reclamation. */
 	if ((pv = get_pv_entry(pmap, NULL)) != NULL) {
 		pv->pv_va = va;
-		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
+		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m); // *lockp might be changed by this function
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
 		return (true);
@@ -2075,7 +2081,7 @@ pmap_pv_demote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa, struct rwlock **lo
 {
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
+	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa); // *lockp might be changed by this function
 
 	/*
 	 * Transfer the 2mpage's pv entry for this mapping to the first
@@ -2148,7 +2154,7 @@ pmap_pv_promote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 	KASSERT((pa & L2_OFFSET) == 0,
 	    ("%s: misaligned pa %#lx", __func__, pa));
 
-	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
+	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa); // *lockp might be changed by this function
 
 	vm_page_t m = PHYS_TO_VM_PAGE(pa);
 	va = va & ~L2_OFFSET;
@@ -2190,7 +2196,7 @@ pmap_pv_insert_l2(pmap_t pmap, vm_offset_t va, pd_entry_t l2e, u_int flags,
 		return (false);
 	pv->pv_va = va;
 	pa = PTE_TO_PHYS(l2e);
-	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa);
+	CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, pa); // *lockp might be changed by this function
 	pvh = pa_to_pvh(pa);
 	TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
 	pvh->pv_gen++;
@@ -2252,7 +2258,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 		pmap->pm_stats.wired_count -= L2_SIZE / PAGE_SIZE;
 	pmap_resident_count_dec(pmap, L2_SIZE / PAGE_SIZE);
 	if (oldl2e & PTE_SW_MANAGED) {
-		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, PTE_TO_PHYS(oldl2e));
+		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, PTE_TO_PHYS(oldl2e)); // *lockp might be changed by this function
 		struct md_page *pvh = pa_to_pvh(PTE_TO_PHYS(oldl2e));
 		pmap_pvh_free(pvh, pmap, sva);
 		vm_offset_t eva = sva + L2_SIZE;
@@ -2307,7 +2313,7 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 			vm_page_dirty(m);
 		if (old_l3e & PTE_A)
 			vm_page_aflag_set(m, PGA_REFERENCED);
-		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m);
+		CHANGE_PV_LIST_LOCK_TO_VM_PAGE(lockp, m); // *lockp might be changed by this function
 		pmap_pv_free(&m->md, pmap, va);
 		if (TAILQ_EMPTY(&m->md.pv_list) &&
 		    (m->flags & PG_FICTITIOUS) == 0) {
@@ -3059,7 +3065,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				vm_page_dirty(om);
 			if ((orig_l3e & PTE_A) != 0)
 				vm_page_aflag_set(om, PGA_REFERENCED);
-			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, orig_pa);
+			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, orig_pa); // lock might be changed by this function
 			pv = pmap_pv_remove(&om->md, pmap, va);
 			KASSERT(pv != NULL, ("%s: no PV entry for %#lx", __func__, va));
 			if (!(new_l3e & PTE_SW_MANAGED))
@@ -3088,7 +3094,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			pv = get_pv_entry(pmap, &lock);
 			pv->pv_va = va;
 		}
-		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
+		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa); // lock might be changed by this function
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
 		if ((new_l3e & PTE_W) != 0)
@@ -3989,7 +3995,7 @@ pmap_remove_pages(pmap_t pmap) // ref pmap_remove()
 					vm_page_dirty(m);
 			}
 
-			CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
+			CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m); // lock might be changed by this function
 
 			// remove pv and insert it into free list
 			pmap_remove_pages_pv(pmap, m, pv, &free, superpage);
@@ -4057,7 +4063,7 @@ panic("%s: wyctest\n", __func__); // tested. never runs here
 						vm_page_dirty(m);
 				}
 
-				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m);
+				CHANGE_PV_LIST_LOCK_TO_VM_PAGE(&lock, m); // lock might be changed by this function
 
 				pmap_remove_pages_pv(pmap, m, pv, &free, superpage);
 				pmap_unuse_pt(pmap, pv->pv_va, lme, &free);
