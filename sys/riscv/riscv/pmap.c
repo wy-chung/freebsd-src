@@ -1214,7 +1214,7 @@ pmap_insert_l3pt_page(pmap_t pmap, vm_page_t mptp, bool promoted, bool all_l3e_P
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(promoted || !all_l3e_PTE_A_set,
 	    ("a zero-filled PTP can't have PTE_A set in every PTE"));
-//WYCASSERT(mptp->pindex < NL3PTP); // tested. always l3 ptp
+//WYC_ASSERT(mptp->pindex < NL3PTP); // tested. always l3 ptp
 	mptp->valid = promoted ? (all_l3e_PTE_A_set ? VM_PAGE_BITS_ALL : 1) : 0;
 	return (vm_radix_insert(&pmap->pm_root, mptp)); // returns ENOMEM or ESUCCESS
 }
@@ -1245,7 +1245,7 @@ pmap_remove_l3pt_page(pmap_t pmap, vm_offset_t va)
 static inline bool
 pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mptp /*ori m*/, spglist_t *free)
 {
-//WYCASSERT(pmap != kernel_pmap); // tested
+//WYC_ASSERT(pmap != kernel_pmap); // tested
 	KASSERT(mptp->ref_count > 0,
 	    ("%s: page %p ref count underflow", __func__, mptp));
 
@@ -1394,7 +1394,7 @@ pmap_pinit(pmap_t pmap)
 static vm_page_t // ori: _pmap_alloc_l3
 _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 {
-//WYCASSERT(lockp == NULL || *lockp == NULL); // tested *lockp is always NULL
+//WYC_ASSERT(lockp == NULL || *lockp == NULL); // tested *lockp is always NULL
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/*
@@ -2056,7 +2056,7 @@ static bool
 pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct rwlock **lockp)
 {
-//WYCASSERT(pmap != kernel_pmap); // tested
+//WYC_ASSERT(pmap != kernel_pmap); // tested
 	pv_entry_t pv;
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
@@ -2893,7 +2893,7 @@ int
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     u_int flags, int8_t psind)
 {
-//WYCASSERT((va & PAGE_MASK) == 0); // tested: always page aligned
+//WYC_ASSERT((va & PAGE_MASK) == 0); // tested: always page aligned
 	va = trunc_page(va);
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		VM_PAGE_OBJECT_BUSY_ASSERT(m);
@@ -3452,9 +3452,9 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pt_entry_t *l3pt = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mptp));
 		l3 = &l3pt[pmap_l3_index(va)];
 	} else {
-//WYCASSERT(pmap == kernel_pmap); // tested
-//WYCASSERT(mptp == NULL); // tested
-//WYCASSERT(m->oflags & VPO_UNMANAGED); // tested
+//WYC_ASSERT(pmap == kernel_pmap); // tested
+//WYC_ASSERT(mptp == NULL); // tested
+//WYC_ASSERT(m->oflags & VPO_UNMANAGED); // tested
 		mptp = NULL;
 		l3 = pmap_l3(kernel_pmap, va);
 		if (l3 == NULL)
@@ -4919,7 +4919,7 @@ bool
 pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
     pt_entry_t **l3)
 {
-//WYCASSERT(pmap == kernel_pmap); // tested. the @pmap is always kernel_pmap
+//WYC_ASSERT(pmap == kernel_pmap); // tested. the @pmap is always kernel_pmap
 	/* Get l1 directory entry. */
 	pd_entry_t *l1p = pmap_l1(pmap, va);
 	*l1 = l1p;
