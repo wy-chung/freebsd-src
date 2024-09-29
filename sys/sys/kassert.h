@@ -139,6 +139,7 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #define MPASS4(ex, what, file, line)					\
 	KASSERT((ex), ("Assertion %s failed at %s:%d", what, file, line))
 
+#define WYCASSERT(exp) if (__predict_false(!(exp))) panic("Assertion \"%s\" failed at %s:%d", #exp, __FILE__, __LINE__);					\
 /*
  * Assert that a pointer can be loaded from memory atomically.
  *

@@ -1214,7 +1214,7 @@ pmap_insert_l3pt_page(pmap_t pmap, vm_page_t mptp, bool promoted, bool all_l3e_P
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(promoted || !all_l3e_PTE_A_set,
 	    ("a zero-filled PTP can't have PTE_A set in every PTE"));
-//if (mptp->pindex >= NL3PTP) panic("%s: wyctest\n", __func__); // tested. always l3 ptp
+//WYCASSERT(mptp->pindex < NL3PTP); // tested. always l3 ptp
 	mptp->valid = promoted ? (all_l3e_PTE_A_set ? VM_PAGE_BITS_ALL : 1) : 0;
 	return (vm_radix_insert(&pmap->pm_root, mptp)); // returns ENOMEM or ESUCCESS
 }
@@ -1245,7 +1245,7 @@ pmap_remove_l3pt_page(pmap_t pmap, vm_offset_t va)
 static inline bool
 pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mptp /*ori m*/, spglist_t *free)
 {
-if (pmap == kernel_pmap) panic("%s:\n", __func__); // wyctest pass
+//WYCASSERT(pmap != kernel_pmap); // tested
 	KASSERT(mptp->ref_count > 0,
 	    ("%s: page %p ref count underflow", __func__, mptp));
 
@@ -1394,8 +1394,7 @@ pmap_pinit(pmap_t pmap)
 static vm_page_t // ori: _pmap_alloc_l3
 _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 {
-//if (lockp == NULL) panic("%s: lockp == NULL\n", __func__); //wyctest failed
-if (lockp != NULL && *lockp != NULL) panic("%s: *lockp != NULL\n", __func__); //wyctest *lockp is always NULL
+//WYCASSERT(lockp == NULL || *lockp == NULL); // tested *lockp is always NULL
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/*
@@ -1553,13 +1552,14 @@ pmap_alloc_l2(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
 {
 retry:;
 	pd_entry_t *l1 = pmap_l1(pmap, va);
+	pd_entry_t l1e; //wyc pull
 	vm_page_t mptp;
-	if (l1 != NULL && (pmap_load(l1) & PTE_V) != 0) {
-		KASSERT((pmap_load(l1) & PTE_RWX) == 0, // point to l2 page table
+	if (l1 != NULL && ((l1e = pmap_load(l1)) & PTE_V) != 0) {
+		KASSERT((l1e & PTE_RWX) == 0, // point to l2 page table
 		    ("%s: L1 entry %#lx for VA %#lx is a leaf", __func__,
-		    pmap_load(l1), va));
+		    l1e, va));
 		/* Add a reference to the L2 page. */
-		mptp = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l1)));
+		mptp = PHYS_TO_VM_PAGE(PTE_TO_PHYS(l1e));
 		mptp->ref_count++;
 	} else { //wyc if the l2 pagetable page does not exist
 		/* Allocate a L2 page. */
@@ -1576,13 +1576,14 @@ pmap_alloc_l3(pmap_t pmap, vm_offset_t va, struct rwlock **lockp)
 {
 retry:;
 	pd_entry_t *l2 = pmap_l2(pmap, va); // Get the page directory entry
+	pd_entry_t l2e; //wyc pull
 	vm_page_t mptp;
-	if (l2 != NULL && pmap_load(l2) != 0) {
+	if (l2 != NULL && (l2e = pmap_load(l2)) != 0) {
 		/*
 		 * If the page table page is mapped, we just increment the
 		 * hold count, and activate it.
 		 */
-		vm_paddr_t phys = PTE_TO_PHYS(pmap_load(l2));
+		vm_paddr_t phys = PTE_TO_PHYS(l2e);
 		mptp = PHYS_TO_VM_PAGE(phys);
 		mptp->ref_count++;
 	} else { //wyc if the l3 pagetable page has been deallocated
@@ -2055,7 +2056,7 @@ static bool
 pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct rwlock **lockp)
 {
-if (pmap == kernel_pmap) panic("%s: wyctest\n", __func__);
+//WYCASSERT(pmap != kernel_pmap); // tested
 	pv_entry_t pv;
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
@@ -2892,7 +2893,7 @@ int
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     u_int flags, int8_t psind)
 {
-//if ((va & PAGE_MASK) != 0) panic("%s: wyctest\n", __func__); // tested: always page aligned
+//WYCASSERT((va & PAGE_MASK) == 0); // tested: always page aligned
 	va = trunc_page(va);
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		VM_PAGE_OBJECT_BUSY_ASSERT(m);
@@ -3443,7 +3444,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 				 * Pass NULL instead of the PV list lock
 				 * pointer, because we don't intend to sleep.
 				 */
-				mptp = _pmap_alloc_l123(pmap, l3pindex, NULL);
+				mptp = _pmap_alloc_l123(pmap, l3pindex, NULL); // NULL means no sleep
 				if (mptp == NULL)
 					return (NULL);
 			}
@@ -3451,13 +3452,15 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pt_entry_t *l3pt = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mptp));
 		l3 = &l3pt[pmap_l3_index(va)];
 	} else {
-if (pmap != kernel_pmap) panic("%s: wyctest\n", __func__);
-if (mptp != NULL) panic("%s:wyctest\n", __func__);
+//WYCASSERT(pmap == kernel_pmap); // tested
+//WYCASSERT(mptp == NULL); // tested
+//WYCASSERT(m->oflags & VPO_UNMANAGED); // tested
 		mptp = NULL;
 		l3 = pmap_l3(kernel_pmap, va);
 		if (l3 == NULL)
 			panic("%s: No l3", __func__);
 	}
+
 	if (pmap_load(l3) != 0) {
 		if (mptp != NULL)
 			mptp->ref_count--;
@@ -4916,7 +4919,7 @@ bool
 pmap_get_tables(pmap_t pmap, vm_offset_t va, pd_entry_t **l1, pd_entry_t **l2,
     pt_entry_t **l3)
 {
-if (pmap != kernel_pmap) panic("%s: wyctest\n", __func__); // tested. the @pmap is always kernel_pmap
+//WYCASSERT(pmap == kernel_pmap); // tested. the @pmap is always kernel_pmap
 	/* Get l1 directory entry. */
 	pd_entry_t *l1p = pmap_l1(pmap, va);
 	*l1 = l1p;

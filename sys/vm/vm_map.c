@@ -332,7 +332,7 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
 	KASSERT(vm->vm_map.pmap == NULL, ("vm_map.pmap must be NULL"));
-if (pinit != pmap_pinit) panic("%s: wyctest", __func__); // tested
+//WYCASSERT(pinit == pmap_pinit); // tested
 #if 1 //wyc
 	ret = pinit(vmspace_pmap(vm));
  #if defined(WYC)
