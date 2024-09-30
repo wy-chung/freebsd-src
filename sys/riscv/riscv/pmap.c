@@ -2259,6 +2259,7 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 		pmap->pm_stats.wired_count -= L2_SIZE / PAGE_SIZE;
 	pmap_resident_count_dec(pmap, L2_SIZE / PAGE_SIZE);
 	if (oldl2e & PTE_SW_MANAGED) {
+//WYC_ASSERT(pmap != kernel_pmap); // tested pass
 		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, PTE_TO_PHYS(oldl2e)); // *lockp might be changed by this function
 		struct md_page *pvh = pa_to_pvh(PTE_TO_PHYS(oldl2e));
 		pmap_pvh_free(pvh, pmap, sva);
@@ -2274,6 +2275,8 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 				vm_page_aflag_clear(m, PGA_WRITEABLE);
 		}
 	}
+//else WYC_ASSERT(pmap == kernel_pmap); // tested pass
+
 	if (pmap == kernel_pmap) {
 		pmap_remove_kernel_l2(l2, sva);
 	} else {
@@ -2308,6 +2311,7 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 		pmap->pm_stats.wired_count -= 1;
 	pmap_resident_count_dec(pmap, 1);
 	if (old_l3e & PTE_SW_MANAGED) {
+//WYC_ASSERT(pmap != kernel_pmap); // tested failed
 		vm_paddr_t phys = PTE_TO_PHYS(old_l3e);
 		vm_page_t m = PHYS_TO_VM_PAGE(phys);
 		if (old_l3e & PTE_D)
@@ -2323,6 +2327,7 @@ pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va,
 				vm_page_aflag_clear(m, PGA_WRITEABLE);
 		}
 	}
+//else WYC_ASSERT(pmap == kernel_pmap); // tested failed
 
 	return (pmap_unuse_pt(pmap, va, l2e, free));
 }
@@ -3398,7 +3403,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 
 static vm_page_t
 pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
-    vm_prot_t prot, vm_page_t mptp, struct rwlock **lockp)
+    vm_prot_t prot, vm_page_t mptp, struct rwlock **lockp) // *lockp is the PV list lock
 {
 	KASSERT(!VA_IS_CLEANMAP(va) ||
 	    (m->oflags & VPO_UNMANAGED) != 0,
@@ -3414,6 +3419,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	pd_entry_t *l2 = NULL;
 	pt_entry_t *l3;
 	if (va < VM_MAXUSER_ADDRESS) {
+//WYC_ASSERT(!(m->oflags & VPO_UNMANAGED)); // tested
 		/*
 		 * Calculate pagetable page index
 		 */
@@ -3436,8 +3442,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 			if (l2 != NULL && (l2e = pmap_load(l2)) != 0) {
 				if ((l2e & PTE_RWX) != 0) // superpage
 					return (NULL);
-				vm_paddr_t phys = PTE_TO_PHYS(l2e);
-				mptp = PHYS_TO_VM_PAGE(phys);
+				mptp = PHYS_TO_VM_PAGE(PTE_TO_PHYS(l2e));
 				mptp->ref_count++;
 			} else {
 				/*
@@ -3452,9 +3457,9 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pt_entry_t *l3pt = (pt_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mptp));
 		l3 = &l3pt[pmap_l3_index(va)];
 	} else {
+//WYC_ASSERT(m->oflags & VPO_UNMANAGED); // tested
 //WYC_ASSERT(pmap == kernel_pmap); // tested
 //WYC_ASSERT(mptp == NULL); // tested
-//WYC_ASSERT(m->oflags & VPO_UNMANAGED); // tested
 		mptp = NULL;
 		l3 = pmap_l3(kernel_pmap, va);
 		if (l3 == NULL)
