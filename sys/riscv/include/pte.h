@@ -78,7 +78,7 @@ typedef	uint64_t	pn_t;			/* page number */
 #define	PTE_D		(1 << 7) /* Dirty */
 /* Bits 9:8 are reserved for software */
 #define	PTE_SW_WIRED	(1 << 8)
-#define	PTE_SW_MANAGED	(1 << 9)	// manage pv entry, PTE_A and PTE_D
+#define	PTE_SW_MANAGED	(1 << 9)	// manage pv entry, PTE_A, PTE_D, PGA_WRITEABLE
 #define	PTE_PPN0_S	10 // starting at bit 10
 #define	PTE_PPN1_S	19 // bit 19
 //#define	PTE_PPN2_S	28 // bit 28

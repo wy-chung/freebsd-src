@@ -67,15 +67,9 @@
 extern struct _vm_map kernel_map_store;
 extern struct _vm_map exec_map_store;
 extern struct _vm_map pipe_map_store;
-#if !defined(WYC)
 #define	kernel_map	(&kernel_map_store)
 #define	exec_map	(&exec_map_store)
 #define	pipe_map	(&pipe_map_store)
-#else
-extern struct _vm_map *kernel_map;
-extern struct _vm_map *exec_map;
-extern struct _vm_map *pipe_map;
-#endif
 extern struct vmem *kernel_arena;
 extern struct vmem *kmem_arena;
 extern struct vmem *buffer_arena;

@@ -3156,7 +3156,9 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 {
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
-	pn_t pn = VM_PAGE_TO_PHYS(m) / PAGE_SIZE;
+	vm_paddr_t pa = VM_PAGE_TO_PHYS(m);
+//WYC_ASSERT((pa & L2_OFFSET) == 0); // tested pass
+	pn_t pn = pa / PAGE_SIZE;
 	pd_entry_t new_l2e = (pd_entry_t)((pn << PTE_PPN0_S) | PTE_R | PTE_V);
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		new_l2e |= PTE_SW_MANAGED;
@@ -4045,7 +4047,7 @@ pmap_remove_pages(pmap_t pmap) // ref pmap_remove()
 				 * process' mapping at this time.
 				 */
 				if (lne & PTE_SW_WIRED) {
-panic("%s: wyctest\n", __func__); // tested. never runs here
+WYC_PANIC(); // tested. never runs here
 					allfree = false;
 					continue;
 				}
@@ -4738,9 +4740,8 @@ pmap_activate_sw(struct thread *td) // < cpu_switch(swtch.S) < sched_switch < mi
 
 	oldpmap = PCPU_GET(pc_curpmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
-	if (pmap->pm_satp == oldpmap->pm_satp)
-		return;	//wyc don't switch address space
-	csr_write(satp, pmap->pm_satp);
+	if (pmap == oldpmap)
+		return;	//wyc pull don't switch address space
 
 	hart = PCPU_GET(pc_hart);
 #ifdef SMP
@@ -4752,6 +4753,10 @@ pmap_activate_sw(struct thread *td) // < cpu_switch(swtch.S) < sched_switch < mi
 #endif
 	PCPU_SET(pc_curpmap, pmap);
 
+	if (pmap->pm_satp == oldpmap->pm_satp)
+		return;	//wyc pull don't switch address space
+
+	csr_write(satp, pmap->pm_satp);
 	sfence_vma();
 }
 

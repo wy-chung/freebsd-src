@@ -139,11 +139,11 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #define MPASS4(ex, what, file, line)					\
 	KASSERT((ex), ("Assertion %s failed at %s:%d", what, file, line))
 
-#define WYC_PANIC()	panic("%s %d", __FILE__, __LINE__)
+#define WYC_PANIC()	panic("%s(%s:%d)", __func__, __FILE__, __LINE__)
 
 #define WYC_ASSERT(exp) do { \
 	if (__predict_false(!(exp))) \
-		panic("Assertion \"%s\" failed at %s:%d", #exp, __FILE__, __LINE__); \
+		panic("Assertion \"%s\" failed at %s(%s:%d)", #exp, __func__, __FILE__, __LINE__); \
 } while (0)
 
 #define WYC_BREAK() do { \
