@@ -984,6 +984,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
+//WYC_ASSERT(va >= VM_MIN_KERNEL_ADDRESS); // tested, %va is always kernel address
 	vm_paddr_t pa;
 
 	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS) {
@@ -1020,6 +1021,7 @@ pmap_kextract(vm_offset_t va)
 void
 pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode __unused)
 {
+WYC_ASSERT(size != 0);
 	KASSERT((pa & L3_OFFSET) == 0,
 	   ("%s: Invalid physical address", __func__));
 	KASSERT((sva & L3_OFFSET) == 0,
@@ -1071,10 +1073,11 @@ pmap_kremove(vm_offset_t va)
 void
 pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 {
+WYC_ASSERT(size != 0);
 	KASSERT((sva & L3_OFFSET) == 0,
-	   ("pmap_kremove_device: Invalid virtual address"));
+	   ("%s: Invalid virtual address", __func__));
 	KASSERT((size & PAGE_MASK) == 0,
-	    ("pmap_kremove_device: Mapping is not page-sized"));
+	    ("%s: Mapping is not page-sized", __func__));
 
 	vm_offset_t va = sva;
 	pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
@@ -1122,6 +1125,7 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 void
 pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 {
+WYC_ASSERT(count != 0);
 	vm_offset_t va = sva;
 	pt_entry_t *l3 = pmap_l3(kernel_pmap, va);
 	for (int i = 0; i < count; i++) {
@@ -1148,6 +1152,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 void
 pmap_qremove(vm_offset_t sva, int count)
 {
+WYC_ASSERT(count != 0);
 	vm_offset_t va;
 
 	KASSERT(sva >= VM_MIN_KERNEL_ADDRESS, ("usermode va %lx", sva));
@@ -1304,6 +1309,11 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mptp /*ori m*/, spglist_
 /*
  * After removing a page table entry, this routine is used to
  * conditionally free the page, and manage the reference count.
+
+Returns
+   true if the page table page is freed
+Notes
+   will not free kernel's page table page
  */
 static bool
 pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde, spglist_t *free)
@@ -1391,6 +1401,7 @@ pmap_pinit(pmap_t pmap)
  * race conditions.
  */
 // %ptepindex: the pagtable page index. It will be stored in vm_page.pindex
+// will increment the ref_count for the returned ptp
 static vm_page_t // ori: _pmap_alloc_l3
 _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 {
@@ -1442,7 +1453,7 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 		pd_entry_t *l1;
 
 		vm_pindex_t l1index = ptpindex - NL3PTP;
-		if (pmap_mode == PMAP_MODE_SV39) {
+		if (pmap_mode == PMAP_MODE_SV39) { // false
 			l1 = &pmap->pm_top[l1index];
 		} else {
 			vm_paddr_t phys;
@@ -1477,7 +1488,7 @@ _pmap_alloc_l123(pmap_t pmap, vm_pindex_t ptpindex, struct rwlock **lockp)
 		pd_entry_t l1e; //wycpull
 
 		vm_pindex_t l1index = ptpindex >> (L1_SHIFT - L2_SHIFT);
-		if (pmap_mode == PMAP_MODE_SV39) {
+		if (pmap_mode == PMAP_MODE_SV39) { // false
 			l1 = &pmap->pm_top[l1index];
 			l1e = pmap_load(l1);
 			if (l1e == 0) {
@@ -2298,6 +2309,8 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 /*
  * pmap_remove_l3: do the things to unmap a page in a process
  */
+// kernel's page table page will never be freed
+// returns true when the page table page has been freed
 static bool
 pmap_remove_l3(pmap_t pmap, pt_entry_t *l3, vm_offset_t va, 
     pd_entry_t l2e, spglist_t *free, struct rwlock **lockp)

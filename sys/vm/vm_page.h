@@ -515,8 +515,7 @@ extern long first_page;			/* first physical page number */
 #if !defined(WYC)
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
 #else
-vm_paddr_t VM_PAGE_TO_PHYS(struct vm_page *entry)
-{ return entry->phys_addr; }
+vm_paddr_t VM_PAGE_TO_PHYS(struct vm_page *entry) { return entry->phys_addr; }
 #endif
 
 /*
@@ -552,7 +551,7 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define	VM_ALLOC_CLASS_MASK	3
 #define	VM_ALLOC_WAITOK		0x0008	/* (acn) Sleep and retry */
 #define	VM_ALLOC_WAITFAIL	0x0010	/* (acn) Sleep and return error */
-#define	VM_ALLOC_WIRED		0x0020	/* (acgnp) Allocate a wired page */
+#define	VM_ALLOC_WIRED		0x0020	/* (acgnp) Allocate a wired page */ // increment vm_page.ref_count
 #define	VM_ALLOC_ZERO		0x0040	/* (acgnp) Allocate a zeroed page */
 #define	VM_ALLOC_NORECLAIM	0x0080	/* (c) Do not reclaim after failure */
 #define	VM_ALLOC_AVAIL0		0x0100
