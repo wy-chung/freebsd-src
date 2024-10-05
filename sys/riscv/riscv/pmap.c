@@ -1319,8 +1319,10 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde, spglist_t *free)
 {
 	vm_page_t mptp;
 
-	if (va >= VM_MAXUSER_ADDRESS)
+	if (va >= VM_MAXUSER_ADDRESS) {
+WYC_ASSERT(pmap == kernel_pmap);
 		return (false);
+	}
 	KASSERT(ptepde != 0, ("%s: ptepde != 0", __func__));
 	mptp = PHYS_TO_VM_PAGE(PTE_TO_PHYS(ptepde));
 	return (pmap_unwire_ptp(pmap, va, mptp, free));
@@ -3254,13 +3256,14 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 		if ((oldl2e & PTE_RWX) != 0) { // it's a superpage
 			pd_entry_t l1e = pmap_load(pmap_l1(pmap, va));
 			(void)pmap_remove_l2(pmap, l2, va, l1e, &free, lockp);
-		} else
-			for (vm_offset_t sva = va; sva < va + L2_SIZE; sva += PAGE_SIZE) {
-				pd_entry_t *l3 = pmap_l2_to_l3(l2, sva);
+		} else {
+			pd_entry_t *l3 = pmap_l2_to_l3(l2, va); //wyc pull
+			for (vm_offset_t sva = va; sva < va + L2_SIZE; sva += PAGE_SIZE, ++l3) {
 				if ((pmap_load(l3) & PTE_V) != 0 &&
 				    pmap_remove_l3(pmap, l3, sva, oldl2e, &free, lockp))
 					break;
 			}
+		}
 		vm_page_free_pages_toq(&free, true);
 		if (va >= VM_MAXUSER_ADDRESS) {
 WYC_ASSERT(pmap == kernel_pmap);
@@ -3310,7 +3313,7 @@ WYC_ASSERT(pmap == kernel_pmap);
 				vm_page_free_pages_toq(&free, true);
 			}
 			if (uwml3 != NULL) {
-				vm_page_t mt __unused = pmap_remove_l3pt_page(pmap, va);
+				vm_page_t mt __diagused = pmap_remove_l3pt_page(pmap, va);
 				KASSERT(mt == uwml3,
 				    ("removed pt page %p, expected %p", mt, uwml3));
 				pmap_resident_count_dec(pmap, 1);
