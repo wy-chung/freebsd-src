@@ -1200,26 +1200,25 @@ pmap_add_delayed_free_list(vm_page_t m, spglist_t *free, bool set_PG_ZERO)
  * for mapping a distinct range of virtual addresses.  The pmap's collection is
  * ordered by this virtual address range.
  *
- * If @promoted is false, then the page table page @mptp must be zero filled;
- * @mptp's valid field will be set to 0.
+ * If %promoted is false, then the page table page %mptp must be zero filled;
+ * %mptp's valid field will be set to 0.
  *
- * If @promoted is true and @all_l3e_PTE_A_set is false, then @mptp must
+ * If %promoted is true and %all_l3e_PTE_A_set is false, then %mptp must
  * contain valid mappings with identical attributes except for PTE_A;
- * @mptp's valid field will be set to 1.
+ * %mptp's valid field will be set to 1.
  *
- * If @promoted and @all_l3e_PTE_A_set are both true, then @mptp must contain
- * valid mappings with identical attributes including PTE_A; @mptp's valid
+ * If %promoted and %all_l3e_PTE_A_set are both true, then %mptp must contain
+ * valid mappings with identical attributes including PTE_A; %mptp's valid
  * field will be set to VM_PAGE_BITS_ALL.
  */
 // returns ENOMEM or ESUCCESS
 static __inline int
 pmap_insert_l3pt_page(pmap_t pmap, vm_page_t mptp, bool promoted, bool all_l3e_PTE_A_set)
 {
-
+WYC_ASSERT(mptp->pindex < NL3PTP); // tested. always l3 ptp
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	KASSERT(promoted || !all_l3e_PTE_A_set,
 	    ("a zero-filled PTP can't have PTE_A set in every PTE"));
-//WYC_ASSERT(mptp->pindex < NL3PTP); // tested. always l3 ptp
 	mptp->valid = promoted ? (all_l3e_PTE_A_set ? VM_PAGE_BITS_ALL : 1) : 0;
 	return (vm_radix_insert(&pmap->pm_root, mptp)); // returns ENOMEM or ESUCCESS
 }
@@ -3252,10 +3251,10 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 			}
 		}
 		spglist_t free = SLIST_HEAD_INITIALIZER(free);
-		if ((oldl2e & PTE_RWX) != 0) // it's a superpage
-			(void)pmap_remove_l2(pmap, l2, va,
-			    pmap_load(pmap_l1(pmap, va)), &free, lockp);
-		else
+		if ((oldl2e & PTE_RWX) != 0) { // it's a superpage
+			pd_entry_t l1e = pmap_load(pmap_l1(pmap, va));
+			(void)pmap_remove_l2(pmap, l2, va, l1e, &free, lockp);
+		} else
 			for (vm_offset_t sva = va; sva < va + L2_SIZE; sva += PAGE_SIZE) {
 				pd_entry_t *l3 = pmap_l2_to_l3(l2, sva);
 				if ((pmap_load(l3) & PTE_V) != 0 &&
@@ -3264,6 +3263,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 			}
 		vm_page_free_pages_toq(&free, true);
 		if (va >= VM_MAXUSER_ADDRESS) {
+WYC_ASSERT(pmap == kernel_pmap);
 			/*
 			 * Both pmap_remove_l2() and pmap_remove_l3() will
 			 * leave the kernel page table page zero filled.
@@ -3272,8 +3272,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 			if (pmap_insert_l3pt_page(pmap, ml3, false, false) != ESUCCESS)
 				panic("%s: trie insert failed", __func__);
 		} else
-			KASSERT(pmap_load(l2) == 0,
-			    ("%s: non-zero L2 entry %p", __func__, l2));
+			KASSERT(pmap_load(l2) == 0, ("%s: non-zero L2 entry %p", __func__, l2));
 	}
 
 	/*
