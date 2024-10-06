@@ -433,7 +433,7 @@ static __inline pd_entry_t *
 pmap_l1(pmap_t pmap, vm_offset_t va)
 {
 	KASSERT(VIRT_IS_VALID(va), ("%s: malformed virtual address %#lx", __func__, va));
-	if (pmap_mode == PMAP_MODE_SV39) {
+	if (pmap_mode == PMAP_MODE_SV39) { // false
 		return (&pmap->pm_top[pmap_l1_index(va)]);
 	} else {
 		pd_entry_t *l0 = pmap_l0(pmap, va);
@@ -2179,13 +2179,13 @@ pmap_pv_promote_l2(pmap_t pmap, vm_offset_t va, vm_paddr_t pa,
 
 	// free the rest 511 pv entries
 	vm_offset_t va_last = va + L2_SIZE;// - PAGE_SIZE;
-	while (true) {
+	m++;
+	va += PAGE_SIZE;
+	do {
+		pmap_pv_free(&m->md, pmap, va);
 		m++;
 		va += PAGE_SIZE;
-		if (va >= va_last)
-			break;
-		pmap_pv_free(&m->md, pmap, va);
-	}
+	} while (va < va_last);
 }
 #endif /* VM_NRESERVLEVEL > 0 */
 
@@ -2928,8 +2928,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l3e |= PTE_D;
 	if ((flags & PMAP_ENTER_WIRED) != 0) // The mapping should be marked as wired
 		new_l3e |= PTE_SW_WIRED;
-	if (va < VM_MAX_USER_ADDRESS)
+	if (va < VM_MAX_USER_ADDRESS) {
+WYC_ASSERT(pmap != kernel_pmap);
 		new_l3e |= PTE_U;
+	}
 	new_l3e |= (pn << PTE_PPN0_S);
 
 	/*
@@ -2963,9 +2965,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pt_entry_t *l3;
 	vm_page_t mptp = NULL; // is only for user pmap
 	if (l2 != NULL && ((l2e = pmap_load(l2)) & PTE_V) != 0 &&
-	    ((l2e & PTE_RWX) == 0 || // is superpage
+	    ((l2e & PTE_RWX) == 0 || // is page table
 	     pmap_demote_l2_locked(pmap, l2, va, &lock))) {
-//if (pmap == kernel_pmap) panic("%s: wyctest\n", __func__); // failed. it could be kernel_map
 		l3 = pmap_l2_to_l3(l2, va);
 		if (va < VM_MAXUSER_ADDRESS) {
 			mptp = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
@@ -3145,7 +3146,7 @@ validate:
 #if VM_NRESERVLEVEL > 0
 	if (mptp != NULL && mptp->ref_count == Ln_ENTRIES &&
 	    (m->flags & PG_FICTITIOUS) == 0 &&
-	    vm_reserv_level_iffullpop(m) == 0)
+	    vm_reserv_level_iffullpop(m) == 0) // 0 means fully populated
 		(void)pmap_promote_l2(pmap, l2, va, mptp, &lock);
 #endif
 
@@ -4756,7 +4757,7 @@ pmap_activate_sw(struct thread *td) // < cpu_switch(swtch.S) < sched_switch < mi
 	oldpmap = PCPU_GET(pc_curpmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	if (pmap == oldpmap)
-		return;	//wyc pull don't switch address space
+		return;
 
 	hart = PCPU_GET(pc_hart);
 #ifdef SMP

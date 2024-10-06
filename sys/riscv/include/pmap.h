@@ -76,27 +76,25 @@ struct md_page {
   PPN (44): bit 43 .. 0
 
  * will only support sv48
- * each user pmap will have 4 entries in l2 ptp
-     one l2ptp covers 1GB
+ * each user pmap will have 4 entries in L1 ptp
+     one L1 pte covers 1GB
  * kernel map only occupies the last 256GB virtual address space
       32GB kernel map	VM_MIN_KERNEL_ADDRESS, KERNBASE
       32GB unused	VM_MAX_KERNEL_ADDRESS
      128GB direct map	DMAP_MIN_ADDRESS, kernel_pmap
       64GB unused	DMAP_MAX_ADDRESS
 */
-struct pmap {
+typedef struct pmap {
 	pd_entry_t		*pm_top;	/* top-level page table page */
 	u_long			pm_satp;	/* value for SATP register */ // Supervisor Address Translation and Protection
+	cpuset_t		pm_active;	/* active on cpus */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 
 	struct mtx		pm_mtx;		// pmap lock
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
-	cpuset_t		pm_active;	/* active on cpus */
 	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
 	struct vm_radix		pm_root;	// a tree of "l3" pagetable pages for this pmap
-};
-
-typedef struct pmap *pmap_t;
+} *pmap_t;
 
 #ifdef _KERNEL
 extern struct pmap	kernel_pmap_store;

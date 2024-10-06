@@ -1076,7 +1076,7 @@ vm_reserv_level(vm_page_t m)
  * reservation and -1 otherwise.
  */
 int
-vm_reserv_level_iffullpop(vm_page_t m)
+vm_reserv_level_iffullpop(vm_page_t m) // if fully populated
 {
 	vm_reserv_t rv;
 
