@@ -105,7 +105,7 @@ sbi_ipi_intr(void *arg)
 
 	csr_clear(sip, SIP_SSIP);
 
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(pc_cpuid);
 
 	mb();
 

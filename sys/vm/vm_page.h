@@ -419,7 +419,7 @@ struct vm_page {
 TAILQ_HEAD(pglist, vm_page);	// page list
 #define VM_PAGE_HAVE_PGLIST
 #endif
-typedef SLIST_HEAD(, vm_page) spglist_t;	// singly-linked page List
+typedef SLIST_HEAD(spglist, vm_page) spglist_t;	// singly-linked page List
 
 #ifdef _KERNEL
 extern vm_page_t bogus_page;

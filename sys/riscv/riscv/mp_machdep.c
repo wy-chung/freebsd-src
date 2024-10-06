@@ -497,7 +497,7 @@ ipi_all_but_self(u_int ipi)
 	cpuset_t other_cpus;
 
 	other_cpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+	CPU_CLR(PCPU_GET(pc_cpuid), &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	intr_ipi_send(other_cpus, ipi);

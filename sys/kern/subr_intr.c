@@ -1301,7 +1301,7 @@ u_int
 intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask)
 {
 
-	return (PCPU_GET(cpuid));
+	return (PCPU_GET(pc_cpuid));
 }
 #endif /* SMP */
 
@@ -1919,7 +1919,7 @@ intr_ipi_dispatch(u_int ipi)
 	if (ii->ii_count == NULL)
 		panic("%s: not setup IPI %u", __func__, ipi);
 
-	intr_ipi_increment_count(ii->ii_count, PCPU_GET(cpuid));
+	intr_ipi_increment_count(ii->ii_count, PCPU_GET(pc_cpuid));
 
 	ii->ii_handler(ii->ii_handler_arg);
 }
