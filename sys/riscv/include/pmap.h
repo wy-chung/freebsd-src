@@ -47,15 +47,18 @@
 #include <vm/_vm_radix.h>
 
 #ifdef _KERNEL
-
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
-
 #endif
 
+#if !defined(WYC)
 #define	pmap_page_get_memattr(m)	((m)->md.pv_memattr)
 #define	pmap_page_is_write_mapped(m)	(((m)->a.flags & PGA_WRITEABLE) != 0)
-void pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
+#else
+vm_memattr_t pmap_page_get_memattr(vm_page_t m) { return m->md.pv_memattr; }
+bool pmap_page_is_write_mapped(vm_page_t m) { return (m->a.flags & PGA_WRITEABLE) != 0; }
+#endif
 #define	pmap_map_delete(pmap, sva, eva)	pmap_remove(pmap, sva, eva)
+void pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 
 /*
  * Pmap stuff
@@ -67,23 +70,36 @@ struct md_page {
 	vm_memattr_t		pv_memattr;
 };
 
-struct pmap {
-	struct mtx		pm_mtx;
-	struct pmap_statistics	pm_stats;	/* pmap statictics */
+/* satp register
+  mode(04): bit 63 .. 60
+  ASID(16): bit 59 .. 44
+  PPN (44): bit 43 .. 0
+
+ * will only support sv48
+ * each user pmap will have 4 entries in L1 ptp
+     one L1 pte covers 1GB
+ * kernel map only occupies the last 256GB virtual address space
+      32GB kernel map	VM_MIN_KERNEL_ADDRESS, KERNBASE
+      32GB unused	VM_MAX_KERNEL_ADDRESS
+     128GB direct map	DMAP_MIN_ADDRESS, kernel_pmap
+      64GB unused	DMAP_MAX_ADDRESS
+*/
+typedef struct pmap {
 	pd_entry_t		*pm_top;	/* top-level page table page */
-	u_long			pm_satp;	/* value for SATP register */
+	u_long			pm_satp;	/* value for SATP register */ // Supervisor Address Translation and Protection
 	cpuset_t		pm_active;	/* active on cpus */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
-	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
-	struct vm_radix		pm_root;
-};
 
-typedef struct pmap *pmap_t;
+	struct mtx		pm_mtx;		// pmap lock
+	struct pmap_statistics	pm_stats;	/* pmap statictics */
+	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
+	struct vm_radix		pm_root;	// a tree of "l3" pagetable pages for this pmap
+} *pmap_t;
 
 #ifdef _KERNEL
 extern struct pmap	kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
-#define	pmap_kernel()	kernel_pmap
+//#define	pmap_kernel()	kernel_pmap
 
 #define	PMAP_ASSERT_LOCKED(pmap) \
 				mtx_assert(&(pmap)->pm_mtx, MA_OWNED)
@@ -108,12 +124,13 @@ extern vm_offset_t virtual_end;
 #define	L1_MAPPABLE_P(va, pa, size)					\
 	((((va) | (pa)) & L1_OFFSET) == 0 && (size) >= L1_SIZE)
 
-enum pmap_mode {
+enum _pmap_mode {
 	PMAP_MODE_SV39,
-	PMAP_MODE_SV48,
+	PMAP_MODE_SV48, // <== set to this mode in pmap_bootstrap()
+	PMAP_MODE_SV57, // currently not supported
 };
 
-extern enum pmap_mode pmap_mode;
+extern enum _pmap_mode pmap_mode;
 
 /* Check if an address resides in a mappable region. */
 #define	VIRT_IS_VALID(va)						\
@@ -148,7 +165,7 @@ void	pmap_unmap_io_transient(vm_page_t *, vm_offset_t *, int, bool);
 bool	pmap_get_tables(pmap_t, vm_offset_t, pd_entry_t **, pd_entry_t **,
     pt_entry_t **);
 
-int	pmap_fault(pmap_t, vm_offset_t, vm_prot_t);
+bool	pmap_fault(pmap_t, vm_offset_t, vm_prot_t);
 
 static inline int
 pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)

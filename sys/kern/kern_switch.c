@@ -437,7 +437,7 @@ runq_choose_fuzz(struct runq *rq, int fuzz)
 			 * there is one for our CPU as a preference.
 			 */
 			int count = fuzz;
-			int cpu = PCPU_GET(cpuid);
+			int cpu = PCPU_GET(pc_cpuid);
 			struct thread *td2;
 			td2 = td = TAILQ_FIRST(rqh);
 

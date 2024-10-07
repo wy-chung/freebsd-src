@@ -1,12 +1,7 @@
+# must use Unix EOL format
 
-#NO_UNIVERSE
-
-include "GENERIC"
-
-ident QEMU
-
-options 	HZ=100
-options 	ROOTDEVNAME=\"ufs:/dev/vtbd0\"
+include	GENERIC
+ident	MYKERNEL
 
 options DDB
 options	INVARIANT_SUPPORT   # A prerequisite for INVARIANTS
@@ -17,3 +12,4 @@ options	INVARIANT_SUPPORT   # A prerequisite for INVARIANTS
 #options	WITNESS_SKIPSPIN
 
 nooptions	NUMA
+

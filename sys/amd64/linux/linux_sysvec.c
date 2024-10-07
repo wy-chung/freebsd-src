@@ -31,7 +31,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if !defined(WYC)
 #define	__ELF_WORD_SIZE	64
+#endif
 
 #include <sys/param.h>
 #include <sys/exec.h>
@@ -77,7 +79,7 @@ _Static_assert(sizeof(struct l_fpstate) ==
 MODULE_VERSION(linux64, 1);
 
 #define	LINUX_VDSOPAGE_SIZE	PAGE_SIZE * 2
-#define	LINUX_VDSOPAGE_LA48	(VM_MAXUSER_ADDRESS_LA48 - \
+#define	LINUX_VDSOPAGE_LA48	(VM_MAXUSER_ADDRESS/*_LA48*/ - \
 				    LINUX_VDSOPAGE_SIZE)
 #define	LINUX_SHAREDPAGE_LA48	(LINUX_VDSOPAGE_LA48 - PAGE_SIZE)
 				/*
@@ -242,8 +244,8 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	regs = td->td_frame;
 	pcb = td->td_pcb;
 
-	if (td->td_proc->p_md.md_ldt != NULL)
-		user_ldt_free(td);
+	//if (td->td_proc->p_md.md_ldt != NULL) //wyc false. It is NULL indeed
+	//	user_ldt_free(td);
 
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
@@ -689,7 +691,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_elf_core_prepare_notes = linux64_prepare_notes,
 	.sv_minsigstksz	= LINUX_MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS_LA48,
+	.sv_maxuser	= VM_MAXUSER_ADDRESS/*_LA48*/,
 	.sv_usrstack	= LINUX_USRSTACK_LA48,
 	.sv_psstrings	= LINUX_PS_STRINGS_LA48,
 	.sv_psstringssz	= sizeof(struct ps_strings),
@@ -716,7 +718,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_ontdexit	= linux_thread_dtor,
 	.sv_setid_allowed = &linux_setid_allowed_query,
 	.sv_set_fork_retval = linux_set_fork_retval,
-};
+}; // elf_linux_sysvec
 
 static int
 linux_on_exec_vmspace(struct proc *p, struct image_params *imgp)

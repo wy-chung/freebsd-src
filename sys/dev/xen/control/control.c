@@ -227,7 +227,7 @@ xctrl_suspend(void)
 		thread_unlock(curthread);
 	}
 #endif
-	KASSERT((PCPU_GET(cpuid) == 0), ("Not running on CPU#0"));
+	KASSERT((PCPU_GET(pc_cpuid) == 0), ("Not running on CPU#0"));
 
 	/*
 	 * Be sure to hold Giant across DEVICE_SUSPEND/RESUME.
@@ -247,7 +247,7 @@ xctrl_suspend(void)
 	 * vcpu_info on resume.
 	 */
 	cpu_suspend_map = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &cpu_suspend_map);
+	CPU_CLR(PCPU_GET(pc_cpuid), &cpu_suspend_map);
 	if (!CPU_EMPTY(&cpu_suspend_map))
 		suspend_cpus(cpu_suspend_map);
 #else
@@ -259,7 +259,7 @@ xctrl_suspend(void)
 		 * vcpu_info on resume.
 		 */
 		cpu_suspend_map = all_cpus;
-		CPU_CLR(PCPU_GET(cpuid), &cpu_suspend_map);
+		CPU_CLR(PCPU_GET(pc_cpuid), &cpu_suspend_map);
 		if (!CPU_EMPTY(&cpu_suspend_map))
 			suspend_cpus(cpu_suspend_map);
 	}

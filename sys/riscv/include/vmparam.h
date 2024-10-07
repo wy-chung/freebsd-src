@@ -51,10 +51,10 @@
 #define	MAXDSIZ		(1*1024*1024*1024)	/* max data size */
 #endif
 #ifndef DFLSSIZ
-#define	DFLSSIZ		(128*1024*1024)		/* initial stack size limit */
+#define	DFLSSIZ		(16*1024*1024) //ori (128*1024*1024)		/* initial stack size limit */
 #endif
 #ifndef MAXSSIZ
-#define	MAXSSIZ		(1*1024*1024*1024)	/* max stack size */
+#define	MAXSSIZ		(256*1024*1024) //ori (1*1024*1024*1024)	/* max stack size */
 #endif
 #ifndef SGROWSIZ
 #define	SGROWSIZ	(128*1024)		/* amount to grow stack */
@@ -89,7 +89,7 @@
 
 /*
  * An allocation size of 16MB is supported in order to optimize the
- * use of the direct map by UMA.  Specifically, a cache line contains
+ * use of the direct map by UMA (Uniform Memory Access).  Specifically, a cache line contains
  * at most four TTEs, collectively mapping 16MB of physical memory.
  * By reducing the number of distinct 16MB "pages" that are used by UMA,
  * the physical memory allocator reduces the likelihood of both 4MB
@@ -128,21 +128,24 @@
  * is currently identical to that used in SV39 mode.
  *
  * SV39 memory map:
- * 0x0000000000000000 - 0x0000003fffffffff    256GB user map
- * 0x0000004000000000 - 0xffffffbfffffffff    unmappable
- * 0xffffffc000000000 - 0xffffffc7ffffffff    32GB kernel map
- * 0xffffffc800000000 - 0xffffffcfffffffff    32GB unused
- * 0xffffffd000000000 - 0xffffffefffffffff    128GB direct map
- * 0xfffffff000000000 - 0xffffffffffffffff    64GB unused
+ * 0x0000,0000,0000,0000 - 0x0000,003f,ffff,ffff    256GB user map
+ * 0x0000,0040,0000,0000 - 0xffff,ffbf,ffff,ffff    unmappable
+ * 0xffff,ffc0,0000,0000 - 0xffff,ffc7,ffff,ffff    32GB kernel map
+ * 0xffff,ffc8,0000,0000 - 0xffff,ffcf,ffff,ffff    32GB unused
+ * 0xffff,ffd0,0000,0000 - 0xffff,ffef,ffff,ffff    128GB direct map
+ * 0xffff,fff0,0000,0000 - 0xffff,ffff,ffff,ffff    64GB unused
  *
  * SV48 memory map:
- * 0x0000000000000000 - 0x00007fffffffffff    128TB user map
- * 0x0000800000000000 - 0xffff7fffffffffff    unmappable
- * 0xffff800000000000 - 0xffffffc7ffffffff    127.75TB hole
- * 0xffffffc000000000 - 0xffffffc7ffffffff    32GB kernel map
- * 0xffffffc800000000 - 0xffffffcfffffffff    32GB unused
- * 0xffffffd000000000 - 0xffffffefffffffff    128GB direct map
- * 0xfffffff000000000 - 0xffffffffffffffff    64GB unused
+ * 0x0000,0000,0000,0000 - 0x0000,7fff,ffff,ffff    128TB user map
+ * 0x0000,8000,0000,0000 - 0xffff,7fff,ffff,ffff    unmappable
+//wyc should be
+ * 0xffff,8000,0000,0000 - 0xffff,ffbf,ffff,ffff    127.75TB hole
+//wyc ori
+ * 0xffff,8000,0000,0000 - 0xffff,ffc7,ffff,ffff    127.75TB hole
+ * 0xffff,ffc0,0000,0000 - 0xffff,ffc7,ffff,ffff    32GB kernel map
+ * 0xffff,ffc8,0000,0000 - 0xffff,ffcf,ffff,ffff    32GB unused
+ * 0xffff,ffd0,0000,0000 - 0xffff,ffef,ffff,ffff    128GB direct map
+ * 0xffff,fff0,0000,0000 - 0xffff,ffff,ffff,ffff    64GB unused
  *
  * The kernel is loaded at the beginning of the kernel map.
  *
@@ -204,7 +207,7 @@
 #define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
 #define	SHAREDPAGE_SV39		(VM_MAX_USER_ADDRESS_SV39 - PAGE_SIZE)
 #define	SHAREDPAGE_SV48		(VM_MAX_USER_ADDRESS_SV48 - PAGE_SIZE)
-#define	SHAREDPAGE		SHAREDPAGE_SV48
+//#define	SHAREDPAGE		SHAREDPAGE_SV48	// verifed, this is not used
 #define	USRSTACK_SV39		SHAREDPAGE_SV39
 #define	USRSTACK_SV48		SHAREDPAGE_SV48
 #define	USRSTACK		USRSTACK_SV48

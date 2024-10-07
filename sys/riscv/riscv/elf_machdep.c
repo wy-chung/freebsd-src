@@ -73,9 +73,10 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= 0,	/* Filled in during boot. */
-	.sv_usrstack	= 0,	/* Filled in during boot. */
-	.sv_psstrings	= 0,	/* Filled in during boot. */
+	.sv_maxuser	= 0,	/* Filled in during boot by elf64_register_sysvec. */
+	.sv_usrstack	= 0,	/* Filled in during boot by elf64_register_sysvec. */
+	.sv_psstrings	= 0,	/* Filled in during boot by elf64_register_sysvec. */
+	.sv_shared_page_base = 0,/* Filled in during boot by elf64_register_sysvec. */
 	.sv_psstringssz	= sizeof(struct ps_strings),
 	.sv_stackprot	= VM_PROT_READ | VM_PROT_WRITE,
 	.sv_copyout_auxargs = __elfN(freebsd_copyout_auxargs),
@@ -88,7 +89,6 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
-	.sv_shared_page_base = 0,	/* Filled in during boot. */
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
@@ -121,6 +121,9 @@ elf64_register_sysvec(void *arg)
 
 	sv = arg;
 	switch (pmap_mode) {
+	case PMAP_MODE_SV57:
+		panic("%s: PMAP_MODE_SV57 not implemented yet\n", __func__);	//wyc
+		break;
 	case PMAP_MODE_SV48:
 		sv->sv_maxuser = VM_MAX_USER_ADDRESS_SV48;
 		sv->sv_usrstack = USRSTACK_SV48;

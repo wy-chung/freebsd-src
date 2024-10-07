@@ -87,7 +87,7 @@ typedef u_int vm_eflags_t;
  */
 union vm_map_object {
 	struct vm_object *vm_object;	/* object object */
-	struct vm_map *sub_map;		/* belongs to another map */
+	struct _vm_map *sub_map;		/* belongs to another map */
 };
 
 /*
@@ -203,7 +203,7 @@ vm_map_entry_system_wired_count(vm_map_entry_t entry)
  *	List of locks
  *	(c)	const until freed
  */
-struct vm_map {
+struct _vm_map {
 	struct vm_map_entry header;	/* List of entries */
 	struct sx lock;			/* Lock for map data */
 	struct mtx system_mtx;
@@ -213,8 +213,8 @@ struct vm_map {
 	u_char needs_wakeup;
 	u_char system_map;		/* (c) Am I a system map? */
 	vm_flags_t flags;		/* flags for this vm_map */
-	vm_map_entry_t root;		/* Root of a binary search tree */
-	pmap_t pmap;			/* (c) Physical map */
+	struct vm_map_entry *root;	/* Root of a binary search tree */
+	struct pmap *pmap;		/* (c) Physical map */
 	vm_offset_t anon_loc;
 	int busy;
 #ifdef DIAGNOSTIC
@@ -236,21 +236,23 @@ struct vm_map {
 
 #ifdef	_KERNEL
 #if defined(KLD_MODULE) && !defined(KLD_TIED)
+ #if !defined(WYC)
 #define	vm_map_max(map)		vm_map_max_KBI((map))
 #define	vm_map_min(map)		vm_map_min_KBI((map))
 #define	vm_map_pmap(map)	vm_map_pmap_KBI((map))
 #define	vm_map_range_valid(map, start, end)	\
 	vm_map_range_valid_KBI((map), (start), (end))
+ #endif
 #else
 static __inline vm_offset_t
-vm_map_max(const struct vm_map *map)
+vm_map_max(const struct _vm_map *map)
 {
 
 	return (map->header.start);
 }
 
 static __inline vm_offset_t
-vm_map_min(const struct vm_map *map)
+vm_map_min(const struct _vm_map *map)
 {
 
 	return (map->header.end);
@@ -288,7 +290,7 @@ vm_map_range_valid(vm_map_t map, vm_offset_t start, vm_offset_t end)
  *	(c)	const until freed
  */
 struct vmspace {
-	struct vm_map vm_map;	/* VM address map */
+	struct _vm_map vm_map;	/* VM address map */
 	struct shmmap_state *vm_shm;	/* SYS5 shared memory private data XXX */
 	segsz_t vm_swrss;	/* resident set size before last swap */
 	segsz_t vm_tsize;	/* text size (pages) XXX */
@@ -306,6 +308,7 @@ struct vmspace {
 	 * variations of the machine-independent fields in the vmspace.
 	 */
 	struct pmap vm_pmap;	/* private physical map */
+	vm_offset_t vm_base; //wyc base address of this vmspace
 };
 
 #ifdef	_KERNEL
@@ -341,8 +344,8 @@ void vm_map_wakeup(vm_map_t map);
 void vm_map_busy(vm_map_t map);
 void vm_map_unbusy(vm_map_t map);
 void vm_map_wait_busy(vm_map_t map);
-vm_offset_t vm_map_max_KBI(const struct vm_map *map);
-vm_offset_t vm_map_min_KBI(const struct vm_map *map);
+vm_offset_t vm_map_max_KBI(const struct _vm_map *map);
+vm_offset_t vm_map_min_KBI(const struct _vm_map *map);
 pmap_t vm_map_pmap_KBI(vm_map_t map);
 bool vm_map_range_valid_KBI(vm_map_t map, vm_offset_t start, vm_offset_t end);
 
@@ -488,9 +491,9 @@ int vm_map_inherit (vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t);
 void vm_map_init(vm_map_t, pmap_t, vm_offset_t, vm_offset_t);
 int vm_map_insert (vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_offset_t, vm_prot_t, vm_prot_t, int);
 int vm_map_lookup (vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_object_t *,
-    vm_pindex_t *, vm_prot_t *, boolean_t *);
+    vm_pindex_t *, vm_prot_t *, bool *);
 int vm_map_lookup_locked(vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_object_t *,
-    vm_pindex_t *, vm_prot_t *, boolean_t *);
+    vm_pindex_t *, vm_prot_t *, bool *);
 void vm_map_lookup_done (vm_map_t, vm_map_entry_t);
 boolean_t vm_map_lookup_entry (vm_map_t, vm_offset_t, vm_map_entry_t *);
 

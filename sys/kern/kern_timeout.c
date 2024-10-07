@@ -196,7 +196,7 @@ struct callout_cpu {
 DPCPU_DEFINE_STATIC(struct callout_cpu, cc_cpu);
 #define	CPUBLOCK	MAXCPU
 #define	CC_CPU(cpu)	DPCPU_ID_PTR(cpu, cc_cpu)
-#define	CC_SELF()	CC_CPU(PCPU_GET(cpuid))
+#define	CC_SELF()	CC_CPU(PCPU_GET(pc_cpuid))
 #else
 static struct callout_cpu cc_cpu;
 #define	CC_CPU(cpu)	(&cc_cpu)
@@ -303,7 +303,7 @@ callout_callwheel_init(void *dummy)
 	 * Initialize callout wheels.  The software interrupt threads
 	 * are created later.
 	 */
-	cc_default_cpu = PCPU_GET(cpuid);
+	cc_default_cpu = PCPU_GET(pc_cpuid);
 	CPU_FOREACH(cpu) {
 		cc = CC_CPU(cpu);
 		callout_cpu_init(cc, cpu);

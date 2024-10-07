@@ -331,7 +331,7 @@ dotrace(struct bt_table *btp, const char *eventname, const char *tdname)
 
 	dprintf("dotrace[");
 	dprintf("cpu=%u, pid=%d, tsc=%ju, tick=%d, td='%s', event='%s'",
-	    PCPU_GET(cpuid), curthread->td_proc->p_pid,
+	    PCPU_GET(pc_cpuid), curthread->td_proc->p_pid,
 	    (uintmax_t)get_cyclecount(), ticks, tdname, eventname);
 	if (btp->table == NULL) {
 		btp->drops_early++;
@@ -350,7 +350,7 @@ dotrace(struct bt_table *btp, const char *eventname, const char *tdname)
 		}
 	} while (!atomic_cmpset_int(&btp->curr, idx, nxt));
 
-	btp->table[idx].cpuid = PCPU_GET(cpuid);
+	btp->table[idx].cpuid = PCPU_GET(pc_cpuid);
 	btp->table[idx].tsc = get_cyclecount(),
 	btp->table[idx].tick = cpu_ticks();
 	btp->table[idx].pid = curthread->td_proc->p_pid;
@@ -594,7 +594,7 @@ boottrace_init(void)
 	    M_WAITOK | M_ZERO);
 
 	/* Stick in an initial entry. */
-	bt.table[0].cpuid = PCPU_GET(cpuid);
+	bt.table[0].cpuid = PCPU_GET(pc_cpuid);
 	strlcpy(bt.table[0].tdname, "boottime", BT_EVENT_TDNAMELEN);
 	strlcpy(bt.table[0].name, "initial event", BT_EVENT_NAMELEN);
 	bt.curr = 1;

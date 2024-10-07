@@ -98,65 +98,65 @@ struct trapframe;
 struct vnode;
 struct note_info_list;
 
-struct sysentvec {
-	int		sv_size;	/* number of entries */
-	struct sysent	*sv_table;	/* pointer to sysent */
-	int		(*sv_fixup)(uintptr_t *, struct image_params *);
+struct sysentvec { // elf64_freebsd_sysvec_la48(amd64), elf64_freebsd_sysvec(riscv)
+	int		sv_size;	/* number of entries */ // SYS_MAXSYSCALL
+	struct sysent	*sv_table;	/* pointer to sysent */ // sysent
+	int		(*sv_fixup)(uintptr_t *, struct image_params *); // elf32_freebsd_fixup
 					/* stack fixup function */
 	void		(*sv_sendsig)(void (*)(int), struct ksiginfo *, struct __sigset *);
-			    		/* send signal */
+					/* send signal */ // sendsig
 	const char 	*sv_sigcode;	/* start of sigtramp code */
 	int 		*sv_szsigcode;	/* size of sigtramp code */
-	int		sv_sigcodeoff;
-	char		*sv_name;	/* name of binary type */
+	int		sv_sigcodeoff; // VDSO_SIGCODE_OFFSET
+	char		*sv_name;	/* name of binary type */ // "FreeBSD ELF64"
 	int		(*sv_coredump)(struct thread *, struct vnode *, off_t, int);
 					/* function to dump core, or NULL */
-	int		sv_elf_core_osabi;
-	const char	*sv_elf_core_abi_vendor;
+	int		sv_elf_core_osabi; // ELFOSABI_FREEBSD
+	const char	*sv_elf_core_abi_vendor; // FREEBSD_ABI_VENDOR
 	void		(*sv_elf_core_prepare_notes)(struct thread *,
 			    struct note_info_list *, size_t *);
 	int		(*sv_copyout_auxargs)(struct image_params *,
 			    uintptr_t);
-	int		sv_minsigstksz;	/* minimum signal stack size */
-	vm_offset_t	sv_minuser;	/* VM_MIN_ADDRESS */
-	vm_offset_t	sv_maxuser;	/* VM_MAXUSER_ADDRESS */
-	vm_offset_t	sv_usrstack;	/* USRSTACK */
-	vm_offset_t	sv_psstrings;	/* PS_STRINGS */
+	int		sv_minsigstksz;	/* minimum signal stack size */ // MINSIGSTKSZ
+	vm_offset_t	sv_minuser;	// VM_MIN_ADDRESS
+	vm_offset_t	sv_maxuser;	// VM_MAXUSER_ADDRESS
+	vm_offset_t	sv_usrstack;	/* USRSTACK */ // USRSTACK_LA48
+	vm_offset_t	sv_psstrings;	/* PS_STRINGS */ // PS_STRINGS_LA48
 	size_t		sv_psstringssz;	/* PS_STRINGS size */
-	int		sv_stackprot;	/* vm protection for stack */
+	int		sv_stackprot;	/* vm protection for stack */ // VM_PROT_ALL
 	int		(*sv_copyout_strings)(struct image_params *,
-			    uintptr_t *);
+			    uintptr_t *); // exec_copyout_strings
 	void		(*sv_setregs)(struct thread *, struct image_params *,
-			    uintptr_t);
-	void		(*sv_fixlimit)(struct rlimit *, int);
-	u_long		*sv_maxssiz;
-	u_int		sv_flags;
-	void		(*sv_set_syscall_retval)(struct thread *, int);
-	int		(*sv_fetch_syscall_args)(struct thread *);
-	const char	**sv_syscallnames;
+			    uintptr_t);   // exec_setregs
+	void		(*sv_fixlimit)(struct rlimit *, int); // NULL
+	u_long		*sv_maxssiz; // NULL
+	u_int		sv_flags; // SV_ABI_FREEBSD | SV_ASLR | SV_LP64 | SV_SHP | SV_TIMEKEEP | SV_RNG_SEED_VER | SV_DSO_SIG | SV_SIGSYS
+	void		(*sv_set_syscall_retval)(struct thread *, int); // cpu_set_syscall_retval
+	int		(*sv_fetch_syscall_args)(struct thread *); // cpu_fetch_syscall_args
+	const char	**sv_syscallnames; // syscallnames
 	vm_offset_t	sv_timekeep_offset;
-	vm_offset_t	sv_shared_page_base;
-	vm_offset_t	sv_shared_page_len;
+	vm_offset_t	sv_shared_page_base; // SHAREDPAGE_LA48, i.e. 4G-4K
+	vm_offset_t	sv_shared_page_len; // PAGE_SIZE
 	vm_offset_t	sv_sigcode_offset;
 	void		*sv_shared_page_obj;
 	vm_offset_t	sv_vdso_offset;
-	void		(*sv_schedtail)(struct thread *);
-	void		(*sv_thread_detach)(struct thread *);
-	int		(*sv_trap)(struct thread *);
+	void		(*sv_schedtail)(struct thread *); // NULL
+	void		(*sv_thread_detach)(struct thread *); // NULL
+	int		(*sv_trap)(struct thread *); // NULL
 	u_long		*sv_hwcap;	/* Value passed in AT_HWCAP. */
 	u_long		*sv_hwcap2;	/* Value passed in AT_HWCAP2. */
 	const char	*(*sv_machine_arch)(struct proc *);
 	vm_offset_t	sv_fxrng_gen_offset;
-	void		(*sv_onexec_old)(struct thread *td);
-	int		(*sv_onexec)(struct proc *, struct image_params *);
-	void		(*sv_onexit)(struct proc *);
+	void		(*sv_onexec_old)(struct thread *td); // exec_onexec_old
+	int		(*sv_onexec)(struct proc *, struct image_params *); // NULL
+	void		(*sv_onexit)(struct proc *); // exit_onexit
 	void		(*sv_ontdexit)(struct thread *td);
 	int		(*sv_setid_allowed)(struct thread *td,
 			    struct image_params *imgp);
-	void		(*sv_set_fork_retval)(struct thread *);
+	void		(*sv_set_fork_retval)(struct thread *); // x86_set_fork_retval
 					/* Only used on x86 */
-	struct regset	**sv_regset_begin;
-	struct regset	**sv_regset_end;
+	struct regset	**sv_regset_begin; // SET_BEGIN(__elfN(regset))
+	struct regset	**sv_regset_end; // SET_LIMIT(__elfN(regset))
 };
 
 #define	SV_ILP32	0x000100	/* 32-bit executable. */

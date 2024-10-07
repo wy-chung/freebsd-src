@@ -33,30 +33,32 @@
  */
 
 /* Mode argument to forkshell.  Don't change FORK_FG or FORK_BG. */
-#define FORK_FG 0
-#define FORK_BG 1
-#define FORK_NOJOB 2
+enum fork_mode {
+	FORK_FG, // 0
+	FORK_BG, // 1
+	FORK_NOJOB, // 2, Like FORK_FG, but don't give the process its own process group even if job control is on
+};
 
 #include <signal.h>		/* for sig_atomic_t */
 
 struct job;
 
-enum {
+enum showjobs_mode {
 	SHOWJOBS_DEFAULT,	/* job number, status, command */
 	SHOWJOBS_VERBOSE,	/* job number, PID, status, command */
 	SHOWJOBS_PIDS,		/* PID only */
-	SHOWJOBS_PGIDS		/* PID of the group leader only */
+	SHOWJOBS_PGIDS,		/* PID of the group leader only */
 };
 
 extern int job_warning;		/* user was warned about stopped jobs */
 
-void setjobctl(int);
-void showjobs(int, int);
-struct job *makejob(union node *, int);
-pid_t forkshell(struct job *, union node *, int);
-pid_t vforkexecshell(struct job *, char **, char **, const char *, int, int [2]);
-int waitforjob(struct job *, int *);
-int stoppedjobs(void);
+void setjobctl(bool);
+void showjobs(bool, enum showjobs_mode);
+struct job *makejob(int);
+pid_t forkshell(struct job *, union node *, enum fork_mode);
+void vforkexecshell(struct job *, char **, char **, const char *, int, int [2]);
+int waitforjob(struct job *, bool *);
+bool stoppedjobs(void);
 int backgndpidset(void);
 pid_t backgndpidval(void);
 char *commandtext(union node *);

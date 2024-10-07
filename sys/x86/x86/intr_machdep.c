@@ -207,8 +207,7 @@ intr_init_sources(void *arg)
 			pic->pic_register_sources(pic);
 	}
 }
-SYSINIT(intr_init_sources, SI_SUB_INTR, SI_ORDER_FOURTH + 1, intr_init_sources,
-    NULL);
+SYSINIT(intr_init_sources, SI_SUB_INTR, SI_ORDER_FOURTH + 1, intr_init_sources, NULL);
 
 /*
  * Register a new interrupt source with the global interrupt system.
@@ -614,7 +613,7 @@ intr_next_cpu(int domain)
 
 	MPASS(mp_ncpus == 1 || smp_started);
 	if (mp_ncpus == 1)
-		return (PCPU_GET(apic_id));
+		return (PCPU_GET(pc_apic_id));
 
 	if (intr_no_domain)
 		domain = 0;
@@ -786,6 +785,6 @@ u_int
 intr_next_cpu(int domain)
 {
 
-	return (PCPU_GET(apic_id));
+	return (PCPU_GET(pc_apic_id));
 }
 #endif

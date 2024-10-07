@@ -174,7 +174,7 @@ init_secondary(uint64_t hart)
 		__asm __volatile("wfi");
 
 	/* Initialize curthread */
-	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
+	KASSERT(PCPU_GET(pc_idlethread) != NULL, ("no idle thread"));
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	schedinit_ap();
 
@@ -266,7 +266,7 @@ ipi_stop(void *dummy __unused)
 
 	CTR0(KTR_SMP, "IPI_STOP");
 
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(pc_cpuid);
 	savectx(&stoppcbs[cpu]);
 
 	/* Indicate we are stopped */
@@ -497,7 +497,7 @@ ipi_all_but_self(u_int ipi)
 	cpuset_t other_cpus;
 
 	other_cpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+	CPU_CLR(PCPU_GET(pc_cpuid), &other_cpus);
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	intr_ipi_send(other_cpus, ipi);

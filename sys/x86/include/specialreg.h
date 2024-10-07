@@ -158,7 +158,7 @@
 
 #define	CPUID2_SSE3	0x00000001
 #define	CPUID2_PCLMULQDQ 0x00000002
-#define	CPUID2_DTES64	0x00000004
+#define	CPUID2_DTES64	0x00000004 // DS area using 64-bit layout
 #define	CPUID2_MON	0x00000008
 #define	CPUID2_DS_CPL	0x00000010
 #define	CPUID2_VMX	0x00000020
@@ -167,12 +167,12 @@
 #define	CPUID2_TM2	0x00000100
 #define	CPUID2_SSSE3	0x00000200
 #define	CPUID2_CNXTID	0x00000400
-#define	CPUID2_SDBG	0x00000800
-#define	CPUID2_FMA	0x00001000
-#define	CPUID2_CX16	0x00002000
+#define	CPUID2_SDBG	0x00000800 // IA32_DEBUG_INTERFACE MSR for silicon debug
+#define	CPUID2_FMA	0x00001000 // FMA extensions using YMM state
+#define	CPUID2_CX16	0x00002000 // CMPXCHG16B Available
 #define	CPUID2_XTPR	0x00004000
-#define	CPUID2_PDCM	0x00008000
-#define	CPUID2_PCID	0x00020000
+#define	CPUID2_PDCM	0x00008000 // the performance and debug feature indication MSR IA32_PERF_CAPABILITIES
+#define	CPUID2_PCID	0x00020000 // Process-context Identifiers
 #define	CPUID2_DCA	0x00040000
 #define	CPUID2_SSE41	0x00080000
 #define	CPUID2_SSE42	0x00100000
@@ -181,11 +181,11 @@
 #define	CPUID2_POPCNT	0x00800000
 #define	CPUID2_TSCDLT	0x01000000
 #define	CPUID2_AESNI	0x02000000
-#define	CPUID2_XSAVE	0x04000000
+#define	CPUID2_XSAVE	0x04000000 // the XSAVE/XRSTOR processor extended states feature, the XSETBV/XGETBV instructions, and XCR0
 #define	CPUID2_OSXSAVE	0x08000000
-#define	CPUID2_AVX	0x10000000
-#define	CPUID2_F16C	0x20000000
-#define	CPUID2_RDRAND	0x40000000
+#define	CPUID2_AVX	0x10000000 // the AVX instruction extensions
+#define	CPUID2_F16C	0x20000000 // 16-bit floating-point conversion instructions
+#define	CPUID2_RDRAND	0x40000000 // RDRAND instruction
 #define	CPUID2_HV	0x80000000
 
 /* Intel Processor Trace CPUID. */
@@ -442,7 +442,7 @@
 /*
  * CPUID instruction 7 Structured Extended Features, leaf 0 ebx info
  */
-#define	CPUID_STDEXT_FSGSBASE	0x00000001
+#define	CPUID_STDEXT_FSGSBASE	0x00000001	/* Enable FS/GS BASE accessing instructions */
 #define	CPUID_STDEXT_TSC_ADJUST	0x00000002
 #define	CPUID_STDEXT_SGX	0x00000004
 #define	CPUID_STDEXT_BMI1	0x00000008
@@ -481,7 +481,7 @@
 #define	CPUID_STDEXT2_PREFETCHWT1 	0x00000001
 #define	CPUID_STDEXT2_AVX512VBMI	0x00000002
 #define	CPUID_STDEXT2_UMIP		0x00000004
-#define	CPUID_STDEXT2_PKU		0x00000008
+#define	CPUID_STDEXT2_PKU		0x00000008	/* Protection Keys Enable */
 #define	CPUID_STDEXT2_OSPKE		0x00000010
 #define	CPUID_STDEXT2_WAITPKG		0x00000020
 #define	CPUID_STDEXT2_AVX512VBMI2	0x00000040
@@ -523,7 +523,7 @@
 #define	CPUID_HYBRID_SMALL_CORE	0x20000000
 #define	CPUID_HYBRID_LARGE_CORE	0x40000000
 
-/* MSR IA32_ARCH_CAP(ABILITIES) bits */
+/* MSR_IA32_ARCH_CAP(ABILITIES) bits */
 #define	IA32_ARCH_CAP_RDCL_NO	0x00000001
 #define	IA32_ARCH_CAP_IBRS_ALL	0x00000002
 #define	IA32_ARCH_CAP_RSBA	0x00000004
@@ -534,7 +534,7 @@
 #define	IA32_ARCH_CAP_TSX_CTRL	0x00000080
 #define	IA32_ARCH_CAP_TAA_NO	0x00000100
 
-/* MSR IA32_TSX_CTRL bits */
+/* MSR_IA32_TSX_CTRL bits */
 #define	IA32_TSX_CTRL_RTM_DISABLE	0x00000001
 #define	IA32_TSX_CTRL_TSX_CPUID_CLEAR	0x00000002
 
@@ -886,7 +886,7 @@
 #define	IA32_PKG_THERM_INTERRUPT_HFI_ENABLE		(0x1ULL << 25)
 
 /*
- * PAT modes.
+ * PAT(Page Attribute Table) modes. related: MSR_PAT
  */
 #define	PAT_UNCACHEABLE		0x00
 #define	PAT_WRITE_COMBINING	0x01
@@ -1171,10 +1171,17 @@
 #define	MSR_LSTAR	0xc0000082	/* long mode SYSCALL target rip */
 #define	MSR_CSTAR	0xc0000083	/* compat mode SYSCALL target rip */
 #define	MSR_SF_MASK	0xc0000084	/* syscall flags mask */
-#define	MSR_FSBASE	0xc0000100	/* base address of the %fs "segment" */
-#define	MSR_GSBASE	0xc0000101	/* base address of the %gs "segment" */
-#define	MSR_KGSBASE	0xc0000102	/* base address of the kernel %gs */
+#define	MSR_FSBASE	0xc0000100	/* base address of the %fs "segment", for TLS */
+#define	MSR_GSBASE	0xc0000101	/* base address of the %gs "segment", for pcpu */
+#define	MSR_KGSBASE	0xc0000102	// in user mode, the base address of the kgs;
+					// in kernel mode, the base address of ugs is backuped here */
 #define	MSR_TSC_AUX	0xc0000103
+//wyc
+#define MSC_CSBASE	0xc000010c
+#define MSC_DSBASE	0xc000010d
+#define MSC_ESBASE	0xc000010e
+#define MSC_SSBASE	0xc000010f
+
 #define	MSR_PERFEVSEL0	0xc0010000
 #define	MSR_PERFEVSEL1	0xc0010001
 #define	MSR_PERFEVSEL2	0xc0010002

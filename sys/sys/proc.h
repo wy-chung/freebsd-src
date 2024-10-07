@@ -196,7 +196,7 @@ struct td_sched;
 struct thread;
 struct trapframe;
 struct turnstile;
-struct vm_map;
+struct _vm_map;
 struct vm_map_entry;
 struct epoch_tracker;
 
@@ -233,6 +233,13 @@ struct rusage_ext {
  * This is what is put to sleep and reactivated.
  * Thread context.  Processes may have multiple threads.
  */
+enum td_states {
+	TDS_INACTIVE = 0x0,
+	TDS_INHIBITED,
+	TDS_CAN_RUN,
+	TDS_RUNQ,
+	TDS_RUNNING,
+};
 struct thread {
 	struct mtx	*volatile td_lock; /* replaces sched lock */
 	struct proc	*td_proc;	/* (*) Associated process. */
@@ -349,13 +356,7 @@ struct thread {
  * or already have been set in the allocator, constructor, etc.
  */
 	struct pcb	*td_pcb;	/* (k) Kernel VA of pcb and kstack. */
-	enum td_states {
-		TDS_INACTIVE = 0x0,
-		TDS_INHIBITED,
-		TDS_CAN_RUN,
-		TDS_RUNQ,
-		TDS_RUNNING
-	} td_state;			/* (t) thread state */
+	enum td_states	td_state;			/* (t) thread state */
 	/* Note: td_state must be accessed using TD_{GET,SET}_STATE(). */
 	union {
 		syscallarg_t	tdu_retval[2];
@@ -366,7 +367,9 @@ struct thread {
 	/* LP64 hole */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
 	struct trapframe *td_frame;	/* (k) */
+	// the starting address of kstack
 	vm_offset_t	td_kstack;	/* (a) Kernel VA of kstack. */
+	// the base address of the kstack is td_kstack + td_kstack_pages * PAGE_SIZE
 	int		td_kstack_pages; /* (a) Size of the kstack. */
 	volatile u_int	td_critnest;	/* (k*) Critical section nest level. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
@@ -648,6 +651,12 @@ enum {
 /*
  * Process structure.
  */
+enum p_states {
+	PRS_NEW = 0,	/* In creation */
+	PRS_NORMAL,	/* threads can be run. */
+	PRS_ZOMBIE,
+	PRS_CHILD,	//wyc newly forked and before execve
+};
 struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 	TAILQ_HEAD(, thread) p_threads;	/* (c) all threads. */
@@ -663,11 +672,7 @@ struct proc {
 
 	int		p_flag;		/* (c) P_* flags. */
 	int		p_flag2;	/* (c) P2_* flags. */
-	enum p_states {
-		PRS_NEW = 0,		/* In creation */
-		PRS_NORMAL,		/* threads can be run. */
-		PRS_ZOMBIE
-	} p_state;			/* (j/c) Process status. */
+	enum p_states	p_state;	/* (j/c) Process status. */
 	pid_t		p_pid;		/* (b) Process identifier. */
 	LIST_ENTRY(proc) p_hash;	/* (d) Hash chain. */
 	LIST_ENTRY(proc) p_pglist;	/* (g + e) List of processes in pgrp. */
@@ -776,6 +781,7 @@ struct proc {
 
 	TAILQ_HEAD(, kq_timer_cb_data)	p_kqtim_stop;	/* (c) */
 	LIST_ENTRY(proc) p_jaillist;	/* (d) Jail process linkage. */
+	int		p_asid;		//wyc
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -955,9 +961,10 @@ MALLOC_DECLARE(M_SUBPROC);
  * We use process IDs <= pid_max <= PID_MAX; PID_MAX + 1 must also fit
  * in a pid_t, as it is used to represent "no process group".
  */
-#define	PID_MAX		99999
+#define	PID_MAX		32768	//wyc bc there are only 15 bits (128T/4G) available for process ID
 #define	NO_PID		100000
-#define	THREAD0_TID	NO_PID
+#define TID_START	NO_PID
+#define	THREAD0_TID	TID_START
 extern pid_t pid_max;
 
 #define	SESS_LEADER(p)	((p)->p_session->s_leader == (p))
@@ -1092,7 +1099,11 @@ extern struct mtx ppeers_lock;
 extern struct mtx procid_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
 extern struct thread0_storage thread0_st;	/* Primary thread in proc0. */
+#if !defined(WYC)
 #define	thread0 (thread0_st.t0st_thread)
+#else
+extern struct thread thread0;
+#endif
 extern struct vmspace vmspace0;		/* VM space for proc0. */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int lastpid;
@@ -1116,18 +1127,18 @@ struct	pgrp *pgfind(pid_t);		/* Find process group by id. */
 void	pidhash_slockall(void);		/* Shared lock all pid hash lists. */
 void	pidhash_sunlockall(void);	/* Shared unlock all pid hash lists. */
 
-struct	fork_req {
-	int		fr_flags;
-	int		fr_pages;
-	int 		*fr_pidp;
-	struct proc 	**fr_procp;
-	int 		*fr_pd_fd;
-	int 		fr_pd_flags;
-	struct filecaps	*fr_pd_fcaps;
-	int 		fr_flags2;
 #define	FR2_DROPSIG_CAUGHT	0x00000001 /* Drop caught non-DFL signals */
 #define	FR2_SHARE_PATHS		0x00000002 /* Invert sense of RFFDG for paths */
 #define	FR2_KPROC		0x00000004 /* Create a kernel process */
+struct	fork_req {
+	int		fr_flags;
+	int		fr_pages;	//wyc number of pages for kernel stack
+	int 		*fr_pidp;	// output: process id
+	struct proc 	**fr_procp;	// output: struct *proc
+	int 		*fr_pd_fd;	// output: process descriptor
+	int 		fr_pd_flags;	// input:  processor descriptor flags
+	struct filecaps	*fr_pd_fcaps;
+	int 		fr_flags2;	//wyc see FR2_xxx above
 };
 
 /*
@@ -1178,7 +1189,7 @@ void	fork_return(struct thread *, struct trapframe *);
 int	inferior(struct proc *p);
 void	itimer_proc_continue(struct proc *p);
 void	kqtimer_proc_continue(struct proc *p);
-void	kern_proc_vmmap_resident(struct vm_map *map, struct vm_map_entry *entry,
+void	kern_proc_vmmap_resident(struct _vm_map *map, struct vm_map_entry *entry,
 	    int *resident_count, bool *super);
 void	kern_yield(int);
 void 	kick_proc0(void);
@@ -1232,7 +1243,7 @@ void	tidhash_remove(struct thread *);
 void	cpu_idle(int);
 int	cpu_idle_wakeup(int);
 extern	void (*cpu_idle_hook)(sbintime_t);	/* Hook to machdep CPU idler. */
-void	cpu_switch(struct thread *, struct thread *, struct mtx *);
+void	cpu_switch(struct thread *, struct thread *, struct mtx *); // defined in swtch.S
 void	cpu_sync_core(void);
 void	cpu_throw(struct thread *, struct thread *) __dead2;
 bool	curproc_sigkilled(void);
@@ -1241,7 +1252,7 @@ void	userret(struct thread *, struct trapframe *);
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int, int) __dead2;
 void	cpu_copy_thread(struct thread *td, struct thread *td0);
-bool	cpu_exec_vmspace_reuse(struct proc *p, struct vm_map *map);
+bool	cpu_exec_vmspace_reuse(struct proc *p, struct _vm_map *map);
 int	cpu_fetch_syscall_args(struct thread *td);
 void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_fork_kthread_handler(struct thread *, void (*)(void *), void *);

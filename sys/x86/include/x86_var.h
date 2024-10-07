@@ -148,7 +148,7 @@ void	zenbleed_check_and_apply(bool all_cpus);
 void	nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame);
 void	nmi_call_kdb_smp(u_int type, struct trapframe *frame);
 void	nmi_handle_intr(u_int type, struct trapframe *frame);
-void	pagecopy(void *from, void *to);
+void	pagecopy(void *from, void *to); // in support.S
 void	printcpuinfo(void);
 int	pti_get_default(void);
 int	user_dbreg_trap(register_t dr6);

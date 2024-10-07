@@ -1637,17 +1637,24 @@ main_Exit(bool outOfDate)
 	return outOfDate ? 1 : 0;
 }
 
-int
-main(int argc, char **argv)
+static int
+make_main(int argc, char **argv)
 {
 	bool outOfDate;
 
+	printf("%s:\n", __func__);
 	main_Init(argc, argv);
 	main_ReadFiles();
 	main_PrepareMaking();
 	outOfDate = main_Run();
 	main_CleanUp();
 	return main_Exit(outOfDate);
+}
+
+int
+main(int argc, char **argv)
+{
+	return make_main(argc, argv);
 }
 
 /*
@@ -1756,7 +1763,7 @@ Cmd_Exec(const char *cmd, char **error)
 
 		(void)execv(shellPath, UNCONST(args));
 		_exit(1);
-		/* NOTREACHED */
+		/*NOTREACHED*/
 
 	case -1:
 		*error = str_concat3("Couldn't exec \"", cmd, "\"");

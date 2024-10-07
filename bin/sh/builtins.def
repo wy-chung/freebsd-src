@@ -50,14 +50,14 @@
 
 bltincmd -n	builtin
 aliascmd	alias
-bgcmd -j	bg
+bgcmd -j	bg              # -j: be excluded from systems without job control
 bindcmd		bind
 breakcmd	-s break -s continue
 cdcmd		cd chdir
-commandcmd -n	command
+commandcmd -n	command		# -n: can run in the same process
 dotcmd		-s .
 echocmd -n	echo
-evalcmd		-s eval
+evalcmd		-s eval         # -s: this is a POSIX special built-in command
 execcmd		-s exec
 exitcmd		-s exit
 letcmd		let

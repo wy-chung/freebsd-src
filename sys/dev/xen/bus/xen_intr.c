@@ -357,7 +357,7 @@ xen_intr_handle_upcall(void *unused __unused)
 	/* We must remain on the same vCPU during this function */
 	CRITICAL_ASSERT(curthread);
 
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(pc_cpuid);
 	pc  = DPCPU_PTR(xen_intr_pcpu);
 	v   = DPCPU_GET(vcpu_info);
 
@@ -413,9 +413,9 @@ xen_intr_handle_upcall(void *unused __unused)
 				continue;
 
 			/* Make sure we are firing on the right vCPU */
-			KASSERT((isrc->xi_cpu == PCPU_GET(cpuid)),
+			KASSERT((isrc->xi_cpu == PCPU_GET(pc_cpuid)),
 				("Received unexpected event on vCPU#%u, event bound to vCPU#%u",
-				PCPU_GET(cpuid), isrc->xi_cpu));
+				PCPU_GET(pc_cpuid), isrc->xi_cpu));
 
 			xen_arch_intr_execute_handlers(isrc, trap_frame);
 

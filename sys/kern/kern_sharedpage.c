@@ -114,7 +114,7 @@ shared_page_fill(int size, int align, const void *data)
 static void
 shared_page_init(void *dummy __unused)
 {
-	vm_page_t m;
+	struct vm_page *m;
 	vm_offset_t addr;
 
 	sx_init(&shared_page_alloc_sx, "shpsx");

@@ -86,8 +86,8 @@
  * so Sv48-enabled systems MUST support Sv39, etc.
  */
 #define	MMU_SV39	0x1	/* 3-level paging */
-#define	MMU_SV48	0x2	/* 4-level paging */
-#define	MMU_SV57	0x4	/* 5-level paging */
+#define	MMU_SV48	0x2	/* 4-level paging */ // PMAP_MODE_SV48
+#define	MMU_SV57	0x4	/* 5-level paging */ // PMAP_MODE_SV57 <== not supported by OS
 
 extern char btext[];
 extern char etext[];

@@ -574,6 +574,7 @@
 #define CSR_STVAL 0x143
 #define CSR_SIP 0x144
 #define CSR_SATP 0x180
+#define CSR_SPROCB 0x181 //wyc process base address
 #define CSR_MSTATUS 0x300
 #define CSR_MISA 0x301
 #define CSR_MEDELEG 0x302
@@ -1066,6 +1067,7 @@ DECLARE_CSR(scause, CSR_SCAUSE)
 DECLARE_CSR(stval, CSR_STVAL)
 DECLARE_CSR(sip, CSR_SIP)
 DECLARE_CSR(satp, CSR_SATP)
+DECLARE_CSR(sprocb, CSR_SPROCB); //wyc process base address
 DECLARE_CSR(mstatus, CSR_MSTATUS)
 DECLARE_CSR(misa, CSR_MISA)
 DECLARE_CSR(medeleg, CSR_MEDELEG)
