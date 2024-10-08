@@ -85,20 +85,25 @@ struct md_page {
       64GB unused	DMAP_MAX_ADDRESS
 */
 typedef struct pmap {
+	struct mtx		pm_mtx;		// pmap lock
 	pd_entry_t		*pm_top;	/* top-level page table page */
-	u_long			pm_satp;	/* value for SATP register */ // Supervisor Address Translation and Protection
 	cpuset_t		pm_active;	/* active on cpus */
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
-
-	struct mtx		pm_mtx;		// pmap lock
-	struct pmap_statistics	pm_stats;	/* pmap statictics */
-	LIST_ENTRY(pmap)	pm_list;	/* List of all pmaps */
 	struct vm_radix		pm_root;	// a tree of "l3" pagetable pages for this pmap
+// below are not inited in kernel_pmap
+	struct pmap_statistics	pm_stats;	/* pmap statictics */
+	u_long			pm_satp;	/* value for SATP register */ // Supervisor Address Translation and Protection
+// below is not inited in vmspace0.vm_pmap and kernel_pmap
+	LIST_ENTRY(pmap)	pm_list;	/* List of all user pmaps */
 } *pmap_t;
 
 #ifdef _KERNEL
 extern struct pmap	kernel_pmap_store;
+#if !defined(WYC)
 #define	kernel_pmap	(&kernel_pmap_store)
+#else
+extern struct pmap *kernel_pmap;
+#endif
 //#define	pmap_kernel()	kernel_pmap
 
 #define	PMAP_ASSERT_LOCKED(pmap) \

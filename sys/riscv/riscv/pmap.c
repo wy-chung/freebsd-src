@@ -649,7 +649,7 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 	printf("%s %lx %lx %lx\n", __func__, l1pt_va, kernstart, kernlen);
 
 	/* Set this early so we can use the pagetable walking functions */
-	kernel_pmap_store.pm_top = (pd_entry_t *)l1pt_va;
+	kernel_pmap->pm_top = (pd_entry_t *)l1pt_va; //wyc
 	PMAP_LOCK_INIT(kernel_pmap);
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 	vm_radix_init(&kernel_pmap->pm_root);
@@ -746,7 +746,7 @@ pmap_bootstrap(vm_offset_t l1pt_va, vm_paddr_t kernstart, vm_size_t kernlen) // 
 		satp = csr_read(satp);
 		if ((satp & SATP_MODE_M) == SATP_MODE_SV48) {
 			pmap_mode = PMAP_MODE_SV48;
-			kernel_pmap_store.pm_top = l0pt;
+			kernel_pmap->pm_top = l0pt; //wyc
 		} else {
 			/* Mode didn't change, give the page back. */
 			freemempos -= PAGE_SIZE;
@@ -1249,7 +1249,7 @@ pmap_remove_l3pt_page(pmap_t pmap, vm_offset_t va)
 static inline bool
 pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t mptp /*ori m*/, spglist_t *free)
 {
-//WYC_ASSERT(pmap != kernel_pmap); // tested
+//WYC_ASSERT(pmap != kernel_pmap); // pass
 	KASSERT(mptp->ref_count > 0,
 	    ("%s: page %p ref count underflow", __func__, mptp));
 
@@ -1320,7 +1320,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde, spglist_t *free)
 	vm_page_t mptp;
 
 	if (va >= VM_MAXUSER_ADDRESS) {
-WYC_ASSERT(pmap == kernel_pmap);
+//WYC_ASSERT(pmap == kernel_pmap); // pass
 		return (false);
 	}
 	KASSERT(ptepde != 0, ("%s: ptepde != 0", __func__));
@@ -1340,7 +1340,7 @@ pmap_pinit0(pmap_t pmap) // < proc0_init
 {
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
-	pmap->pm_top = kernel_pmap_store.pm_top; //wyc
+	pmap->pm_top = kernel_pmap->pm_top;
 	pmap->pm_satp = pmap_satp_mode() | (vtophys(pmap->pm_top) >> PAGE_SHIFT);
 	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
@@ -1380,7 +1380,7 @@ pmap_pinit(pmap_t pmap)
 			pmap->pm_top[i] = kernel_pmap->pm_top[i];
 		mtx_unlock(&allpmaps_lock);
 	} else {
-		int l0i = pmap_l0_index(VM_MIN_KERNEL_ADDRESS); // it will be the last entry of l0pt
+		int l0i = pmap_l0_index(VM_MIN_KERNEL_ADDRESS); // it will be the last entry of L0 ptp
 		pmap->pm_top[l0i] = kernel_pmap->pm_top[l0i];
 	}
 
@@ -2220,7 +2220,7 @@ static void
 pmap_remove_kernel_l2(/*pmap_t pmap, */pt_entry_t *l2, vm_offset_t va)
 {
 	KASSERT(!VIRT_IN_DMAP(va), ("removing direct mapping of %#lx", va));
-	//KASSERT(pmap == kernel_pmap, ("pmap %p is not kernel_pmap", pmap));
+	KASSERT(pmap == kernel_pmap, ("pmap %p is not kernel_pmap", pmap));
 	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
 
 	vm_page_t ml3 = pmap_remove_l3pt_page(kernel_pmap, va);
@@ -4769,11 +4769,10 @@ pmap_activate_sw(struct thread *td) // < cpu_switch(swtch.S) < sched_switch < mi
 #endif
 	PCPU_SET(pc_curpmap, pmap);
 
-	if (pmap->pm_satp == oldpmap->pm_satp)
-		return;	//wyc pull don't switch address space
-
-	csr_write(satp, pmap->pm_satp);
-	sfence_vma();
+	if (pmap->pm_satp != oldpmap->pm_satp) { //wyc pull
+		csr_write(satp, pmap->pm_satp);
+		sfence_vma();
+	}
 }
 
 void
