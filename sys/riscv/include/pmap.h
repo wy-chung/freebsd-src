@@ -94,7 +94,7 @@ typedef struct pmap {
 	struct pmap_statistics	pm_stats;	/* pmap statictics */
 	u_long			pm_satp;	/* value for SATP register */ // Supervisor Address Translation and Protection
 // below is not inited in vmspace0.vm_pmap and kernel_pmap
-	LIST_ENTRY(pmap)	pm_list;	/* List of all user pmaps */
+	LIST_ENTRY(pmap)	pm_list;	// net used in SV48 /* List of all user pmaps */
 } *pmap_t;
 
 #ifdef _KERNEL
