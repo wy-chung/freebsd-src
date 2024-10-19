@@ -247,7 +247,7 @@ extern bitstr_t proc_id_sessidmap;
 extern bitstr_t proc_id_reapmap;
 
 /*
- * Find an unused process ID
+ * Find an unused process ID. i.e. PROC_ID_PID
  *
  * If RFHIGHPID is set (used during system boot), do not allocate
  * low-numbered pids.

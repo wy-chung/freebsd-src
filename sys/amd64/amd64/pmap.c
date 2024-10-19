@@ -6940,7 +6940,7 @@ static bool
 pmap_promote_pde(pmap_t pmap, pd_entry_t *pde/*OUT*/, vm_offset_t va, vm_page_t mpte,
     struct rwlock **lockp)
 {
-panic("%s: wyctest\n", __func__); // pass. will not be called when VM_NRESERVLEVEL == 0
+//panic("%s: wyctest\n", __func__); // can be used to test if VM_NRESERVLEVEL == 0
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if (!pmap_ps_enabled(pmap))
 		return (false);

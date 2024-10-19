@@ -59,7 +59,11 @@ struct image_args {
 #define IMGACT_BINMISC	0x2
 #define IMGP_ASLR_SHARED_PAGE	0x1
 struct image_params {
+#if !defined(WYC)
 	struct proc *proc;		/* our process */
+#else
+	si_proc_t *proc;		// for source insight
+#endif
 	struct label *execlabel;	/* optional exec label */
 	struct vnode *vp;		/* pointer to vnode of file to exec */
 	struct vm_object *object;	/* The vm object for this vp */

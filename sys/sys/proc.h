@@ -657,7 +657,7 @@ enum p_states {
 	PRS_ZOMBIE,
 	PRS_CHILD,	//wyc newly forked and before execve
 };
-struct proc {
+typedef struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 	TAILQ_HEAD(, thread) p_threads;	/* (c) all threads. */
 	struct mtx	p_slock;	/* process spin lock */
@@ -781,8 +781,7 @@ struct proc {
 
 	TAILQ_HEAD(, kq_timer_cb_data)	p_kqtim_stop;	/* (c) */
 	LIST_ENTRY(proc) p_jaillist;	/* (d) Jail process linkage. */
-	int		p_asid;		//wyc
-};
+} si_proc_t; // for source insight
 
 #define	p_session	p_pgrp->pg_session
 #define	p_pgid		p_pgrp->pg_id
