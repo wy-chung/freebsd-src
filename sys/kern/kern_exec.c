@@ -656,7 +656,7 @@ interpret:
 			continue;
 		error = (*execsw_s[i]->ex_imgact)(imgp);
 #if defined(WYC)
-		error = exec_elf64_imgact();
+		error = exec_elf64_imgact(imgp);
 #endif
 	}
 

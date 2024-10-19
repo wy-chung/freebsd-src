@@ -488,7 +488,11 @@ __elfN(phdr_in_zero_page)(const Elf_Ehdr *hdr)
 }
 
 static int
+#if defined(WYC)
+elf64_check_header(const Elf_Ehdr *hdr)
+#else
 __elfN(check_header)(const Elf_Ehdr *hdr)
+#endif
 {
 	Elf_Brandinfo *bi;
 	int i;
@@ -517,7 +521,11 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 }
 
 static int
+#if defined(WYC)
+elf64_map_partial(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+#else
 __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+#endif
     vm_offset_t start, vm_offset_t end, vm_prot_t prot)
 {
 	struct sf_buf *sf;
@@ -549,7 +557,11 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 }
 
 static int
+#if defined(WYC)
+elf64_map_insert(struct image_params *imgp, vm_map_t map, vm_object_t object,
+#else
 __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
+#endif
     vm_ooffset_t offset, vm_offset_t start, vm_offset_t end, vm_prot_t prot,
     int cow)
 {
@@ -559,7 +571,11 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 	int error, locked, rv;
 
 	if (start != trunc_page(start)) {
+#if defined(WYC)
+		rv = elf64_map_partial(map, object, offset, start,
+#else
 		rv = __elfN(map_partial)(map, object, offset, start,
+#endif
 		    round_page(start), prot);
 		if (rv != KERN_SUCCESS)
 			return (rv);
@@ -567,7 +583,11 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 		start = round_page(start);
 	}
 	if (end != round_page(end)) {
+#if defined(WYC)
+		rv = elf64_map_partial(map, object, offset +
+#else
 		rv = __elfN(map_partial)(map, object, offset +
+#endif
 		    trunc_page(end) - start, trunc_page(end), end, prot);
 		if (rv != KERN_SUCCESS)
 			return (rv);
@@ -621,7 +641,11 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 }
 
 static int
+#if defined(WYC)
+elf64_load_section(struct image_params *imgp, vm_ooffset_t offset,
+#else
 __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
+#endif
     caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
 {
 	struct sf_buf *sf;
@@ -694,7 +718,11 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 
 	/* This had damn well better be true! */
 	if (map_len != 0) {
+#if defined(WYC)
+		rv = elf64_map_insert(imgp, map, NULL, 0, map_addr,
+#else
 		rv = __elfN(map_insert)(imgp, map, NULL, 0, map_addr,
+#endif
 		    map_addr + map_len, prot, 0);
 		if (rv != KERN_SUCCESS)
 			return (EINVAL);
@@ -725,7 +753,11 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 }
 
 static int
+#if defined(WYC)
+elf64_load_sections(struct image_params *imgp, const Elf_Ehdr *hdr,
+#else
 __elfN(load_sections)(struct image_params *imgp, const Elf_Ehdr *hdr,
+#endif
     const Elf_Phdr *phdr, u_long rbase, u_long *base_addrp)
 {
 	vm_prot_t prot;
@@ -747,6 +779,9 @@ __elfN(load_sections)(struct image_params *imgp, const Elf_Ehdr *hdr,
 		error = __elfN(load_section)(imgp, phdr[i].p_offset,
 		    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,
 		    phdr[i].p_memsz, phdr[i].p_filesz, prot);
+#if defined(WYC)
+		error = elf64_load_section();
+#endif
 		if (error != 0)
 			return (error);
 
@@ -778,7 +813,11 @@ __elfN(load_sections)(struct image_params *imgp, const Elf_Ehdr *hdr,
  * the entry point for the loaded file.
  */
 static int
+#if defined(WYC)
+elf64_load_file(struct proc *p, const char *file, u_long *addr,
+#else
 __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
+#endif
 	u_long *entry)
 {
 	struct {
@@ -838,7 +877,11 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	imgp->object = nd->ni_vp->v_object;
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
+#if defined(WYC)
+	if ((error = elf64_check_header(hdr)) != 0)
+#else
 	if ((error = __elfN(check_header)(hdr)) != 0)
+#endif
 		goto fail;
 	if (hdr->e_type == ET_DYN)
 		rbase = *addr;
@@ -1077,13 +1120,20 @@ __elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
 	if (brand_info->interp_newpath != NULL &&
 	    (brand_info->interp_path == NULL ||
 	    strcmp(interp, brand_info->interp_path) == 0)) {
+#if defined(WYC)
+		error = elf64_load_file(imgp->proc,
+#else
 		error = __elfN(load_file)(imgp->proc,
+#endif
 		    brand_info->interp_newpath, addr, entry);
 		if (error == 0)
 			return (0);
 	}
-
+#if defined(WYC)
+	error = elf64_load_file(imgp->proc, interp, addr, entry);
+#else
 	error = __elfN(load_file)(imgp->proc, interp, addr, entry);
+#endif
 	if (error == 0)
 		return (0);
 
@@ -1098,10 +1148,10 @@ __elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
 #define	ET_DYN_ADDR_RAND	1
 
 static int
-#if !defined(WYC)
-__CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
-#else
+#if defined(WYC)
 exec_elf64_imgact(struct image_params *imgp)
+#else
+__CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 #endif
 {
 	struct thread *td;
@@ -1133,10 +1183,10 @@ exec_elf64_imgact(struct image_params *imgp)
 	 * Only allow ET_EXEC & ET_DYN here, reject ET_DYN later
 	 * if particular brand doesn't support it.
 	 */
-	if (__elfN(check_header)(hdr) != 0 ||
 #if defined(WYC)
-	    elf32_check_header(hdr) != 0 ||
+	    elf64_check_header(hdr);
 #endif
+	if (__elfN(check_header)(hdr) != 0 ||
 	    (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN))
 		return (-1);
 
@@ -1370,6 +1420,9 @@ exec_elf64_imgact(struct image_params *imgp)
 		goto ret;
 
 	error = __elfN(load_sections)(imgp, hdr, phdr, imgp->et_dyn_addr, NULL);
+#if defined(WYC)
+	error = elf64_load_sections();
+#endif
 	if (error != 0)
 		goto ret;
 

@@ -98,12 +98,6 @@ struct fork_args {
 };
 #endif
 
-static int	fork_flags = RFFDG | RFPROC; // == 0x14, 20
-SYSCTL_INT(_kern, OID_AUTO, fork_flags, CTLFLAG_RW, &fork_flags, 0, "fork flags");
-
-static int	vfork_flags = RFFDG | RFPROC | RFPPWAIT | RFMEM; // == 0x8000_0034
-SYSCTL_INT(_kern, OID_AUTO, vfork_flags, CTLFLAG_RW, &vfork_flags, 0, "fork flags");
-
 /* ARGSUSED */
 int
 sys_fork(struct thread *td, struct fork_args *uap)
@@ -112,7 +106,7 @@ sys_fork(struct thread *td, struct fork_args *uap)
 	int error, pid;
 
 	bzero(&fr, sizeof(fr));
-	fr.fr_flags = fork_flags; // RFFDG | RFPROC;
+	fr.fr_flags = RFFDG | RFPROC;
 	fr.fr_pidp = &pid;
 	error = fork1(td, &fr);
 	if (error == 0) {
@@ -157,7 +151,7 @@ sys_vfork(struct thread *td, struct vfork_args *uap)
 	int error, pid;
 
 	bzero(&fr, sizeof(fr));
-	fr.fr_flags = vfork_flags; // RFFDG | RFPROC | RFPPWAIT | RFMEM;
+	fr.fr_flags = RFFDG | RFPROC | RFPPWAIT | RFMEM;
 	fr.fr_pidp = &pid;
 	error = fork1(td, &fr);
 	if (error == 0) {
@@ -400,10 +394,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = fork_findpid(fr->fr_flags);
-	if (fr->fr_flags & RFMEM) //wyc
-		p2->p_asid = p1->p_asid;
-	else
-		p2->p_asid = p2->p_pid;
 	AUDIT_ARG_PID(p2->p_pid);
 	TSFORK(p2->p_pid, p1->p_pid);
 
@@ -865,7 +855,7 @@ again:
 int
 fork1(struct thread *td, struct fork_req *fr)
 {
-	struct proc *p1, *newproc;
+	struct proc *p1, *p2; //wyc newproc -> p2
 	struct thread *td2;
 	struct vmspace *vm2;
 	struct ucred *cred;
@@ -939,7 +929,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	}
 
 	fp_procdesc = NULL;
-	newproc = NULL;
+	p2 = NULL;
 	vm2 = NULL;
 	killsx_locked = false;
 	singlethreaded = false;
@@ -1035,15 +1025,15 @@ fork1(struct thread *td, struct fork_req *fr)
 	if (pages == 0) //wyc always true
 		pages = kstack_pages;
 	/* Allocate new proc. */
-	newproc = uma_zalloc(proc_zone, M_WAITOK);
-	td2 = FIRST_THREAD_IN_PROC(newproc);
+	p2 = uma_zalloc(proc_zone, M_WAITOK);
+	td2 = FIRST_THREAD_IN_PROC(p2);
 	if (td2 == NULL) {
 		td2 = thread_alloc(pages);
 		if (td2 == NULL) {
 			error = ENOMEM;
 			goto fail2;
 		}
-		proc_linkup(newproc, td2);
+		proc_linkup(p2, td2);
 	} else {
 		kmsan_thread_alloc(td2);
 		if (td2->td_kstack == 0 || td2->td_kstack_pages != pages) {
@@ -1086,22 +1076,22 @@ fork1(struct thread *td, struct fork_req *fr)
 	 * XXX: This is ugly; when we copy resource usage, we need to bump
 	 *      per-cred resource counters.
 	 */
-	proc_set_cred_init(newproc, td->td_ucred);
+	proc_set_cred_init(p2, td->td_ucred);
 
 	/*
 	 * Initialize resource accounting for the child process.
 	 */
-	error = racct_proc_fork(p1, newproc);
+	error = racct_proc_fork(p1, p2);
 	if (error != 0) {
 		error = EAGAIN;
 		goto fail1;
 	}
 
 #ifdef MAC
-	mac_proc_init(newproc);
+	mac_proc_init(p2);
 #endif
-	newproc->p_klist = knlist_alloc(&newproc->p_mtx);
-	STAILQ_INIT(&newproc->p_ktr);
+	p2->p_klist = knlist_alloc(&p2->p_mtx);
+	STAILQ_INIT(&p2->p_ktr);
 
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
@@ -1114,19 +1104,19 @@ fork1(struct thread *td, struct fork_req *fr)
 		chgproccnt(cred->cr_ruidinfo, 1, 0);
 	}
 
-	do_fork(td, fr, newproc, td2, vm2, fp_procdesc);
+	do_fork(td, fr, p2, td2, vm2, fp_procdesc);
 	error = 0;
 	goto cleanup;
 fail0:
 	error = EAGAIN;
 #ifdef MAC
-	mac_proc_destroy(newproc);
+	mac_proc_destroy(p2);
 #endif
-	racct_proc_exit(newproc);
+	racct_proc_exit(p2);
 fail1:
-	proc_unset_cred(newproc);
+	proc_unset_cred(p2);
 fail2:
-	uma_zfree(proc_zone, newproc);
+	uma_zfree(proc_zone, p2);
 fail3: //wycpull
 	if (vm2 != NULL)
 		vmspace_free(vm2);

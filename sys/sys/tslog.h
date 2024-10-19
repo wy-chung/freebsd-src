@@ -55,7 +55,7 @@
 #define TSNAMEI(p, name) TSRAW_USER(p, (pid_t)(-1), NULL, name)
 #define TSPROCEXIT(p) TSRAW_USER(p, (pid_t)(-1), NULL, NULL)
 
-#ifdef TSLOG
+#ifdef TSLOG // ts means timestamped loggin
 #define TSRAW(a, b, c, d) tslog(a, b, c, d)
 void tslog(void *, int, const char *, const char *);
 #define TSRAW_USER(a, b, c, d) tslog_user(a, b, c, d)

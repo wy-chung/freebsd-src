@@ -554,7 +554,7 @@ pmap_early_page_idx(vm_offset_t l1pt_va, vm_offset_t va, u_int *l1_slot, u_int *
 	pd_entry_t *l1pt __diagused;
 
 	l1pt = (pd_entry_t *)l1pt_va;
-	*l1_slot = (va >> L1_SHIFT) & Ln_ADDR_MASK;
+	*l1_slot = pmap_l1_index(va); //wyc push
 
 	/* Check locore has used a table L1 map */
 	KASSERT((l1pt[*l1_slot] & PTE_RWX) == 0, //ori PTE_RX

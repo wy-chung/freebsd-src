@@ -4376,7 +4376,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge /*OUT*/)
 	locked = vm_map_trylock(new_map); /* trylock to silence WITNESS */
 	KASSERT(locked, ("%s: lock failed", __func__)); //wyc
 
-	error = pmap_vmspace_copy(new_map->pmap, old_map->pmap);
+	error = pmap_vmspace_copy(new_map->pmap, old_map->pmap); // riscv: do nothing
 	if (error != 0) {
 		sx_xunlock(&old_map->lock);
 		sx_xunlock(&new_map->lock);
