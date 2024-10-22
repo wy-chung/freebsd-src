@@ -50,8 +50,9 @@ fsu_fault_nopcb:
 END(fsu_fault)
 
 /*
- * int casueword32(volatile uint32_t *, uint32_t, uint32_t *, uint32_t)
+ * int casueword32(volatile uint32_t *a0, uint32_t a1, uint32_t *a2, uint32_t a3)
  */
+// fetch, compare and store data from user-space
 ENTRY(casueword32)
 	li	a4, (VM_MAXUSER_ADDRESS-3)
 	bgeu	a0, a4, fsu_fault_nopcb
@@ -71,7 +72,7 @@ ENTRY(casueword32)
 END(casueword32)
 
 /*
- * int casueword(volatile u_long *, u_long, u_long *, u_long)
+ * int casueword(volatile u_long a0*, u_long a1, u_long *a2, u_long a3)
  */
 ENTRY(casueword)
 	li	a4, (VM_MAXUSER_ADDRESS-7)
@@ -92,7 +93,7 @@ ENTRY(casueword)
 END(casueword)
 
 /*
- * int fubyte(volatile const void *)
+ * int fubyte(volatile const void *a0) // fetch a byte from user
  */
 ENTRY(fubyte)
 	li	a1, VM_MAXUSER_ADDRESS
@@ -107,7 +108,7 @@ ENTRY(fubyte)
 END(fubyte)
 
 /*
- * int fuword(volatile const void *)
+ * int fuword(volatile const void *a0) // fetch a word from user
  */
 ENTRY(fuword16)
 	li	a1, (VM_MAXUSER_ADDRESS-1)
@@ -122,7 +123,7 @@ ENTRY(fuword16)
 END(fuword16)
 
 /*
- * int32_t fueword32(volatile const void *, int32_t *)
+ * int32_t fueword32(volatile const void *a0, int32_t *a1) // fetch a word32 from user and store the result to *a1
  */
 ENTRY(fueword32)
 	li	a2, (VM_MAXUSER_ADDRESS-3)
@@ -139,8 +140,8 @@ ENTRY(fueword32)
 END(fueword32)
 
 /*
- * long fueword(volatile const void *, int64_t *)
- * int64_t fueword64(volatile const void *, int64_t *)
+ * long    fueword(volatile const void *a0, int64_t *a1) // fetch a word from user and store it to *a1
+ * int64_t fueword64(volatile const void *a0, int64_t *a1)
  */
 ENTRY(fueword)
 EENTRY(fueword64)
@@ -159,7 +160,7 @@ EEND(fueword64)
 END(fueword)
 
 /*
- * int subyte(volatile void *, int)
+ * int subyte(volatile void *a0, int a1)
  */
 ENTRY(subyte)
 	li	a2, VM_MAXUSER_ADDRESS
@@ -175,7 +176,7 @@ ENTRY(subyte)
 END(subyte)
 
 /*
- * int suword16(volatile void *, int)
+ * int suword16(volatile void *a0, int a1)
  */
 ENTRY(suword16)
 	li	a2, (VM_MAXUSER_ADDRESS-1)
@@ -191,7 +192,7 @@ ENTRY(suword16)
 END(suword16)
 
 /*
- * int suword32(volatile void *, int)
+ * int suword32(volatile void *a0, int a1)
  */
 ENTRY(suword32)
 	li	a2, (VM_MAXUSER_ADDRESS-3)
@@ -207,7 +208,7 @@ ENTRY(suword32)
 END(suword32)
 
 /*
- * int suword(volatile void *, long)
+ * int suword(volatile void *a0, long a1)
  */
 ENTRY(suword)
 EENTRY(suword64)

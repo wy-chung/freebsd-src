@@ -43,7 +43,7 @@
  * Fault handler for the copy{in,out} functions below.
  */
 ENTRY(copyio_fault)
-	SET_FAULT_HANDLER(x0, a1) /* Clear the handler */
+	SET_FAULT_HANDLER(x0, a1) /* Clear the handler */ // store 0 to curthread->td_pcb->pcb_onfault
 	EXIT_USER_ACCESS(a1)
 copyio_fault_nopcb:
 	li	a0, EFAULT
@@ -59,7 +59,7 @@ END(copyio_fault)
  */
 .macro copycommon
 	la	a6, copyio_fault	/* Get the handler address */
-	SET_FAULT_HANDLER(a6, a7)	/* Set the handler */
+	SET_FAULT_HANDLER(a6, a7)	/* Set the handler */ // store function copyio_fault to curthread->td_pcb->pcb_onfault
 	ENTER_USER_ACCESS(a7)
 
 	li	t2, XLEN_BYTES
@@ -110,13 +110,13 @@ END(copyio_fault)
 /*
  * Copies from a kernel to user address
  *
- * int copyout(const void *kaddr, void *udaddr, size_t len)
+ * int copyout(const void *kaddr|a0, void *udaddr|a1, size_t len|a2)
  */
 ENTRY(copyout)
 	beqz	a2, copyout_end	/* If len == 0 then skip loop */
 	add	a3, a1, a2
 	li	a4, VM_MAXUSER_ADDRESS
-	bgeu	a3, a4, copyio_fault_nopcb
+	bgeu	a3, a4, copyio_fault_nopcb // branch greater than or equal to unsigned
 
 	copycommon
 
