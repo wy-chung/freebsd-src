@@ -4962,6 +4962,8 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 	if (newvmspace == NULL)
 		return (ENOMEM);
 	newvmspace->vm_swrss = oldvmspace->vm_swrss;
+	//newvmspace->vm_base = (vm_offset_t)p->p_pid << 32; //wyc sa
+	newvmspace->vm_base = 0; //wyc sa
 	/*
 	 * This code is written like this for prototype purposes.  The
 	 * goal is to avoid running down the vmspace here, but let the

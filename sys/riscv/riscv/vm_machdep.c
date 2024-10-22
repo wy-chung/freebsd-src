@@ -66,8 +66,8 @@
 void
 cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 {
-	struct pcb *pcb2;
-	struct trapframe *tf;
+	struct pcb *pcb2;	// kernel address
+	struct trapframe *tf;	// kernel address
 
 	if ((flags & RFPROC) == 0)
 		return;

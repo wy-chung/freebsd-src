@@ -50,7 +50,7 @@ struct pcb {
 	uint64_t	pcb_x[32][2];	/* Floating point registers */
 	uint64_t	pcb_fcsr;	/* Floating point control reg */
 	uint64_t	pcb_fpflags;	/* Floating point flags */
-	vm_offset_t	pcb_onfault;	/* Copyinout fault handler */
+	vm_offset_t	pcb_onfault;	// actually points to a function /* Copyinout fault handler */
 };
 
 #ifdef _KERNEL

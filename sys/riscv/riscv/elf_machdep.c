@@ -121,9 +121,6 @@ elf64_register_sysvec(void *arg)
 
 	sv = arg;
 	switch (pmap_mode) {
-	case PMAP_MODE_SV57:
-		panic("%s: PMAP_MODE_SV57 not implemented yet\n", __func__);	//wyc
-		break;
 	case PMAP_MODE_SV48:
 		sv->sv_maxuser = VM_MAX_USER_ADDRESS_SV48;
 		sv->sv_usrstack = USRSTACK_SV48;
@@ -131,10 +128,16 @@ elf64_register_sysvec(void *arg)
 		sv->sv_shared_page_base = SHAREDPAGE_SV48;
 		break;
 	case PMAP_MODE_SV39:
+WYC_PANIC();
+#if 0
 		sv->sv_maxuser = VM_MAX_USER_ADDRESS_SV39;
 		sv->sv_usrstack = USRSTACK_SV39;
 		sv->sv_psstrings = PS_STRINGS_SV39;
 		sv->sv_shared_page_base = SHAREDPAGE_SV39;
+#endif
+		break;
+	case PMAP_MODE_SV57:
+WYC_PANIC();
 		break;
 	}
 }

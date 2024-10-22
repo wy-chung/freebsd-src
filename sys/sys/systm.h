@@ -329,6 +329,8 @@ int	SAN_INTERCEPTOR(copyout)(const void *, void *, size_t);
 #endif /* !SAN_RUNTIME */
 #endif /* SAN_NEEDS_INTERCEPTORS */
 
+// fetch data from base (user-space)
+// return it / store to val (kernel-space)
 int	fubyte(volatile const void *base);
 long	fuword(volatile const void *base);
 int	fuword16(volatile const void *base);
@@ -337,16 +339,20 @@ int64_t	fuword64(volatile const void *base);
 int	fueword(volatile const void *base, long *val);
 int	fueword32(volatile const void *base, int32_t *val);
 int	fueword64(volatile const void *base, int64_t *val);
+// store data to base (user-space)
 int	subyte(volatile void *base, int byte);
 int	suword(volatile void *base, long word);
 int	suword16(volatile void *base, int word);
 int	suword32(volatile void *base, int32_t word);
 int	suword64(volatile void *base, int64_t word);
+
+// compare and swap from user space. if *base(user-space) == oldval then *base = newval
+// the old value is stored to oldvalp(kernel-space)
 uint32_t casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval);
-u_long	casuword(volatile u_long *p, u_long oldval, u_long newval);
+u_long	casuword(volatile u_long *base, u_long oldval, u_long newval);
 int	casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
 	    uint32_t newval);
-int	casueword(volatile u_long *p, u_long oldval, u_long *oldvalp,
+int	casueword(volatile u_long *base, u_long oldval, u_long *oldvalp,
 	    u_long newval);
 
 #if defined(SAN_NEEDS_INTERCEPTORS) && !defined(KCSAN)
