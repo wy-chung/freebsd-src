@@ -76,6 +76,8 @@
 #endif
 
 #include <security/audit/audit.h>
+#include <vm/pmap.h> //wyc sa
+#include <vm/vm_map.h> //wyc sa
 
 /*
  * The following macro defines how many bytes will be allocated from
@@ -189,7 +191,7 @@ struct read_args {
 #endif
 int
 sys_read(struct thread *td, struct read_args *uap)
-{
+{	//uap = (struct read_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 	struct uio auio;
 	struct iovec aiov;
 	int error;
@@ -220,7 +222,7 @@ struct pread_args {
 #endif
 int
 sys_pread(struct thread *td, struct pread_args *uap)
-{
+{	//uap = (struct pread_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
@@ -247,7 +249,7 @@ kern_pread(struct thread *td, int fd, void *buf, size_t nbyte, off_t offset)
 #if defined(COMPAT_FREEBSD6)
 int
 freebsd6_pread(struct thread *td, struct freebsd6_pread_args *uap)
-{
+{	//uap = (struct freebsd6_pread_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
@@ -265,7 +267,7 @@ struct readv_args {
 #endif
 int
 sys_readv(struct thread *td, struct readv_args *uap)
-{
+{	//uap = (struct readv_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 	struct uio *auio;
 	int error;
 
@@ -304,7 +306,7 @@ struct preadv_args {
 #endif
 int
 sys_preadv(struct thread *td, struct preadv_args *uap)
-{
+{	//uap = (struct preadv_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 	struct uio *auio;
 	int error;
 
@@ -390,7 +392,7 @@ struct write_args {
 #endif
 int
 sys_write(struct thread *td, struct write_args *uap)
-{
+{	//uap = (struct write_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 	struct uio auio;
 	struct iovec aiov;
 	int error;
@@ -421,7 +423,7 @@ struct pwrite_args {
 #endif
 int
 sys_pwrite(struct thread *td, struct pwrite_args *uap)
-{
+{	//uap = (struct pwrite_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
@@ -449,7 +451,7 @@ kern_pwrite(struct thread *td, int fd, const void *buf, size_t nbyte,
 #if defined(COMPAT_FREEBSD6)
 int
 freebsd6_pwrite(struct thread *td, struct freebsd6_pwrite_args *uap)
-{
+{	//uap = (struct freebsd6_pwrite_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
@@ -467,7 +469,7 @@ struct writev_args {
 #endif
 int
 sys_writev(struct thread *td, struct writev_args *uap)
-{
+{	//uap = (struct writev_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 	struct uio *auio;
 	int error;
 
@@ -506,7 +508,7 @@ struct pwritev_args {
 #endif
 int
 sys_pwritev(struct thread *td, struct pwritev_args *uap)
-{
+{	//uap = (struct pwritev_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 	struct uio *auio;
 	int error;
 
@@ -625,7 +627,7 @@ struct ftruncate_args {
 #endif
 int
 sys_ftruncate(struct thread *td, struct ftruncate_args *uap)
-{
+{	//uap = (struct ftruncate_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (kern_ftruncate(td, uap->fd, uap->length));
 }
@@ -639,7 +641,7 @@ struct oftruncate_args {
 #endif
 int
 oftruncate(struct thread *td, struct oftruncate_args *uap)
-{
+{	//uap = (struct oftruncate_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (kern_ftruncate(td, uap->fd, uap->length));
 }
@@ -655,7 +657,7 @@ struct ioctl_args {
 /* ARGSUSED */
 int
 sys_ioctl(struct thread *td, struct ioctl_args *uap)
-{
+{	//uap = (struct ioctl_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 	u_char smalldata[SYS_IOCTL_SMALL_SIZE] __aligned(SYS_IOCTL_SMALL_ALIGN);
 	uint32_t com;
 	int arg, error;
@@ -826,7 +828,7 @@ out:
 
 int
 sys_posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
-{
+{	//uap = (struct posix_fallocate_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 	int error;
 
 	error = kern_posix_fallocate(td, uap->fd, uap->offset, uap->len);
@@ -867,7 +869,7 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 
 int
 sys_fspacectl(struct thread *td, struct fspacectl_args *uap)
-{
+{	//uap = (struct fspacectl_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 	struct spacectl_range rqsr, rmsr;
 	int error, cerror;
 
@@ -1014,7 +1016,7 @@ poll_no_poll(int events)
 
 int
 sys_pselect(struct thread *td, struct pselect_args *uap)
-{
+{	//uap = (struct pselect_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 	struct timespec ts;
 	struct timeval tv, *tvp;
 	sigset_t set, *uset;

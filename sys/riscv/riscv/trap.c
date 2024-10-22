@@ -203,7 +203,7 @@ ecall_handler(void)
 }
 
 static void
-page_fault_handler(struct trapframe *frame, int usermode)
+page_fault_handler(struct trapframe *frame, bool usermode)
 {
 	struct _vm_map *map;
 	vm_prot_t ftype;
@@ -226,9 +226,9 @@ page_fault_handler(struct trapframe *frame, int usermode)
 	uint64_t stval = frame->tf_stval;
 
 	if (td->td_critnest != 0 || td->td_intr_nesting_level != 0 ||
-	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL, "Kernel page fault") != 0)
+	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL, "Kernel page fault") != 0) {
 		goto fatal;
-
+	}
 	if (usermode) {
 		if (!VIRT_IS_VALID(stval)) {
 			call_trapsignal(td, SIGSEGV, SEGV_MAPERR, (void *)stval,
@@ -246,8 +246,9 @@ page_fault_handler(struct trapframe *frame, int usermode)
 		if (stval >= VM_MIN_KERNEL_ADDRESS) {
 			map = kernel_map;
 		} else {
-			if (pcb->pcb_onfault == 0)
+			if (pcb->pcb_onfault == 0) {
 				goto fatal;
+			}
 			map = &p->p_vmspace->vm_map;
 		}
 	}
@@ -344,7 +345,7 @@ do_trap_supervisor(struct trapframe *frame)
 	case SCAUSE_STORE_PAGE_FAULT:
 	case SCAUSE_LOAD_PAGE_FAULT:
 	case SCAUSE_INST_PAGE_FAULT:
-		page_fault_handler(frame, 0);
+		page_fault_handler(frame, false);
 		break;
 	case SCAUSE_BREAKPOINT:
 #ifdef KDTRACE_HOOKS
@@ -421,7 +422,7 @@ do_trap_user(struct trapframe *frame)
 	case SCAUSE_STORE_PAGE_FAULT:
 	case SCAUSE_LOAD_PAGE_FAULT:
 	case SCAUSE_INST_PAGE_FAULT:
-		page_fault_handler(frame, 1);
+		page_fault_handler(frame, true);
 		break;
 	case SCAUSE_ECALL_USER:
 		frame->tf_sepc += 4;	/* Next instruction */
