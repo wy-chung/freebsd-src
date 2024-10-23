@@ -215,7 +215,7 @@ exec_aout_imgact(struct image_params *imgp)
 	case QMAGIC:
 		virtual_offset = PAGE_SIZE;
 		file_offset = 0;
-		/* Pass PS_STRINGS for BSD/OS binaries only. */
+		/* Pass USER_PS_STRINGS for BSD/OS binaries only. */
 		if (N_GETMID(*a_out) == MID_ZERO)
 			imgp->ps_strings = (void *)aout_sysvec.sv_psstrings;
 		break;

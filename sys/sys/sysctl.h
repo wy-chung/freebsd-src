@@ -996,8 +996,8 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_DUMPDEV		29	/* struct cdev *: device to dump on */
 #define	KERN_IPC		30	/* node: anything related to IPC */
 #define	KERN_DUMMY		31	/* unused */
-#define	KERN_PS_STRINGS		32	/* int: address of PS_STRINGS */
-#define	KERN_USRSTACK		33	/* int: address of USRSTACK */
+#define	KERN_PS_STRINGS		32	/* int: address of USER_PS_STRINGS */
+#define	KERN_USRSTACK		33	/* int: address of USER_STACK */
 #define	KERN_LOGSIGEXIT		34	/* int: do we log sigexit procs? */
 #define	KERN_IOV_MAX		35	/* int: value of UIO_MAXIOV */
 #define	KERN_HOSTUUID		36	/* string: host UUID identifier */
