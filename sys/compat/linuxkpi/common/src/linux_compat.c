@@ -888,7 +888,7 @@ linux_access_ok(const void *uaddr, size_t len)
 
 	/* verify addresses are valid for userspace */
 	return ((saddr == eaddr) ||
-	    (eaddr > saddr && eaddr <= VM_MAXUSER_ADDRESS));
+	    (eaddr > saddr && eaddr <= VM_MAX_USER_ADDRESS));
 }
 
 /*

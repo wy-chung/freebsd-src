@@ -106,7 +106,7 @@ const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
 
 /* NB: Used by kernel debuggers. */
-const u_long vm_maxuser_address = VM_MAXUSER_ADDRESS;
+const u_long vm_maxuser_address = USER_MAX_ADDRESS;
 
 u_int exec_map_entry_size;
 u_int exec_map_entries;
