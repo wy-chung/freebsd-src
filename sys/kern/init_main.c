@@ -430,8 +430,8 @@ struct sysentvec null_sysvec = {
 	.sv_name	= "null",
 	.sv_coredump	= NULL,
 	.sv_minsigstksz	= 0,
-	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= VM_MAXUSER_ADDRESS,
+	.sv_minuser	= USER_MIN_ADDRESS,
+	.sv_maxuser	= USER_MAX_ADDRESS,
 	.sv_usrstack	= USRSTACK,
 	.sv_psstrings	= PS_STRINGS,
 	.sv_psstringssz	= sizeof(struct ps_strings),
@@ -626,7 +626,7 @@ proc0_init(void *dummy __unused) // kernel swapper
 	vm_map_init(&vmspace0.vm_map, vmspace_pmap(&vmspace0),
 	    p->p_sysent->sv_minuser, p->p_sysent->sv_maxuser // null_sysvec
 #if defined(WYC)
-	    , VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS
+	    , USER_MIN_ADDRESS, USER_MAX_ADDRESS
 #endif
 	    );
 

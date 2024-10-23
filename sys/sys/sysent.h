@@ -118,8 +118,8 @@ struct sysentvec { // elf64_freebsd_sysvec_la48(amd64), elf64_freebsd_sysvec(ris
 	int		(*sv_copyout_auxargs)(struct image_params *,
 			    uintptr_t);
 	int		sv_minsigstksz;	/* minimum signal stack size */ // MINSIGSTKSZ
-	vm_offset_t	sv_minuser;	// VM_MIN_ADDRESS
-	vm_offset_t	sv_maxuser;	// VM_MAXUSER_ADDRESS
+	vm_offset_t	sv_minuser;	// USER_MIN_ADDRESS
+	vm_offset_t	sv_maxuser;	// USER_MAX_ADDRESS
 	vm_offset_t	sv_usrstack;	/* USRSTACK */ // USRSTACK_LA48
 	vm_offset_t	sv_psstrings;	/* PS_STRINGS */ // PS_STRINGS_LA48
 	size_t		sv_psstringssz;	/* PS_STRINGS size */
