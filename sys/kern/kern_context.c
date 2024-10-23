@@ -37,6 +37,10 @@
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/ucontext.h>
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 /*
  * The first two fields of a ucontext_t are the signal mask and the machine
@@ -60,7 +64,7 @@ struct swapcontext_args {
 
 int
 sys_getcontext(struct thread *td, struct getcontext_args *uap)
-{
+{	uap = (struct getcontext_args *)((char *)uap + td->td_proc->p_vmspace->vm_base);
 	ucontext_t uc;
 	int ret;
 
@@ -79,7 +83,7 @@ sys_getcontext(struct thread *td, struct getcontext_args *uap)
 
 int
 sys_setcontext(struct thread *td, struct setcontext_args *uap)
-{
+{	uap = (struct setcontext_args *)((char *)uap + td->td_proc->p_vmspace->vm_base);
 	ucontext_t uc;
 	int ret;
 
@@ -100,7 +104,7 @@ sys_setcontext(struct thread *td, struct setcontext_args *uap)
 
 int
 sys_swapcontext(struct thread *td, struct swapcontext_args *uap)
-{
+{	uap = (struct swapcontext_args *)((char *)uap + td->td_proc->p_vmspace->vm_base);
 	ucontext_t uc;
 	int ret;
 

@@ -1844,7 +1844,7 @@ struct cpuset_args {
 #endif
 int
 sys_cpuset(struct thread *td, struct cpuset_args *uap)
-{	//uap = (struct cpuset_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
+{	uap = (struct cpuset_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 	struct cpuset *root;
 	struct cpuset *set;
 	int error;
@@ -1873,7 +1873,7 @@ struct cpuset_setid_args {
 #endif
 int
 sys_cpuset_setid(struct thread *td, struct cpuset_setid_args *uap)
-{	//uap = (struct cpuset_setid_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
+{	uap = (struct cpuset_setid_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (kern_cpuset_setid(td, uap->which, uap->id, uap->setid));
 }
@@ -1908,7 +1908,7 @@ struct cpuset_getid_args {
 #endif
 int
 sys_cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
-{	//uap = (struct cpuset_getid_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
+{	uap = (struct cpuset_getid_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (kern_cpuset_getid(td, uap->level, uap->which, uap->id,
 	    uap->setid));
@@ -1976,7 +1976,7 @@ struct cpuset_getaffinity_args {
 #endif
 int
 sys_cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
-{	//uap = (struct cpuset_getaffinity_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
+{	uap = (struct cpuset_getaffinity_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (user_cpuset_getaffinity(td, uap->level, uap->which,
 	    uap->id, uap->cpusetsize, uap->mask, &copy_set));
@@ -2123,7 +2123,7 @@ struct cpuset_setaffinity_args {
 #endif
 int
 sys_cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
-{	//uap = (struct cpuset_setaffinity_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
+{	uap = (struct cpuset_setaffinity_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (user_cpuset_setaffinity(td, uap->level, uap->which,
 	    uap->id, uap->cpusetsize, uap->mask, &copy_set));
@@ -2275,7 +2275,7 @@ struct cpuset_getdomain_args {
 #endif
 int
 sys_cpuset_getdomain(struct thread *td, struct cpuset_getdomain_args *uap)
-{	//uap = (struct cpuset_getdomain_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
+{	uap = (struct cpuset_getdomain_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (kern_cpuset_getdomain(td, uap->level, uap->which,
 	    uap->id, uap->domainsetsize, uap->mask, uap->policy, &copy_set));
@@ -2403,7 +2403,7 @@ struct cpuset_setdomain_args {
 #endif
 int
 sys_cpuset_setdomain(struct thread *td, struct cpuset_setdomain_args *uap)
-{	//uap = (struct cpuset_setdomain_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
+{	uap = (struct cpuset_setdomain_args *)((char *)uap + td->td_proc->p_vmspace->vm_base); //wyc sa
 
 	return (kern_cpuset_setdomain(td, uap->level, uap->which,
 	    uap->id, uap->domainsetsize, uap->mask, uap->policy, &copy_set));

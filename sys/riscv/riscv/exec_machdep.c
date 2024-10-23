@@ -317,7 +317,7 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 
 int
 sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
-{
+{	uap = (struct sigreturn_args *)((char *)uap + td->td_proc->p_vmspace->vm_base);
 	ucontext_t uc;
 	int error;
 

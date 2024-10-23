@@ -92,6 +92,10 @@
 #include <sys/sysproto.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -200,7 +204,7 @@ SYSCTL_INT(_kern, OID_AUTO, acct_suspended, CTLFLAG_RD, &acct_suspended, 0,
  */
 int
 sys_acct(struct thread *td, struct acct_args *uap)
-{
+{	uap = (struct acct_args *)((char *)uap + td->td_proc->p_vmspace->vm_base);
 	struct nameidata nd;
 	int error, flags, replacing;
 
