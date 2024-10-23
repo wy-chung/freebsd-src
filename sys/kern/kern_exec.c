@@ -217,7 +217,7 @@ struct execve_args {
 
 int
 sys_execve(struct thread *td, struct execve_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct image_args args;
 	struct vmspace *oldvmspace;
 	int error;
@@ -243,7 +243,7 @@ struct fexecve_args {
 #endif
 int
 sys_fexecve(struct thread *td, struct fexecve_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct image_args args;
 	struct vmspace *oldvmspace;
 	int error;
@@ -273,7 +273,7 @@ struct __mac_execve_args {
 
 int
 sys___mac_execve(struct thread *td, struct __mac_execve_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 #ifdef MAC
 	struct image_args args;
 	struct vmspace *oldvmspace;

@@ -204,7 +204,7 @@ SYSCTL_INT(_kern, OID_AUTO, acct_suspended, CTLFLAG_RD, &acct_suspended, 0,
  */
 int
 sys_acct(struct thread *td, struct acct_args *uap)
-{	uap = (struct acct_args *)((char *)uap + td->td_proc->p_vmspace->vm_base);
+{ADD_PROCBASE(uap,td);
 	struct nameidata nd;
 	int error, flags, replacing;
 

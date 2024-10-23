@@ -54,6 +54,11 @@
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -1176,7 +1181,7 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 
 int
 sys_kldload(struct thread *td, struct kldload_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	char *pathname = NULL;
 	int error, fileid;
 
@@ -1240,14 +1245,14 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 
 int
 sys_kldunload(struct thread *td, struct kldunload_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 
 	return (kern_kldunload(td, uap->fileid, LINKER_UNLOAD_NORMAL));
 }
 
 int
 sys_kldunloadf(struct thread *td, struct kldunloadf_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 
 	if (uap->flags != LINKER_UNLOAD_NORMAL &&
 	    uap->flags != LINKER_UNLOAD_FORCE)
@@ -1257,7 +1262,7 @@ sys_kldunloadf(struct thread *td, struct kldunloadf_args *uap)
 
 int
 sys_kldfind(struct thread *td, struct kldfind_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	char *pathname;
 	const char *filename;
 	linker_file_t lf;
@@ -1290,7 +1295,7 @@ out:
 
 int
 sys_kldnext(struct thread *td, struct kldnext_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	linker_file_t lf;
 	int error = 0;
 
@@ -1327,7 +1332,7 @@ out:
 
 int
 sys_kldstat(struct thread *td, struct kldstat_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct kld_file_stat *stat;
 	int error, version;
 
@@ -1408,7 +1413,7 @@ DB_COMMAND_FLAGS(kldstat, db_kldstat, DB_CMD_MEMSAFE)
 
 int
 sys_kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	linker_file_t lf;
 	module_t mp;
 	int error = 0;
@@ -1437,7 +1442,7 @@ sys_kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 
 int
 sys_kldsym(struct thread *td, struct kldsym_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	char *symstr = NULL;
 	c_linker_sym_t sym;
 	linker_symval_t symval;

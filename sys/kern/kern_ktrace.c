@@ -61,6 +61,9 @@
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
 
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #include <security/mac/mac_framework.h>
 
 /*
@@ -1026,7 +1029,7 @@ struct ktrace_args {
 /* ARGSUSED */
 int
 sys_ktrace(struct thread *td, struct ktrace_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 #ifdef KTRACE
 	struct vnode *vp = NULL;
 	struct proc *p;
@@ -1161,7 +1164,7 @@ done:
 /* ARGSUSED */
 int
 sys_utrace(struct thread *td, struct utrace_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 
 #ifdef KTRACE
 	struct ktr_request *req;

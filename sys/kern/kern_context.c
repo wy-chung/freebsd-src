@@ -64,7 +64,7 @@ struct swapcontext_args {
 
 int
 sys_getcontext(struct thread *td, struct getcontext_args *uap)
-{	uap = (struct getcontext_args *)((char *)uap + td->td_proc->p_vmspace->vm_base);
+{ADD_PROCBASE(uap,td);
 	ucontext_t uc;
 	int ret;
 
@@ -83,7 +83,7 @@ sys_getcontext(struct thread *td, struct getcontext_args *uap)
 
 int
 sys_setcontext(struct thread *td, struct setcontext_args *uap)
-{	uap = (struct setcontext_args *)((char *)uap + td->td_proc->p_vmspace->vm_base);
+{ADD_PROCBASE(uap,td);
 	ucontext_t uc;
 	int ret;
 
@@ -104,7 +104,7 @@ sys_setcontext(struct thread *td, struct setcontext_args *uap)
 
 int
 sys_swapcontext(struct thread *td, struct swapcontext_args *uap)
-{	uap = (struct swapcontext_args *)((char *)uap + td->td_proc->p_vmspace->vm_base);
+{ADD_PROCBASE(uap,td);
 	ucontext_t uc;
 	int ret;
 

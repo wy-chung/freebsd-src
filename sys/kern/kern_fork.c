@@ -101,7 +101,7 @@ struct fork_args {
 /* ARGSUSED */
 int
 sys_fork(struct thread *td, struct fork_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct fork_req fr;
 	int error, pid;
 
@@ -119,7 +119,7 @@ sys_fork(struct thread *td, struct fork_args *uap)
 /* ARGUSED */
 int
 sys_pdfork(struct thread *td, struct pdfork_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct fork_req fr;
 	int error, fd, pid;
 
@@ -146,7 +146,7 @@ sys_pdfork(struct thread *td, struct pdfork_args *uap)
 /* ARGSUSED */
 int
 sys_vfork(struct thread *td, struct vfork_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct fork_req fr;
 	int error, pid;
 
@@ -163,7 +163,7 @@ sys_vfork(struct thread *td, struct vfork_args *uap)
 
 int
 sys_rfork(struct thread *td, struct rfork_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct fork_req fr;
 	int error, pid;
 

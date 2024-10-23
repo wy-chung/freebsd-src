@@ -205,7 +205,7 @@ exit_onexit(struct proc *p)
  */
 int
 sys_exit(struct thread *td, struct exit_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 
 	exit1(td, uap->rval, 0);
 	__unreachable();
@@ -739,7 +739,7 @@ struct abort2_args {
 
 int
 sys_abort2(struct thread *td, struct abort2_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	void *uargs[16];
 	void **uargsp;
 	int error, nargs;
@@ -853,7 +853,7 @@ owait(struct thread *td, struct owait_args *uap __unused)
  */
 int
 sys_wait4(struct thread *td, struct wait4_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct rusage ru, *rup;
 	int error, status;
 
@@ -871,7 +871,7 @@ sys_wait4(struct thread *td, struct wait4_args *uap)
 
 int
 sys_wait6(struct thread *td, struct wait6_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct __wrusage wru, *wrup;
 	siginfo_t si, *sip;
 	idtype_t idtype;

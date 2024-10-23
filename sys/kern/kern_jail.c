@@ -66,6 +66,11 @@
 #include <sys/uuid.h>
 #include <sys/vnode.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #include <net/if.h>
 #include <net/vnet.h>
 
@@ -308,7 +313,7 @@ done:
  */
 int
 sys_jail(struct thread *td, struct jail_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	uint32_t version;
 	int error;
 	struct jail j;
@@ -522,7 +527,7 @@ kern_jail(struct thread *td, struct jail *j)
  */
 int
 sys_jail_set(struct thread *td, struct jail_set_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct uio *auio;
 	int error;
 
@@ -2250,7 +2255,7 @@ get_next_prid(struct prison **insprp)
  */
 int
 sys_jail_get(struct thread *td, struct jail_get_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct uio *auio;
 	int error;
 
@@ -2564,7 +2569,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
  */
 int
 sys_jail_remove(struct thread *td, struct jail_remove_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct prison *pr;
 	int error;
 
@@ -2595,7 +2600,7 @@ sys_jail_remove(struct thread *td, struct jail_remove_args *uap)
  */
 int
 sys_jail_attach(struct thread *td, struct jail_attach_args *uap)
-{
+{ADD_PROCBASE(uap,td);
 	struct prison *pr;
 	int error;
 
