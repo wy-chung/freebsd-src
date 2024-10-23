@@ -1324,7 +1324,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde, spglist_t *free)
 {
 	vm_page_t mptp;
 
-	if (va >= VM_MAXUSER_ADDRESS) {
+	if (va >= VM_MAX_USER_ADDRESS) {
 //WYC_ASSERT(pmap == kernel_pmap); // pass
 		return (false);
 	}
@@ -2744,7 +2744,8 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 			return (false);
 		}
 		mptp->pindex = pmap_l3_pindex(va);
-		if (va < VM_MAXUSER_ADDRESS) {
+		if (va < VM_MAX_USER_ADDRESS) {
+WYC_ASSERT(pmap != kernel_pmap);
 			mptp->ref_count = Ln_ENTRIES;
 			pmap_resident_count_inc(pmap, 1);
 		}
@@ -2982,11 +2983,11 @@ WYC_ASSERT(pmap != kernel_pmap);
 	    ((l2e & PTE_RWX) == 0 || // is page table
 	     pmap_demote_l2_locked(pmap, l2, va, &lock))) {
 		l3 = pmap_l2_to_l3(l2, va);
-		if (va < VM_MAXUSER_ADDRESS) {
+		if (va < VM_MAX_USER_ADDRESS) {
 			mptp = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
 			mptp->ref_count++;
 		}
-	} else if (va < VM_MAXUSER_ADDRESS) {
+	} else if (va < VM_MAX_USER_ADDRESS) {
 		bool nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
 		mptp = pmap_alloc_l3(pmap, va, nosleep ? NULL : &lock);
 		if (mptp == NULL && nosleep) {
@@ -2999,6 +3000,7 @@ WYC_ASSERT(pmap != kernel_pmap);
 		}
 		l3 = pmap_l3(pmap, va);
 	} else {
+WYC_ASSERT(pmap == kernel_pmap);
 		l3 = pmap_l3(pmap, va);
 		/* TODO: This is not optimal, but should mostly work */
 		if (l3 == NULL) {
@@ -3193,7 +3195,7 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l2e |= PTE_SW_MANAGED;
 	if ((prot & VM_PROT_EXECUTE) != 0)
 		new_l2e |= PTE_X;
-	if (va < VM_MAXUSER_ADDRESS)
+	if (va < VM_MAX_USER_ADDRESS)
 		new_l2e |= PTE_U;
 	return (pmap_enter_l2(pmap, va, new_l2e, PMAP_ENTER_NOSLEEP |
 	    PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM, NULL, lockp));
@@ -3258,7 +3260,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 				    "%s: no space for va %#lx"
 				    " in pmap %p", __func__, va, pmap);
 				return (KERN_NO_SPACE);
-			} else if (va < VM_MAXUSER_ADDRESS ||
+			} else if (va < VM_MAX_USER_ADDRESS ||
 			    !pmap_every_pte_zero(L2PTE_TO_PHYS(oldl2e))) {
 				mptp->ref_count--;
 				CTR3(KTR_PMAP, "%s:"
@@ -3280,7 +3282,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2e, u_int flags,
 			}
 		}
 		vm_page_free_pages_toq(&free, true);
-		if (va >= VM_MAXUSER_ADDRESS) {
+		if (va >= VM_MAX_USER_ADDRESS) {
 WYC_ASSERT(pmap == kernel_pmap);
 			/*
 			 * Both pmap_remove_l2() and pmap_remove_l3() will
@@ -3450,7 +3452,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	pd_entry_t *l2 = NULL;
 	pt_entry_t *l3;
-	if (va < VM_MAXUSER_ADDRESS) {
+	if (va < VM_MAX_USER_ADDRESS) {
 //WYC_ASSERT(!(m->oflags & VPO_UNMANAGED)); // tested
 		/*
 		 * Calculate pagetable page index

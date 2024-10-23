@@ -54,7 +54,7 @@ void eintr(void);
 void user(void);
 
 #define	MCOUNT_FROMPC_USER(pc)					\
-	((pc < (uintfptr_t)VM_MAXUSER_ADDRESS) ? (uintfptr_t)user : pc)
+	((pc < (uintfptr_t)VM_MAX_USER_ADDRESS) ? (uintfptr_t)user : pc)
 
 #define	MCOUNT_FROMPC_INTR(pc)					\
 	((pc >= (uintfptr_t)btrap && pc < (uintfptr_t)eintr) ?	\
