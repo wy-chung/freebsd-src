@@ -60,6 +60,11 @@
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 CTASSERT(ACL_MAX_ENTRIES >= OLDACL_MAX_ENTRIES);
 
 MALLOC_DEFINE(M_ACL, "acl", "Access Control Lists");
@@ -350,7 +355,7 @@ out:
  */
 int
 sys___acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern___acl_get_path(td, uap->path, uap->type, uap->aclp,
 	    FOLLOW));
@@ -361,7 +366,7 @@ sys___acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
  */
 int
 sys___acl_get_link(struct thread *td, struct __acl_get_link_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return(kern___acl_get_path(td, uap->path, uap->type, uap->aclp,
 	    NOFOLLOW));
@@ -389,7 +394,7 @@ kern___acl_get_path(struct thread *td, const char *path, acl_type_t type,
  */
 int
 sys___acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return(kern___acl_set_path(td, uap->path, uap->type, uap->aclp,
 	    FOLLOW));
@@ -400,7 +405,7 @@ sys___acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
  */
 int
 sys___acl_set_link(struct thread *td, struct __acl_set_link_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return(kern___acl_set_path(td, uap->path, uap->type, uap->aclp,
 	    NOFOLLOW));
@@ -428,7 +433,7 @@ kern___acl_set_path(struct thread *td, const char *path,
  */
 int
 sys___acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct file *fp;
 	cap_rights_t rights;
 	int error;
@@ -448,7 +453,7 @@ sys___acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
  */
 int
 sys___acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct file *fp;
 	cap_rights_t rights;
 	int error;
@@ -468,7 +473,7 @@ sys___acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
  */
 int
 sys___acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern___acl_delete_path(td, uap->path, uap->type, FOLLOW));
 }
@@ -478,7 +483,7 @@ sys___acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
  */
 int
 sys___acl_delete_link(struct thread *td, struct __acl_delete_link_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern___acl_delete_path(td, uap->path, uap->type, NOFOLLOW));
 }
@@ -505,7 +510,7 @@ kern___acl_delete_path(struct thread *td, const char *path,
  */
 int
 sys___acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct file *fp;
 	cap_rights_t rights;
 	int error;
@@ -525,7 +530,7 @@ sys___acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
  */
 int
 sys___acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern___acl_aclcheck_path(td, uap->path, uap->type, uap->aclp,
 	    FOLLOW));
@@ -536,7 +541,7 @@ sys___acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
  */
 int
 sys___acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	return (kern___acl_aclcheck_path(td, uap->path, uap->type, uap->aclp,
 	    NOFOLLOW));
 }
@@ -562,7 +567,7 @@ kern___acl_aclcheck_path(struct thread *td, const char *path, acl_type_t type,
  */
 int
 sys___acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct file *fp;
 	cap_rights_t rights;
 	int error;

@@ -1114,7 +1114,7 @@ static const struct procctl_cmd_info procctl_cmds_info[] = {
 
 int
 sys_procctl(struct thread *td, struct procctl_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	union {
 		struct procctl_reaper_status rs;
 		struct procctl_reaper_pids rp;

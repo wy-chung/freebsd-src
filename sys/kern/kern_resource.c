@@ -90,7 +90,7 @@ struct getpriority_args {
 #endif
 int
 sys_getpriority(struct thread *td, struct getpriority_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_getpriority(td, uap->which, uap->who));
 }
@@ -179,7 +179,7 @@ struct setpriority_args {
 #endif
 int
 sys_setpriority(struct thread *td, struct setpriority_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_setpriority(td, uap->which, uap->who, uap->prio));
 }
@@ -299,7 +299,7 @@ struct rtprio_thread_args {
 #endif
 int
 sys_rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct proc *p;
 	struct rtprio rtp;
 	struct thread *td1;
@@ -380,7 +380,7 @@ struct rtprio_args {
 #endif
 int
 sys_rtprio(struct thread *td, struct rtprio_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct proc *p;
 	struct thread *tdp;
 	struct rtprio rtp;
@@ -546,7 +546,7 @@ struct osetrlimit_args {
 #endif
 int
 osetrlimit(struct thread *td, struct osetrlimit_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct orlimit olim;
 	struct rlimit lim;
 	int error;
@@ -567,7 +567,7 @@ struct ogetrlimit_args {
 #endif
 int
 ogetrlimit(struct thread *td, struct ogetrlimit_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct orlimit olim;
 	struct rlimit rl;
 	int error;
@@ -600,7 +600,7 @@ struct setrlimit_args {
 #endif
 int
 sys_setrlimit(struct thread *td, struct setrlimit_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct rlimit alim;
 	int error;
 
@@ -798,7 +798,7 @@ struct getrlimit_args {
 /* ARGSUSED */
 int
 sys_getrlimit(struct thread *td, struct getrlimit_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct rlimit rlim;
 	int error;
 
@@ -910,7 +910,7 @@ getrlimitusage_one(struct proc *p, u_int which, int flags, rlim_t *res)
 
 int
 sys_getrlimitusage(struct thread *td, struct getrlimitusage_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	rlim_t res;
 	int error;
 
@@ -1166,7 +1166,7 @@ struct getrusage_args {
 #endif
 int
 sys_getrusage(struct thread *td, struct getrusage_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct rusage ru;
 	int error;
 

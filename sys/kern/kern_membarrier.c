@@ -234,6 +234,6 @@ kern_membarrier(struct thread *td, int cmd, unsigned flags, int cpu_id)
 
 int
 sys_membarrier(struct thread *td, struct membarrier_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	return (kern_membarrier(td, uap->cmd, uap->flags, uap->cpu_id));
 }

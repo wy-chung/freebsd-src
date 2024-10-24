@@ -41,6 +41,11 @@
 #include <sys/systm.h>
 #include <machine/atomic.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 /*
  * Acts like "nosys" but can be identified in sysent for dynamic call
  * number assignment for a limited number of calls.

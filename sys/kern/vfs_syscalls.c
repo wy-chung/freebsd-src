@@ -88,6 +88,10 @@
 #include <vm/vnode_pager.h>
 #include <vm/uma.h>
 
+//wyc sa
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #include <fs/devfs/devfs.h>
 
 MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
@@ -171,7 +175,7 @@ struct sync_args {
 #endif
 /* ARGSUSED */
 int
-sys_sync(struct thread *td, struct sync_args *uap)
+sys_sync(struct thread *td, struct sync_args *uap __unused)
 {
 
 	return (kern_sync(td));
@@ -190,7 +194,7 @@ struct quotactl_args {
 #endif
 int
 sys_quotactl(struct thread *td, struct quotactl_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct mount *mp;
 	struct nameidata nd;
 	int error;
@@ -313,7 +317,7 @@ struct statfs_args {
 #endif
 int
 sys_statfs(struct thread *td, struct statfs_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct statfs *sfp;
 	int error;
 
@@ -354,7 +358,7 @@ struct fstatfs_args {
 #endif
 int
 sys_fstatfs(struct thread *td, struct fstatfs_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct statfs *sfp;
 	int error;
 
@@ -403,7 +407,7 @@ struct getfsstat_args {
 #endif
 int
 sys_getfsstat(struct thread *td, struct getfsstat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	size_t count;
 	int error;
 
@@ -596,7 +600,7 @@ struct freebsd4_statfs_args {
 #endif
 int
 freebsd4_statfs(struct thread *td, struct freebsd4_statfs_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct ostatfs osb;
 	struct statfs *sfp;
 	int error;
@@ -622,7 +626,7 @@ struct freebsd4_fstatfs_args {
 #endif
 int
 freebsd4_fstatfs(struct thread *td, struct freebsd4_fstatfs_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct ostatfs osb;
 	struct statfs *sfp;
 	int error;
@@ -649,7 +653,7 @@ struct freebsd4_getfsstat_args {
 #endif
 int
 freebsd4_getfsstat(struct thread *td, struct freebsd4_getfsstat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct statfs *buf, *sp;
 	struct ostatfs osb;
 	size_t count, size;
@@ -690,7 +694,7 @@ struct freebsd4_fhstatfs_args {
 #endif
 int
 freebsd4_fhstatfs(struct thread *td, struct freebsd4_fhstatfs_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct ostatfs osb;
 	struct statfs *sfp;
 	fhandle_t fh;
@@ -750,7 +754,7 @@ static void freebsd11_cvtstatfs(struct statfs *, struct freebsd11_statfs *);
 
 int
 freebsd11_statfs(struct thread *td, struct freebsd11_statfs_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct freebsd11_statfs osb;
 	struct statfs *sfp;
 	int error;
@@ -770,7 +774,7 @@ freebsd11_statfs(struct thread *td, struct freebsd11_statfs_args *uap)
  */
 int
 freebsd11_fstatfs(struct thread *td, struct freebsd11_fstatfs_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct freebsd11_statfs osb;
 	struct statfs *sfp;
 	int error;
@@ -790,7 +794,7 @@ freebsd11_fstatfs(struct thread *td, struct freebsd11_fstatfs_args *uap)
  */
 int
 freebsd11_getfsstat(struct thread *td, struct freebsd11_getfsstat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	return (kern_freebsd11_getfsstat(td, uap->buf, uap->bufsize, uap->mode));
 }
 
@@ -830,7 +834,7 @@ kern_freebsd11_getfsstat(struct thread *td, struct freebsd11_statfs * ubuf,
  */
 int
 freebsd11_fhstatfs(struct thread *td, struct freebsd11_fhstatfs_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct freebsd11_statfs osb;
 	struct statfs *sfp;
 	fhandle_t fh;
@@ -893,7 +897,7 @@ struct fchdir_args {
 #endif
 int
 sys_fchdir(struct thread *td, struct fchdir_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct vnode *vp, *tdp;
 	struct mount *mp;
 	struct file *fp;
@@ -939,7 +943,7 @@ struct chdir_args {
 #endif
 int
 sys_chdir(struct thread *td, struct chdir_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_chdir(td, uap->path, UIO_USERSPACE));
 }
@@ -979,7 +983,7 @@ struct chroot_args {
 #endif
 int
 sys_chroot(struct thread *td, struct chroot_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct nameidata nd;
 	struct proc *p;
 	int error;
@@ -1089,7 +1093,7 @@ struct open_args {
 #endif
 int
 sys_open(struct thread *td, struct open_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_openat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, uap->mode));
@@ -1105,7 +1109,7 @@ struct openat_args {
 #endif
 int
 sys_openat(struct thread *td, struct openat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	AUDIT_ARG_FD(uap->fd);
 	return (kern_openat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
@@ -1303,7 +1307,7 @@ struct ocreat_args {
 #endif
 int
 ocreat(struct thread *td, struct ocreat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_openat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    O_WRONLY | O_CREAT | O_TRUNC, uap->mode));
@@ -1323,7 +1327,7 @@ struct mknodat_args {
 #endif
 int
 sys_mknodat(struct thread *td, struct mknodat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_mknodat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode,
 	    uap->dev));
@@ -1333,7 +1337,7 @@ sys_mknodat(struct thread *td, struct mknodat_args *uap)
 int
 freebsd11_mknod(struct thread *td,
     struct freebsd11_mknod_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_mknodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode, uap->dev));
@@ -1342,7 +1346,7 @@ freebsd11_mknod(struct thread *td,
 int
 freebsd11_mknodat(struct thread *td,
     struct freebsd11_mknodat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_mknodat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode,
 	    uap->dev));
@@ -1458,7 +1462,7 @@ struct mkfifo_args {
 #endif
 int
 sys_mkfifo(struct thread *td, struct mkfifo_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_mkfifoat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode));
@@ -1473,7 +1477,7 @@ struct mkfifoat_args {
 #endif
 int
 sys_mkfifoat(struct thread *td, struct mkfifoat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_mkfifoat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->mode));
@@ -1544,7 +1548,7 @@ struct link_args {
 #endif
 int
 sys_link(struct thread *td, struct link_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_linkat(td, AT_FDCWD, AT_FDCWD, uap->path, uap->link,
 	    UIO_USERSPACE, AT_SYMLINK_FOLLOW));
@@ -1561,7 +1565,7 @@ struct linkat_args {
 #endif
 int
 sys_linkat(struct thread *td, struct linkat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_linkat(td, uap->fd1, uap->fd2, uap->path1, uap->path2,
 	    UIO_USERSPACE, uap->flag));
@@ -1725,7 +1729,7 @@ struct symlink_args {
 #endif
 int
 sys_symlink(struct thread *td, struct symlink_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_symlinkat(td, uap->path, AT_FDCWD, uap->link,
 	    UIO_USERSPACE));
@@ -1740,7 +1744,7 @@ struct symlinkat_args {
 #endif
 int
 sys_symlinkat(struct thread *td, struct symlinkat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_symlinkat(td, uap->path1, uap->fd, uap->path2,
 	    UIO_USERSPACE));
@@ -1825,7 +1829,7 @@ struct undelete_args {
 #endif
 int
 sys_undelete(struct thread *td, struct undelete_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct mount *mp;
 	struct nameidata nd;
 	int error;
@@ -1875,7 +1879,7 @@ struct unlink_args {
 #endif
 int
 sys_unlink(struct thread *td, struct unlink_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_funlinkat(td, AT_FDCWD, uap->path, FD_NONE, UIO_USERSPACE,
 	    0, 0));
@@ -1904,7 +1908,7 @@ struct unlinkat_args {
 #endif
 int
 sys_unlinkat(struct thread *td, struct unlinkat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_funlinkat_ex(td, uap->fd, uap->path, FD_NONE, uap->flag,
 	    UIO_USERSPACE, 0));
@@ -1920,7 +1924,7 @@ struct funlinkat_args {
 #endif
 int
 sys_funlinkat(struct thread *td, struct funlinkat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_funlinkat_ex(td, uap->dfd, uap->path, uap->fd, uap->flag,
 	    UIO_USERSPACE, 0));
@@ -2030,7 +2034,7 @@ struct lseek_args {
 #endif
 int
 sys_lseek(struct thread *td, struct lseek_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_lseek(td, uap->fd, uap->offset, uap->whence));
 }
@@ -2064,7 +2068,7 @@ struct olseek_args {
 #endif
 int
 olseek(struct thread *td, struct olseek_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_lseek(td, uap->fd, uap->offset, uap->whence));
 }
@@ -2074,7 +2078,7 @@ olseek(struct thread *td, struct olseek_args *uap)
 /* Version with the 'pad' argument */
 int
 freebsd6_lseek(struct thread *td, struct freebsd6_lseek_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_lseek(td, uap->fd, uap->offset, uap->whence));
 }
@@ -2122,7 +2126,7 @@ struct access_args {
 #endif
 int
 sys_access(struct thread *td, struct access_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    0, uap->amode));
@@ -2138,7 +2142,7 @@ struct faccessat_args {
 #endif
 int
 sys_faccessat(struct thread *td, struct faccessat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_accessat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
 	    uap->amode));
@@ -2203,7 +2207,7 @@ struct eaccess_args {
 #endif
 int
 sys_eaccess(struct thread *td, struct eaccess_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    AT_EACCESS, uap->amode));
@@ -2221,7 +2225,7 @@ struct ostat_args {
 #endif
 int
 ostat(struct thread *td, struct ostat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct stat sb;
 	struct ostat osb;
 	int error;
@@ -2244,7 +2248,7 @@ struct olstat_args {
 #endif
 int
 olstat(struct thread *td, struct olstat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct stat sb;
 	struct ostat osb;
 	int error;
@@ -2363,7 +2367,7 @@ freebsd11_cvtstat(struct stat *st, struct freebsd11_stat *ost)
 
 int
 freebsd11_stat(struct thread *td, struct freebsd11_stat_args* uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct stat sb;
 	struct freebsd11_stat osb;
 	int error;
@@ -2379,7 +2383,7 @@ freebsd11_stat(struct thread *td, struct freebsd11_stat_args* uap)
 
 int
 freebsd11_lstat(struct thread *td, struct freebsd11_lstat_args* uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct stat sb;
 	struct freebsd11_stat osb;
 	int error;
@@ -2396,7 +2400,7 @@ freebsd11_lstat(struct thread *td, struct freebsd11_lstat_args* uap)
 
 int
 freebsd11_fhstat(struct thread *td, struct freebsd11_fhstat_args* uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct fhandle fh;
 	struct stat sb;
 	struct freebsd11_stat osb;
@@ -2416,7 +2420,7 @@ freebsd11_fhstat(struct thread *td, struct freebsd11_fhstat_args* uap)
 
 int
 freebsd11_fstatat(struct thread *td, struct freebsd11_fstatat_args* uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct stat sb;
 	struct freebsd11_stat osb;
 	int error;
@@ -2445,7 +2449,7 @@ struct fstatat_args {
 #endif
 int
 sys_fstatat(struct thread *td, struct fstatat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct stat sb;
 	int error;
 
@@ -2535,7 +2539,7 @@ struct freebsd11_nstat_args {
 #endif
 int
 freebsd11_nstat(struct thread *td, struct freebsd11_nstat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct stat sb;
 	struct nstat nsb;
 	int error;
@@ -2560,7 +2564,7 @@ struct freebsd11_nlstat_args {
 #endif
 int
 freebsd11_nlstat(struct thread *td, struct freebsd11_nlstat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct stat sb;
 	struct nstat nsb;
 	int error;
@@ -2587,7 +2591,7 @@ struct pathconf_args {
 #endif
 int
 sys_pathconf(struct thread *td, struct pathconf_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	long value;
 	int error;
 
@@ -2606,7 +2610,7 @@ struct lpathconf_args {
 #endif
 int
 sys_lpathconf(struct thread *td, struct lpathconf_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	long value;
 	int error;
 
@@ -2647,7 +2651,7 @@ struct readlink_args {
 #endif
 int
 sys_readlink(struct thread *td, struct readlink_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_readlinkat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->buf, UIO_USERSPACE, uap->count));
@@ -2662,7 +2666,7 @@ struct readlinkat_args {
 #endif
 int
 sys_readlinkat(struct thread *td, struct readlinkat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_readlinkat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->buf, UIO_USERSPACE, uap->bufsize));
@@ -2779,7 +2783,7 @@ struct chflags_args {
 #endif
 int
 sys_chflags(struct thread *td, struct chflags_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, 0));
@@ -2795,7 +2799,7 @@ struct chflagsat_args {
 #endif
 int
 sys_chflagsat(struct thread *td, struct chflagsat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_chflagsat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->flags, uap->atflag));
@@ -2812,7 +2816,7 @@ struct lchflags_args {
 #endif
 int
 sys_lchflags(struct thread *td, struct lchflags_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, AT_SYMLINK_NOFOLLOW));
@@ -2852,7 +2856,7 @@ struct fchflags_args {
 #endif
 int
 sys_fchflags(struct thread *td, struct fchflags_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct file *fp;
 	int error;
 
@@ -2910,7 +2914,7 @@ struct chmod_args {
 #endif
 int
 sys_chmod(struct thread *td, struct chmod_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_fchmodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode, 0));
@@ -2926,7 +2930,7 @@ struct fchmodat_args {
 #endif
 int
 sys_fchmodat(struct thread *td, struct fchmodat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_fchmodat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->mode, uap->flag));
@@ -2943,7 +2947,7 @@ struct lchmod_args {
 #endif
 int
 sys_lchmod(struct thread *td, struct lchmod_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_fchmodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode, AT_SYMLINK_NOFOLLOW));
@@ -2983,7 +2987,7 @@ struct fchmod_args {
 #endif
 int
 sys_fchmod(struct thread *td, struct fchmod_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct file *fp;
 	int error;
 
@@ -3038,7 +3042,7 @@ struct chown_args {
 #endif
 int
 sys_chown(struct thread *td, struct chown_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_fchownat(td, AT_FDCWD, uap->path, UIO_USERSPACE, uap->uid,
 	    uap->gid, 0));
@@ -3055,7 +3059,7 @@ struct fchownat_args {
 #endif
 int
 sys_fchownat(struct thread *td, struct fchownat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_fchownat(td, uap->fd, uap->path, UIO_USERSPACE, uap->uid,
 	    uap->gid, uap->flag));
@@ -3097,7 +3101,7 @@ struct lchown_args {
 #endif
 int
 sys_lchown(struct thread *td, struct lchown_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_fchownat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->uid, uap->gid, AT_SYMLINK_NOFOLLOW));
@@ -3115,7 +3119,7 @@ struct fchown_args {
 #endif
 int
 sys_fchown(struct thread *td, struct fchown_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct file *fp;
 	int error;
 
@@ -3260,7 +3264,7 @@ struct utimes_args {
 #endif
 int
 sys_utimes(struct thread *td, struct utimes_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_utimesat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->tptr, UIO_USERSPACE));
@@ -3275,7 +3279,7 @@ struct futimesat_args {
 #endif
 int
 sys_futimesat(struct thread *td, struct futimesat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_utimesat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->times, UIO_USERSPACE));
@@ -3313,7 +3317,7 @@ struct lutimes_args {
 #endif
 int
 sys_lutimes(struct thread *td, struct lutimes_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_lutimes(td, uap->path, UIO_USERSPACE, uap->tptr,
 	    UIO_USERSPACE));
@@ -3349,7 +3353,7 @@ struct futimes_args {
 #endif
 int
 sys_futimes(struct thread *td, struct futimes_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_futimes(td, uap->fd, uap->tptr, UIO_USERSPACE));
 }
@@ -3383,7 +3387,7 @@ kern_futimes(struct thread *td, int fd, const struct timeval *tptr,
 
 int
 sys_futimens(struct thread *td, struct futimens_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_futimens(td, uap->fd, uap->times, UIO_USERSPACE));
 }
@@ -3419,7 +3423,7 @@ kern_futimens(struct thread *td, int fd, const struct timespec *tptr,
 
 int
 sys_utimensat(struct thread *td, struct utimensat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_utimensat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->times, UIO_USERSPACE, uap->flag));
@@ -3470,7 +3474,7 @@ struct truncate_args {
 #endif
 int
 sys_truncate(struct thread *td, struct truncate_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
 }
@@ -3537,7 +3541,7 @@ struct otruncate_args {
 #endif
 int
 otruncate(struct thread *td, struct otruncate_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
 }
@@ -3547,14 +3551,14 @@ otruncate(struct thread *td, struct otruncate_args *uap)
 /* Versions with the pad argument */
 int
 freebsd6_truncate(struct thread *td, struct freebsd6_truncate_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
 }
 
 int
 freebsd6_ftruncate(struct thread *td, struct freebsd6_ftruncate_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_ftruncate(td, uap->fd, uap->length));
 }
@@ -3604,14 +3608,14 @@ struct fsync_args {
 #endif
 int
 sys_fsync(struct thread *td, struct fsync_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_fsync(td, uap->fd, true));
 }
 
 int
 sys_fdatasync(struct thread *td, struct fdatasync_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_fsync(td, uap->fd, false));
 }
@@ -3628,7 +3632,7 @@ struct rename_args {
 #endif
 int
 sys_rename(struct thread *td, struct rename_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_renameat(td, AT_FDCWD, uap->from, AT_FDCWD,
 	    uap->to, UIO_USERSPACE));
@@ -3644,7 +3648,7 @@ struct renameat_args {
 #endif
 int
 sys_renameat(struct thread *td, struct renameat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_renameat(td, uap->oldfd, uap->old, uap->newfd, uap->new,
 	    UIO_USERSPACE));
@@ -3810,7 +3814,7 @@ struct mkdir_args {
 #endif
 int
 sys_mkdir(struct thread *td, struct mkdir_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_mkdirat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode));
@@ -3825,7 +3829,7 @@ struct mkdirat_args {
 #endif
 int
 sys_mkdirat(struct thread *td, struct mkdirat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_mkdirat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode));
 }
@@ -3886,7 +3890,7 @@ struct rmdir_args {
 #endif
 int
 sys_rmdir(struct thread *td, struct rmdir_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_frmdirat(td, AT_FDCWD, uap->path, FD_NONE, UIO_USERSPACE,
 	    0));
@@ -4089,7 +4093,7 @@ struct ogetdirentries_args {
 #endif
 int
 ogetdirentries(struct thread *td, struct ogetdirentries_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	long loff;
 	int error;
 
@@ -4132,7 +4136,7 @@ struct freebsd11_getdirentries_args {
 int
 freebsd11_getdirentries(struct thread *td,
     struct freebsd11_getdirentries_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	long base;
 	int error;
 
@@ -4146,7 +4150,7 @@ freebsd11_getdirentries(struct thread *td,
 
 int
 freebsd11_getdents(struct thread *td, struct freebsd11_getdents_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct freebsd11_getdirentries_args ap;
 
 	ap.fd = uap->fd;
@@ -4162,7 +4166,7 @@ freebsd11_getdents(struct thread *td, struct freebsd11_getdents_args *uap)
  */
 int
 sys_getdirentries(struct thread *td, struct getdirentries_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	off_t base;
 	int error;
 
@@ -4263,7 +4267,7 @@ struct umask_args {
 #endif
 int
 sys_umask(struct thread *td, struct umask_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct pwddesc *pdp;
 
 	pdp = td->td_proc->p_pd;
@@ -4285,7 +4289,7 @@ struct revoke_args {
 #endif
 int
 sys_revoke(struct thread *td, struct revoke_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct vnode *vp;
 	struct vattr vattr;
 	struct nameidata nd;
@@ -4397,7 +4401,7 @@ struct lgetfh_args {
 #endif
 int
 sys_lgetfh(struct thread *td, struct lgetfh_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_getfhat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, uap->fname,
 	    UIO_USERSPACE, uap->fhp, UIO_USERSPACE));
@@ -4411,7 +4415,7 @@ struct getfh_args {
 #endif
 int
 sys_getfh(struct thread *td, struct getfh_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_getfhat(td, 0, AT_FDCWD, uap->fname, UIO_USERSPACE,
 	    uap->fhp, UIO_USERSPACE));
@@ -4434,7 +4438,7 @@ struct getfhat_args {
 #endif
 int
 sys_getfhat(struct thread *td, struct getfhat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_getfhat(td, uap->flags, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->fhp, UIO_USERSPACE));
@@ -4483,7 +4487,7 @@ struct fhlink_args {
 #endif
 int
 sys_fhlink(struct thread *td, struct fhlink_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_fhlinkat(td, AT_FDCWD, uap->to, UIO_USERSPACE, uap->fhp));
 }
@@ -4497,7 +4501,7 @@ struct fhlinkat_args {
 #endif
 int
 sys_fhlinkat(struct thread *td, struct fhlinkat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_fhlinkat(td, uap->tofd, uap->to, UIO_USERSPACE, uap->fhp));
 }
@@ -4540,7 +4544,7 @@ struct fhreadlink_args {
 #endif
 int
 sys_fhreadlink(struct thread *td, struct fhreadlink_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	fhandle_t fh;
 	struct mount *mp;
 	struct vnode *vp;
@@ -4580,7 +4584,7 @@ struct fhopen_args {
 #endif
 int
 sys_fhopen(struct thread *td, struct fhopen_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	return (kern_fhopen(td, uap->u_fhp, uap->flags));
 }
 
@@ -4668,7 +4672,7 @@ struct fhstat_args {
 #endif
 int
 sys_fhstat(struct thread *td, struct fhstat_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct stat sb;
 	struct fhandle fh;
 	int error;
@@ -4714,7 +4718,7 @@ struct fhstatfs_args {
 #endif
 int
 sys_fhstatfs(struct thread *td, struct fhstatfs_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct statfs *sfp;
 	fhandle_t fh;
 	int error;
@@ -4892,7 +4896,7 @@ out:
 
 int
 sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	int error;
 
 	error = kern_posix_fadvise(td, uap->fd, uap->offset, uap->len,
@@ -5022,7 +5026,7 @@ out:
 
 int
 sys_copy_file_range(struct thread *td, struct copy_file_range_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	off_t inoff, outoff, *inoffp, *outoffp;
 	int error;
 

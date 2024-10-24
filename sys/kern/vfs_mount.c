@@ -73,6 +73,11 @@
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)
 
 static int	vfs_domount(struct thread *td, const char *fstype, char *fspath,
@@ -429,7 +434,7 @@ struct nmount_args {
 #endif
 int
 sys_nmount(struct thread *td, struct nmount_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct uio *auio;
 	int error;
 	u_int iovcnt;
@@ -1050,7 +1055,7 @@ struct mount_args {
 /* ARGSUSED */
 int
 sys_mount(struct thread *td, struct mount_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	char *fstype;
 	struct vfsconf *vfsp = NULL;
 	struct mntarg *ma = NULL;
@@ -1715,7 +1720,7 @@ struct unmount_args {
 /* ARGSUSED */
 int
 sys_unmount(struct thread *td, struct unmount_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_unmount(td, uap->path, uap->flags));
 }

@@ -89,6 +89,10 @@
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
+//wyc sa
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #include <machine/cpu.h>
 
 #include <security/audit/audit.h>
@@ -935,7 +939,7 @@ struct sigaction_args {
 #endif
 int
 sys_sigaction(struct thread *td, struct sigaction_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct sigaction act, oact;
 	struct sigaction *actp, *oactp;
 	int error;
@@ -943,13 +947,16 @@ sys_sigaction(struct thread *td, struct sigaction_args *uap)
 	actp = (uap->act != NULL) ? &act : NULL;
 	oactp = (uap->oact != NULL) ? &oact : NULL;
 	if (actp) {
+		//ADD_PROCBASE(uap->act, td);
 		error = copyin(uap->act, actp, sizeof(act));
 		if (error)
 			return (error);
 	}
 	error = kern_sigaction(td, uap->sig, actp, oactp, 0);
-	if (oactp && !error)
+	if (oactp && !error) {
+		ADD_PROCBASE(uap->oact, td);
 		error = copyout(oactp, uap->oact, sizeof(oact));
+	}
 	return (error);
 }
 
@@ -963,7 +970,7 @@ struct freebsd4_sigaction_args {
 #endif
 int
 freebsd4_sigaction(struct thread *td, struct freebsd4_sigaction_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct sigaction act, oact;
 	struct sigaction *actp, *oactp;
 	int error;
@@ -992,7 +999,7 @@ struct osigaction_args {
 #endif
 int
 osigaction(struct thread *td, struct osigaction_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct osigaction sa;
 	struct sigaction nsa, osa;
 	struct sigaction *nsap, *osap;
@@ -1026,7 +1033,7 @@ osigaction(struct thread *td, struct osigaction_args *uap)
 /* Avoid replicating the same stub everywhere */
 int
 osigreturn(struct thread *td, struct osigreturn_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (nosys(td, (struct nosys_args *)uap));
 }
@@ -1189,7 +1196,7 @@ struct sigprocmask_args {
 #endif
 int
 sys_sigprocmask(struct thread *td, struct sigprocmask_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	sigset_t set, oset;
 	sigset_t *setp, *osetp;
 	int error;
@@ -1217,7 +1224,7 @@ struct osigprocmask_args {
 #endif
 int
 osigprocmask(struct thread *td, struct osigprocmask_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	sigset_t set, oset;
 	int error;
 
@@ -1230,7 +1237,7 @@ osigprocmask(struct thread *td, struct osigprocmask_args *uap)
 
 int
 sys_sigwait(struct thread *td, struct sigwait_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	ksiginfo_t ksi;
 	sigset_t set;
 	int error;
@@ -1263,7 +1270,7 @@ sys_sigwait(struct thread *td, struct sigwait_args *uap)
 
 int
 sys_sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct timespec ts;
 	struct timespec *timeout;
 	sigset_t set;
@@ -1297,7 +1304,7 @@ sys_sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 
 int
 sys_sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	ksiginfo_t ksi;
 	sigset_t set;
 	int error;
@@ -1472,7 +1479,7 @@ struct sigpending_args {
 #endif
 int
 sys_sigpending(struct thread *td, struct sigpending_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct proc *p = td->td_proc;
 	sigset_t pending;
 
@@ -1491,7 +1498,7 @@ struct osigpending_args {
 #endif
 int
 osigpending(struct thread *td, struct osigpending_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct proc *p = td->td_proc;
 	sigset_t pending;
 
@@ -1518,7 +1525,7 @@ struct osigvec_args {
 /* ARGSUSED */
 int
 osigvec(struct thread *td, struct osigvec_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct sigvec vec;
 	struct sigaction nsa, osa;
 	struct sigaction *nsap, *osap;
@@ -1556,7 +1563,7 @@ struct osigblock_args {
 #endif
 int
 osigblock(struct thread *td, struct osigblock_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	sigset_t set, oset;
 
 	OSIG2SIG(uap->mask, set);
@@ -1572,7 +1579,7 @@ struct osigsetmask_args {
 #endif
 int
 osigsetmask(struct thread *td, struct osigsetmask_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	sigset_t set, oset;
 
 	OSIG2SIG(uap->mask, set);
@@ -1594,7 +1601,7 @@ struct sigsuspend_args {
 /* ARGSUSED */
 int
 sys_sigsuspend(struct thread *td, struct sigsuspend_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	sigset_t mask;
 	int error;
 
@@ -1672,7 +1679,7 @@ struct osigsuspend_args {
 /* ARGSUSED */
 int
 osigsuspend(struct thread *td, struct osigsuspend_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	sigset_t mask;
 
 	OSIG2SIG(uap->mask, mask);
@@ -1690,7 +1697,7 @@ struct osigstack_args {
 /* ARGSUSED */
 int
 osigstack(struct thread *td, struct osigstack_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct sigstack nss, oss;
 	int error = 0;
 
@@ -1723,7 +1730,7 @@ struct sigaltstack_args {
 /* ARGSUSED */
 int
 sys_sigaltstack(struct thread *td, struct sigaltstack_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	stack_t ss, oss;
 	int error;
 
@@ -1890,7 +1897,7 @@ struct kill_args {
 /* ARGSUSED */
 int
 sys_kill(struct thread *td, struct kill_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_kill(td, uap->pid, uap->signum));
 }
@@ -1949,7 +1956,7 @@ kern_kill(struct thread *td, pid_t pid, int signum)
 
 int
 sys_pdkill(struct thread *td, struct pdkill_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct proc *p;
 	int error;
 
@@ -1979,7 +1986,7 @@ struct okillpg_args {
 /* ARGSUSED */
 int
 okillpg(struct thread *td, struct okillpg_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	ksiginfo_t ksi;
 
 	AUDIT_ARG_SIGNUM(uap->signum);
@@ -2005,7 +2012,7 @@ struct sigqueue_args {
 #endif
 int
 sys_sigqueue(struct thread *td, struct sigqueue_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	union sigval sv;
 
 	sv.sival_ptr = uap->value;
@@ -4455,7 +4462,7 @@ sigfastblock_resched(struct thread *td, bool resched)
 
 int
 sys_sigfastblock(struct thread *td, struct sigfastblock_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct proc *p;
 	int error, res;
 	uint32_t oldval;

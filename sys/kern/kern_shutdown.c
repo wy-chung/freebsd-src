@@ -100,6 +100,10 @@
 
 #include <sys/signalvar.h>
 
+//wyc sa
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 static MALLOC_DEFINE(M_DUMPER, "dumper", "dumper block buffer");
 
 #ifndef PANIC_REBOOT_WAIT_TIME
@@ -298,7 +302,7 @@ SYSINIT(reroot_conf, SI_SUB_DEVFS, SI_ORDER_ANY, reroot_conf, NULL);
 /* ARGSUSED */
 int
 sys_reboot(struct thread *td, struct reboot_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	int error;
 
 	error = 0;

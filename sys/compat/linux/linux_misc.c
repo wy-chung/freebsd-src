@@ -350,7 +350,7 @@ linux_msync(struct thread *td, struct linux_msync_args *args)
 
 int
 linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (linux_mprotect_common(td, PTROUT(uap->addr), uap->len,
 	    uap->prot));
@@ -358,7 +358,7 @@ linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
 
 int
 linux_madvise(struct thread *td, struct linux_madvise_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (linux_madvise_common(td, PTROUT(uap->addr), uap->len,
 	    uap->behav));
@@ -366,7 +366,7 @@ linux_madvise(struct thread *td, struct linux_madvise_args *uap)
 
 int
 linux_mmap2(struct thread *td, struct linux_mmap2_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 #if defined(LINUX_ARCHWANT_MMAP2PGOFF)
 	/*
 	 * For architectures with sizeof (off_t) < sizeof (loff_t) mmap is
@@ -979,7 +979,7 @@ struct l_itimerval {
 
 int
 linux_setitimer(struct thread *td, struct linux_setitimer_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	int error;
 	struct l_itimerval ls;
 	struct itimerval aitv, oitv;
@@ -1003,7 +1003,7 @@ linux_setitimer(struct thread *td, struct linux_setitimer_args *uap)
 
 int
 linux_getitimer(struct thread *td, struct linux_getitimer_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	int error;
 	struct l_itimerval ls;
 	struct itimerval aitv;
@@ -1570,7 +1570,7 @@ struct l_user_cap_data {
 
 int
 linux_capget(struct thread *td, struct linux_capget_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct l_user_cap_header luch;
 	struct l_user_cap_data lucd[2];
 	int error, u32s;
@@ -1617,7 +1617,7 @@ linux_capget(struct thread *td, struct linux_capget_args *uap)
 
 int
 linux_capset(struct thread *td, struct linux_capset_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct l_user_cap_header luch;
 	struct l_user_cap_data lucd[2];
 	int error, i, u32s;
@@ -1823,7 +1823,7 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 int
 linux_sched_setparam(struct thread *td,
     struct linux_sched_setparam_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct sched_param sched_param;
 	struct thread *tdt;
 	int error, policy;
@@ -1877,7 +1877,7 @@ out:	PROC_UNLOCK(tdt->td_proc);
 int
 linux_sched_getparam(struct thread *td,
     struct linux_sched_getparam_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct sched_param sched_param;
 	struct thread *tdt;
 	int error, policy;
@@ -2338,7 +2338,7 @@ linux_sched_rr_get_interval_common(struct thread *td, pid_t pid,
 int
 linux_sched_rr_get_interval(struct thread *td,
     struct linux_sched_rr_get_interval_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct timespec ts;
 	int error;
 
@@ -2352,7 +2352,7 @@ linux_sched_rr_get_interval(struct thread *td,
 int
 linux_sched_rr_get_interval_time64(struct thread *td,
     struct linux_sched_rr_get_interval_time64_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct timespec ts;
 	int error;
 

@@ -69,7 +69,7 @@ struct break_args {
 #endif
 int
 sys_break(struct thread *td, struct break_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 #if !defined(__aarch64__) && !defined(__riscv)
 	uintptr_t addr;
 	int error;

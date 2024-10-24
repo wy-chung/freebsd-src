@@ -171,7 +171,7 @@ struct mmap_args {
 
 int
 sys_mmap(struct thread *td, struct mmap_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_mmap(td, &(struct mmap_req){
 		.mr_hint = (uintptr_t)uap->addr,
@@ -418,7 +418,7 @@ done:
 #if defined(COMPAT_FREEBSD6)
 int
 freebsd6_mmap(struct thread *td, struct freebsd6_mmap_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	return (kern_mmap(td, &(struct mmap_req){
 		.mr_hint = (uintptr_t)uap->addr,
 		.mr_len = uap->len,
@@ -443,7 +443,7 @@ struct ommap_args {
 #endif
 int
 ommap(struct thread *td, struct ommap_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	return (kern_ommap(td, (uintptr_t)uap->addr, uap->len, uap->prot,
 	    uap->flags, uap->fd, uap->pos));
 }
@@ -509,7 +509,7 @@ struct msync_args {
 #endif
 int
 sys_msync(struct thread *td, struct msync_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_msync(td, (uintptr_t)uap->addr, uap->len, uap->flags));
 }
@@ -562,7 +562,7 @@ struct munmap_args {
 #endif
 int
 sys_munmap(struct thread *td, struct munmap_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_munmap(td, (uintptr_t)uap->addr, uap->len));
 }
@@ -641,7 +641,7 @@ struct mprotect_args {
 #endif
 int
 sys_mprotect(struct thread *td, struct mprotect_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_mprotect(td, (uintptr_t)uap->addr, uap->len,
 	    uap->prot, 0));
@@ -701,7 +701,7 @@ struct minherit_args {
 #endif
 int
 sys_minherit(struct thread *td, struct minherit_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_minherit(td, (uintptr_t)uap->addr, uap->len,
 	    uap->inherit));
@@ -745,7 +745,7 @@ struct madvise_args {
 
 int
 sys_madvise(struct thread *td, struct madvise_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_madvise(td, (uintptr_t)uap->addr, uap->len, uap->behav));
 }
@@ -799,7 +799,7 @@ struct mincore_args {
 
 int
 sys_mincore(struct thread *td, struct mincore_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_mincore(td, (uintptr_t)uap->addr, uap->len, uap->vec));
 }
@@ -1048,7 +1048,7 @@ struct mlock_args {
 #endif
 int
 sys_mlock(struct thread *td, struct mlock_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_mlock(td->td_proc, td->td_ucred,
 	    __DECONST(uintptr_t, uap->addr), uap->len));
@@ -1121,7 +1121,7 @@ struct mlockall_args {
 
 int
 sys_mlockall(struct thread *td, struct mlockall_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	vm_map_t map;
 	int error;
 
@@ -1194,7 +1194,7 @@ struct munlockall_args {
 
 int
 sys_munlockall(struct thread *td, struct munlockall_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	vm_map_t map;
 	int error;
 
@@ -1230,7 +1230,7 @@ struct munlock_args {
 #endif
 int
 sys_munlock(struct thread *td, struct munlock_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_munlock(td, (uintptr_t)uap->addr, uap->len));
 }

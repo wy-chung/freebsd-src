@@ -1054,14 +1054,14 @@ filt_usertouch(struct knote *kn, struct kevent *kev, u_long type)
 
 int
 sys_kqueue(struct thread *td, struct kqueue_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 
 	return (kern_kqueue(td, 0, NULL));
 }
 
 int
 sys_kqueuex(struct thread *td, struct kqueuex_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	int flags;
 
 	if ((uap->flags & ~(KQUEUE_CLOEXEC)) != 0)
@@ -1130,7 +1130,7 @@ struct g_kevent_args {
 
 int
 sys_kevent(struct thread *td, struct kevent_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	struct kevent_copyops k_ops = {
 		.arg = uap,
 		.k_copyout = kevent_copyout,
@@ -1152,7 +1152,7 @@ sys_kevent(struct thread *td, struct kevent_args *uap)
 static int
 kern_kevent_generic(struct thread *td, struct g_kevent_args *uap,
     struct kevent_copyops *k_ops, const char *struct_name)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	struct timespec ts, *tsp;
 #ifdef KTRACE
 	struct kevent *eventlist = uap->eventlist;
@@ -1280,7 +1280,7 @@ kevent11_copyin(void *arg, struct kevent *kevp, int count)
 
 int
 freebsd11_kevent(struct thread *td, struct freebsd11_kevent_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	struct kevent_copyops k_ops = {
 		.arg = uap,
 		.k_copyout = kevent11_copyout,

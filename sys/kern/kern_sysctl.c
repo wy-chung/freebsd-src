@@ -78,6 +78,10 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+//wyc sa
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 static MALLOC_DEFINE(M_SYSCTL, "sysctl", "sysctl internal magic");
 static MALLOC_DEFINE(M_SYSCTLOID, "sysctloid", "sysctl dynamic oids");
 static MALLOC_DEFINE(M_SYSCTLTMP, "sysctltmp", "sysctl temp output buffer");
@@ -2303,7 +2307,7 @@ struct __sysctl_args {
 #endif
 int
 sys___sysctl(struct thread *td, struct __sysctl_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	int error, i, name[CTL_MAXNAME];
 	size_t j;
 
@@ -2375,7 +2379,7 @@ struct __sysctlbyname_args {
 #endif
 int
 sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	size_t rv;
 	int error;
 

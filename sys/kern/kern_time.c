@@ -61,6 +61,10 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+//wyc sa
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #define MAX_CLOCKS 	(CLOCK_MONOTONIC+1)
 #define CPUCLOCK_BIT		0x80000000
 #define CPUCLOCK_PROCESS_BIT	0x40000000
@@ -180,7 +184,7 @@ struct clock_getcpuclockid2_args {
 /* ARGSUSED */
 int
 sys_clock_getcpuclockid2(struct thread *td, struct clock_getcpuclockid2_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	clockid_t clk_id;
 	int error;
 
@@ -230,7 +234,7 @@ struct clock_gettime_args {
 /* ARGSUSED */
 int
 sys_clock_gettime(struct thread *td, struct clock_gettime_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct timespec ats;
 	int error;
 
@@ -386,7 +390,7 @@ struct clock_settime_args {
 /* ARGSUSED */
 int
 sys_clock_settime(struct thread *td, struct clock_settime_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct timespec ats;
 	int error;
 
@@ -430,7 +434,7 @@ struct clock_getres_args {
 #endif
 int
 sys_clock_getres(struct thread *td, struct clock_getres_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct timespec ts;
 	int error;
 
@@ -591,7 +595,7 @@ struct nanosleep_args {
 /* ARGSUSED */
 int
 sys_nanosleep(struct thread *td, struct nanosleep_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (user_clock_nanosleep(td, CLOCK_REALTIME, TIMER_RELTIME,
 	    uap->rqtp, uap->rmtp));
@@ -608,7 +612,7 @@ struct clock_nanosleep_args {
 /* ARGSUSED */
 int
 sys_clock_nanosleep(struct thread *td, struct clock_nanosleep_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	int error;
 
 	error = user_clock_nanosleep(td, uap->clock_id, uap->flags, uap->rqtp,
@@ -644,7 +648,7 @@ struct gettimeofday_args {
 /* ARGSUSED */
 int
 sys_gettimeofday(struct thread *td, struct gettimeofday_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct timeval atv;
 	struct timezone rtz;
 	int error = 0;
@@ -670,7 +674,7 @@ struct settimeofday_args {
 /* ARGSUSED */
 int
 sys_settimeofday(struct thread *td, struct settimeofday_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct timeval atv, *tvp;
 	struct timezone atz, *tzp;
 	int error;
@@ -739,7 +743,7 @@ struct getitimer_args {
 #endif
 int
 sys_getitimer(struct thread *td, struct getitimer_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct itimerval aitv;
 	int error;
 
@@ -795,7 +799,7 @@ struct setitimer_args {
 #endif
 int
 sys_setitimer(struct thread *td, struct setitimer_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct itimerval aitv, oitv;
 	int error;
 
@@ -1207,7 +1211,7 @@ struct ktimer_create_args {
 #endif
 int
 sys_ktimer_create(struct thread *td, struct ktimer_create_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct sigevent *evp, ev;
 	int id;
 	int error;
@@ -1342,7 +1346,7 @@ struct ktimer_delete_args {
 #endif
 int
 sys_ktimer_delete(struct thread *td, struct ktimer_delete_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_ktimer_delete(td, uap->timerid));
 }
@@ -1408,7 +1412,7 @@ struct ktimer_settime_args {
 #endif
 int
 sys_ktimer_settime(struct thread *td, struct ktimer_settime_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct itimerspec val, oval, *ovalp;
 	int error;
 
@@ -1454,7 +1458,7 @@ struct ktimer_gettime_args {
 #endif
 int
 sys_ktimer_gettime(struct thread *td, struct ktimer_gettime_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	struct itimerspec val;
 	int error;
 
@@ -1493,7 +1497,7 @@ struct timer_getoverrun_args {
 #endif
 int
 sys_ktimer_getoverrun(struct thread *td, struct ktimer_getoverrun_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	return (kern_ktimer_getoverrun(td, uap->timerid));
 }

@@ -347,7 +347,7 @@ struct getdtablesize_args {
 /* ARGSUSED */
 int
 sys_getdtablesize(struct thread *td, struct getdtablesize_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 #ifdef	RACCT
 	uint64_t lim;
 #endif
@@ -378,7 +378,7 @@ struct dup2_args {
 /* ARGSUSED */
 int
 sys_dup2(struct thread *td, struct dup2_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 
 	return (kern_dup(td, FDDUP_FIXED, 0, (int)uap->from, (int)uap->to));
 }
@@ -394,7 +394,7 @@ struct dup_args {
 /* ARGSUSED */
 int
 sys_dup(struct thread *td, struct dup_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 
 	return (kern_dup(td, FDDUP_NORMAL, 0, (int)uap->fd, 0));
 }
@@ -412,7 +412,7 @@ struct fcntl_args {
 /* ARGSUSED */
 int
 sys_fcntl(struct thread *td, struct fcntl_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 
 	return (kern_fcntl_freebsd(td, uap->fd, uap->cmd, uap->arg));
 }
@@ -1390,7 +1390,7 @@ struct close_args {
 /* ARGSUSED */
 int
 sys_close(struct thread *td, struct close_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 
 	return (kern_close(td, uap->fd));
 }
@@ -1506,7 +1506,7 @@ struct close_range_args {
 #endif
 int
 sys_close_range(struct thread *td, struct close_range_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 
 	AUDIT_ARG_FD(uap->lowfd);
 	AUDIT_ARG_CMD(uap->highfd);
@@ -1529,7 +1529,7 @@ struct freebsd12_closefrom_args {
 /* ARGSUSED */
 int
 freebsd12_closefrom(struct thread *td, struct freebsd12_closefrom_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	u_int lowfd;
 
 	AUDIT_ARG_FD(uap->lowfd);
@@ -1556,7 +1556,7 @@ struct ofstat_args {
 /* ARGSUSED */
 int
 ofstat(struct thread *td, struct ofstat_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	struct ostat oub;
 	struct stat ub;
 	int error;
@@ -1573,7 +1573,7 @@ ofstat(struct thread *td, struct ofstat_args *uap)
 #if defined(COMPAT_FREEBSD11)
 int
 freebsd11_fstat(struct thread *td, struct freebsd11_fstat_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	struct stat sb;
 	struct freebsd11_stat osb;
 	int error;
@@ -1600,7 +1600,7 @@ struct fstat_args {
 /* ARGSUSED */
 int
 sys_fstat(struct thread *td, struct fstat_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	struct stat ub;
 	int error;
 
@@ -1652,7 +1652,7 @@ struct freebsd11_nfstat_args {
 /* ARGSUSED */
 int
 freebsd11_nfstat(struct thread *td, struct freebsd11_nfstat_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	struct nstat nub;
 	struct stat ub;
 	int error;
@@ -1679,7 +1679,7 @@ struct fpathconf_args {
 /* ARGSUSED */
 int
 sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	long value;
 	int error;
 
@@ -3693,7 +3693,7 @@ struct flock_args {
 /* ARGSUSED */
 int
 sys_flock(struct thread *td, struct flock_args *uap)
-{ADD_PROCBASE(uap,td);
+{ADD_PROCBASE(uap, td);
 	struct file *fp;
 	struct vnode *vp;
 	struct flock lf;

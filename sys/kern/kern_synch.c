@@ -70,6 +70,11 @@
 
 #include <machine/cpu.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 static void synch_setup(void *dummy);
 SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup,
     NULL);
@@ -697,7 +702,7 @@ kern_yield(int prio)
  */
 int
 sys_yield(struct thread *td, struct yield_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 
 	thread_lock(td);
 	if (PRI_BASE(td->td_pri_class) == PRI_TIMESHARE)
@@ -709,7 +714,7 @@ sys_yield(struct thread *td, struct yield_args *uap)
 
 int
 sys_sched_getcpu(struct thread *td, struct sched_getcpu_args *uap)
-{
+{ADD_PROCBASE(uap, td);
 	td->td_retval[0] = td->td_oncpu;
 	return (0);
 }
