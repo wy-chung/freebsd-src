@@ -108,7 +108,7 @@ struct getpid_args {
 /* ARGSUSED */
 int
 sys_getpid(struct thread *td, struct getpid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 
 	td->td_retval[0] = p->p_pid;
@@ -127,7 +127,7 @@ struct getppid_args {
 /* ARGSUSED */
 int
 sys_getppid(struct thread *td, struct getppid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	td->td_retval[0] = kern_getppid(td);
 	return (0);
@@ -151,7 +151,7 @@ struct getpgrp_args {
 #endif
 int
 sys_getpgrp(struct thread *td, struct getpgrp_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 
 	PROC_LOCK(p);
@@ -168,7 +168,7 @@ struct getpgid_args {
 #endif
 int
 sys_getpgid(struct thread *td, struct getpgid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p;
 	int error;
 
@@ -200,7 +200,7 @@ struct getsid_args {
 #endif
 int
 sys_getsid(struct thread *td, struct getsid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (kern_getsid(td, uap->pid));
 }
@@ -237,7 +237,7 @@ struct getuid_args {
 /* ARGSUSED */
 int
 sys_getuid(struct thread *td, struct getuid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	td->td_retval[0] = td->td_ucred->cr_ruid;
 #if defined(COMPAT_43)
@@ -254,7 +254,7 @@ struct geteuid_args {
 /* ARGSUSED */
 int
 sys_geteuid(struct thread *td, struct geteuid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	td->td_retval[0] = td->td_ucred->cr_uid;
 	return (0);
@@ -268,7 +268,7 @@ struct getgid_args {
 /* ARGSUSED */
 int
 sys_getgid(struct thread *td, struct getgid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	td->td_retval[0] = td->td_ucred->cr_rgid;
 #if defined(COMPAT_43)
@@ -290,7 +290,7 @@ struct getegid_args {
 /* ARGSUSED */
 int
 sys_getegid(struct thread *td, struct getegid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	td->td_retval[0] = td->td_ucred->cr_groups[0];
 	return (0);
@@ -304,7 +304,7 @@ struct getgroups_args {
 #endif
 int
 sys_getgroups(struct thread *td, struct getgroups_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct ucred *cred;
 	int ngrp, error;
 
@@ -332,7 +332,7 @@ struct setsid_args {
 /* ARGSUSED */
 int
 sys_setsid(struct thread *td, struct setsid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct pgrp *pgrp;
 	int error;
 	struct proc *p = td->td_proc;
@@ -392,7 +392,7 @@ struct setpgid_args {
 /* ARGSUSED */
 int
 sys_setpgid(struct thread *td, struct setpgid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *curp = td->td_proc;
 	struct proc *targp;	/* target process */
 	struct pgrp *pgrp;	/* target pgrp */
@@ -494,7 +494,7 @@ struct setuid_args {
 /* ARGSUSED */
 int
 sys_setuid(struct thread *td, struct setuid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t uid;
@@ -613,7 +613,7 @@ struct seteuid_args {
 /* ARGSUSED */
 int
 sys_seteuid(struct thread *td, struct seteuid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t euid;
@@ -669,7 +669,7 @@ struct setgid_args {
 /* ARGSUSED */
 int
 sys_setgid(struct thread *td, struct setgid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	gid_t gid;
@@ -767,7 +767,7 @@ struct setegid_args {
 /* ARGSUSED */
 int
 sys_setegid(struct thread *td, struct setegid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	gid_t egid;
@@ -814,7 +814,7 @@ struct setgroups_args {
 /* ARGSUSED */
 int
 sys_setgroups(struct thread *td, struct setgroups_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	gid_t smallgroups[XU_NGROUPS];
 	gid_t *groups;
 	int gidsetsize, error;
@@ -893,7 +893,7 @@ struct setreuid_args {
 /* ARGSUSED */
 int
 sys_setreuid(struct thread *td, struct setreuid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t euid, ruid;
@@ -968,7 +968,7 @@ struct setregid_args {
 /* ARGSUSED */
 int
 sys_setregid(struct thread *td, struct setregid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	gid_t egid, rgid;
@@ -1033,7 +1033,7 @@ struct setresuid_args {
 /* ARGSUSED */
 int
 sys_setresuid(struct thread *td, struct setresuid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	uid_t euid, ruid, suid;
@@ -1120,7 +1120,7 @@ struct setresgid_args {
 /* ARGSUSED */
 int
 sys_setresgid(struct thread *td, struct setresgid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 	struct ucred *newcred, *oldcred;
 	gid_t egid, rgid, sgid;
@@ -1187,7 +1187,7 @@ struct getresuid_args {
 /* ARGSUSED */
 int
 sys_getresuid(struct thread *td, struct getresuid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct ucred *cred;
 	int error1 = 0, error2 = 0, error3 = 0;
 
@@ -1214,7 +1214,7 @@ struct getresgid_args {
 /* ARGSUSED */
 int
 sys_getresgid(struct thread *td, struct getresgid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct ucred *cred;
 	int error1 = 0, error2 = 0, error3 = 0;
 
@@ -1239,7 +1239,7 @@ struct issetugid_args {
 /* ARGSUSED */
 int
 sys_issetugid(struct thread *td, struct issetugid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 
 	/*
@@ -1256,7 +1256,7 @@ sys_issetugid(struct thread *td, struct issetugid_args *uap)
 
 int
 sys___setugid(struct thread *td, struct __setugid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 #ifdef REGRESSION
 	struct proc *p;
 
@@ -2384,7 +2384,7 @@ struct getlogin_args {
 /* ARGSUSED */
 int
 sys_getlogin(struct thread *td, struct getlogin_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	char login[MAXLOGNAME];
 	struct proc *p = td->td_proc;
 	size_t len;
@@ -2412,7 +2412,7 @@ struct setlogin_args {
 /* ARGSUSED */
 int
 sys_setlogin(struct thread *td, struct setlogin_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct proc *p = td->td_proc;
 	int error;
 	char logintmp[MAXLOGNAME];

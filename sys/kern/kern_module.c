@@ -310,7 +310,7 @@ module_file(module_t mod)
  */
 int
 sys_modnext(struct thread *td, struct modnext_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	module_t mod;
 	int error = 0;
 
@@ -341,7 +341,7 @@ done2:
 
 int
 sys_modfnext(struct thread *td, struct modfnext_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	module_t mod;
 	int error;
 
@@ -379,7 +379,7 @@ struct module_stat_v2 {
 
 int
 sys_modstat(struct thread *td, struct modstat_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	module_t mod;
 	modspecific_t data;
 	int error = 0;
@@ -451,7 +451,7 @@ sys_modstat(struct thread *td, struct modstat_args *uap)
 
 int
 sys_modfind(struct thread *td, struct modfind_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	int error = 0;
 	char name[MAXMODNAMEV3];
 	module_t mod;
@@ -503,7 +503,7 @@ struct module_stat32 {
 
 int
 freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	module_t mod;
 	modspecific32_t data32;
 	int error = 0;

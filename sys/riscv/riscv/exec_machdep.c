@@ -317,7 +317,7 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 
 int
 sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	ucontext_t uc;
 	int error;
 

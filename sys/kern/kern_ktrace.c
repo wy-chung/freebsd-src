@@ -1029,7 +1029,7 @@ struct ktrace_args {
 /* ARGSUSED */
 int
 sys_ktrace(struct thread *td, struct ktrace_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 #ifdef KTRACE
 	struct vnode *vp = NULL;
 	struct proc *p;
@@ -1164,7 +1164,7 @@ done:
 /* ARGSUSED */
 int
 sys_utrace(struct thread *td, struct utrace_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 #ifdef KTRACE
 	struct ktr_request *req;

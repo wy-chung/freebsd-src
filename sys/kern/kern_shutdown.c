@@ -302,7 +302,7 @@ SYSINIT(reroot_conf, SI_SUB_DEVFS, SI_ORDER_ANY, reroot_conf, NULL);
 /* ARGSUSED */
 int
 sys_reboot(struct thread *td, struct reboot_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	int error;
 
 	error = 0;
