@@ -2307,7 +2307,7 @@ struct __sysctl_args {
 #endif
 int
 sys___sysctl(struct thread *td, struct __sysctl_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	int error, i, name[CTL_MAXNAME];
 	size_t j;
 
@@ -2379,7 +2379,7 @@ struct __sysctlbyname_args {
 #endif
 int
 sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	size_t rv;
 	int error;
 

@@ -196,7 +196,7 @@ out:
  */
 int
 sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	pid_t pid;
 	int error;
 

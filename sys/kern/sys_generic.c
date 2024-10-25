@@ -191,7 +191,7 @@ struct read_args {
 #endif
 int
 sys_read(struct thread *td, struct read_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct uio auio;
 	struct iovec aiov;
 	int error;
@@ -222,7 +222,7 @@ struct pread_args {
 #endif
 int
 sys_pread(struct thread *td, struct pread_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
@@ -249,7 +249,7 @@ kern_pread(struct thread *td, int fd, void *buf, size_t nbyte, off_t offset)
 #if defined(COMPAT_FREEBSD6)
 int
 freebsd6_pread(struct thread *td, struct freebsd6_pread_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
@@ -267,7 +267,7 @@ struct readv_args {
 #endif
 int
 sys_readv(struct thread *td, struct readv_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct uio *auio;
 	int error;
 
@@ -306,7 +306,7 @@ struct preadv_args {
 #endif
 int
 sys_preadv(struct thread *td, struct preadv_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct uio *auio;
 	int error;
 
@@ -392,7 +392,7 @@ struct write_args {
 #endif
 int
 sys_write(struct thread *td, struct write_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct uio auio;
 	struct iovec aiov;
 	int error;
@@ -423,7 +423,7 @@ struct pwrite_args {
 #endif
 int
 sys_pwrite(struct thread *td, struct pwrite_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
@@ -451,7 +451,7 @@ kern_pwrite(struct thread *td, int fd, const void *buf, size_t nbyte,
 #if defined(COMPAT_FREEBSD6)
 int
 freebsd6_pwrite(struct thread *td, struct freebsd6_pwrite_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
@@ -469,7 +469,7 @@ struct writev_args {
 #endif
 int
 sys_writev(struct thread *td, struct writev_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct uio *auio;
 	int error;
 
@@ -508,7 +508,7 @@ struct pwritev_args {
 #endif
 int
 sys_pwritev(struct thread *td, struct pwritev_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct uio *auio;
 	int error;
 
@@ -627,7 +627,7 @@ struct ftruncate_args {
 #endif
 int
 sys_ftruncate(struct thread *td, struct ftruncate_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (kern_ftruncate(td, uap->fd, uap->length));
 }
@@ -641,7 +641,7 @@ struct oftruncate_args {
 #endif
 int
 oftruncate(struct thread *td, struct oftruncate_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (kern_ftruncate(td, uap->fd, uap->length));
 }
@@ -657,7 +657,7 @@ struct ioctl_args {
 /* ARGSUSED */
 int
 sys_ioctl(struct thread *td, struct ioctl_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	u_char smalldata[SYS_IOCTL_SMALL_SIZE] __aligned(SYS_IOCTL_SMALL_ALIGN);
 	uint32_t com;
 	int arg, error;
@@ -828,7 +828,7 @@ out:
 
 int
 sys_posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	int error;
 
 	error = kern_posix_fallocate(td, uap->fd, uap->offset, uap->len);
@@ -869,7 +869,7 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 
 int
 sys_fspacectl(struct thread *td, struct fspacectl_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct spacectl_range rqsr, rmsr;
 	int error, cerror;
 
@@ -1016,7 +1016,7 @@ poll_no_poll(int events)
 
 int
 sys_pselect(struct thread *td, struct pselect_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct timespec ts;
 	struct timeval tv, *tvp;
 	sigset_t set, *uset;
@@ -1073,7 +1073,7 @@ struct select_args {
 #endif
 int
 sys_select(struct thread *td, struct select_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct timeval tv, *tvp;
 	int error;
 
@@ -1476,7 +1476,7 @@ selscan(struct thread *td, fd_mask **ibits, fd_mask **obits, int nfd)
 
 int
 sys_poll(struct thread *td, struct poll_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct timespec ts, *tsp;
 
 	if (uap->timeout != INFTIM) {
@@ -1565,7 +1565,7 @@ kern_poll_kfds(struct thread *td, struct pollfd *kfds, u_int nfds,
 
 int
 sys_ppoll(struct thread *td, struct ppoll_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct timespec ts, *tsp;
 	sigset_t set, *ssp;
 	int error;
@@ -2169,7 +2169,7 @@ out:
 
 int
 sys_kcmp(struct thread *td, struct kcmp_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	return (kern_kcmp(td, uap->pid1, uap->pid2, uap->type,
 	    uap->idx1, uap->idx2));
 }

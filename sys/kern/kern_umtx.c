@@ -3811,14 +3811,14 @@ do_sem2_wake(struct thread *td, struct _usem2 *sem)
 #ifdef COMPAT_FREEBSD10
 int
 freebsd10__umtx_lock(struct thread *td, struct freebsd10__umtx_lock_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	return (do_lock_umtx(td, uap->umtx, td->td_tid, 0));
 }
 
 int
 freebsd10__umtx_unlock(struct thread *td,
     struct freebsd10__umtx_unlock_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	return (do_unlock_umtx(td, uap->umtx, td->td_tid));
 }
 #endif
@@ -4986,7 +4986,7 @@ kern__umtx_op(struct thread *td, void *obj, int op, unsigned long val,
 
 int
 sys__umtx_op(struct thread *td, struct _umtx_op_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	static const struct umtx_copyops *umtx_ops;
 
 	umtx_ops = &umtx_native_ops;
@@ -5015,21 +5015,21 @@ sys__umtx_op(struct thread *td, struct _umtx_op_args *uap)
 int
 freebsd10_freebsd32__umtx_lock(struct thread *td,
     struct freebsd10_freebsd32__umtx_lock_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	return (do_lock_umtx32(td, (uint32_t *)uap->umtx, td->td_tid, NULL));
 }
 
 int
 freebsd10_freebsd32__umtx_unlock(struct thread *td,
     struct freebsd10_freebsd32__umtx_unlock_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	return (do_unlock_umtx32(td, (uint32_t *)uap->umtx, td->td_tid));
 }
 #endif /* COMPAT_FREEBSD10 */
 
 int
 freebsd32__umtx_op(struct thread *td, struct freebsd32__umtx_op_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (kern__umtx_op(td, uap->obj, uap->op, uap->val, uap->uaddr1,
 	    uap->uaddr2, &umtx_native_ops32));

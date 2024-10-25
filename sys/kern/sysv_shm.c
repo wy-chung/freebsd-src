@@ -364,7 +364,7 @@ struct shmdt_args {
 #endif
 int
 sys_shmdt(struct thread *td, struct shmdt_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	int error;
 
 	SYSVSHM_LOCK();
@@ -483,7 +483,7 @@ struct shmat_args {
 #endif
 int
 sys_shmat(struct thread *td, struct shmat_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (kern_shmat(td, uap->shmid, uap->shmaddr, uap->shmflg));
 }
@@ -612,7 +612,7 @@ struct shmctl_args {
 #endif
 int
 sys_shmctl(struct thread *td, struct shmctl_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	int error;
 	struct shmid_ds buf;
 	size_t bufsz;
@@ -774,7 +774,7 @@ struct shmget_args {
 #endif
 int
 sys_shmget(struct thread *td, struct shmget_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	int segnum, mode;
 	int error;
 
@@ -1323,7 +1323,7 @@ struct oshmctl_args {
 
 static int
 oshmctl(struct thread *td, struct oshmctl_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 #ifdef COMPAT_43
 	int error = 0;
 	struct prison *rpr;
@@ -1389,7 +1389,7 @@ struct shmsys_args {
 #endif
 int
 sys_shmsys(struct thread *td, struct shmsys_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	AUDIT_ARG_SVIPC_WHICH(uap->which);
 	if (uap->which < 0 || uap->which >= nitems(shmcalls))
@@ -1403,7 +1403,7 @@ sys_shmsys(struct thread *td, struct shmsys_args *uap)
 
 int
 freebsd32_shmsys(struct thread *td, struct freebsd32_shmsys_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
@@ -1453,7 +1453,7 @@ freebsd32_shmsys(struct thread *td, struct freebsd32_shmsys_args *uap)
 int
 freebsd7_freebsd32_shmctl(struct thread *td,
     struct freebsd7_freebsd32_shmctl_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	int error;
 	union {
 		struct shmid_ds shmid_ds;
@@ -1539,7 +1539,7 @@ done:
 
 int
 freebsd32_shmctl(struct thread *td, struct freebsd32_shmctl_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	int error;
 	union {
 		struct shmid_ds shmid_ds;
@@ -1633,7 +1633,7 @@ struct freebsd7_shmctl_args {
 #endif
 int
 freebsd7_shmctl(struct thread *td, struct freebsd7_shmctl_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	int error;
 	struct shmid_ds_old old;
 	struct shmid_ds buf;

@@ -1365,7 +1365,7 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 #ifdef COMPAT_FREEBSD12
 int
 freebsd12_shm_open(struct thread *td, struct freebsd12_shm_open_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (kern_shm_open(td, uap->path, uap->flags | O_CLOEXEC,
 	    uap->mode, NULL));
@@ -1374,7 +1374,7 @@ freebsd12_shm_open(struct thread *td, struct freebsd12_shm_open_args *uap)
 
 int
 sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	char *path;
 	Fnv32_t fnv;
 	int error;
@@ -1395,7 +1395,7 @@ sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 
 int
 sys_shm_rename(struct thread *td, struct shm_rename_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	char *path_from = NULL, *path_to = NULL;
 	Fnv32_t fnv_from, fnv_to;
 	struct shmfd *fd_from;
@@ -2185,7 +2185,7 @@ kern_shm_open(struct thread *td, const char *path, int flags, mode_t mode,
  */
 int
 sys_shm_open2(struct thread *td, struct shm_open2_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (kern_shm_open2(td, uap->path, uap->flags, uap->mode,
 	    uap->shmflags, NULL, uap->name));

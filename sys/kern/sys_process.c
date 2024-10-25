@@ -598,7 +598,7 @@ struct ptrace_args {
 
 int
 sys_ptrace(struct thread *td, struct ptrace_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	/*
 	 * XXX this obfuscation is to reduce stack usage, but the register
 	 * structs may be too large to put on the stack anyway.

@@ -2334,7 +2334,7 @@ struct swapon_args {
 
 int
 sys_swapon(struct thread *td, struct swapon_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct vattr attr;
 	struct vnode *vp;
 	struct nameidata nd;
@@ -2515,14 +2515,14 @@ done:
 #ifdef COMPAT_FREEBSD13
 int
 freebsd13_swapoff(struct thread *td, struct freebsd13_swapoff_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	return (kern_swapoff(td, uap->name, UIO_USERSPACE, 0));
 }
 #endif
 
 int
 sys_swapoff(struct thread *td, struct swapoff_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	return (kern_swapoff(td, uap->name, UIO_USERSPACE, uap->flags));
 }
 

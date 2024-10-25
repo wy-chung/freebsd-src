@@ -82,7 +82,7 @@ struct extattrctl_args {
 #endif
 int
 sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct vnode *filename_vp;
 	struct nameidata nd;
 	struct mount *mp, *mp_writable;
@@ -235,7 +235,7 @@ struct extattr_set_fd_args {
 #endif
 int
 sys_extattr_set_fd(struct thread *td, struct extattr_set_fd_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	char attrname[EXTATTR_MAXNAMELEN + 1];
 	int error;
 
@@ -281,7 +281,7 @@ struct extattr_set_file_args {
 #endif
 int
 sys_extattr_set_file(struct thread *td, struct extattr_set_file_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (user_extattr_set_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, uap->data, uap->nbytes, FOLLOW));
@@ -298,7 +298,7 @@ struct extattr_set_link_args {
 #endif
 int
 sys_extattr_set_link(struct thread *td, struct extattr_set_link_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (user_extattr_set_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, uap->data, uap->nbytes, NOFOLLOW));
@@ -423,7 +423,7 @@ struct extattr_get_fd_args {
 #endif
 int
 sys_extattr_get_fd(struct thread *td, struct extattr_get_fd_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	char attrname[EXTATTR_MAXNAMELEN + 1];
 	int error;
 
@@ -469,7 +469,7 @@ struct extattr_get_file_args {
 #endif
 int
 sys_extattr_get_file(struct thread *td, struct extattr_get_file_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	return (user_extattr_get_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, uap->data, uap->nbytes, FOLLOW));
 }
@@ -485,7 +485,7 @@ struct extattr_get_link_args {
 #endif
 int
 sys_extattr_get_link(struct thread *td, struct extattr_get_link_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	return (user_extattr_get_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, uap->data, uap->nbytes, NOFOLLOW));
 }
@@ -579,7 +579,7 @@ struct extattr_delete_fd_args {
 #endif
 int
 sys_extattr_delete_fd(struct thread *td, struct extattr_delete_fd_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	char attrname[EXTATTR_MAXNAMELEN + 1];
 	int error;
 
@@ -622,7 +622,7 @@ struct extattr_delete_file_args {
 #endif
 int
 sys_extattr_delete_file(struct thread *td, struct extattr_delete_file_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (user_extattr_delete_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, FOLLOW));
@@ -637,7 +637,7 @@ struct extattr_delete_link_args {
 #endif
 int
 sys_extattr_delete_link(struct thread *td, struct extattr_delete_link_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (user_extattr_delete_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, NOFOLLOW));
@@ -737,7 +737,7 @@ struct extattr_list_fd_args {
 #endif
 int
 sys_extattr_list_fd(struct thread *td, struct extattr_list_fd_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 	struct uio auio, *auiop;
 	struct iovec aiov;
 
@@ -790,7 +790,7 @@ struct extattr_list_file_args {
 #endif
 int
 sys_extattr_list_file(struct thread *td, struct extattr_list_file_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (user_extattr_list_path(td, uap->path, uap->attrnamespace,
 	    uap->data, uap->nbytes, FOLLOW));
@@ -806,7 +806,7 @@ struct extattr_list_link_args {
 #endif
 int
 sys_extattr_list_link(struct thread *td, struct extattr_list_link_args *uap)
-{ADD_PROCBASE(uap, td);
+{
 
 	return (user_extattr_list_path(td, uap->path, uap->attrnamespace,
 	    uap->data, uap->nbytes, NOFOLLOW));
