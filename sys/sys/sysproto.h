@@ -33,7 +33,7 @@ struct thread;
 #define	PADR_(t)	0
 #endif
 
-#if !defined(WYC)
+//#if !defined(WYC)
 struct exit_args {
 	char rval_l_[PADL_(int)]; int rval; char rval_r_[PADR_(int)];
 };
@@ -1123,7 +1123,9 @@ struct sigaction_args {
 	char oact_l_[PADL_(struct sigaction *)]; struct sigaction * oact; char oact_r_[PADR_(struct sigaction *)];
 };
 struct sigreturn_args {
-	char sigcntxp_l_[PADL_(const struct __ucontext *)]; const struct __ucontext * sigcntxp; char sigcntxp_r_[PADR_(const struct __ucontext *)];
+	char sigcntxp_l_[PADL_(const struct __ucontext *)];
+	const struct __ucontext * sigcntxp;
+	char sigcntxp_r_[PADR_(const struct __ucontext *)];
 };
 struct getcontext_args {
 	char ucp_l_[PADL_(struct __ucontext *)]; struct __ucontext * ucp; char ucp_r_[PADR_(struct __ucontext *)];
@@ -1494,7 +1496,7 @@ struct jail_get_args {
 struct jail_set_args {
 	char iovp_l_[PADL_(struct iovec *)]; struct iovec * iovp; char iovp_r_[PADR_(struct iovec *)];
 	char iovcnt_l_[PADL_(unsigned int)]; unsigned int iovcnt; char iovcnt_r_[PADR_(unsigned int)];
-	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+	char flags_l_[PADL_(int)];	int flags; char flags_r_[PADR_(int)];
 };
 struct jail_remove_args {
 	char jid_l_[PADL_(int)]; int jid; char jid_r_[PADR_(int)];
@@ -1889,7 +1891,8 @@ struct getrlimitusage_args {
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 	char res_l_[PADL_(rlim_t *)]; rlim_t * res; char res_r_[PADR_(rlim_t *)];
 };
-#endif // !defined(WYC)
+//#endif // !defined(WYC)
+
 int	sys_exit(struct thread *, struct exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
 int	sys_read(struct thread *, struct read_args *);

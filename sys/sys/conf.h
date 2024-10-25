@@ -198,6 +198,7 @@ struct cdevsw {
 	int			d_version;
 	u_int			d_flags;
 	const char		*d_name;
+// below are function pointers
 	d_open_t		*d_open;
 	d_fdopen_t		*d_fdopen;
 	d_close_t		*d_close;
@@ -219,12 +220,12 @@ struct cdevsw {
 	LIST_HEAD(, cdev)	d_devs;
 	int			d_spare3;
 	union {
-		struct cdevsw		*gianttrick;
-		SLIST_ENTRY(cdevsw)	postfree_list;
-	} __d_giant;
+		struct cdevsw		*d_gianttrick;
+		SLIST_ENTRY(cdevsw)	d_postfree_list;
+	};// __d_giant; //wyc pull
 };
-#define	d_gianttrick		__d_giant.gianttrick
-#define	d_postfree_list		__d_giant.postfree_list
+//#define	d_gianttrick		__d_giant.gianttrick
+//#define	d_postfree_list		__d_giant.postfree_list
 
 struct module;
 

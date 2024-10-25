@@ -954,7 +954,7 @@ sys_sigaction(struct thread *td, struct sigaction_args *uap)
 	}
 	error = kern_sigaction(td, uap->sig, actp, oactp, 0);
 	if (oactp && !error) {
-		ADD_PROCBASE(uap->oact, td);
+		//ADD_PROCBASE(uap->oact, td);
 		error = copyout(oactp, uap->oact, sizeof(oact));
 	}
 	return (error);
