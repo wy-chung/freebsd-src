@@ -1735,6 +1735,7 @@ sys_symlink(struct thread *td, struct symlink_args *uap)
 	    UIO_USERSPACE));
 }
 
+#if !defined(WYC)
 #ifndef _SYS_SYSPROTO_H_
 struct symlinkat_args {
 	char	*path;
@@ -1742,10 +1743,12 @@ struct symlinkat_args {
 	char	*path2;
 };
 #endif
+#endif
 int
 sys_symlinkat(struct thread *td, struct symlinkat_args *uap)
 {
-
+ADD_PROCBASE(uap->path1, td);
+ADD_PROCBASE(uap->path2, td);
 	return (kern_symlinkat(td, uap->path1, uap->fd, uap->path2,
 	    UIO_USERSPACE));
 }

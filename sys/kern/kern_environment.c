@@ -161,6 +161,8 @@ kenv_dump(struct thread *td, char **envp, int what, char *value, int len)
 int
 sys_kenv(struct thread *td, struct kenv_args *uap)
 {
+ADD_PROCBASE(uap->name, td);
+ADD_PROCBASE(uap->value, td);
 	char *name, *value;
 	size_t len;
 	int error;

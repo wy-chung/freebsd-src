@@ -92,10 +92,12 @@ dtrace_fork_func_t	dtrace_fasttrap_fork;
 SDT_PROVIDER_DECLARE(proc);
 SDT_PROBE_DEFINE3(proc, , , create, "struct proc *", "struct proc *", "int");
 
+#if !defined(WYC)
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
 	int     dummy;
 };
+#endif
 #endif
 
 /* ARGSUSED */

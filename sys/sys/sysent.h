@@ -132,7 +132,7 @@ struct sysentvec { // elf64_freebsd_sysvec_la48(amd64), elf64_freebsd_sysvec(ris
 	u_long		*sv_maxssiz; // NULL
 	u_int		sv_flags; // SV_ABI_FREEBSD | SV_ASLR | SV_LP64 | SV_SHP | SV_TIMEKEEP | SV_RNG_SEED_VER | SV_DSO_SIG | SV_SIGSYS
 	void		(*sv_set_syscall_retval)(struct thread *, int); // cpu_set_syscall_retval
-	int		(*sv_fetch_syscall_args)(struct thread *); // cpu_fetch_syscall_args
+	int		(*sv_fetch_syscall_args)(struct thread *); // cpu_fetch_syscall_args(amd64), cpu_fetch_syscall_args(riscv)
 	const char	**sv_syscallnames; // syscallnames
 	vm_offset_t	sv_timekeep_offset;
 	vm_offset_t	sv_shared_page_base; // SHAREDPAGE_LA48, i.e. 4G-4K

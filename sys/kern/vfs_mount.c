@@ -1044,6 +1044,7 @@ bail:
 /*
  * Old mount API.
  */
+#if !defined(WYC)
 #ifndef _SYS_SYSPROTO_H_
 struct mount_args {
 	char	*type;
@@ -1051,6 +1052,7 @@ struct mount_args {
 	int	flags;
 	caddr_t	data;
 };
+#endif
 #endif
 /* ARGSUSED */
 int
