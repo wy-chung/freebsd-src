@@ -225,7 +225,8 @@ sys_execve(struct thread *td, struct execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
+// uap->* are adjusted in exec_copyin_args
+	error = exec_copyin_args(td, &args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &args, NULL, oldvmspace);
@@ -251,7 +252,8 @@ sys_fexecve(struct thread *td, struct fexecve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, NULL, UIO_SYSSPACE,
+// uap->* are adjusted in exec_copyin_args
+	error = exec_copyin_args(td, &args, NULL, UIO_SYSSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0) {
 		args.fd = uap->fd;
@@ -282,10 +284,13 @@ sys___mac_execve(struct thread *td, struct __mac_execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
+// uap->* are adjusted in exec_copyin_args
+	error = exec_copyin_args(td, &args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->mac_p, td);
 		error = kern_execve(td, &args, uap->mac_p, oldvmspace);
+	}
 	post_execve(td, error, oldvmspace);
 	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
 	return (error);
@@ -1332,7 +1337,7 @@ out:
  * space into the temporary string buffer.
  */
 int
-exec_copyin_args(struct image_args *args, const char *fname,
+exec_copyin_args(struct thread *td, struct image_args *args, const char *fname,
     enum uio_seg segflg, char **argv, char **envv)
 {
 	u_long arg, env;
@@ -1341,7 +1346,7 @@ exec_copyin_args(struct image_args *args, const char *fname,
 	bzero(args, sizeof(*args));
 	if (argv == NULL)
 		return (EFAULT);
-
+ADD_PROCBASE(argv, td);
 	/*
 	 * Allocate demand-paged memory for the file name, argument, and
 	 * environment strings.
@@ -1353,6 +1358,7 @@ exec_copyin_args(struct image_args *args, const char *fname,
 	/*
 	 * Copy the file name.
 	 */
+ADD_PROCBASE(fname, td);
 	error = exec_args_add_fname(args, fname, segflg);
 	if (error != 0)
 		goto err_exit;
@@ -1378,6 +1384,7 @@ exec_copyin_args(struct image_args *args, const char *fname,
 	 * extract environment strings
 	 */
 	if (envv) {
+ADD_PROCBASE(envv, td);
 		for (;;) {
 			error = fueword(envv++, &env);
 			if (error == -1) {

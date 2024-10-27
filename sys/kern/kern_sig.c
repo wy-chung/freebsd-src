@@ -1735,10 +1735,13 @@ sys_sigaltstack(struct thread *td, struct sigaltstack_args *uap)
 	int error;
 
 	if (uap->ss != NULL) {
+ADD_PROCBASE(uap->ss, td);
 		error = copyin(uap->ss, &ss, sizeof(ss));
 		if (error)
 			return (error);
 	}
+if (uap->oss != NULL)
+  ADD_PROCBASE(uap->oss, td);
 	error = kern_sigaltstack(td, (uap->ss != NULL) ? &ss : NULL,
 	    (uap->oss != NULL) ? &oss : NULL);
 	if (error)
@@ -1777,7 +1780,7 @@ kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss)
 			td->td_pflags &= ~TDP_ALTSTACK;
 		}
 	}
-	return (0);
+	return (ESUCCESS);
 }
 
 struct killpg1_ctx {

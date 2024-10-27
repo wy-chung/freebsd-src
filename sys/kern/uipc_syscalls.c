@@ -73,6 +73,11 @@
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
 
@@ -306,6 +311,7 @@ accept1(struct thread *td, int s, struct sockaddr *uname, socklen_t *anamelen,
 		((struct osockaddr *)name)->sa_family =
 		    name->sa_family;
 #endif
+ADD_PROCBASE(uname, td);
 	error = copyout(name, uname, namelen);
 	if (error == 0)
 		error = copyout(&namelen, anamelen,
@@ -445,6 +451,8 @@ done:
 int
 sys_accept(struct thread *td, struct accept_args *uap)
 {
+// uap->name is adjusted in accept1
+ADD_PROCBASE(uap->anamelen, td);
 
 	return (accept1(td, uap->s, uap->name, uap->anamelen, ACCEPT4_INHERIT));
 }
@@ -456,6 +464,8 @@ sys_accept4(struct thread *td, struct accept4_args *uap)
 	if (uap->flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
 		return (EINVAL);
 
+// uap->name is adjusted in accept1
+ADD_PROCBASE(uap->anamelen, td);
 	return (accept1(td, uap->s, uap->name, uap->anamelen, uap->flags));
 }
 
@@ -464,6 +474,8 @@ int
 oaccept(struct thread *td, struct oaccept_args *uap)
 {
 
+// uap->name is adjusted in accept1
+ADD_PROCBASE(uap->anamelen, td);
 	return (accept1(td, uap->s, uap->name, uap->anamelen,
 	    ACCEPT4_INHERIT | ACCEPT4_COMPAT));
 }
@@ -878,9 +890,11 @@ sys_sendmsg(struct thread *td, struct sendmsg_args *uap)
 	struct iovec *iov;
 	int error;
 
+ADD_PROCBASE(uap->msg, td);
 	error = copyin(uap->msg, &msg, sizeof (msg));
 	if (error != 0)
 		return (error);
+ADD_PROCBASE(msg.msg_iov, td);
 	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
 	if (error != 0)
 		return (error);
@@ -1077,6 +1091,7 @@ kern_recvfrom(struct thread *td, int s, void *buf, size_t len, int flags,
 	int error;
 
 	if (fromlenaddr != NULL) {
+ADD_PROCBASE(fromlenaddr, td);
 		error = copyin(fromlenaddr, &msg.msg_namelen,
 		    sizeof (msg.msg_namelen));
 		if (error != 0)
@@ -1099,6 +1114,9 @@ done2:
 int
 sys_recvfrom(struct thread *td, struct recvfrom_args *uap)
 {
+ADD_PROCBASE(uap->buf, td);
+ADD_PROCBASE(uap->from, td);
+//uap->fromlenaddr is adjusted in kern_recvfrom
 	return (kern_recvfrom(td, uap->s, uap->buf, uap->len,
 	    uap->flags, uap->from, uap->fromlenaddr));
 }
@@ -1108,6 +1126,9 @@ sys_recvfrom(struct thread *td, struct recvfrom_args *uap)
 int
 orecvfrom(struct thread *td, struct orecvfrom_args *uap)
 {
+ADD_PROCBASE(uap->buf, td);
+ADD_PROCBASE(uap->from, td);
+//uap->fromlenaddr is adjusted in kern_recvfrom
 	return (kern_recvfrom(td, uap->s, uap->buf, uap->len,
 	    uap->flags | MSG_COMPAT, uap->from, uap->fromlenaddr));
 }
@@ -1167,9 +1188,11 @@ sys_recvmsg(struct thread *td, struct recvmsg_args *uap)
 	struct iovec *uiov, *iov;
 	int error;
 
+ADD_PROCBASE(uap->msg, td);
 	error = copyin(uap->msg, &msg, sizeof (msg));
 	if (error != 0)
 		return (error);
+ADD_PROCBASE(msg.msg_iov, td);
 	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
 	if (error != 0)
 		return (error);
@@ -1410,6 +1433,8 @@ bad:
 int
 sys_getsockname(struct thread *td, struct getsockname_args *uap)
 {
+ADD_PROCBASE(uap->asa, td);
+ADD_PROCBASE(uap->alen, td);
 	return (user_getsockname(td, uap->fdes, uap->asa, uap->alen, false));
 }
 
@@ -1496,6 +1521,8 @@ done:
 int
 sys_getpeername(struct thread *td, struct getpeername_args *uap)
 {
+ADD_PROCBASE(uap->asa, td);
+ADD_PROCBASE(uap->alen, td);
 	return (user_getpeername(td, uap->fdes, uap->asa, uap->alen, false));
 }
 

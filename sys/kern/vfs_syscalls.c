@@ -944,6 +944,7 @@ struct chdir_args {
 int
 sys_chdir(struct thread *td, struct chdir_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	return (kern_chdir(td, uap->path, UIO_USERSPACE));
 }
@@ -1094,6 +1095,7 @@ struct open_args {
 int
 sys_open(struct thread *td, struct open_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	return (kern_openat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, uap->mode));
@@ -1549,6 +1551,8 @@ struct link_args {
 int
 sys_link(struct thread *td, struct link_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->link, td);
 
 	return (kern_linkat(td, AT_FDCWD, AT_FDCWD, uap->path, uap->link,
 	    UIO_USERSPACE, AT_SYMLINK_FOLLOW));
@@ -1730,7 +1734,8 @@ struct symlink_args {
 int
 sys_symlink(struct thread *td, struct symlink_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->link, td);
 	return (kern_symlinkat(td, uap->path, AT_FDCWD, uap->link,
 	    UIO_USERSPACE));
 }
@@ -1883,6 +1888,7 @@ struct unlink_args {
 int
 sys_unlink(struct thread *td, struct unlink_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	return (kern_funlinkat(td, AT_FDCWD, uap->path, FD_NONE, UIO_USERSPACE,
 	    0, 0));
@@ -2130,7 +2136,7 @@ struct access_args {
 int
 sys_access(struct thread *td, struct access_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    0, uap->amode));
 }
@@ -2146,7 +2152,7 @@ struct faccessat_args {
 int
 sys_faccessat(struct thread *td, struct faccessat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_accessat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
 	    uap->amode));
 }
@@ -2211,7 +2217,7 @@ struct eaccess_args {
 int
 sys_eaccess(struct thread *td, struct eaccess_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    AT_EACCESS, uap->amode));
 }
@@ -2655,7 +2661,8 @@ struct readlink_args {
 int
 sys_readlink(struct thread *td, struct readlink_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->buf, td);
 	return (kern_readlinkat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->buf, UIO_USERSPACE, uap->count));
 }
@@ -2670,7 +2677,8 @@ struct readlinkat_args {
 int
 sys_readlinkat(struct thread *td, struct readlinkat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->buf, td);
 	return (kern_readlinkat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->buf, UIO_USERSPACE, uap->bufsize));
 }
@@ -2787,7 +2795,7 @@ struct chflags_args {
 int
 sys_chflags(struct thread *td, struct chflags_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, 0));
 }
@@ -2918,6 +2926,7 @@ struct chmod_args {
 int
 sys_chmod(struct thread *td, struct chmod_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	return (kern_fchmodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode, 0));
@@ -3046,6 +3055,7 @@ struct chown_args {
 int
 sys_chown(struct thread *td, struct chown_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	return (kern_fchownat(td, AT_FDCWD, uap->path, UIO_USERSPACE, uap->uid,
 	    uap->gid, 0));
@@ -4297,7 +4307,7 @@ sys_revoke(struct thread *td, struct revoke_args *uap)
 	struct vattr vattr;
 	struct nameidata nd;
 	int error;
-
+ADD_PROCBASE(uap->path, td);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path);
 	if ((error = namei(&nd)) != 0)

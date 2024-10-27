@@ -1064,6 +1064,9 @@ sys_mount(struct thread *td, struct mount_args *uap)
 	uint64_t flags;
 	int error;
 
+ADD_PROCBASE(uap->type, td);
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->data, td);
 	/*
 	 * Mount flags are now 64-bits. On 32-bit architectures only
 	 * 32-bits are passed in, but from here on everything handles
@@ -1723,6 +1726,7 @@ struct unmount_args {
 int
 sys_unmount(struct thread *td, struct unmount_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	return (kern_unmount(td, uap->path, uap->flags));
 }

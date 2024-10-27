@@ -862,10 +862,14 @@ sys_wait4(struct thread *td, struct wait4_args *uap)
 	else
 		rup = NULL;
 	error = kern_wait(td, uap->pid, &status, uap->options, rup);
-	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0)
+	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0) {
+ADD_PROCBASE(uap->status, td);
 		error = copyout(&status, uap->status, sizeof(status));
-	if (uap->rusage != NULL && error == 0 && td->td_retval[0] != 0)
+	}
+	if (uap->rusage != NULL && error == 0 && td->td_retval[0] != 0) {
+ADD_PROCBASE(uap->rusage, td);
 		error = copyout(&ru, uap->rusage, sizeof(struct rusage));
+	}
 	return (error);
 }
 

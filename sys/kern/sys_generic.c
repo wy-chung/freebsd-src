@@ -198,6 +198,7 @@ sys_read(struct thread *td, struct read_args *uap)
 
 	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
+ADD_PROCBASE(uap->buf, td);
 	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->nbyte;
 	auio.uio_iov = &aiov;
@@ -399,6 +400,7 @@ sys_write(struct thread *td, struct write_args *uap)
 
 	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
+ADD_PROCBASE(uap->buf, td);
 	aiov.iov_base = (void *)(uintptr_t)uap->buf;
 	aiov.iov_len = uap->nbyte;
 	auio.uio_iov = &aiov;
@@ -687,7 +689,7 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 #endif
 	    ((com & IOC_VOID) && size > 0 && size != sizeof(int)))
 		return (ENOTTY);
-
+ADD_PROCBASE(uap->data, td);
 	if (size > 0) {
 		if (com & IOC_VOID) {
 			/* Integer argument. */
