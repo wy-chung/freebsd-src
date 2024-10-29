@@ -49,6 +49,11 @@
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #ifdef PPS_SYNC
 FEATURE(pps_sync, "Support usage of external PPS signal by kernel PLL");
 #endif
@@ -938,6 +943,7 @@ sys_adjtime(struct thread *td, struct adjtime_args *uap)
 	int error;
 
 	if (uap->delta) {
+ADD_PROCBASE(uap->delta, td);
 		error = copyin(uap->delta, &delta, sizeof(delta));
 		if (error)
 			return (error);
@@ -945,8 +951,10 @@ sys_adjtime(struct thread *td, struct adjtime_args *uap)
 	} else
 		deltap = NULL;
 	error = kern_adjtime(td, deltap, &olddelta);
-	if (uap->olddelta && error == 0)
+	if (uap->olddelta && error == 0) {
+ADD_PROCBASE(uap->olddelta, td);
 		error = copyout(&olddelta, uap->olddelta, sizeof(olddelta));
+	}
 	return (error);
 }
 

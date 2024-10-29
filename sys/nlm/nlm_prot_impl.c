@@ -61,6 +61,11 @@
 #include <rpc/rpc_com.h>
 #include <rpc/rpcb_prot.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 MALLOC_DEFINE(M_NLM, "NLM", "Network Lock Manager");
 
 /*
@@ -1687,7 +1692,7 @@ sys_nlm_syscall(struct thread *td, struct nlm_syscall_args *uap)
 	nlm_debug_level = uap->debug_level;
 	nlm_grace_threshold = time_uptime + uap->grace_period;
 	nlm_next_idle_check = time_uptime + NLM_IDLE_PERIOD;
-
+ADD_PROCBASE(uap->addrs, td);
 	return nlm_server_main(uap->addr_count, uap->addrs);
 }
 

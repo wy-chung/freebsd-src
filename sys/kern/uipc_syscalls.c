@@ -670,6 +670,7 @@ sys_socketpair(struct thread *td, struct socketpair_args *uap)
 	    uap->protocol, sv);
 	if (error != 0)
 		return (error);
+ADD_PROCBASE(uap->rsv, td);
 	error = copyout(sv, uap->rsv, 2 * sizeof(int));
 	if (error != 0) {
 		(void)kern_close(td, sv[0]);
@@ -827,6 +828,8 @@ bad:
 int
 sys_sendto(struct thread *td, struct sendto_args *uap)
 {
+ADD_PROCBASE(uap->buf, td);
+ADD_PROCBASE(uap->to, td);
 	struct msghdr msg;
 	struct iovec aiov;
 

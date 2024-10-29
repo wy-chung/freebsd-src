@@ -55,6 +55,11 @@
 
 #include <fs/nfsclient/nfs_kdtrace.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #ifdef KDTRACE_HOOKS
 dtrace_nfsclient_attrcache_flush_probe_func_t
 		dtrace_nfscl_attrcache_flush_done_probe;
@@ -1292,6 +1297,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct mount *mp;
 	struct nfsmount *nmp;
 
+if (uap->argp != NULL) ADD_PROCBASE(uap->argp, td);
 	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(td));
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
@@ -1346,7 +1352,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 			nfscl_retopts(VFSTONFS(nd.ni_vp->v_mount), buf,
 			    dumpmntopts.ndmnt_blen);
 			vput(nd.ni_vp);
-			error = copyout(buf, dumpmntopts.ndmnt_buf,
+			error = copyout(buf, dumpmntopts.ndmnt_buf, //wyc???
 			    dumpmntopts.ndmnt_blen);
 			free(buf, M_TEMP);
 		}

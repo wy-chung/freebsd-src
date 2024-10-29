@@ -667,11 +667,13 @@ ADD_PROCBASE(uap->tzp, td);
 	return (error);
 }
 
+#if !defined(WYC)
 #ifndef _SYS_SYSPROTO_H_
 struct settimeofday_args {
 	struct	timeval *tv;
 	struct	timezone *tzp;
 };
+#endif
 #endif
 /* ARGSUSED */
 int
@@ -682,6 +684,7 @@ sys_settimeofday(struct thread *td, struct settimeofday_args *uap)
 	int error;
 
 	if (uap->tv) {
+ADD_PROCBASE(uap->tv, td);
 		error = copyin(uap->tv, &atv, sizeof(atv));
 		if (error)
 			return (error);
@@ -689,6 +692,7 @@ sys_settimeofday(struct thread *td, struct settimeofday_args *uap)
 	} else
 		tvp = NULL;
 	if (uap->tzp) {
+ADD_PROCBASE(uap->tzp, td);
 		error = copyin(uap->tzp, &atz, sizeof(atz));
 		if (error)
 			return (error);

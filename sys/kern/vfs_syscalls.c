@@ -204,6 +204,7 @@ sys_quotactl(struct thread *td, struct quotactl_args *uap)
 	AUDIT_ARG_UID(uap->uid);
 	if (!prison_allow(td->td_ucred, PR_ALLOW_QUOTAS))
 		return (EPERM);
+ADD_PROCBASE(uap->path, td);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path);
 	if ((error = namei(&nd)) != 0)
@@ -218,6 +219,7 @@ sys_quotactl(struct thread *td, struct quotactl_args *uap)
 		return (error);
 	}
 	mp_busy = true;
+ADD_PROCBASE(uap->arg, td);
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, &mp_busy);
 
 	/*
@@ -1466,7 +1468,7 @@ struct mkfifo_args {
 int
 sys_mkfifo(struct thread *td, struct mkfifo_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_mkfifoat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode));
 }
@@ -3279,7 +3281,8 @@ struct utimes_args {
 int
 sys_utimes(struct thread *td, struct utimes_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->tptr, td);
 	return (kern_utimesat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->tptr, UIO_USERSPACE));
 }
@@ -3638,16 +3641,19 @@ sys_fdatasync(struct thread *td, struct fdatasync_args *uap)
  * Rename files.  Source and destination must either both be directories, or
  * both not be directories.  If target is a directory, it must be empty.
  */
+#if !defined(WYC)
 #ifndef _SYS_SYSPROTO_H_
 struct rename_args {
 	char	*from;
 	char	*to;
 };
 #endif
+#endif
 int
 sys_rename(struct thread *td, struct rename_args *uap)
 {
-
+ADD_PROCBASE(uap->from, td);
+ADD_PROCBASE(uap->to, td);
 	return (kern_renameat(td, AT_FDCWD, uap->from, AT_FDCWD,
 	    uap->to, UIO_USERSPACE));
 }
@@ -3829,7 +3835,7 @@ struct mkdir_args {
 int
 sys_mkdir(struct thread *td, struct mkdir_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_mkdirat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode));
 }
@@ -3905,7 +3911,7 @@ struct rmdir_args {
 int
 sys_rmdir(struct thread *td, struct rmdir_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_frmdirat(td, AT_FDCWD, uap->path, FD_NONE, UIO_USERSPACE,
 	    0));
 }
