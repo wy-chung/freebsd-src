@@ -272,6 +272,7 @@ sys_readv(struct thread *td, struct readv_args *uap)
 	struct uio *auio;
 	int error;
 
+ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
@@ -475,6 +476,7 @@ sys_writev(struct thread *td, struct writev_args *uap)
 	struct uio *auio;
 	int error;
 
+ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
@@ -1025,6 +1027,7 @@ sys_pselect(struct thread *td, struct pselect_args *uap)
 	int error;
 
 	if (uap->ts != NULL) {
+ADD_PROCBASE(uap->ts, td);
 		error = copyin(uap->ts, &ts, sizeof(ts));
 		if (error != 0)
 		    return (error);
@@ -1033,12 +1036,16 @@ sys_pselect(struct thread *td, struct pselect_args *uap)
 	} else
 		tvp = NULL;
 	if (uap->sm != NULL) {
+ADD_PROCBASE(uap->sm, td);
 		error = copyin(uap->sm, &set, sizeof(set));
 		if (error != 0)
 			return (error);
 		uset = &set;
 	} else
 		uset = NULL;
+ADD_PROCBASE(uap->in, td);
+ADD_PROCBASE(uap->ou, td);
+ADD_PROCBASE(uap->ex, td);
 	return (kern_pselect(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
 	    uset, NFDBITS));
 }
@@ -1080,13 +1087,16 @@ sys_select(struct thread *td, struct select_args *uap)
 	int error;
 
 	if (uap->tv != NULL) {
+ADD_PROCBASE(uap->tv, td);
 		error = copyin(uap->tv, &tv, sizeof(tv));
 		if (error)
 			return (error);
 		tvp = &tv;
 	} else
 		tvp = NULL;
-
+ADD_PROCBASE(uap->in, td);
+ADD_PROCBASE(uap->ou, td);
+ADD_PROCBASE(uap->ex, td);
 	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
 	    NFDBITS));
 }

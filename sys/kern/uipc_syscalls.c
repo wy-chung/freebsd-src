@@ -189,7 +189,7 @@ sys_bind(struct thread *td, struct bind_args *uap)
 {
 	struct sockaddr *sa;
 	int error;
-
+ADD_PROCBASE(uap->name, td);
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_bindat(td, AT_FDCWD, uap->s, sa);
@@ -486,7 +486,7 @@ sys_connect(struct thread *td, struct connect_args *uap)
 {
 	struct sockaddr *sa;
 	int error;
-
+ADD_PROCBASE(uap->name, td);
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_connectat(td, AT_FDCWD, uap->s, sa);
@@ -1248,7 +1248,7 @@ kern_shutdown(struct thread *td, int s, int how)
 int
 sys_setsockopt(struct thread *td, struct setsockopt_args *uap)
 {
-
+// uap->val is adjusted in kern_setsockopt
 	return (kern_setsockopt(td, uap->s, uap->level, uap->name,
 	    uap->val, UIO_USERSPACE, uap->valsize));
 }
@@ -1268,6 +1268,7 @@ kern_setsockopt(struct thread *td, int s, int level, int name, const void *val,
 	if ((int)valsize < 0)
 		return (EINVAL);
 
+if (val != NULL) ADD_PROCBASE(val, td);
 	sopt.sopt_dir = SOPT_SET;
 	sopt.sopt_level = level;
 	sopt.sopt_name = name;
@@ -1302,7 +1303,9 @@ sys_getsockopt(struct thread *td, struct getsockopt_args *uap)
 	socklen_t valsize;
 	int error;
 
+ADD_PROCBASE(uap->avalsize, td);
 	if (uap->val) {
+ADD_PROCBASE(uap->val, td);
 		error = copyin(uap->avalsize, &valsize, sizeof (valsize));
 		if (error != 0)
 			return (error);

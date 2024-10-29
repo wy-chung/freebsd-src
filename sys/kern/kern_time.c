@@ -655,11 +655,13 @@ sys_gettimeofday(struct thread *td, struct gettimeofday_args *uap)
 
 	if (uap->tp) {
 		microtime(&atv);
+ADD_PROCBASE(uap->tp, td);
 		error = copyout(&atv, uap->tp, sizeof (atv));
 	}
 	if (error == 0 && uap->tzp != NULL) {
 		rtz.tz_minuteswest = 0;
 		rtz.tz_dsttime = 0;
+ADD_PROCBASE(uap->tzp, td);
 		error = copyout(&rtz, uap->tzp, sizeof (rtz));
 	}
 	return (error);
@@ -750,6 +752,7 @@ sys_getitimer(struct thread *td, struct getitimer_args *uap)
 	error = kern_getitimer(td, uap->which, &aitv);
 	if (error != 0)
 		return (error);
+ADD_PROCBASE(uap->itv, td);
 	return (copyout(&aitv, uap->itv, sizeof (struct itimerval)));
 }
 
@@ -807,12 +810,13 @@ sys_setitimer(struct thread *td, struct setitimer_args *uap)
 		uap->itv = uap->oitv;
 		return (sys_getitimer(td, (struct getitimer_args *)uap));
 	}
-
+ADD_PROCBASE(uap->itv, td);
 	if ((error = copyin(uap->itv, &aitv, sizeof(struct itimerval))))
 		return (error);
 	error = kern_setitimer(td, uap->which, &aitv, &oitv);
 	if (error != 0 || uap->oitv == NULL)
 		return (error);
+ADD_PROCBASE(uap->oitv, td);
 	return (copyout(&oitv, uap->oitv, sizeof(struct itimerval)));
 }
 

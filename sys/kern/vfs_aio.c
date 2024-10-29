@@ -293,13 +293,13 @@ struct kaioinfo {
  * Different ABIs provide their own operations.
  */
 struct aiocb_ops {
-	int	(*aio_copyin)(struct aiocb *ujob, struct kaiocb *kjob, int ty);
-	long	(*fetch_status)(struct aiocb *ujob);
-	long	(*fetch_error)(struct aiocb *ujob);
-	int	(*store_status)(struct aiocb *ujob, long status);
-	int	(*store_error)(struct aiocb *ujob, long error);
-	int	(*store_kernelinfo)(struct aiocb *ujob, long jobref);
-	int	(*store_aiocb)(struct aiocb **ujobp, struct aiocb *ujob);
+	int	(*aio_copyin)(struct aiocb *ujob, struct kaiocb *kjob, int ty); // aiocb_copyin
+	long	(*fetch_status)(struct aiocb *ujob);	// aiocb_fetch_status
+	long	(*fetch_error)(struct aiocb *ujob);	// aiocb_fetch_error
+	int	(*store_status)(struct aiocb *ujob, long status);	// aiocb_store_status
+	int	(*store_error)(struct aiocb *ujob, long error);		// aiocb_store_error
+	int	(*store_kernelinfo)(struct aiocb *ujob, long jobref);	// aiocb_store_kernelinfo
+	int	(*store_aiocb)(struct aiocb **ujobp, struct aiocb *ujob); // aiocb_store_aiocb
 };
 
 static TAILQ_HEAD(,aioproc) aio_freeproc;		/* (c) Idle daemons */
@@ -1393,7 +1393,7 @@ convert_old_sigevent(struct osigevent *osig, struct sigevent *nsig)
 static int
 aiocb_copyin_old_sigevent(struct aiocb *ujob, struct kaiocb *kjob,
     int type __unused)
-{
+{WYC_PANIC();
 	struct oaiocb *ojob;
 	struct aiocb *kcb = &kjob->uaiocb;
 	int error;
@@ -1519,6 +1519,11 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 	ops->store_status(ujob, -1);
 	ops->store_error(ujob, 0);
 	ops->store_kernelinfo(ujob, -1);
+#if defined(WYC)
+	aiocb_store_status(ujob, -1);
+	aiocb_store_error(ujob, 0);
+	aiocb_store_kernelinfo(ujob, -1);
+#endif
 
 	if (num_queue_count >= max_queue_count ||
 	    ki->kaio_count >= max_aio_queue_per_proc) {
@@ -1530,6 +1535,9 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 	knlist_init_mtx(&job->klist, AIO_MTX(ki));
 
 	error = ops->aio_copyin(ujob, job, type);
+#if defined(WYC)
+	error = aiocb_copyin(ujob, job, type);
+#endif
 	if (error)
 		goto err2;
 
@@ -2385,6 +2393,7 @@ freebsd6_lio_listio(struct thread *td, struct freebsd6_lio_listio_args *uap)
 		return (EINVAL);
 
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {
+ADD_PROCBASE(uap->sig, td);
 		error = copyin(uap->sig, &osig, sizeof(osig));
 		if (error)
 			return (error);
@@ -2396,6 +2405,7 @@ freebsd6_lio_listio(struct thread *td, struct freebsd6_lio_listio_args *uap)
 		sigp = NULL;
 
 	acb_list = malloc(sizeof(struct aiocb *) * nent, M_LIO, M_WAITOK);
+ADD_PROCBASE(uap->acb_list, td);
 	error = copyin(uap->acb_list, acb_list, nent * sizeof(acb_list[0]));
 	if (error == 0)
 		error = kern_lio_listio(td, uap->mode,
@@ -2788,7 +2798,7 @@ convert_old_sigevent32(struct osigevent32 *osig, struct sigevent *nsig)
 static int
 aiocb32_copyin_old_sigevent(struct aiocb *ujob, struct kaiocb *kjob,
     int type __unused)
-{
+{WYC_PANIC();
 	struct oaiocb32 job32;
 	struct aiocb *kcb = &kjob->uaiocb;
 	int error;
@@ -2816,7 +2826,7 @@ aiocb32_copyin_old_sigevent(struct aiocb *ujob, struct kaiocb *kjob,
 
 static int
 aiocb32_copyin(struct aiocb *ujob, struct kaiocb *kjob, int type)
-{
+{WYC_PANIC();
 	struct aiocb32 job32;
 	struct aiocb *kcb = &kjob->uaiocb;
 	struct iovec32 *iov32;

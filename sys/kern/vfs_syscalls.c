@@ -1000,6 +1000,7 @@ sys_chroot(struct thread *td, struct chroot_args *uap)
 		}
 		PROC_UNLOCK(p);
 	}
+ADD_PROCBASE(uap->path, td);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
 	    UIO_USERSPACE, uap->path);
 	error = namei(&nd);

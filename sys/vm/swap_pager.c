@@ -2354,7 +2354,7 @@ sys_swapon(struct thread *td, struct swapon_args *uap)
 		error = ENOMEM;
 		goto done;
 	}
-
+ADD_PROCBASE(uap->name, td);
 	NDINIT(&nd, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
 	    UIO_USERSPACE, uap->name);
 	error = namei(&nd);
