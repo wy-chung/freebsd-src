@@ -174,7 +174,7 @@ SYSCTL_NODE(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO, aslr,
  * have limited address space (which can cause issues for applications with
  * high memory use) so we leave it off there.
  */
-static int __elfN(aslr_enabled) = __ELF_WORD_SIZE == 64;
+static int __elfN(aslr_enabled) = 0; //ori __ELF_WORD_SIZE == 64;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, enable, CTLFLAG_RWTUN,
     &__elfN(aslr_enabled), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
@@ -183,7 +183,7 @@ SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, enable, CTLFLAG_RWTUN,
 /*
  * Enable ASLR by default for 64-bit PIE binaries.
  */
-static int __elfN(pie_aslr_enabled) = __ELF_WORD_SIZE == 64;
+static int __elfN(pie_aslr_enabled) = 0; //ori __ELF_WORD_SIZE == 64;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, pie_enable, CTLFLAG_RWTUN,
     &__elfN(pie_aslr_enabled), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
@@ -199,13 +199,13 @@ SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, honor_sbrk, CTLFLAG_RW,
     &__elfN(aslr_honor_sbrk), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": assume sbrk is used");
 
-static int __elfN(aslr_stack) = __ELF_WORD_SIZE == 64;
+static int __elfN(aslr_stack) = 0; //ori __ELF_WORD_SIZE == 64;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, stack, CTLFLAG_RWTUN,
     &__elfN(aslr_stack), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
     ": enable stack address randomization");
 
-static int __elfN(aslr_shared_page) = __ELF_WORD_SIZE == 64;
+static int __elfN(aslr_shared_page) = 0; //ori __ELF_WORD_SIZE == 64;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, shared_page, CTLFLAG_RWTUN,
     &__elfN(aslr_shared_page), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))

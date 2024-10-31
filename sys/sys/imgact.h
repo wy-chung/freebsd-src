@@ -57,11 +57,12 @@ struct image_args {
 
 #define IMGACT_SHELL	0x1
 #define IMGACT_BINMISC	0x2
+
 #define IMGP_ASLR_SHARED_PAGE	0x1
+
 struct image_params {
-#if !defined(WYC)
 	struct proc *proc;		/* our process */
-#else
+#if defined(WYC)
 	si_proc_t *proc;		// for source insight
 #endif
 	struct label *execlabel;	/* optional exec label */
