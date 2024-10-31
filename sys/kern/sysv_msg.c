@@ -81,6 +81,11 @@
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 FEATURE(sysv_msg, "System V message queues support");
 
 static MALLOC_DEFINE(M_MSG, "msg", "SVID compatible message queues");
@@ -1111,6 +1116,7 @@ sys_msgsnd(struct thread *td, struct msgsnd_args *uap)
 	int error;
 	long mtype;
 
+ADD_PROCBASE(uap->msgp, td);
 	DPRINTF(("call to msgsnd(%d, %p, %zu, %d)\n", uap->msqid, uap->msgp,
 	    uap->msgsz, uap->msgflg));
 
@@ -1399,6 +1405,7 @@ sys_msgrcv(struct thread *td, struct msgrcv_args *uap)
 	int error;
 	long mtype;
 
+ADD_PROCBASE(uap->msgp, td);
 	DPRINTF(("call to msgrcv(%d, %p, %zu, %ld, %d)\n", uap->msqid,
 	    uap->msgp, uap->msgsz, uap->msgtyp, uap->msgflg));
 

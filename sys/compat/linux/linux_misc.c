@@ -1522,8 +1522,8 @@ linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	return (userland_sysctl(td, name, 2, 0, 0, 0, args->hostname,
-	    args->len, 0, 0));
+	return (userland_sysctl(td, name, 2, NULL, NULL, false,
+	    args->hostname, args->len, NULL, 0));
 }
 
 int
@@ -1533,8 +1533,8 @@ linux_setdomainname(struct thread *td, struct linux_setdomainname_args *args)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_NISDOMAINNAME;
-	return (userland_sysctl(td, name, 2, 0, 0, 0, args->name,
-	    args->len, 0, 0));
+	return (userland_sysctl(td, name, 2, NULL, NULL, false,
+	    args->name, args->len, NULL, 0));
 }
 
 int

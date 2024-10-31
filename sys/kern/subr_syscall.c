@@ -57,8 +57,8 @@ syscallenter(struct thread *td)
 	struct proc *p;
 	struct syscall_args *sa;
 	struct sysent *se;
-	int error, traced;
-	bool sy_thr_static;
+	int error;
+	bool sy_thr_static, traced;
 
 	VM_CNT_INC(v_syscall);
 	p = td->td_proc;

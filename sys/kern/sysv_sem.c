@@ -71,6 +71,11 @@
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 FEATURE(sysv_sem, "System V semaphores support");
 
 static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
@@ -1096,7 +1101,7 @@ struct semop_args {
 int
 sys_semop(struct thread *td, struct semop_args *uap)
 {
-
+ADD_PROCBASE(uap->sops, td);
 	return (kern_semop(td, uap->semid, uap->sops, uap->nsops, NULL));
 }
 

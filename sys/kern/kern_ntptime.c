@@ -487,7 +487,7 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 {
 	struct timex ntv;
 	int error, retval;
-
+ADD_PROCBASE(uap->tp, td);
 	error = copyin(uap->tp, &ntv, sizeof(ntv));
 	if (error == 0) {
 		error = kern_ntp_adjtime(td, &ntv, &retval);

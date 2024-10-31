@@ -341,6 +341,9 @@ intr_irq_handler(struct trapframe *tf)
 	oldframe = td->td_intr_frame;
 	td->td_intr_frame = tf;
 	irq_root_filter(irq_root_arg);
+#if defined(WYC)
+	intc_intr(irq_root_arg);
+#endif
 	td->td_intr_frame = oldframe;
 	critical_exit();
 #ifdef HWPMC_HOOKS

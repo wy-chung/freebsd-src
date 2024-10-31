@@ -380,7 +380,7 @@ struct rtprio_args {
 #endif
 int
 sys_rtprio(struct thread *td, struct rtprio_args *uap)
-{
+{ADD_PROCBASE(uap->rtp, td);
 	struct proc *p;
 	struct thread *tdp;
 	struct rtprio rtp;
@@ -604,6 +604,7 @@ sys_setrlimit(struct thread *td, struct setrlimit_args *uap)
 	struct rlimit alim;
 	int error;
 
+ADD_PROCBASE(uap->rlp, td);
 	if ((error = copyin(uap->rlp, &alim, sizeof(struct rlimit))))
 		return (error);
 	error = kern_setrlimit(td, uap->which, &alim);
@@ -805,6 +806,7 @@ sys_getrlimit(struct thread *td, struct getrlimit_args *uap)
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
 	lim_rlimit(td, uap->which, &rlim);
+ADD_PROCBASE(uap->rlp, td);
 	error = copyout(&rlim, uap->rlp, sizeof(struct rlimit));
 	return (error);
 }

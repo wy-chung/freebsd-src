@@ -239,8 +239,10 @@ sys_clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 	int error;
 
 	error = kern_clock_gettime(td, uap->clock_id, &ats);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->tp, td);
 		error = copyout(&ats, uap->tp, sizeof(ats));
+	}
 
 	return (error);
 }
@@ -394,6 +396,7 @@ sys_clock_settime(struct thread *td, struct clock_settime_args *uap)
 	struct timespec ats;
 	int error;
 
+ADD_PROCBASE(uap->tp, td);
 	if ((error = copyin(uap->tp, &ats, sizeof(ats))) != 0)
 		return (error);
 	return (kern_clock_settime(td, uap->clock_id, &ats));
@@ -442,8 +445,10 @@ sys_clock_getres(struct thread *td, struct clock_getres_args *uap)
 		return (0);
 
 	error = kern_clock_getres(td, uap->clock_id, &ts);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->tp, td);
 		error = copyout(&ts, uap->tp, sizeof(ts));
+	}
 	return (error);
 }
 

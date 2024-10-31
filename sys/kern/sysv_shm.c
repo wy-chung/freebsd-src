@@ -367,6 +367,7 @@ sys_shmdt(struct thread *td, struct shmdt_args *uap)
 {
 	int error;
 
+ADD_PROCBASE(uap->shmaddr, td);
 	SYSVSHM_LOCK();
 	error = kern_shmdt_locked(td, uap->shmaddr);
 	SYSVSHM_UNLOCK();
@@ -484,7 +485,7 @@ struct shmat_args {
 int
 sys_shmat(struct thread *td, struct shmat_args *uap)
 {
-
+ADD_PROCBASE(uap->shmaddr, td);
 	return (kern_shmat(td, uap->shmid, uap->shmaddr, uap->shmflg));
 }
 

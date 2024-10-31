@@ -1050,7 +1050,7 @@ struct mlock_args {
 int
 sys_mlock(struct thread *td, struct mlock_args *uap)
 {
-
+ADD_PROCBASE(uap->addr, td);
 	return (kern_mlock(td->td_proc, td->td_ucred,
 	    __DECONST(uintptr_t, uap->addr), uap->len));
 }
@@ -1232,7 +1232,7 @@ struct munlock_args {
 int
 sys_munlock(struct thread *td, struct munlock_args *uap)
 {
-
+ADD_PROCBASE(uap->addr, td);
 	return (kern_munlock(td, (uintptr_t)uap->addr, uap->len));
 }
 

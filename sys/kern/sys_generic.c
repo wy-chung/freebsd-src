@@ -1500,6 +1500,7 @@ sys_poll(struct thread *td, struct poll_args *uap)
 	} else
 		tsp = NULL;
 
+ADD_PROCBASE(uap->fds, td);
 	return (kern_poll(td, uap->fds, uap->nfds, tsp, NULL));
 }
 

@@ -1845,6 +1845,7 @@ sys_undelete(struct thread *td, struct undelete_args *uap)
 	struct nameidata nd;
 	int error;
 
+ADD_PROCBASE(uap->path, td);
 	NDPREINIT(&nd);
 restart:
 	bwillwrite();
@@ -2606,7 +2607,7 @@ sys_pathconf(struct thread *td, struct pathconf_args *uap)
 {
 	long value;
 	int error;
-
+ADD_PROCBASE(uap->path, td);
 	error = kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name, FOLLOW,
 	    &value);
 	if (error == 0)
@@ -3371,7 +3372,7 @@ struct futimes_args {
 int
 sys_futimes(struct thread *td, struct futimes_args *uap)
 {
-
+ADD_PROCBASE(uap->tptr, td);
 	return (kern_futimes(td, uap->fd, uap->tptr, UIO_USERSPACE));
 }
 
@@ -4422,7 +4423,8 @@ struct lgetfh_args {
 int
 sys_lgetfh(struct thread *td, struct lgetfh_args *uap)
 {
-
+ADD_PROCBASE(uap->fname, td);
+ADD_PROCBASE(uap->fhp, td);
 	return (kern_getfhat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, uap->fname,
 	    UIO_USERSPACE, uap->fhp, UIO_USERSPACE));
 }
@@ -4436,7 +4438,8 @@ struct getfh_args {
 int
 sys_getfh(struct thread *td, struct getfh_args *uap)
 {
-
+ADD_PROCBASE(uap->fname, td);
+ADD_PROCBASE(uap->fhp, td);
 	return (kern_getfhat(td, 0, AT_FDCWD, uap->fname, UIO_USERSPACE,
 	    uap->fhp, UIO_USERSPACE));
 }
