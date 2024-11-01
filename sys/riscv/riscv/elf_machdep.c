@@ -73,10 +73,10 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
 	.sv_minsigstksz	= MINSIGSTKSZ,
 	.sv_minuser	= USER_MIN_ADDRESS,
-	.sv_maxuser	= 0,	/* Filled in during boot by elf64_register_sysvec. */
-	.sv_usrstack	= 0,	/* Filled in during boot by elf64_register_sysvec. */
-	.sv_psstrings	= 0,	/* Filled in during boot by elf64_register_sysvec. */
-	.sv_shared_page_base = 0,/* Filled in during boot by elf64_register_sysvec. */
+	.sv_maxuser	= 0,	// USER_MAX_ADDRESS	/* Filled in during boot by elf64_register_sysvec. */
+	.sv_shared_page_base = 0,//SHAREDPAGE_SV48	/* Filled in during boot by elf64_register_sysvec. */
+	.sv_usrstack	= 0,	// USRSTACK_SV48	/* Filled in during boot by elf64_register_sysvec. */
+	.sv_psstrings	= 0,	// PS_STRINGS_SV48	/* Filled in during boot by elf64_register_sysvec. */
 	.sv_psstringssz	= sizeof(struct ps_strings),
 	.sv_stackprot	= VM_PROT_READ | VM_PROT_WRITE,
 	.sv_copyout_auxargs = __elfN(freebsd_copyout_auxargs),
@@ -99,7 +99,7 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_regset_begin = SET_BEGIN(__elfN(regset)),
 	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
 };
-INIT_SYSENTVEC(elf64_sysvec, &elf64_freebsd_sysvec);
+INIT_SYSENTVEC(elf64_sysvec, &elf64_freebsd_sysvec); // exec_sysvec_init will init other fields in elf64_freebsd_sysvec
 
 static Elf64_Brandinfo freebsd_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,

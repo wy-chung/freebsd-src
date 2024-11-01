@@ -1267,7 +1267,7 @@ exec_map_stack(struct image_params *imgp)
 
 	/* Map a shared page */
 	obj = sv->sv_shared_page_obj;
-	if (obj == NULL) {
+	if (obj == NULL) { // false
 		sharedpage_addr = 0;
 		goto out;
 	}

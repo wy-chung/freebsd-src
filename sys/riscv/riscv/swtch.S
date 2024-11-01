@@ -325,6 +325,11 @@ ENTRY(cpu_switch)
 	/*
 	 * Restore the saved context.
 	 */
+	ld	x13, TD_PROC(a1)
+	ld	x13, P_VMSPACE(x13)
+	ld	x13, VM_BASE(x13)
+	csrw	0x081, x13	// CSR_SPROCBASE
+
 	ld	x13, TD_PCB(a1)
 
 	/* Restore the registers */
@@ -367,7 +372,7 @@ ENTRY(fork_trampoline)
 	mv	a0, s0
 	mv	a1, s1
 	mv	a2, sp
-	call	_C_LABEL(fork_exit)
+	call	_C_LABEL(fork_exit) // fork_exit(fork_return, td2, frame)
 
 	/* Restore sstatus */
 	ld	t0, (TF_SSTATUS)(sp)

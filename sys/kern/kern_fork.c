@@ -1181,6 +1181,9 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	 */
 	KASSERT(callout != NULL, ("NULL callout in fork_exit"));
 	callout(arg, frame);
+#if defined(WYC)
+	fork_return(td2, frame);
+#endif
 
 	/*
 	 * Check if a kernel thread misbehaved and returned from its main

@@ -71,7 +71,7 @@ void
 shared_page_write(int base, int size, const void *data)
 {
 
-	bcopy(data, shared_page_mapping + base, size);
+	bcopy(data, shared_page_mapping + base, size); // (from, to, len)
 }
 
 static int
@@ -307,6 +307,9 @@ exec_sysvec_init(void *param)
 	int res;
 
 	sv = param;
+#if defined(WYC)
+	sv = elf64_freebsd_sysvec;
+#endif
 	flags = sv->sv_flags;
 	if ((flags & SV_SHP) == 0)
 		return;

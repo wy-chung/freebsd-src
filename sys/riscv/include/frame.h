@@ -51,9 +51,9 @@ struct trapframe {
 	uint64_t tf_t[7];
 	uint64_t tf_s[12];
 	uint64_t tf_a[8];
-	uint64_t tf_sepc;
+	uint64_t tf_sepc;	// the pc of the instruction that caused the trap
 	uint64_t tf_sstatus;
-	uint64_t tf_stval;
+	uint64_t tf_stval;	// exception-specific information for handling the trap
 	uint64_t tf_scause;
 };
 

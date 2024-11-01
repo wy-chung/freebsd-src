@@ -134,19 +134,19 @@ struct sysentvec { // elf64_freebsd_sysvec_la48(amd64), elf64_freebsd_sysvec(ris
 	void		(*sv_set_syscall_retval)(struct thread *, int); // cpu_set_syscall_retval
 	int		(*sv_fetch_syscall_args)(struct thread *); // cpu_fetch_syscall_args(amd64), cpu_fetch_syscall_args(riscv)
 	const char	**sv_syscallnames; // syscallnames
-	vm_offset_t	sv_timekeep_offset;
 	vm_offset_t	sv_shared_page_base; // SHAREDPAGE_LA48, i.e. 4G-4K
 	vm_offset_t	sv_shared_page_len; // PAGE_SIZE
+	vm_offset_t	sv_timekeep_offset;
 	vm_offset_t	sv_sigcode_offset;
-	void		*sv_shared_page_obj;
+	void		*sv_shared_page_obj; // shared_page_obj
 	vm_offset_t	sv_vdso_offset;
+	vm_offset_t	sv_fxrng_gen_offset;
 	void		(*sv_schedtail)(struct thread *); // NULL
 	void		(*sv_thread_detach)(struct thread *); // NULL
 	int		(*sv_trap)(struct thread *); // NULL
 	u_long		*sv_hwcap;	/* Value passed in AT_HWCAP. */
 	u_long		*sv_hwcap2;	/* Value passed in AT_HWCAP2. */
 	const char	*(*sv_machine_arch)(struct proc *);
-	vm_offset_t	sv_fxrng_gen_offset;
 	void		(*sv_onexec_old)(struct thread *td); // exec_onexec_old
 	int		(*sv_onexec)(struct proc *, struct image_params *); // NULL
 	void		(*sv_onexit)(struct proc *); // exit_onexit
