@@ -311,7 +311,7 @@ sys_preadv(struct thread *td, struct preadv_args *uap)
 {
 	struct uio *auio;
 	int error;
-
+ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);

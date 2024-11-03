@@ -300,6 +300,7 @@ sys_ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
 	NTP_UNLOCK();
 
 	td->td_retval[0] = ntv.time_state;
+ADD_PROCBASE(uap->ntvp, td);
 	return (copyout(&ntv, uap->ntvp, sizeof(ntv)));
 }
 

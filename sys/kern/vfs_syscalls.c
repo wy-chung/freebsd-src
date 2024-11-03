@@ -2964,7 +2964,7 @@ struct lchmod_args {
 int
 sys_lchmod(struct thread *td, struct lchmod_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_fchmodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode, AT_SYMLINK_NOFOLLOW));
 }
@@ -3119,7 +3119,7 @@ struct lchown_args {
 int
 sys_lchown(struct thread *td, struct lchown_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_fchownat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->uid, uap->gid, AT_SYMLINK_NOFOLLOW));
 }
@@ -3336,7 +3336,8 @@ struct lutimes_args {
 int
 sys_lutimes(struct thread *td, struct lutimes_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->tptr, td);
 	return (kern_lutimes(td, uap->path, UIO_USERSPACE, uap->tptr,
 	    UIO_USERSPACE));
 }

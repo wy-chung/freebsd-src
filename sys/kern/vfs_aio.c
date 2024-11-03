@@ -1520,6 +1520,7 @@ aio_aqueue(struct thread *td, struct aiocb *ujob,
 	ops->store_status(ujob, -1);
 	ops->store_error(ujob, 0);
 	ops->store_kernelinfo(ujob, -1);
+WYC_ASSERT(ops->store_kernelinfo == aiocb_store_kernelinfo);
 #if defined(WYC)
 	aiocb_store_status(ujob, -1);
 	aiocb_store_error(ujob, 0);
@@ -2411,9 +2412,8 @@ ADD_PROCBASE(uap->sig, td);
 ADD_PROCBASE(uap->acb_list, td);
 	error = copyin(uap->acb_list, acb_list, nent * sizeof(acb_list[0]));
 	if (error == 0)
-		error = kern_lio_listio(td, uap->mode,
-		    (uintptr_t)uap->acb_list, acb_list, nent, sigp,
-		    &aiocb_ops_osigevent);
+		error = kern_lio_listio(td, uap->mode, (uintptr_t)uap->acb_list/*ident*/,
+		    acb_list, nent, sigp, &aiocb_ops_osigevent);
 	free(acb_list, M_LIO);
 	return (error);
 }
@@ -2447,8 +2447,8 @@ ADD_PROCBASE(uap->sig, td);
 ADD_PROCBASE(uap->acb_list, td);
 	error = copyin(uap->acb_list, acb_list, nent * sizeof(acb_list[0]));
 	if (error == 0)
-		error = kern_lio_listio(td, uap->mode, (uintptr_t)uap->acb_list, acb_list,
-		    nent, sigp, &aiocb_ops);
+		error = kern_lio_listio(td, uap->mode, (uintptr_t)uap->acb_list/*ident*/,
+		    acb_list, nent, sigp, &aiocb_ops);
 	free(acb_list, M_LIO);
 	return (error);
 }
@@ -3125,9 +3125,8 @@ ADD_PROCBASE(uap->acb_list, td);
 		acb_list[i] = PTRIN(acb_list32[i]);
 	free(acb_list32, M_LIO);
 
-	error = kern_lio_listio(td, uap->mode,
-	    (uintptr_t)uap->acb_list, acb_list, nent, sigp,
-	    &aiocb32_ops_osigevent);
+	error = kern_lio_listio(td, uap->mode, (uintptr_t)uap->acb_list/*ident*/,
+	    acb_list, nent, sigp, &aiocb32_ops_osigevent);
 	free(acb_list, M_LIO);
 	return (error);
 }
@@ -3173,9 +3172,8 @@ ADD_PROCBASE(uap->acb_list, td);
 		acb_list[i] = PTRIN(acb_list32[i]);
 	free(acb_list32, M_LIO);
 
-	error = kern_lio_listio(td, uap->mode,
-	    (uintptr_t)uap->acb_list, acb_list, nent, sigp,
-	    &aiocb32_ops);
+	error = kern_lio_listio(td, uap->mode, (uintptr_t)uap->acb_list/*ident*/,
+	    acb_list, nent, sigp, &aiocb32_ops);
 	free(acb_list, M_LIO);
 	return (error);
 }

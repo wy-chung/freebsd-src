@@ -702,7 +702,7 @@ struct minherit_args {
 int
 sys_minherit(struct thread *td, struct minherit_args *uap)
 {
-
+ADD_PROCBASE(uap->addr, td);
 	return (kern_minherit(td, (uintptr_t)uap->addr, uap->len,
 	    uap->inherit));
 }

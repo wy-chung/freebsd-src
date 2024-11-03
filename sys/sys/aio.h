@@ -106,7 +106,7 @@ struct __aiocb_private {
 typedef struct aiocb {
 	int	aio_fildes;		/* File descriptor */
 	off_t	aio_offset;		/* File offset for I/O */
-	volatile void *aio_buf;		/* I/O buffer in process space */
+	volatile void *aio_buf;		//wyc uap user address pointer /* I/O buffer in process space */
 	size_t	aio_nbytes;		/* Number of bytes for I/O */
 	int	__spare__[2];
 	void	*__spare2__;
