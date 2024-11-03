@@ -2832,7 +2832,7 @@ struct lchflags_args {
 int
 sys_lchflags(struct thread *td, struct lchflags_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, AT_SYMLINK_NOFOLLOW));
 }

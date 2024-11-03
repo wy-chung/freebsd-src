@@ -161,7 +161,6 @@ kenv_dump(struct thread *td, char **envp, int what, char *value, int len)
 int
 sys_kenv(struct thread *td, struct kenv_args *uap)
 {
-ADD_PROCBASE(uap->name, td);
 ADD_PROCBASE(uap->value, td);
 	char *name, *value;
 	size_t len;
@@ -208,6 +207,7 @@ ADD_PROCBASE(uap->value, td);
 
 	name = malloc(KENV_MNAMELEN + 1, M_TEMP, M_WAITOK);
 
+ADD_PROCBASE(uap->name, td);
 	error = copyinstr(uap->name, name, KENV_MNAMELEN + 1, NULL);
 	if (error)
 		goto done;

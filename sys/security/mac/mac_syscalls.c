@@ -91,7 +91,7 @@ sys___mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 	struct proc *tproc;
 	struct ucred *tcred;
 	int error;
-
+ADD_PROCBASE(uap->mac_p, td);
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -179,7 +179,7 @@ sys___mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 
 	if (!(mac_labeled & MPC_OBJECT_CRED))
 		return (EINVAL);
-
+ADD_PROCBASE(uap->mac_p, td);
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -240,7 +240,7 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	struct socket *so;
 	cap_rights_t rights;
 	int error;
-
+ADD_PROCBASE(uap->mac_p, td);
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -325,14 +325,16 @@ out:
 int
 sys___mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 {
-
+ADD_PROCBASE(uap->path_p, td);
+ADD_PROCBASE(uap->mac_p, td);
 	return (kern___mac_get_path(td, uap->path_p, uap->mac_p, FOLLOW));
 }
 
 int
 sys___mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 {
-
+ADD_PROCBASE(uap->path_p, td);
+ADD_PROCBASE(uap->mac_p, td);
 	return (kern___mac_get_path(td, uap->path_p, uap->mac_p, NOFOLLOW));
 }
 
@@ -401,7 +403,7 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 	cap_rights_t rights;
 	char *buffer;
 	int error;
-
+ADD_PROCBASE(uap->mac_p, td);
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -493,14 +495,16 @@ out:
 int
 sys___mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 {
-
+ADD_PROCBASE(uap->path_p, td);
+ADD_PROCBASE(uap->mac_p, td);
 	return (kern___mac_set_path(td, uap->path_p, uap->mac_p, FOLLOW));
 }
 
 int
 sys___mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 {
-
+ADD_PROCBASE(uap->path_p, td);
+ADD_PROCBASE(uap->mac_p, td);
 	return (kern___mac_set_path(td, uap->path_p, uap->mac_p, NOFOLLOW));
 }
 
@@ -562,11 +566,11 @@ sys_mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 	struct mac_policy_conf *mpc;
 	char target[MAC_MAX_POLICY_NAME];
 	int error;
-
+ADD_PROCBASE(uap->policy, td);
 	error = copyinstr(uap->policy, target, sizeof(target), NULL);
 	if (error)
 		return (error);
-
+ADD_PROCBASE(uap->arg, td);
 	error = ENOSYS;
 	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {
 		if (strcmp(mpc->mpc_name, target) == 0 &&

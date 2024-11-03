@@ -284,7 +284,7 @@ sys___mac_execve(struct thread *td, struct __mac_execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-// uap->* are adjusted in exec_copyin_args
+// uap->fname, argv, envv are adjusted in exec_copyin_args
 	error = exec_copyin_args(td, &args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0) {

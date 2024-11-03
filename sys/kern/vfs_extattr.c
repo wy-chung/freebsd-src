@@ -304,7 +304,9 @@ struct extattr_set_link_args {
 int
 sys_extattr_set_link(struct thread *td, struct extattr_set_link_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->attrname, td);
+ADD_PROCBASE(uap->data, td);
 	return (user_extattr_set_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, uap->data, uap->nbytes, NOFOLLOW));
 }
@@ -495,6 +497,9 @@ struct extattr_get_link_args {
 int
 sys_extattr_get_link(struct thread *td, struct extattr_get_link_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->attrname, td);
+ADD_PROCBASE(uap->data, td);
 	return (user_extattr_get_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, uap->data, uap->nbytes, NOFOLLOW));
 }
@@ -648,6 +653,8 @@ struct extattr_delete_link_args {
 int
 sys_extattr_delete_link(struct thread *td, struct extattr_delete_link_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->attrname, td);
 
 	return (user_extattr_delete_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, NOFOLLOW));
@@ -752,6 +759,7 @@ sys_extattr_list_fd(struct thread *td, struct extattr_list_fd_args *uap)
 	struct iovec aiov;
 
 	if (uap->data != NULL) {
+ADD_PROCBASE(uap->data, td);
 		aiov.iov_base = uap->data;
 		aiov.iov_len = uap->nbytes;
 		auio.uio_iov = &aiov;
@@ -801,7 +809,8 @@ struct extattr_list_file_args {
 int
 sys_extattr_list_file(struct thread *td, struct extattr_list_file_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->data, td);
 	return (user_extattr_list_path(td, uap->path, uap->attrnamespace,
 	    uap->data, uap->nbytes, FOLLOW));
 }
@@ -817,7 +826,8 @@ struct extattr_list_link_args {
 int
 sys_extattr_list_link(struct thread *td, struct extattr_list_link_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->data, td);
 	return (user_extattr_list_path(td, uap->path, uap->attrnamespace,
 	    uap->data, uap->nbytes, NOFOLLOW));
 }

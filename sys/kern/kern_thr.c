@@ -123,9 +123,10 @@ sys_thr_create(struct thread *td, struct thr_create_args *uap)
 {
 	struct thr_create_initthr_args args;
 	int error;
-
+ADD_PROCBASE(uap->ctx, td);
 	if ((error = copyin(uap->ctx, &args.ctx, sizeof(args.ctx))))
 		return (error);
+ADD_PROCBASE(uap->id, td);
 	args.tid = uap->id;
 	return (thread_create(td, NULL, thr_create_initthr, &args));
 }
@@ -303,7 +304,7 @@ sys_thr_self(struct thread *td, struct thr_self_args *uap)
     /* long *id */
 {
 	int error;
-
+ADD_PROCBASE(uap->id, td);
 	error = suword_lwpid(uap->id, (unsigned)td->td_tid);
 	if (error == -1)
 		return (EFAULT);
@@ -319,6 +320,7 @@ sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
 
 	/* Signal userland that it can free the stack. */
 	if ((void *)uap->state != NULL) {
+ADD_PROCBASE(uap->state, td);
 		(void)suword_lwpid(uap->state, 1);
 		(void)kern_umtx_wake(td, uap->state, INT_MAX, 0);
 	}

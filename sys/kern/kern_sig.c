@@ -947,14 +947,14 @@ sys_sigaction(struct thread *td, struct sigaction_args *uap)
 	actp = (uap->act != NULL) ? &act : NULL;
 	oactp = (uap->oact != NULL) ? &oact : NULL;
 	if (actp) {
-		//ADD_PROCBASE(uap->act, td);
+ADD_PROCBASE(uap->act, td);
 		error = copyin(uap->act, actp, sizeof(act));
 		if (error)
 			return (error);
 	}
 	error = kern_sigaction(td, uap->sig, actp, oactp, 0);
 	if (oactp && !error) {
-		//ADD_PROCBASE(uap->oact, td);
+ADD_PROCBASE(uap->oact, td);
 		error = copyout(oactp, uap->oact, sizeof(oact));
 	}
 	return (error);
@@ -1244,6 +1244,7 @@ sys_sigwait(struct thread *td, struct sigwait_args *uap)
 	sigset_t set;
 	int error;
 
+ADD_PROCBASE(uap->set, td);
 	error = copyin(uap->set, &set, sizeof(set));
 	if (error) {
 		td->td_retval[0] = error;
@@ -1264,7 +1265,7 @@ sys_sigwait(struct thread *td, struct sigwait_args *uap)
 		td->td_retval[0] = error;
 		return (0);
 	}
-
+ADD_PROCBASE(uap->sig, td);
 	error = copyout(&ksi.ksi_signo, uap->sig, sizeof(ksi.ksi_signo));
 	td->td_retval[0] = error;
 	return (0);

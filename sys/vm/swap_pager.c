@@ -2516,6 +2516,7 @@ done:
 int
 freebsd13_swapoff(struct thread *td, struct freebsd13_swapoff_args *uap)
 {
+ADD_PROCBASE(uap->name, td);
 	return (kern_swapoff(td, uap->name, UIO_USERSPACE, 0));
 }
 #endif

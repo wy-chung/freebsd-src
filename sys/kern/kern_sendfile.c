@@ -66,6 +66,11 @@
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 static MALLOC_DEFINE(M_SENDFILE, "sendfile", "sendfile dynamic memory");
 
 #define	EXT_FLAG_SYNC		EXT_FLAG_VENDOR1
@@ -1284,6 +1289,7 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	hdr_uio = trl_uio = NULL;
 
 	if (uap->hdtr != NULL) {
+ADD_PROCBASE(uap->hdtr, td);
 		error = copyin(uap->hdtr, &hdtr, sizeof(hdtr));
 		if (error != 0)
 			goto out;
@@ -1327,8 +1333,10 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	    uap->nbytes, &sbytes, uap->flags, td);
 	fdrop(fp, td);
 
-	if (uap->sbytes != NULL)
+	if (uap->sbytes != NULL) {
+ADD_PROCBASE(uap->sbytes, td);
 		(void)copyout(&sbytes, uap->sbytes, sizeof(off_t));
+	}
 
 out:
 	freeuio(hdr_uio);

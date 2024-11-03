@@ -368,7 +368,8 @@ ADD_PROCBASE(uap->aclp, td);
 int
 sys___acl_get_link(struct thread *td, struct __acl_get_link_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->aclp, td);
 	return(kern___acl_get_path(td, uap->path, uap->type, uap->aclp,
 	    NOFOLLOW));
 }
@@ -408,7 +409,8 @@ ADD_PROCBASE(uap->aclp, td);
 int
 sys___acl_set_link(struct thread *td, struct __acl_set_link_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->aclp, td);
 	return(kern___acl_set_path(td, uap->path, uap->type, uap->aclp,
 	    NOFOLLOW));
 }
@@ -488,7 +490,7 @@ ADD_PROCBASE(uap->path, td);
 int
 sys___acl_delete_link(struct thread *td, struct __acl_delete_link_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern___acl_delete_path(td, uap->path, uap->type, NOFOLLOW));
 }
 
@@ -547,6 +549,8 @@ ADD_PROCBASE(uap->aclp, td);
 int
 sys___acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->aclp, td);
 	return (kern___acl_aclcheck_path(td, uap->path, uap->type, uap->aclp,
 	    NOFOLLOW));
 }

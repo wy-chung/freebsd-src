@@ -73,6 +73,11 @@
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 FEATURE(p1003_1b_semaphores, "POSIX P1003.1B semaphores support");
 /*
  * TODO
@@ -620,7 +625,7 @@ struct ksem_init_args {
 int
 sys_ksem_init(struct thread *td, struct ksem_init_args *uap)
 {
-
+ADD_PROCBASE(uap->idp, td);
 	return (ksem_create(td, NULL, uap->idp, S_IRWXU | S_IRWXG, uap->value,
 	    0, 0));
 }
@@ -642,6 +647,8 @@ sys_ksem_open(struct thread *td, struct ksem_open_args *uap)
 
 	if ((uap->oflag & ~(O_CREAT | O_EXCL)) != 0)
 		return (EINVAL);
+ADD_PROCBASE(uap->idp, td);
+ADD_PROCBASE(uap->name, td);
 	return (ksem_create(td, uap->name, uap->idp, uap->mode, uap->value,
 	    uap->oflag, 0));
 }
@@ -664,6 +671,7 @@ sys_ksem_unlink(struct thread *td, struct ksem_unlink_args *uap)
 	pr_path = td->td_ucred->cr_prison->pr_path;
 	pr_pathlen = strcmp(pr_path, "/") == 0 ? 0
 	    : strlcpy(path, pr_path, MAXPATHLEN);
+ADD_PROCBASE(uap->name, td);
 	error = copyinstr(uap->name, path + pr_pathlen, MAXPATHLEN - pr_pathlen,
 	    NULL);
 	if (error) {
@@ -903,6 +911,7 @@ sys_ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
 	vfs_timestamp(&ks->ks_atime);
 	mtx_unlock(&sem_lock);
 	fdrop(fp, td);
+ADD_PROCBASE(uap->val, td);
 	error = copyout(&val, uap->val, sizeof(val));
 	return (error);
 }
