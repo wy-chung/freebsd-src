@@ -96,6 +96,7 @@ sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 	 * invoke the VFS call so as to pass in NULL there if needed.
 	 */
 	if (uap->attrname != NULL) {
+ADD_PROCBASE(uap->attrname, td);
 		error = copyinstr(uap->attrname, attrname, sizeof(attrname),
 		    NULL);
 		if (error)
@@ -106,6 +107,7 @@ sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 	mp = NULL;
 	filename_vp = NULL;
 	if (uap->filename != NULL) {
+ADD_PROCBASE(uap->filename, td);
 		NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE2, UIO_USERSPACE,
 		    uap->filename);
 		error = namei(&nd);
@@ -114,7 +116,7 @@ sys_extattrctl(struct thread *td, struct extattrctl_args *uap)
 		filename_vp = nd.ni_vp;
 		NDFREE_PNBUF(&nd);
 	}
-
+ADD_PROCBASE(uap->path, td);
 	/* uap->path is always defined. */
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path);
@@ -238,10 +240,11 @@ sys_extattr_set_fd(struct thread *td, struct extattr_set_fd_args *uap)
 {
 	char attrname[EXTATTR_MAXNAMELEN + 1];
 	int error;
-
+ADD_PROCBASE(uap->attrname, td);
 	error = copyinstr(uap->attrname, attrname, sizeof(attrname), NULL);
 	if (error)
 		return (error);
+ADD_PROCBASE(uap->data, td);
 	return (kern_extattr_set_fd(td, uap->fd, uap->attrnamespace,
 	    attrname, uap->data, uap->nbytes));
 }
@@ -282,7 +285,9 @@ struct extattr_set_file_args {
 int
 sys_extattr_set_file(struct thread *td, struct extattr_set_file_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->attrname, td);
+ADD_PROCBASE(uap->data, td);
 	return (user_extattr_set_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, uap->data, uap->nbytes, FOLLOW));
 }
@@ -426,10 +431,11 @@ sys_extattr_get_fd(struct thread *td, struct extattr_get_fd_args *uap)
 {
 	char attrname[EXTATTR_MAXNAMELEN + 1];
 	int error;
-
+ADD_PROCBASE(uap->attrname, td);
 	error = copyinstr(uap->attrname, attrname, sizeof(attrname), NULL);
 	if (error)
 		return (error);
+ADD_PROCBASE(uap->data, td);
 	return (kern_extattr_get_fd(td, uap->fd, uap->attrnamespace,
 	    attrname, uap->data, uap->nbytes));
 }
@@ -470,6 +476,9 @@ struct extattr_get_file_args {
 int
 sys_extattr_get_file(struct thread *td, struct extattr_get_file_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->attrname, td);
+ADD_PROCBASE(uap->data, td);
 	return (user_extattr_get_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, uap->data, uap->nbytes, FOLLOW));
 }
@@ -582,7 +591,7 @@ sys_extattr_delete_fd(struct thread *td, struct extattr_delete_fd_args *uap)
 {
 	char attrname[EXTATTR_MAXNAMELEN + 1];
 	int error;
-
+ADD_PROCBASE(uap->attrname, td);
 	error = copyinstr(uap->attrname, attrname, sizeof(attrname), NULL);
 	if (error)
 		return (error);
@@ -623,7 +632,8 @@ struct extattr_delete_file_args {
 int
 sys_extattr_delete_file(struct thread *td, struct extattr_delete_file_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->attrname, td);
 	return (user_extattr_delete_path(td, uap->path, uap->attrnamespace,
 	    uap->attrname, FOLLOW));
 }

@@ -4609,6 +4609,7 @@ struct fhopen_args {
 int
 sys_fhopen(struct thread *td, struct fhopen_args *uap)
 {
+ADD_PROCBASE(uap->u_fhp, td);
 	return (kern_fhopen(td, uap->u_fhp, uap->flags));
 }
 

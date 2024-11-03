@@ -1192,15 +1192,21 @@ sys_getresuid(struct thread *td, struct getresuid_args *uap)
 	int error1 = 0, error2 = 0, error3 = 0;
 
 	cred = td->td_ucred;
-	if (uap->ruid)
+	if (uap->ruid) {
+ADD_PROCBASE(uap->ruid, td);
 		error1 = copyout(&cred->cr_ruid,
 		    uap->ruid, sizeof(cred->cr_ruid));
-	if (uap->euid)
+	}
+	if (uap->euid) {
+ADD_PROCBASE(uap->euid, td);
 		error2 = copyout(&cred->cr_uid,
 		    uap->euid, sizeof(cred->cr_uid));
-	if (uap->suid)
+	}
+	if (uap->suid) {
+ADD_PROCBASE(uap->suid, td);
 		error3 = copyout(&cred->cr_svuid,
 		    uap->suid, sizeof(cred->cr_svuid));
+	}
 	return (error1 ? error1 : error2 ? error2 : error3);
 }
 
@@ -1219,15 +1225,21 @@ sys_getresgid(struct thread *td, struct getresgid_args *uap)
 	int error1 = 0, error2 = 0, error3 = 0;
 
 	cred = td->td_ucred;
-	if (uap->rgid)
+	if (uap->rgid) {
+ADD_PROCBASE(uap->rgid, td);
 		error1 = copyout(&cred->cr_rgid,
 		    uap->rgid, sizeof(cred->cr_rgid));
-	if (uap->egid)
+	}
+	if (uap->egid) {
+ADD_PROCBASE(uap->egid, td);
 		error2 = copyout(&cred->cr_groups[0],
 		    uap->egid, sizeof(cred->cr_groups[0]));
-	if (uap->sgid)
+	}
+	if (uap->sgid) {
+ADD_PROCBASE(uap->sgid, td);
 		error3 = copyout(&cred->cr_svgid,
 		    uap->sgid, sizeof(cred->cr_svgid));
+	}
 	return (error1 ? error1 : error2 ? error2 : error3);
 }
 

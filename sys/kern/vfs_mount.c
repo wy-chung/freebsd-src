@@ -448,6 +448,7 @@ sys_nmount(struct thread *td, struct nmount_args *uap)
 	flags = uap->flags;
 
 	AUDIT_ARG_FFLAGS(flags);
+ADD_PROCBASE(uap->iovp, td);
 	CTR4(KTR_VFS, "%s: iovp %p with iovcnt %d and flags %d", __func__,
 	    uap->iovp, uap->iovcnt, flags);
 

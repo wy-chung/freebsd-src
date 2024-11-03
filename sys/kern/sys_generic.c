@@ -515,7 +515,7 @@ sys_pwritev(struct thread *td, struct pwritev_args *uap)
 {
 	struct uio *auio;
 	int error;
-
+ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);

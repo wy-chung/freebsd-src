@@ -318,6 +318,7 @@ sys_jail(struct thread *td, struct jail_args *uap)
 	int error;
 	struct jail j;
 
+ADD_PROCBASE(uap->jail, td);
 	error = copyin(uap->jail, &version, sizeof(uint32_t));
 	if (error)
 		return (error);

@@ -1177,6 +1177,7 @@ sys_utrace(struct thread *td, struct utrace_args *uap)
 	if (uap->len > KTR_USER_MAXLEN)
 		return (EINVAL);
 	cp = malloc(uap->len, M_KTRACE, M_WAITOK);
+ADD_PROCBASE(uap->addr, td);
 	error = copyin(uap->addr, cp, uap->len);
 	if (error) {
 		free(cp, M_KTRACE);

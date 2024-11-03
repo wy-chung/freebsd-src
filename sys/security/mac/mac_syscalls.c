@@ -69,6 +69,11 @@
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #ifdef MAC
 
 FEATURE(security_mac, "Mandatory Access Control Framework support");
@@ -133,7 +138,7 @@ sys___mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 	char *elements, *buffer;
 	struct mac mac;
 	int error;
-
+ADD_PROCBASE(uap->mac_p, td);
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -152,8 +157,10 @@ sys___mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	error = mac_cred_externalize_label(td->td_ucred->cr_label,
 	    elements, buffer, mac.m_buflen);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(mac.m_string, td);
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
+	}
 
 	free(buffer, M_MACTEMP);
 	free(elements, M_MACTEMP);

@@ -1960,7 +1960,7 @@ kern_aio_return(struct thread *td, struct aiocb *ujob, struct aiocb_ops *ops)
 int
 sys_aio_return(struct thread *td, struct aio_return_args *uap)
 {
-
+ADD_PROCBASE(uap->aiocbp, td);
 	return (kern_aio_return(td, uap->aiocbp, &aiocb_ops));
 }
 
@@ -2037,6 +2037,7 @@ sys_aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 		return (EINVAL);
 
 	if (uap->timeout) {
+ADD_PROCBASE(uap->timeout, td);
 		/* Get timespec struct. */
 		if ((error = copyin(uap->timeout, &ts, sizeof(ts))) != 0)
 			return (error);
@@ -2045,6 +2046,7 @@ sys_aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 		tsp = NULL;
 
 	ujoblist = malloc(uap->nent * sizeof(ujoblist[0]), M_AIO, M_WAITOK);
+ADD_PROCBASE(uap->aiocbp, td);
 	error = copyin(uap->aiocbp, ujoblist, uap->nent * sizeof(ujoblist[0]));
 	if (error == 0)
 		error = kern_aio_suspend(td, uap->nent, ujoblist, tsp);
@@ -2084,7 +2086,7 @@ sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 			return (0);
 		}
 	}
-
+if (uap->aiocbp != NULL) ADD_PROCBASE(uap->aiocbp, td);
 	AIO_LOCK(ki);
 	TAILQ_FOREACH_SAFE(job, &ki->kaio_jobqueue, plist, jobn) {
 		if ((uap->fd == job->uaiocb.aio_fildes) &&
@@ -2175,7 +2177,7 @@ kern_aio_error(struct thread *td, struct aiocb *ujob, struct aiocb_ops *ops)
 int
 sys_aio_error(struct thread *td, struct aio_error_args *uap)
 {
-
+ADD_PROCBASE(uap->aiocbp, td);
 	return (kern_aio_error(td, uap->aiocbp, &aiocb_ops));
 }
 
@@ -2597,6 +2599,7 @@ sys_aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 	int error;
 
 	if (uap->timeout) {
+ADD_PROCBASE(uap->timeout, td);
 		/* Get timespec struct. */
 		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
@@ -2604,7 +2607,7 @@ sys_aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 		tsp = &ts;
 	} else
 		tsp = NULL;
-
+ADD_PROCBASE(uap->aiocbp, td);
 	return (kern_aio_waitcomplete(td, uap->aiocbp, tsp, &aiocb_ops));
 }
 

@@ -1204,12 +1204,14 @@ sys_sigprocmask(struct thread *td, struct sigprocmask_args *uap)
 	setp = (uap->set != NULL) ? &set : NULL;
 	osetp = (uap->oset != NULL) ? &oset : NULL;
 	if (setp) {
+ADD_PROCBASE(uap->set, td);
 		error = copyin(uap->set, setp, sizeof(set));
 		if (error)
 			return (error);
 	}
 	error = kern_sigprocmask(td, uap->how, setp, osetp, 0);
 	if (osetp && !error) {
+ADD_PROCBASE(uap->oset, td);
 		error = copyout(osetp, uap->oset, sizeof(oset));
 	}
 	return (error);
@@ -1278,6 +1280,7 @@ sys_sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 	int error;
 
 	if (uap->timeout) {
+ADD_PROCBASE(uap->timeout, td);
 		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
 			return (error);
@@ -1285,7 +1288,7 @@ sys_sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 		timeout = &ts;
 	} else
 		timeout = NULL;
-
+ADD_PROCBASE(uap->set, td);
 	error = copyin(uap->set, &set, sizeof(set));
 	if (error)
 		return (error);
@@ -1294,8 +1297,10 @@ sys_sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 	if (error)
 		return (error);
 
-	if (uap->info)
+	if (uap->info) {
+ADD_PROCBASE(uap->info, td);
 		error = copyout(&ksi.ksi_info, uap->info, sizeof(siginfo_t));
+	}
 
 	if (error == 0)
 		td->td_retval[0] = ksi.ksi_signo;
@@ -1309,6 +1314,7 @@ sys_sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 	sigset_t set;
 	int error;
 
+ADD_PROCBASE(uap->set, td);
 	error = copyin(uap->set, &set, sizeof(set));
 	if (error)
 		return (error);
@@ -1317,8 +1323,10 @@ sys_sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 	if (error)
 		return (error);
 
-	if (uap->info)
+	if (uap->info) {
+ADD_PROCBASE(uap->info, td);
 		error = copyout(&ksi.ksi_info, uap->info, sizeof(siginfo_t));
+	}
 
 	if (error == 0)
 		td->td_retval[0] = ksi.ksi_signo;
@@ -1487,6 +1495,7 @@ sys_sigpending(struct thread *td, struct sigpending_args *uap)
 	pending = p->p_sigqueue.sq_signals;
 	SIGSETOR(pending, td->td_sigqueue.sq_signals);
 	PROC_UNLOCK(p);
+ADD_PROCBASE(uap->set, td);
 	return (copyout(&pending, uap->set, sizeof(sigset_t)));
 }
 
@@ -1605,6 +1614,7 @@ sys_sigsuspend(struct thread *td, struct sigsuspend_args *uap)
 	sigset_t mask;
 	int error;
 
+ADD_PROCBASE(uap->sigmask, td);
 	error = copyin(uap->sigmask, &mask, sizeof(mask));
 	if (error)
 		return (error);

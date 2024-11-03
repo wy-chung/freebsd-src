@@ -356,7 +356,8 @@ out:
 int
 sys___acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->aclp, td);
 	return (kern___acl_get_path(td, uap->path, uap->type, uap->aclp,
 	    FOLLOW));
 }
@@ -395,7 +396,8 @@ kern___acl_get_path(struct thread *td, const char *path, acl_type_t type,
 int
 sys___acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->aclp, td);
 	return(kern___acl_set_path(td, uap->path, uap->type, uap->aclp,
 	    FOLLOW));
 }
@@ -442,6 +444,7 @@ sys___acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 	error = getvnode_path(td, uap->filedes,
 	    cap_rights_init_one(&rights, CAP_ACL_GET), &fp);
 	if (error == 0) {
+ADD_PROCBASE(uap->aclp, td);
 		error = vacl_get_acl(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
 	}
@@ -462,6 +465,7 @@ sys___acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 	error = getvnode(td, uap->filedes,
 	    cap_rights_init_one(&rights, CAP_ACL_SET), &fp);
 	if (error == 0) {
+ADD_PROCBASE(uap->aclp, td);
 		error = vacl_set_acl(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
 	}
@@ -474,7 +478,7 @@ sys___acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 int
 sys___acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern___acl_delete_path(td, uap->path, uap->type, FOLLOW));
 }
 
@@ -531,7 +535,8 @@ sys___acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 int
 sys___acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->aclp, td);
 	return (kern___acl_aclcheck_path(td, uap->path, uap->type, uap->aclp,
 	    FOLLOW));
 }
@@ -576,6 +581,7 @@ sys___acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 	error = getvnode_path(td, uap->filedes,
 	    cap_rights_init_one(&rights, CAP_ACL_CHECK), &fp);
 	if (error == 0) {
+ADD_PROCBASE(uap->aclp, td);
 		error = vacl_aclcheck(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
 	}
