@@ -245,6 +245,7 @@ sys_bindat(struct thread *td, struct bindat_args *uap)
 	struct sockaddr *sa;
 	int error;
 
+ADD_PROCBASE(uap->name, td);
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_bindat(td, uap->fd, uap->s, sa);
@@ -563,6 +564,7 @@ sys_connectat(struct thread *td, struct connectat_args *uap)
 	struct sockaddr *sa;
 	int error;
 
+ADD_PROCBASE(uap->name, td);
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_connectat(td, uap->fd, uap->s, sa);

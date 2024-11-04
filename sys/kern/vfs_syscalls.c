@@ -324,9 +324,12 @@ sys_statfs(struct thread *td, struct statfs_args *uap)
 	int error;
 
 	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+ADD_PROCBASE(uap->path, td);
 	error = kern_statfs(td, uap->path, UIO_USERSPACE, sfp);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->buf, td);
 		error = copyout(sfp, uap->buf, sizeof(struct statfs));
+	}
 	free(sfp, M_STATFS);
 	return (error);
 }
@@ -366,8 +369,10 @@ sys_fstatfs(struct thread *td, struct fstatfs_args *uap)
 
 	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 	error = kern_fstatfs(td, uap->fd, sfp);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->buf, td);
 		error = copyout(sfp, uap->buf, sizeof(struct statfs));
+	}
 	free(sfp, M_STATFS);
 	return (error);
 }
@@ -415,6 +420,7 @@ sys_getfsstat(struct thread *td, struct getfsstat_args *uap)
 
 	if (uap->bufsize < 0 || uap->bufsize > SIZE_MAX)
 		return (EINVAL);
+ADD_PROCBASE(uap->buf, td);
 	error = kern_getfsstat(td, &uap->buf, uap->bufsize, &count,
 	    UIO_USERSPACE, uap->mode);
 	if (error == 0)
@@ -1334,7 +1340,7 @@ struct mknodat_args {
 int
 sys_mknodat(struct thread *td, struct mknodat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_mknodat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode,
 	    uap->dev));
 }
@@ -2468,10 +2474,13 @@ sys_fstatat(struct thread *td, struct fstatat_args *uap)
 	struct stat sb;
 	int error;
 
+ADD_PROCBASE(uap->path, td);
 	error = kern_statat(td, uap->flag, uap->fd, uap->path,
 	    UIO_USERSPACE, &sb);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->buf, td);
 		error = copyout(&sb, uap->buf, sizeof (sb));
+	}
 	return (error);
 }
 
@@ -2818,7 +2827,7 @@ struct chflagsat_args {
 int
 sys_chflagsat(struct thread *td, struct chflagsat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_chflagsat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->flags, uap->atflag));
 }
@@ -3411,7 +3420,7 @@ kern_futimes(struct thread *td, int fd, const struct timeval *tptr,
 int
 sys_futimens(struct thread *td, struct futimens_args *uap)
 {
-
+ADD_PROCBASE(uap->times, td);
 	return (kern_futimens(td, uap->fd, uap->times, UIO_USERSPACE));
 }
 
@@ -3447,7 +3456,8 @@ kern_futimens(struct thread *td, int fd, const struct timespec *tptr,
 int
 sys_utimensat(struct thread *td, struct utimensat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->times, td);
 	return (kern_utimensat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->times, UIO_USERSPACE, uap->flag));
 }
@@ -4197,12 +4207,15 @@ sys_getdirentries(struct thread *td, struct getdirentries_args *uap)
 	off_t base;
 	int error;
 
+ADD_PROCBASE(uap->buf, td);
 	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base,
 	    NULL, UIO_USERSPACE);
 	if (error != 0)
 		return (error);
-	if (uap->basep != NULL)
+	if (uap->basep != NULL) {
+ADD_PROCBASE(uap->basep, td);
 		error = copyout(&base, uap->basep, sizeof(off_t));
+	}
 	return (error);
 }
 
@@ -4753,13 +4766,16 @@ sys_fhstatfs(struct thread *td, struct fhstatfs_args *uap)
 	fhandle_t fh;
 	int error;
 
+ADD_PROCBASE(uap->u_fhp, td);
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error != 0)
 		return (error);
 	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 	error = kern_fhstatfs(td, fh, sfp);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->buf, td);
 		error = copyout(sfp, uap->buf, sizeof(*sfp));
+	}
 	free(sfp, M_STATFS);
 	return (error);
 }

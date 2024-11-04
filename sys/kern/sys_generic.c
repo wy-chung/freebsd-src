@@ -1584,6 +1584,7 @@ sys_ppoll(struct thread *td, struct ppoll_args *uap)
 	int error;
 
 	if (uap->ts != NULL) {
+ADD_PROCBASE(uap->ts, td);
 		error = copyin(uap->ts, &ts, sizeof(ts));
 		if (error)
 			return (error);
@@ -1591,12 +1592,14 @@ sys_ppoll(struct thread *td, struct ppoll_args *uap)
 	} else
 		tsp = NULL;
 	if (uap->set != NULL) {
+ADD_PROCBASE(uap->set, td);
 		error = copyin(uap->set, &set, sizeof(set));
 		if (error)
 			return (error);
 		ssp = &set;
 	} else
 		ssp = NULL;
+ADD_PROCBASE(uap->fds, td);
 	return (kern_poll(td, uap->fds, uap->nfds, tsp, ssp));
 }
 

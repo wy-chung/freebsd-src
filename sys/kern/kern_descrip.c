@@ -1605,8 +1605,10 @@ sys_fstat(struct thread *td, struct fstat_args *uap)
 	int error;
 
 	error = kern_fstat(td, uap->fd, &ub);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->sb, td);
 		error = copyout(&ub, uap->sb, sizeof(ub));
+	}
 	return (error);
 }
 
