@@ -225,7 +225,7 @@ sys_execve(struct thread *td, struct execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-// uap->* are adjusted in exec_copyin_args
+// uap->fname, uap->argv and uap->envv are adjusted in exec_copyin_args
 	error = exec_copyin_args(td, &args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
@@ -252,7 +252,7 @@ sys_fexecve(struct thread *td, struct fexecve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-// uap->* are adjusted in exec_copyin_args
+// uap->argv and uap->envv are adjusted in exec_copyin_args
 	error = exec_copyin_args(td, &args, NULL, UIO_SYSSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0) {
@@ -1358,7 +1358,7 @@ ADD_PROCBASE(argv, td);
 	/*
 	 * Copy the file name.
 	 */
-ADD_PROCBASE(fname, td);
+if (fname != NULL) ADD_PROCBASE(fname, td);
 	error = exec_args_add_fname(args, fname, segflg);
 	if (error != 0)
 		goto err_exit;

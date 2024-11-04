@@ -1378,7 +1378,7 @@ sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 	char *path;
 	Fnv32_t fnv;
 	int error;
-
+ADD_PROCBASE(uap->path, td);
 	error = shm_copyin_path(td, uap->path, &path);
 	if (error != 0)
 		return (error);

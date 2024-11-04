@@ -224,7 +224,7 @@ struct pread_args {
 int
 sys_pread(struct thread *td, struct pread_args *uap)
 {
-
+ADD_PROCBASE(uap->buf, td);
 	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
 
@@ -427,7 +427,7 @@ struct pwrite_args {
 int
 sys_pwrite(struct thread *td, struct pwrite_args *uap)
 {
-
+ADD_PROCBASE(uap->buf, td);
 	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
 

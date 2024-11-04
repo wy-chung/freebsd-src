@@ -172,7 +172,7 @@ struct mmap_args {
 int
 sys_mmap(struct thread *td, struct mmap_args *uap)
 {
-
+ADD_PROCBASE(uap->addr, td);
 	return (kern_mmap(td, &(struct mmap_req){
 		.mr_hint = (uintptr_t)uap->addr,
 		.mr_len = uap->len,

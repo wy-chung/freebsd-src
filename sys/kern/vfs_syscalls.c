@@ -2947,7 +2947,7 @@ struct fchmodat_args {
 int
 sys_fchmodat(struct thread *td, struct fchmodat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_fchmodat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->mode, uap->flag));
 }
@@ -3077,7 +3077,7 @@ struct fchownat_args {
 int
 sys_fchownat(struct thread *td, struct fchownat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_fchownat(td, uap->fd, uap->path, UIO_USERSPACE, uap->uid,
 	    uap->gid, uap->flag));
 }
@@ -3494,7 +3494,7 @@ struct truncate_args {
 int
 sys_truncate(struct thread *td, struct truncate_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
 }
 
