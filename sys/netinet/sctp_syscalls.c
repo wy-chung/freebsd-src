@@ -79,6 +79,11 @@
 #include <netinet/sctp_os_bsd.h>
 #include <netinet/sctp_peeloff.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 static struct syscall_helper_data sctp_syscalls[] = {
 	SYSCALL_INIT_HELPER_F(sctp_peeloff, SYF_CAPENABLED),
 	SYSCALL_INIT_HELPER_F(sctp_generic_sendmsg, SYF_CAPENABLED),
@@ -219,6 +224,7 @@ sys_sctp_generic_sendmsg(struct thread *td, struct sctp_generic_sendmsg_args *ua
 	int error = 0, len;
 
 	if (uap->sinfo != NULL) {
+ADD_PROCBASE(uap->sinfo, td);
 		error = copyin(uap->sinfo, &sinfo, sizeof (sinfo));
 		if (error != 0)
 			return (error);
@@ -227,6 +233,7 @@ sys_sctp_generic_sendmsg(struct thread *td, struct sctp_generic_sendmsg_args *ua
 
 	cap_rights_init_one(&rights, CAP_SEND);
 	if (uap->tolen != 0) {
+ADD_PROCBASE(uap->to, td);
 		error = getsockaddr(&to, uap->to, uap->tolen);
 		if (error != 0) {
 			to = NULL;
@@ -243,7 +250,7 @@ sys_sctp_generic_sendmsg(struct thread *td, struct sctp_generic_sendmsg_args *ua
 	if (to && (KTRPOINT(td, KTR_STRUCT)))
 		ktrsockaddr(to);
 #endif
-
+ADD_PROCBASE(uap->msg, td);
 	iov[0].iov_base = uap->msg;
 	iov[0].iov_len = uap->mlen;
 

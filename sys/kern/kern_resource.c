@@ -304,7 +304,7 @@ sys_rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 	struct rtprio rtp;
 	struct thread *td1;
 	int cierror, error;
-
+ADD_PROCBASE(uap->rtp, td);
 	/* Perform copyin before acquiring locks if needed. */
 	if (uap->function == RTP_SET)
 		cierror = copyin(uap->rtp, &rtp, sizeof(struct rtprio));
@@ -380,12 +380,12 @@ struct rtprio_args {
 #endif
 int
 sys_rtprio(struct thread *td, struct rtprio_args *uap)
-{ADD_PROCBASE(uap->rtp, td);
+{
 	struct proc *p;
 	struct thread *tdp;
 	struct rtprio rtp;
 	int cierror, error;
-
+ADD_PROCBASE(uap->rtp, td);
 	/* Perform copyin before acquiring locks if needed. */
 	if (uap->function == RTP_SET)
 		cierror = copyin(uap->rtp, &rtp, sizeof(struct rtprio));

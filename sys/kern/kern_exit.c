@@ -750,6 +750,7 @@ sys_abort2(struct thread *td, struct abort2_args *uap)
 	uargsp = NULL;
 	if (nargs > 0) {
 		if (uap->args != NULL) {
+ADD_PROCBASE(uap->args, td);
 			error = copyin(uap->args, uargs,
 			    nargs * sizeof(void *));
 			if (error != 0)
@@ -759,6 +760,7 @@ sys_abort2(struct thread *td, struct abort2_args *uap)
 		} else
 			nargs = -1;
 	}
+ADD_PROCBASE(uap->why, td);
 	return (kern_abort2(td, uap->why, nargs, uargsp));
 }
 

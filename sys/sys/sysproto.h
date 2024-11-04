@@ -473,13 +473,13 @@ struct quotactl_args {
 struct oquota_args {
 	syscallarg_t dummy;
 };
-struct nlm_syscall_args {
+struct nlm_syscall_args { // nosys
 	char debug_level_l_[PADL_(int)]; int debug_level; char debug_level_r_[PADR_(int)];
 	char grace_period_l_[PADL_(int)]; int grace_period; char grace_period_r_[PADR_(int)];
 	char addr_count_l_[PADL_(int)]; int addr_count; char addr_count_r_[PADR_(int)];
 	char addrs_l_[PADL_(char **)]; char ** addrs; char addrs_r_[PADR_(char **)];
 };
-struct nfssvc_args {
+struct nfssvc_args { // nosys
 	char flag_l_[PADL_(int)]; int flag; char flag_r_[PADR_(int)];
 	char argp_l_[PADL_(void *)]; void * argp; char argp_r_[PADR_(void *)];
 };
@@ -500,14 +500,14 @@ struct rtprio_args {
 	char pid_l_[PADL_(pid_t)]; pid_t pid; char pid_r_[PADR_(pid_t)];
 	char rtp_l_[PADL_(struct rtprio *)]; struct rtprio * rtp; char rtp_r_[PADR_(struct rtprio *)];
 };
-struct semsys_args {
+struct semsys_args { // nosys
 	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
 	char a2_l_[PADL_(int)]; int a2; char a2_r_[PADR_(int)];
 	char a3_l_[PADL_(int)]; int a3; char a3_r_[PADR_(int)];
 	char a4_l_[PADL_(int)]; int a4; char a4_r_[PADR_(int)];
 	char a5_l_[PADL_(int)]; int a5; char a5_r_[PADR_(int)];
 };
-struct msgsys_args {
+struct msgsys_args { // nosys
 	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
 	char a2_l_[PADL_(int)]; int a2; char a2_r_[PADR_(int)];
 	char a3_l_[PADL_(int)]; int a3; char a3_r_[PADR_(int)];
@@ -515,7 +515,7 @@ struct msgsys_args {
 	char a5_l_[PADL_(int)]; int a5; char a5_r_[PADR_(int)];
 	char a6_l_[PADL_(int)]; int a6; char a6_r_[PADR_(int)];
 };
-struct shmsys_args {
+struct shmsys_args { // nosys
 	char which_l_[PADL_(int)]; int which; char which_r_[PADR_(int)];
 	char a2_l_[PADL_(int)]; int a2; char a2_r_[PADR_(int)];
 	char a3_l_[PADL_(int)]; int a3; char a3_r_[PADR_(int)];
@@ -583,42 +583,42 @@ struct poll_args {
 	char nfds_l_[PADL_(u_int)]; u_int nfds; char nfds_r_[PADR_(u_int)];
 	char timeout_l_[PADL_(int)]; int timeout; char timeout_r_[PADR_(int)];
 };
-struct semget_args {
+struct semget_args { // nosys
 	char key_l_[PADL_(key_t)]; key_t key; char key_r_[PADR_(key_t)];
 	char nsems_l_[PADL_(int)]; int nsems; char nsems_r_[PADR_(int)];
 	char semflg_l_[PADL_(int)]; int semflg; char semflg_r_[PADR_(int)];
 };
-struct semop_args {
+struct semop_args { // nosys
 	char semid_l_[PADL_(int)]; int semid; char semid_r_[PADR_(int)];
 	char sops_l_[PADL_(struct sembuf *)]; struct sembuf * sops; char sops_r_[PADR_(struct sembuf *)];
 	char nsops_l_[PADL_(size_t)]; size_t nsops; char nsops_r_[PADR_(size_t)];
 };
-struct msgget_args {
+struct msgget_args { // nosys
 	char key_l_[PADL_(key_t)]; key_t key; char key_r_[PADR_(key_t)];
 	char msgflg_l_[PADL_(int)]; int msgflg; char msgflg_r_[PADR_(int)];
 };
-struct msgsnd_args {
+struct msgsnd_args { // nosys
 	char msqid_l_[PADL_(int)]; int msqid; char msqid_r_[PADR_(int)];
 	char msgp_l_[PADL_(const void *)]; const void * msgp; char msgp_r_[PADR_(const void *)];
 	char msgsz_l_[PADL_(size_t)]; size_t msgsz; char msgsz_r_[PADR_(size_t)];
 	char msgflg_l_[PADL_(int)]; int msgflg; char msgflg_r_[PADR_(int)];
 };
-struct msgrcv_args {
+struct msgrcv_args { // nosys
 	char msqid_l_[PADL_(int)]; int msqid; char msqid_r_[PADR_(int)];
 	char msgp_l_[PADL_(void *)]; void * msgp; char msgp_r_[PADR_(void *)];
 	char msgsz_l_[PADL_(size_t)]; size_t msgsz; char msgsz_r_[PADR_(size_t)];
 	char msgtyp_l_[PADL_(long)]; long msgtyp; char msgtyp_r_[PADR_(long)];
 	char msgflg_l_[PADL_(int)]; int msgflg; char msgflg_r_[PADR_(int)];
 };
-struct shmat_args {
+struct shmat_args { // nosys
 	char shmid_l_[PADL_(int)]; int shmid; char shmid_r_[PADR_(int)];
 	char shmaddr_l_[PADL_(const void *)]; const void * shmaddr; char shmaddr_r_[PADR_(const void *)];
 	char shmflg_l_[PADL_(int)]; int shmflg; char shmflg_r_[PADR_(int)];
 };
-struct shmdt_args {
+struct shmdt_args { // nosys
 	char shmaddr_l_[PADL_(const void *)]; const void * shmaddr; char shmaddr_r_[PADR_(const void *)];
 };
-struct shmget_args {
+struct shmget_args { // nosys
 	char key_l_[PADL_(key_t)]; key_t key; char key_r_[PADR_(key_t)];
 	char size_l_[PADL_(size_t)]; size_t size; char size_r_[PADR_(size_t)];
 	char shmflg_l_[PADL_(int)]; int shmflg; char shmflg_r_[PADR_(int)];
@@ -849,7 +849,7 @@ struct kldsym_args {
 struct jail_args {
 	char jail_l_[PADL_(struct jail *)]; struct jail * jail; char jail_r_[PADR_(struct jail *)];
 };
-struct nnpfs_syscall_args {
+struct nnpfs_syscall_args { // nosys
 	char operation_l_[PADL_(int)]; int operation; char operation_r_[PADR_(int)];
 	char a_pathP_l_[PADL_(char *)]; char * a_pathP; char a_pathP_r_[PADR_(char *)];
 	char a_opcode_l_[PADL_(int)]; int a_opcode; char a_opcode_r_[PADR_(int)];
@@ -983,7 +983,7 @@ struct eaccess_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char amode_l_[PADL_(int)]; int amode; char amode_r_[PADR_(int)];
 };
-struct afs3_syscall_args {
+struct afs3_syscall_args { // nosys
 	char syscall_l_[PADL_(long)]; long syscall; char syscall_r_[PADR_(long)];
 	char parm1_l_[PADL_(long)]; long parm1; char parm1_r_[PADR_(long)];
 	char parm2_l_[PADL_(long)]; long parm2; char parm2_r_[PADR_(long)];
@@ -1047,37 +1047,37 @@ struct mac_syscall_args {
 	char call_l_[PADL_(int)]; int call; char call_r_[PADR_(int)];
 	char arg_l_[PADL_(void *)]; void * arg; char arg_r_[PADR_(void *)];
 };
-struct ksem_close_args {
+struct ksem_close_args { // nosys
 	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
 };
-struct ksem_post_args {
+struct ksem_post_args { // nosys
 	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
 };
-struct ksem_wait_args {
+struct ksem_wait_args { // nosys
 	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
 };
-struct ksem_trywait_args {
+struct ksem_trywait_args { // nosys
 	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
 };
-struct ksem_init_args {
+struct ksem_init_args { // nosys
 	char idp_l_[PADL_(semid_t *)]; semid_t * idp; char idp_r_[PADR_(semid_t *)];
 	char value_l_[PADL_(unsigned int)]; unsigned int value; char value_r_[PADR_(unsigned int)];
 };
-struct ksem_open_args {
+struct ksem_open_args { // nosys
 	char idp_l_[PADL_(semid_t *)]; semid_t * idp; char idp_r_[PADR_(semid_t *)];
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
 	char oflag_l_[PADL_(int)]; int oflag; char oflag_r_[PADR_(int)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 	char value_l_[PADL_(unsigned int)]; unsigned int value; char value_r_[PADR_(unsigned int)];
 };
-struct ksem_unlink_args {
+struct ksem_unlink_args { // nosys
 	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
 };
-struct ksem_getvalue_args {
+struct ksem_getvalue_args { // nosys
 	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
 	char val_l_[PADL_(int *)]; int * val; char val_r_[PADR_(int *)];
 };
-struct ksem_destroy_args {
+struct ksem_destroy_args { // nosys
 	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
 };
 struct __mac_get_pid_args {
@@ -1196,7 +1196,7 @@ struct extattr_list_link_args {
 	char data_l_[PADL_(void *)]; void * data; char data_r_[PADR_(void *)];
 	char nbytes_l_[PADL_(size_t)]; size_t nbytes; char nbytes_r_[PADR_(size_t)];
 };
-struct ksem_timedwait_args {
+struct ksem_timedwait_args { // nosys
 	char id_l_[PADL_(semid_t)]; semid_t id; char id_r_[PADR_(semid_t)];
 	char abstime_l_[PADL_(const struct timespec *)]; const struct timespec * abstime; char abstime_r_[PADR_(const struct timespec *)];
 };
@@ -1258,36 +1258,36 @@ struct sigqueue_args {
 	char signum_l_[PADL_(int)]; int signum; char signum_r_[PADR_(int)];
 	char value_l_[PADL_(void *)]; void * value; char value_r_[PADR_(void *)];
 };
-struct kmq_open_args {
+struct kmq_open_args { // nosys
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
 	char attr_l_[PADL_(const struct mq_attr *)]; const struct mq_attr * attr; char attr_r_[PADR_(const struct mq_attr *)];
 };
-struct kmq_setattr_args {
+struct kmq_setattr_args { // nosys
 	char mqd_l_[PADL_(int)]; int mqd; char mqd_r_[PADR_(int)];
 	char attr_l_[PADL_(const struct mq_attr *)]; const struct mq_attr * attr; char attr_r_[PADR_(const struct mq_attr *)];
 	char oattr_l_[PADL_(struct mq_attr *)]; struct mq_attr * oattr; char oattr_r_[PADR_(struct mq_attr *)];
 };
-struct kmq_timedreceive_args {
+struct kmq_timedreceive_args { // nosys
 	char mqd_l_[PADL_(int)]; int mqd; char mqd_r_[PADR_(int)];
 	char msg_ptr_l_[PADL_(char *)]; char * msg_ptr; char msg_ptr_r_[PADR_(char *)];
 	char msg_len_l_[PADL_(size_t)]; size_t msg_len; char msg_len_r_[PADR_(size_t)];
 	char msg_prio_l_[PADL_(unsigned *)]; unsigned * msg_prio; char msg_prio_r_[PADR_(unsigned *)];
 	char abs_timeout_l_[PADL_(const struct timespec *)]; const struct timespec * abs_timeout; char abs_timeout_r_[PADR_(const struct timespec *)];
 };
-struct kmq_timedsend_args {
+struct kmq_timedsend_args { // nosys
 	char mqd_l_[PADL_(int)]; int mqd; char mqd_r_[PADR_(int)];
 	char msg_ptr_l_[PADL_(const char *)]; const char * msg_ptr; char msg_ptr_r_[PADR_(const char *)];
 	char msg_len_l_[PADL_(size_t)]; size_t msg_len; char msg_len_r_[PADR_(size_t)];
 	char msg_prio_l_[PADL_(unsigned)]; unsigned msg_prio; char msg_prio_r_[PADR_(unsigned)];
 	char abs_timeout_l_[PADL_(const struct timespec *)]; const struct timespec * abs_timeout; char abs_timeout_r_[PADR_(const struct timespec *)];
 };
-struct kmq_notify_args {
+struct kmq_notify_args { // nosys
 	char mqd_l_[PADL_(int)]; int mqd; char mqd_r_[PADR_(int)];
 	char sigev_l_[PADL_(const struct sigevent *)]; const struct sigevent * sigev; char sigev_r_[PADR_(const struct sigevent *)];
 };
-struct kmq_unlink_args {
+struct kmq_unlink_args { // nosys
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
 struct abort2_args {
@@ -1308,11 +1308,11 @@ struct rtprio_thread_args {
 	char lwpid_l_[PADL_(lwpid_t)]; lwpid_t lwpid; char lwpid_r_[PADR_(lwpid_t)];
 	char rtp_l_[PADL_(struct rtprio *)]; struct rtprio * rtp; char rtp_r_[PADR_(struct rtprio *)];
 };
-struct sctp_peeloff_args {
+struct sctp_peeloff_args { // nosys
 	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
 	char name_l_[PADL_(uint32_t)]; uint32_t name; char name_r_[PADR_(uint32_t)];
 };
-struct sctp_generic_sendmsg_args {
+struct sctp_generic_sendmsg_args { // nosys
 	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
 	char msg_l_[PADL_(void *)]; void * msg; char msg_r_[PADR_(void *)];
 	char mlen_l_[PADL_(int)]; int mlen; char mlen_r_[PADR_(int)];
@@ -1321,7 +1321,7 @@ struct sctp_generic_sendmsg_args {
 	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
-struct sctp_generic_sendmsg_iov_args {
+struct sctp_generic_sendmsg_iov_args { // nosys
 	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
 	char iov_l_[PADL_(struct iovec *)]; struct iovec * iov; char iov_r_[PADR_(struct iovec *)];
 	char iovlen_l_[PADL_(int)]; int iovlen; char iovlen_r_[PADR_(int)];
@@ -1330,7 +1330,7 @@ struct sctp_generic_sendmsg_iov_args {
 	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
-struct sctp_generic_recvmsg_args {
+struct sctp_generic_recvmsg_args { // nosys
 	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
 	char iov_l_[PADL_(struct iovec *)]; struct iovec * iov; char iov_r_[PADR_(struct iovec *)];
 	char iovlen_l_[PADL_(int)]; int iovlen; char iovlen_r_[PADR_(int)];
@@ -1485,7 +1485,7 @@ struct unlinkat_args {
 struct posix_openpt_args {
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
-struct gssd_syscall_args {
+struct gssd_syscall_args { // nosys
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
 struct jail_get_args {
@@ -1501,18 +1501,18 @@ struct jail_set_args {
 struct jail_remove_args {
 	char jid_l_[PADL_(int)]; int jid; char jid_r_[PADR_(int)];
 };
-struct __semctl_args {
+struct __semctl_args { // nosys
 	char semid_l_[PADL_(int)]; int semid; char semid_r_[PADR_(int)];
 	char semnum_l_[PADL_(int)]; int semnum; char semnum_r_[PADR_(int)];
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
 	char arg_l_[PADL_(union semun *)]; union semun * arg; char arg_r_[PADR_(union semun *)];
 };
-struct msgctl_args {
+struct msgctl_args { // nosys
 	char msqid_l_[PADL_(int)]; int msqid; char msqid_r_[PADR_(int)];
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
 	char buf_l_[PADL_(struct msqid_ds *)]; struct msqid_ds * buf; char buf_r_[PADR_(struct msqid_ds *)];
 };
-struct shmctl_args {
+struct shmctl_args { // nosys
 	char shmid_l_[PADL_(int)]; int shmid; char shmid_r_[PADR_(int)];
 	char cmd_l_[PADL_(int)]; int cmd; char cmd_r_[PADR_(int)];
 	char buf_l_[PADL_(struct shmid_ds *)]; struct shmid_ds * buf; char buf_r_[PADR_(struct shmid_ds *)];
@@ -1828,7 +1828,7 @@ struct close_range_args {
 	char highfd_l_[PADL_(u_int)]; u_int highfd; char highfd_r_[PADR_(u_int)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };
-struct rpctls_syscall_args {
+struct rpctls_syscall_args { // nosys
 	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };

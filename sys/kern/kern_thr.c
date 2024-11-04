@@ -141,6 +141,7 @@ sys_thr_new(struct thread *td, struct thr_new_args *uap)
 	if (uap->param_size < 0 || uap->param_size > sizeof(param))
 		return (EINVAL);
 	bzero(&param, sizeof(param));
+ADD_PROCBASE(uap->param, td);
 	if ((error = copyin(uap->param, &param, uap->param_size)))
 		return (error);
 	return (kern_thr_new(td, &param));
@@ -504,6 +505,7 @@ sys_thr_suspend(struct thread *td, struct thr_suspend_args *uap)
 
 	tsp = NULL;
 	if (uap->timeout != NULL) {
+ADD_PROCBASE(uap->timeout, td);
 		error = umtx_copyin_timeout(uap->timeout, &ts);
 		if (error != 0)
 			return (error);
@@ -592,6 +594,7 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 	error = 0;
 	name[0] = '\0';
 	if (uap->name != NULL) {
+ADD_PROCBASE(uap->name, td);
 		error = copyinstr(uap->name, name, sizeof(name), NULL);
 		if (error == ENAMETOOLONG) {
 			error = copyin(uap->name, name, sizeof(name) - 1);

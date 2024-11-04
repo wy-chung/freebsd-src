@@ -788,6 +788,7 @@ sys_ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap)
 	if (uap->abstime == NULL)
 		ts = NULL;
 	else {
+ADD_PROCBASE(uap->abstime, td);
 		error = copyin(uap->abstime, &abstime, sizeof(abstime));
 		if (error != 0)
 			return (error);

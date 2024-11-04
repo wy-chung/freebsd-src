@@ -5006,6 +5006,9 @@ sys__umtx_op(struct thread *td, struct _umtx_op_args *uap)
 	if ((uap->op & UMTX_OP__32BIT) != 0)
 		umtx_ops = &umtx_native_opsx32;
 #endif
+ADD_PROCBASE(uap->obj, td);
+ADD_PROCBASE(uap->uaddr1, td);
+ADD_PROCBASE(uap->uaddr2, td);
 	return (kern__umtx_op(td, uap->obj, uap->op, uap->val, uap->uaddr1,
 	    uap->uaddr2, umtx_ops));
 }

@@ -1751,8 +1751,7 @@ ADD_PROCBASE(uap->ss, td);
 		if (error)
 			return (error);
 	}
-if (uap->oss != NULL)
-  ADD_PROCBASE(uap->oss, td);
+if (uap->oss != NULL) ADD_PROCBASE(uap->oss, td);
 	error = kern_sigaltstack(td, (uap->ss != NULL) ? &ss : NULL,
 	    (uap->oss != NULL) ? &oss : NULL);
 	if (error)
@@ -2028,7 +2027,7 @@ int
 sys_sigqueue(struct thread *td, struct sigqueue_args *uap)
 {
 	union sigval sv;
-
+ADD_PROCBASE(uap->value, td);
 	sv.sival_ptr = uap->value;
 
 	return (kern_sigqueue(td, uap->pid, uap->signum, &sv));
