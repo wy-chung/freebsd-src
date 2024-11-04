@@ -535,7 +535,7 @@ sys_jail_set(struct thread *td, struct jail_set_args *uap)
 	/* Check that we have an even number of iovecs. */
 	if (uap->iovcnt & 1)
 		return (EINVAL);
-
+ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
@@ -2263,7 +2263,7 @@ sys_jail_get(struct thread *td, struct jail_get_args *uap)
 	/* Check that we have an even number of iovecs. */
 	if (uap->iovcnt & 1)
 		return (EINVAL);
-
+ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);

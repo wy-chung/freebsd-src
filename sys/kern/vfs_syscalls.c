@@ -1115,6 +1115,7 @@ struct openat_args {
 int
 sys_openat(struct thread *td, struct openat_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	AUDIT_ARG_FD(uap->fd);
 	return (kern_openat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
@@ -1483,7 +1484,7 @@ struct mkfifoat_args {
 int
 sys_mkfifoat(struct thread *td, struct mkfifoat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_mkfifoat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->mode));
 }
@@ -1573,7 +1574,8 @@ struct linkat_args {
 int
 sys_linkat(struct thread *td, struct linkat_args *uap)
 {
-
+ADD_PROCBASE(uap->path1, td);
+ADD_PROCBASE(uap->path2, td);
 	return (kern_linkat(td, uap->fd1, uap->fd2, uap->path1, uap->path2,
 	    UIO_USERSPACE, uap->flag));
 }
@@ -1922,7 +1924,7 @@ struct unlinkat_args {
 int
 sys_unlinkat(struct thread *td, struct unlinkat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_funlinkat_ex(td, uap->fd, uap->path, FD_NONE, uap->flag,
 	    UIO_USERSPACE, 0));
 }
@@ -2627,6 +2629,7 @@ sys_lpathconf(struct thread *td, struct lpathconf_args *uap)
 	long value;
 	int error;
 
+ADD_PROCBASE(uap->path, td);
 	error = kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name,
 	    NOFOLLOW, &value);
 	if (error == 0)
@@ -3298,7 +3301,8 @@ struct futimesat_args {
 int
 sys_futimesat(struct thread *td, struct futimesat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->times, td);
 	return (kern_utimesat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->times, UIO_USERSPACE));
 }
@@ -3671,7 +3675,8 @@ struct renameat_args {
 int
 sys_renameat(struct thread *td, struct renameat_args *uap)
 {
-
+ADD_PROCBASE(uap->old, td);
+ADD_PROCBASE(uap->new, td);
 	return (kern_renameat(td, uap->oldfd, uap->old, uap->newfd, uap->new,
 	    UIO_USERSPACE));
 }
@@ -3852,7 +3857,7 @@ struct mkdirat_args {
 int
 sys_mkdirat(struct thread *td, struct mkdirat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_mkdirat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode));
 }
 

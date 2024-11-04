@@ -887,12 +887,14 @@ sys_wait6(struct thread *td, struct wait6_args *uap)
 	idtype = uap->idtype;
 	id = uap->id;
 
-	if (uap->wrusage != NULL)
+	if (uap->wrusage != NULL) {
+ADD_PROCBASE(uap->wrusage, td);
 		wrup = &wru;
-	else
+	} else
 		wrup = NULL;
 
 	if (uap->info != NULL) {
+ADD_PROCBASE(uap->info, td);
 		sip = &si;
 		bzero(sip, sizeof(*sip));
 	} else
@@ -904,8 +906,10 @@ sys_wait6(struct thread *td, struct wait6_args *uap)
 	 */
 	error = kern_wait6(td, idtype, id, &status, uap->options, wrup, sip);
 
-	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0)
+	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0) {
+ADD_PROCBASE(uap->status, td);
 		error = copyout(&status, uap->status, sizeof(status));
+	}
 	if (uap->wrusage != NULL && error == 0 && td->td_retval[0] != 0)
 		error = copyout(&wru, uap->wrusage, sizeof(wru));
 	if (uap->info != NULL && error == 0)

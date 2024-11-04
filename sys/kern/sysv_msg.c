@@ -488,6 +488,7 @@ sys_msgctl(struct thread *td, struct msgctl_args *uap)
 	struct msqid_ds msqbuf;
 	int error;
 
+ADD_PROCBASE(uap->buf, td);
 	DPRINTF(("call to msgctl(%d, %d, %p)\n", msqid, cmd, uap->buf));
 	if (cmd == IPC_SET &&
 	    (error = copyin(uap->buf, &msqbuf, sizeof(msqbuf))) != 0)

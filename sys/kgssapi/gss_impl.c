@@ -51,6 +51,11 @@
 #include "gssd.h"
 #include "kgss_if.h"
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 MALLOC_DEFINE(M_GSSAPI, "GSS-API", "GSS-API");
 
 /*
@@ -97,7 +102,7 @@ sys_gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
 	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error)
 		return (error);
-
+ADD_PROCBASE(uap->path, td);
 	error = copyinstr(uap->path, path, sizeof(path), NULL);
 	if (error)
 		return (error);
