@@ -1946,7 +1946,7 @@ struct funlinkat_args {
 int
 sys_funlinkat(struct thread *td, struct funlinkat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_funlinkat_ex(td, uap->dfd, uap->path, uap->fd, uap->flag,
 	    UIO_USERSPACE, 0));
 }
@@ -4481,7 +4481,8 @@ struct getfhat_args {
 int
 sys_getfhat(struct thread *td, struct getfhat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->fhp, td);
 	return (kern_getfhat(td, uap->flags, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->fhp, UIO_USERSPACE));
 }
@@ -4530,7 +4531,8 @@ struct fhlink_args {
 int
 sys_fhlink(struct thread *td, struct fhlink_args *uap)
 {
-
+ADD_PROCBASE(uap->fhp, td);
+ADD_PROCBASE(uap->to, td);
 	return (kern_fhlinkat(td, AT_FDCWD, uap->to, UIO_USERSPACE, uap->fhp));
 }
 
@@ -4544,7 +4546,8 @@ struct fhlinkat_args {
 int
 sys_fhlinkat(struct thread *td, struct fhlinkat_args *uap)
 {
-
+ADD_PROCBASE(uap->fhp, td);
+ADD_PROCBASE(uap->to, td);
 	return (kern_fhlinkat(td, uap->tofd, uap->to, UIO_USERSPACE, uap->fhp));
 }
 
@@ -4597,6 +4600,7 @@ sys_fhreadlink(struct thread *td, struct fhreadlink_args *uap)
 		return (error);
 	if (uap->bufsize > IOSIZE_MAX)
 		return (EINVAL);
+ADD_PROCBASE(uap->fhp, td);
 	error = copyin(uap->fhp, &fh, sizeof(fh));
 	if (error != 0)
 		return (error);
@@ -4606,6 +4610,7 @@ sys_fhreadlink(struct thread *td, struct fhreadlink_args *uap)
 	vfs_unbusy(mp);
 	if (error != 0)
 		return (error);
+ADD_PROCBASE(uap->buf, td);
 	error = kern_readlink_vp(vp, uap->buf, UIO_USERSPACE, uap->bufsize, td);
 	vput(vp);
 	return (error);
@@ -5078,12 +5083,14 @@ sys_copy_file_range(struct thread *td, struct copy_file_range_args *uap)
 
 	inoffp = outoffp = NULL;
 	if (uap->inoffp != NULL) {
+ADD_PROCBASE(uap->inoffp, td);
 		error = copyin(uap->inoffp, &inoff, sizeof(off_t));
 		if (error != 0)
 			return (error);
 		inoffp = &inoff;
 	}
 	if (uap->outoffp != NULL) {
+ADD_PROCBASE(uap->outoffp, td);
 		error = copyin(uap->outoffp, &outoff, sizeof(off_t));
 		if (error != 0)
 			return (error);

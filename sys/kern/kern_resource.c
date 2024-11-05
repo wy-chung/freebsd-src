@@ -919,8 +919,10 @@ sys_getrlimitusage(struct thread *td, struct getrlimitusage_args *uap)
 	if ((uap->flags & ~(GETRLIMITUSAGE_EUID)) != 0)
 		return (EINVAL);
 	error = getrlimitusage_one(curproc, uap->which, uap->flags, &res);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->res, td);
 		error = copyout(&res, uap->res, sizeof(res));
+	}
 	return (error);
 }
 

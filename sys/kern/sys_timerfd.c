@@ -55,6 +55,11 @@
 
 #include <security/audit/audit.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 static MALLOC_DEFINE(M_TIMERFD, "timerfd", "timerfd structures");
 
 static struct mtx timerfd_list_lock;
@@ -579,10 +584,11 @@ sys_timerfd_gettime(struct thread *td, struct timerfd_gettime_args *uap)
 	int error;
 
 	error = kern_timerfd_gettime(td, uap->fd, &curr_value);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->curr_value, td);
 		error = copyout(&curr_value, uap->curr_value,
 		    sizeof(curr_value));
-
+	}
 	return (error);
 }
 
@@ -592,6 +598,7 @@ sys_timerfd_settime(struct thread *td, struct timerfd_settime_args *uap)
 	struct itimerspec new_value, old_value;
 	int error;
 
+ADD_PROCBASE(uap->new_value, td);
 	error = copyin(uap->new_value, &new_value, sizeof(new_value));
 	if (error != 0)
 		return (error);
@@ -601,9 +608,11 @@ sys_timerfd_settime(struct thread *td, struct timerfd_settime_args *uap)
 	} else {
 		error = kern_timerfd_settime(td, uap->fd, uap->flags,
 		    &new_value, &old_value);
-		if (error == 0)
+		if (error == 0) {
+ADD_PROCBASE(uap->old_value, td);
 			error = copyout(&old_value, uap->old_value,
 			    sizeof(old_value));
+		}
 	}
 	return (error);
 }

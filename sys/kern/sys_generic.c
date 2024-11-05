@@ -877,6 +877,7 @@ sys_fspacectl(struct thread *td, struct fspacectl_args *uap)
 	struct spacectl_range rqsr, rmsr;
 	int error, cerror;
 
+ADD_PROCBASE(uap->rqsr, td);
 	error = copyin(uap->rqsr, &rqsr, sizeof(rqsr));
 	if (error != 0)
 		return (error);
@@ -884,6 +885,7 @@ sys_fspacectl(struct thread *td, struct fspacectl_args *uap)
 	error = kern_fspacectl(td, uap->fd, uap->cmd, &rqsr, uap->flags,
 	    &rmsr);
 	if (uap->rmsr != NULL) {
+ADD_PROCBASE(uap->rmsr, td);
 		cerror = copyout(&rmsr, uap->rmsr, sizeof(rmsr));
 		if (error == 0)
 			error = cerror;
@@ -985,6 +987,7 @@ sys___specialfd(struct thread *td, struct __specialfd_args *args)
 			error = EINVAL;
 			break;
 		}
+ADD_PROCBASE(args->req, td);
 		error = copyin(args->req, &ae, sizeof(ae));
 		if (error != 0)
 			break;

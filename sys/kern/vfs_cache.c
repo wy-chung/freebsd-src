@@ -3221,7 +3221,8 @@ out:
 int
 sys___realpathat(struct thread *td, struct __realpathat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->buf, td);
 	return (kern___realpathat(td, uap->fd, uap->path, uap->buf, uap->size,
 	    uap->flags, UIO_USERSPACE));
 }

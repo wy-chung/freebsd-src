@@ -2277,7 +2277,8 @@ struct cpuset_getdomain_args {
 int
 sys_cpuset_getdomain(struct thread *td, struct cpuset_getdomain_args *uap)
 {
-
+ADD_PROCBASE(uap->mask, td);
+ADD_PROCBASE(uap->policy, td);
 	return (kern_cpuset_getdomain(td, uap->level, uap->which,
 	    uap->id, uap->domainsetsize, uap->mask, uap->policy, &copy_set));
 }
@@ -2405,7 +2406,7 @@ struct cpuset_setdomain_args {
 int
 sys_cpuset_setdomain(struct thread *td, struct cpuset_setdomain_args *uap)
 {
-
+ADD_PROCBASE(uap->mask, td);
 	return (kern_cpuset_setdomain(td, uap->level, uap->which,
 	    uap->id, uap->domainsetsize, uap->mask, uap->policy, &copy_set));
 }

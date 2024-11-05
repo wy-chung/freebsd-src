@@ -2524,6 +2524,7 @@ ADD_PROCBASE(uap->name, td);
 int
 sys_swapoff(struct thread *td, struct swapoff_args *uap)
 {
+ADD_PROCBASE(uap->name, td);
 	return (kern_swapoff(td, uap->name, UIO_USERSPACE, uap->flags));
 }
 

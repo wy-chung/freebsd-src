@@ -2344,7 +2344,7 @@ kern___sysctlbyname(struct thread *td, const char *oname, size_t namelen,
 	size_t oidlen;
 	int error;
 
-WYC_ASSERT(inkernel == false); // is true only when called from freebsd32___sysctlbyname
+WYC_ASSERT(inkernel == false); // assert false only when called from freebsd32___sysctlbyname
 	if (namelen > MAXPATHLEN || namelen == 0)
 		return (EINVAL);
 	name = namebuf;
@@ -2388,7 +2388,9 @@ sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
 	int error;
 
 ADD_PROCBASE(uap->name, td);
+ADD_PROCBASE(uap->old, td);
 if (uap->oldlenp != NULL ) ADD_PROCBASE(uap->oldlenp, td);
+ADD_PROCBASE(uap->new, td);
 	error = kern___sysctlbyname(td, uap->name, uap->namelen, uap->old,
 	    uap->oldlenp, uap->new, uap->newlen, &rv, 0, 0);
 	if (error != 0)

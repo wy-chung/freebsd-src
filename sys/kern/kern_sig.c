@@ -4493,6 +4493,7 @@ sys_sigfastblock(struct thread *td, struct sigfastblock_args *uap)
 			break;
 		}
 		td->td_pflags |= TDP_SIGFASTBLOCK;
+ADD_PROCBASE(uap->ptr, td);
 		td->td_sigblock_ptr = uap->ptr;
 		break;
 

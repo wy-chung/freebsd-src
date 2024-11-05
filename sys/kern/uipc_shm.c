@@ -1433,11 +1433,11 @@ sys_shm_rename(struct thread *td, struct shm_rename_args *uap)
 		error = EINVAL;
 		goto out;
 	}
-
+ADD_PROCBASE(uap->path_from, td);
 	error = shm_copyin_path(td, uap->path_from, &path_from);
 	if (error != 0)
 		goto out;
-
+ADD_PROCBASE(uap->path_to, td);
 	error = shm_copyin_path(td, uap->path_to, &path_to);
 	if (error != 0)
 		goto out;
@@ -2186,7 +2186,8 @@ kern_shm_open(struct thread *td, const char *path, int flags, mode_t mode,
 int
 sys_shm_open2(struct thread *td, struct shm_open2_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->name, td);
 	return (kern_shm_open2(td, uap->path, uap->flags, uap->mode,
 	    uap->shmflags, NULL, uap->name));
 }
