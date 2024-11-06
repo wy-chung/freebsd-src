@@ -311,7 +311,7 @@ struct vmspace {
 	vm_offset_t vm_base; //wyc base address of this vmspace
 };
 
-#define ADD_PROCBASE(uaddr, td) uaddr = (typeof(uaddr))(__DECONST(char *,uaddr) + td->td_proc->p_vmspace->vm_base)
+#define ADD_PROCBASE(uaddr, td) uaddr = (typeof(uaddr))(__DEQUALIFY(char *, uaddr) + td->td_proc->p_vmspace->vm_base)
 
 #ifdef	_KERNEL
 static __inline pmap_t

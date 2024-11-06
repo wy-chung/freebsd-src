@@ -145,7 +145,7 @@ SYSCTL_INT(_kern, OID_AUTO, disallow_high_osrel, CTLFLAG_RW,
     &disallow_high_osrel, 0,
     "Disallow execution of binaries built for higher version of the world");
 
-static int map_at_zero = 0;
+static int map_at_zero = 1; //ori 0
 SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RWTUN, &map_at_zero, 0,
     "Permit processes to map an object at virtual address 0.");
 
@@ -1163,7 +1163,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	 * not disrupted
 	 */
 	map = &vmspace->vm_map;
-	if (map_at_zero) // false
+	if (map_at_zero) // true
 		sv_minuser = sv->sv_minuser;
 	else
 		sv_minuser = MAX(sv->sv_minuser, PAGE_SIZE);
@@ -1184,6 +1184,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		    MAP_ASLR_IGNSTART | MAP_ASLR_STACK | MAP_WXORX);
 		vm_map_unlock(map);
 	} else {
+		//wyctodo add sprocbase here
 		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser);
 		if (error)
 			return (error);

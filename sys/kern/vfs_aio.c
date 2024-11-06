@@ -1500,7 +1500,7 @@ int
 aio_aqueue(struct thread *td, struct aiocb *ujob,
     struct aioliojob *lj, // NULL except when called from kern_lio_listio
     int type, struct aiocb_ops *ops)
-{ujob->aio_buf = (volatile char *)ujob->aio_buf + td->td_proc->p_vmspace->vm_base;
+{
 	struct proc *p = td->td_proc;
 	struct file *fp = NULL;
 	struct kaiocb *job;
@@ -1692,6 +1692,7 @@ no_kqueue:
 		/* Use the uio copied in by aio_copyin */
 		MPASS(job->uiop != &job->uio && job->uiop != NULL);
 	} else {
+ADD_PROCBASE(job->uaiocb.aio_buf, td);
 		/* Setup the inline uio */
 		job->iov[0].iov_base = (void *)(uintptr_t)job->uaiocb.aio_buf;
 		job->iov[0].iov_len = job->uaiocb.aio_nbytes;
