@@ -565,7 +565,7 @@ panic("%s: wyctest", __func__); // not reach here
 //WYC_ASSERT(vm2 != NULL); // pass
 		// for fork, set p2's vm_base here
 		//vm2->vm_base = (vm_offset_t)p2->p_pid << 32; //wyc sa
-		vm2->vm_base = 0; //wyc sa
+		vm2->vm_base = 0; //USER_MAX_ADDRESS; //wyc sa
 		p2->p_vmspace = vm2;
 		if (p1->p_vmspace->vm_shm)
 			shmfork(p1, p2);

@@ -558,10 +558,11 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 static int
 #if defined(WYC)
-elf64_map_insert(struct image_params *imgp, vm_map_t map, vm_object_t object,
+elf64_map_insert(
 #else
-__elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
+__elfN(map_insert)(
 #endif
+    struct image_params *imgp, vm_map_t map, vm_object_t object,
     vm_ooffset_t offset, vm_offset_t start, vm_offset_t end, vm_prot_t prot,
     int cow)
 {
@@ -571,6 +572,7 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 	int error, locked, rv;
 
 	if (start != trunc_page(start)) {
+//WYC_PANIC(); // never runs here
 #if defined(WYC)
 		rv = elf64_map_partial(map, object, offset, start,
 #else
@@ -583,6 +585,7 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 		start = round_page(start);
 	}
 	if (end != round_page(end)) {
+//WYC_PANIC(); // never runs here
 #if defined(WYC)
 		rv = elf64_map_partial(map, object, offset +
 #else
@@ -642,10 +645,11 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 
 static int
 #if defined(WYC)
-elf64_load_section(struct image_params *imgp, vm_ooffset_t offset,
+elf64_load_section(
 #else
-__elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
+__elfN(load_section)(
 #endif
+    struct image_params *imgp, vm_ooffset_t offset,
     caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
 {
 	struct sf_buf *sf;
@@ -697,6 +701,9 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 
 		rv = __elfN(map_insert)(imgp, map, object, file_addr,
 		    map_addr, map_addr + map_len, prot, cow);
+#if defined(WYC)
+		rv = elf64_map_insert();
+#endif
 		if (rv != KERN_SUCCESS)
 			return (EINVAL);
 

@@ -86,7 +86,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/* Clear syscall error flag */
 	tf->tf_t[0] = 0;
 
-	/* Arguments for child */
+	/* Arguments for child */ // return value for child??
 	tf->tf_a[0] = 0;
 	tf->tf_a[1] = 0;
 	tf->tf_sstatus |= (SSTATUS_SPIE); /* Enable interrupts. */

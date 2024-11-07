@@ -321,7 +321,7 @@ vmspace_zdtor(void *mem, int size, void *arg)
  * Allocate a vmspace structure, including a vm_map and pmap,
  * and initialize those structures.  The refcnt is set to 1.
  */
-// @pinit: is ept_pinit     when called from ept_vmspace_alloc()
+// %pinit: is ept_pinit     when called from ept_vmspace_alloc()
 //         is arm_vmm_pinit when called from vmmops_vmspace_alloc()
 //         is npt_pinit     when called from in svm_npt_alloc()
 struct vmspace *
@@ -4963,7 +4963,7 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 		return (ENOMEM);
 	newvmspace->vm_swrss = oldvmspace->vm_swrss;
 	//newvmspace->vm_base = (vm_offset_t)p->p_pid << 32; //wyc sa
-	newvmspace->vm_base = 0; //wyc sa
+	newvmspace->vm_base = 0; //USER_MAX_ADDRESS; //wyc sa
 	/*
 	 * This code is written like this for prototype purposes.  The
 	 * goal is to avoid running down the vmspace here, but let the
