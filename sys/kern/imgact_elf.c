@@ -572,26 +572,24 @@ __elfN(map_insert)(
 	int error, locked, rv;
 
 	if (start != trunc_page(start)) {
-//WYC_PANIC(); // never runs here
-#if defined(WYC)
-		rv = elf64_map_partial(map, object, offset, start,
-#else
+WYC_PANIC(); // never runs here
 		rv = __elfN(map_partial)(map, object, offset, start,
-#endif
 		    round_page(start), prot);
+#if defined(WYC)
+		rv = elf64_map_partial();
+#endif
 		if (rv != KERN_SUCCESS)
 			return (rv);
 		offset += round_page(start) - start;
 		start = round_page(start);
 	}
 	if (end != round_page(end)) {
-//WYC_PANIC(); // never runs here
-#if defined(WYC)
-		rv = elf64_map_partial(map, object, offset +
-#else
+WYC_PANIC(); // never runs here
 		rv = __elfN(map_partial)(map, object, offset +
-#endif
 		    trunc_page(end) - start, trunc_page(end), end, prot);
+#if defined(WYC)
+		rv = elf64_map_partial();
+#endif
 		if (rv != KERN_SUCCESS)
 			return (rv);
 		end = trunc_page(end);
@@ -599,6 +597,7 @@ __elfN(map_insert)(
 	if (start >= end)
 		return (KERN_SUCCESS);
 	if ((offset & PAGE_MASK) != 0) {
+WYC_PANIC(); // never runs here
 		/*
 		 * The mapping is not page aligned.  This means that we have
 		 * to copy the data.
@@ -725,12 +724,11 @@ __elfN(load_section)(
 
 	/* This had damn well better be true! */
 	if (map_len != 0) {
-#if defined(WYC)
-		rv = elf64_map_insert(imgp, map, NULL, 0, map_addr,
-#else
 		rv = __elfN(map_insert)(imgp, map, NULL, 0, map_addr,
-#endif
 		    map_addr + map_len, prot, 0);
+#if defined(WYC)
+		rv = elf64_map_insert();
+#endif
 		if (rv != KERN_SUCCESS)
 			return (EINVAL);
 	}
