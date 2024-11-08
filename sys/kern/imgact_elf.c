@@ -558,11 +558,11 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 static int
 #if defined(WYC)
-elf64_map_insert(
+elf64_map_insert
 #else
-__elfN(map_insert)(
+__elfN(map_insert)
 #endif
-    struct image_params *imgp, vm_map_t map, vm_object_t object,
+    (struct image_params *imgp, vm_map_t map, vm_object_t object,
     vm_ooffset_t offset, vm_offset_t start, vm_offset_t end, vm_prot_t prot,
     int cow)
 {
@@ -571,6 +571,8 @@ __elfN(map_insert)(
 	vm_size_t sz;
 	int error, locked, rv;
 
+//start += USER_MAX_ADDRESS;
+//end += USER_MAX_ADDRESS;
 	if (start != trunc_page(start)) {
 WYC_PANIC(); // never runs here
 		rv = __elfN(map_partial)(map, object, offset, start,
@@ -974,8 +976,12 @@ rnd_elf64_base(vm_map_t map, u_long minv, u_long maxv, u_int align, u_long *resp
 }
 
 static int
-__elfN(enforce_limits)(struct image_params *imgp, const Elf_Ehdr *hdr,
-    const Elf_Phdr *phdr)
+#if defined(WYC)
+elf64_enforce_limits
+#else
+__elfN(enforce_limits)
+#endif
+    (struct image_params *imgp, const Elf_Ehdr *hdr, const Elf_Phdr *phdr)
 {
 	struct vmspace *vmspace;
 	const char *err_str;
@@ -1432,6 +1438,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		goto ret;
 
 	error = __elfN(enforce_limits)(imgp, hdr, phdr);
+#if defined(WYC)
+	error = elf64_enforce_limits();
+#endif
 	if (error != 0)
 		goto ret;
 
@@ -1600,16 +1609,24 @@ __elfN(freebsd_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 }
 
 int
-__elfN(freebsd_fixup)(uintptr_t *stack_base, struct image_params *imgp)
-{
-#if !defined(WYC)
-	Elf_Addr *base;
+#if defined(WYC)
+elf64_freebsd_fixup
 #else
+__elfN(freebsd_fixup)
+#endif
+(uintptr_t *stack_base, struct image_params *imgp)
+{
+	Elf_Addr *base;
+#if defined(WYC)
 	Elf64_Addr *base;
 #endif
 
 	base = (Elf_Addr *)*stack_base;
 	base--;
+
+#if defined(WYC)
+	    suword64();
+#endif
 	if (elf_suword(base, imgp->args->argc) == -1)
 		return (EFAULT);
 	*stack_base = (uintptr_t)base;

@@ -125,7 +125,7 @@ struct sysentvec { // elf64_freebsd_sysvec_la48(amd64), elf64_freebsd_sysvec(ris
 	size_t		sv_psstringssz;	/* USER_PS_STRINGS size */
 	int		sv_stackprot;	/* vm protection for stack */ // VM_PROT_ALL
 	int		(*sv_copyout_strings)(struct image_params *,
-			    uintptr_t *); // exec_copyout_strings
+			    uintptr_t *); // exec_copyout_strings(amd64), exec_copyout_strings(riscv)
 	void		(*sv_setregs)(struct thread *, struct image_params *,
 			    uintptr_t);   // exec_setregs
 	void		(*sv_fixlimit)(struct rlimit *, int); // NULL

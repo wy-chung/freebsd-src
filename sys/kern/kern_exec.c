@@ -740,6 +740,9 @@ interpret:
 	 * Copy out strings (args and env) and initialize stack base.
 	 */
 	error = (*p->p_sysent->sv_copyout_strings)(imgp, &stack_base);
+#if defined(WYC)
+	error = exec_copyout_strings();
+#endif
 	if (error != 0) {
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		goto exec_fail_dealloc;
@@ -748,9 +751,8 @@ interpret:
 	/*
 	 * Stack setup.
 	 */
-#if !defined(WYC)
 	error = (*p->p_sysent->sv_fixup)(&stack_base, imgp);
-#else
+#if defined(WYC)
 	error = elf32_freebsd_fixup();
 #endif
 	if (error != 0) {
@@ -1344,18 +1346,19 @@ exec_copyin_args(struct thread *td, struct image_args *args, const char *fname,
 	u_long arg, env;
 	int error;
 
-	bzero(args, sizeof(*args));
 	if (argv == NULL)
 		return (EFAULT);
-ADD_PROCBASE(argv, td);
+
 	/*
 	 * Allocate demand-paged memory for the file name, argument, and
 	 * environment strings.
 	 */
+	bzero(args, sizeof(*args));
 	error = exec_alloc_args(args);
 	if (error != 0)
 		return (error);
 
+ADD_PROCBASE(argv, td);
 	/*
 	 * Copy the file name.
 	 */
