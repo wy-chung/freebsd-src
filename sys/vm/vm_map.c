@@ -325,7 +325,7 @@ vmspace_zdtor(void *mem, int size, void *arg)
 //         is arm_vmm_pinit when called from vmmops_vmspace_alloc()
 //         is npt_pinit     when called from in svm_npt_alloc()
 struct vmspace *
-vmspace_alloc(vm_offset_t amin, vm_offset_t amax, pmap_pinit_t pinit)
+vmspace_alloc(vm_offset_t base, vm_offset_t rmin, vm_offset_t rmax, pmap_pinit_t pinit)
 {
 	struct vmspace *vm;
 	int ret;
@@ -348,14 +348,15 @@ vmspace_alloc(vm_offset_t amin, vm_offset_t amax, pmap_pinit_t pinit)
 	ret = pinit(pmap);
 	vm->vm_pmap = pmap;
 #endif
-	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
-	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), amin, amax);
+	CTR2(KTR_VM, "%s: %p", __func__, vm);
+	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), rmin, rmax);
 	refcount_init(&vm->vm_refcnt, 1);
 	vm->vm_shm = NULL;
 	vm->vm_swrss = 0;
 	vm->vm_tsize = 0;
 	vm->vm_dsize = 0;
 	vm->vm_ssize = 0;
+	vm->vm_base = base;
 	vm->vm_taddr = 0;
 	vm->vm_daddr = 0;
 	vm->vm_maxsaddr = 0;
@@ -4361,7 +4362,8 @@ vmspace_fork(struct proc *p1, vm_ooffset_t *fork_charge /*OUT*/)
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm2 = vmspace_alloc(vm_map_min(old_map), vm_map_max(old_map), pmap_pinit);
+	vm_offset_t base = 0;//USER_MAX_ADDRESS; //wyc sa
+	vm2 = vmspace_alloc(base, vm_map_min(old_map), vm_map_max(old_map), pmap_pinit);
 	if (vm2 == NULL)
 		return (NULL);
 
@@ -4959,7 +4961,8 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
-	newvmspace = vmspace_alloc(minuser, maxuser, pmap_pinit);
+	vm_offset_t base = 0;//USER_MAX_ADDRESS; //wyc sa
+	newvmspace = vmspace_alloc(base, minuser, maxuser, pmap_pinit);
 	if (newvmspace == NULL)
 		return (ENOMEM);
 	newvmspace->vm_swrss = oldvmspace->vm_swrss;
