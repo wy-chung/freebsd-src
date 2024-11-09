@@ -1169,7 +1169,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		sv_minuser = sv->sv_minuser;
 	else
 		sv_minuser = MAX(sv->sv_minuser, PAGE_SIZE);
-	if (refcount_load(&vmspace->vm_refcnt) == 1 && // vforked only once
+	if (refcount_load(&vmspace->vm_refcnt) == 1 && // fork
 	    vm_map_min(map) == sv_minuser &&
 	    vm_map_max(map) == sv->sv_maxuser &&
 	    cpu_exec_vmspace_reuse(p, map)) { // riscv: always return true
@@ -1186,7 +1186,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		    MAP_ASLR_IGNSTART | MAP_ASLR_STACK | MAP_WXORX);
 		vm_map_unlock(map);
 	} else {
-		//wyc sprocbase is added in vmspace_exec
+		//wyc vm_base is set in vmspace_exec
 		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser);
 		if (error)
 			return (error);
