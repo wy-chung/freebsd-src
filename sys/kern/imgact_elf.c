@@ -986,13 +986,14 @@ __elfN(enforce_limits)
 	struct vmspace *vmspace;
 	const char *err_str;
 	u_long text_size, data_size, total_size, text_addr, data_addr;
-	u_long seg_size, seg_addr;
 	int i;
 
 	err_str = NULL;
 	text_size = data_size = total_size = text_addr = data_addr = 0;
 
 	for (i = 0; i < hdr->e_phnum; i++) {
+		u_long seg_size, seg_addr;
+
 		if (phdr[i].p_type != PT_LOAD || phdr[i].p_memsz == 0)
 			continue;
 
@@ -1049,9 +1050,9 @@ __elfN(enforce_limits)
 
 	vmspace = imgp->proc->p_vmspace;
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
-	vmspace->vm_taddr = (caddr_t)(uintptr_t)text_addr;
+	vmspace->vm_taddr = (caddr_t)(uintptr_t)text_addr + vmspace->vm_base; //wyc sa
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;
-	vmspace->vm_daddr = (caddr_t)(uintptr_t)data_addr;
+	vmspace->vm_daddr = (caddr_t)(uintptr_t)data_addr + vmspace->vm_base; //wyc sa
 
 	return (0);
 }
@@ -1403,13 +1404,13 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		imgp->map_flags |= MAP_WXORX;
 
 	error = exec_new_vmspace(imgp, sv);
-
+//wyc sa vm_base is set
 	imgp->proc->p_sysent = sv;
 	imgp->proc->p_elf_brandinfo = brand_info;
 
 	vmspace = imgp->proc->p_vmspace;
 	map = &vmspace->vm_map;
-	maxv = sv->sv_usrstack;
+	maxv = sv->sv_usrstack + imgp->proc->p_vmspace->vm_base; //wyc sa
 	if ((imgp->map_flags & MAP_ASLR_STACK) == 0) //true
 		maxv -= lim_max(td, RLIMIT_STACK);
 	if (error == 0 && mapsz >= maxv - vm_map_min(map)) {

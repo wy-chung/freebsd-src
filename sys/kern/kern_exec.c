@@ -1186,7 +1186,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		    MAP_ASLR_IGNSTART | MAP_ASLR_STACK | MAP_WXORX);
 		vm_map_unlock(map);
 	} else {
-		//wyctodo add sprocbase here
+		//wyc sprocbase is added in vmspace_exec
 		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser);
 		if (error)
 			return (error);
@@ -1221,6 +1221,7 @@ exec_map_stack(struct image_params *imgp)
 	p = imgp->proc;
 	sv = p->p_sysent;
 
+	// get ssiz
 	if (imgp->stack_sz != 0) {
 		ssiz = trunc_page(imgp->stack_sz);
 		PROC_LOCK(p);
@@ -1698,6 +1699,7 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 	 * Install sigcode.
 	 */
 	if (sysent->sv_shared_page_base == 0 && sysent->sv_szsigcode != NULL) {
+WYC_PANIC();
 		szsigcode = *(sysent->sv_szsigcode);
 		destp -= szsigcode;
 		destp = rounddown2(destp, sizeof(void *));

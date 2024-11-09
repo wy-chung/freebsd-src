@@ -325,7 +325,7 @@ vmspace_zdtor(void *mem, int size, void *arg)
 //         is arm_vmm_pinit when called from vmmops_vmspace_alloc()
 //         is npt_pinit     when called from in svm_npt_alloc()
 struct vmspace *
-vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
+vmspace_alloc(vm_offset_t amin, vm_offset_t amax, pmap_pinit_t pinit)
 {
 	struct vmspace *vm;
 	int ret;
@@ -349,7 +349,7 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 	vm->vm_pmap = pmap;
 #endif
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
-	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), min, max);
+	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), amin, amax);
 	refcount_init(&vm->vm_refcnt, 1);
 	vm->vm_shm = NULL;
 	vm->vm_swrss = 0;
@@ -4349,8 +4349,9 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  * The source map must not be locked.
  */
 struct vmspace *
-vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge /*OUT*/)
+vmspace_fork(struct proc *p1, vm_ooffset_t *fork_charge /*OUT*/)
 {
+	struct vmspace *vm1 = p1->p_vmspace;
 	struct vmspace *vm2;
 	vm_map_t new_map, old_map;
 	vm_map_entry_t new_entry, old_entry;
@@ -4999,7 +5000,7 @@ vmspace_unshare(struct proc *p)
 	if (refcount_load(&oldvmspace->vm_refcnt) == 1)
 		return (0);
 	fork_charge = 0;
-	newvmspace = vmspace_fork(oldvmspace, &fork_charge);
+	newvmspace = vmspace_fork(p, &fork_charge);
 	if (newvmspace == NULL)
 		return (ENOMEM);
 	if (!swap_reserve_by_cred(fork_charge, p->p_ucred)) {

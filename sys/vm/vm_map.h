@@ -297,6 +297,7 @@ struct vmspace {
 	segsz_t vm_dsize;	/* data size (pages) XXX */
 	segsz_t vm_ssize;	/* stack size (pages) */
 	caddr_t vm_taddr;	/* (c) user virtual address of text */
+	vm_offset_t vm_base; //wyc base address of this vmspace
 	caddr_t vm_daddr;	/* (c) user virtual address of data */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
 	vm_offset_t vm_stacktop; /* top of the stack, may not be page-aligned */
@@ -308,7 +309,6 @@ struct vmspace {
 	 * variations of the machine-independent fields in the vmspace.
 	 */
 	struct pmap vm_pmap;	/* private physical map */
-	vm_offset_t vm_base; //wyc base address of this vmspace
 };
 
 #define ADD_PROCBASE(uaddr, td) uaddr = (typeof(uaddr))(__DEQUALIFY(char *, uaddr) + td->td_proc->p_vmspace->vm_base)
