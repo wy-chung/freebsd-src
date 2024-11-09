@@ -4350,7 +4350,7 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  * The source map must not be locked.
  */
 struct vmspace *
-vmspace_fork(struct proc *p1, vm_ooffset_t *fork_charge /*OUT*/)
+vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /*OUT*/)
 {
 	struct vmspace *vm1 = p1->p_vmspace;
 	struct vmspace *vm2;
