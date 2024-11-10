@@ -1245,6 +1245,7 @@ exec_map_stack(struct image_params *imgp)
 	stack_prot = sv->sv_shared_page_obj != NULL && imgp->stack_prot != 0 ?
 	    imgp->stack_prot : sv->sv_stackprot;
 	if ((map->flags & MAP_ASLR_STACK) != 0) { // false, map->flags == 0
+WYC_PANIC();
 		stack_addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
 		    lim_max(curthread, RLIMIT_DATA));
 		find_space = VMFS_ANY_SPACE;
@@ -1328,9 +1329,9 @@ out:
 	 * vm_ssize and vm_maxsaddr are somewhat antiquated concepts, but they
 	 * are still used to enforce the stack rlimit on the process stack.
 	 */
+	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
 	vmspace->vm_maxsaddr = (char *)stack_addr;
 	vmspace->vm_stacktop = stack_top;
-	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
 	vmspace->vm_shp_base = sharedpage_addr;
 
 	return (0);
