@@ -1170,9 +1170,10 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	else
 		sv_minuser = MAX(sv->sv_minuser, PAGE_SIZE);
 	if (refcount_load(&vmspace->vm_refcnt) == 1 && // fork
+	    cpu_exec_vmspace_reuse(p, map) && // return false
 	    vm_map_min(map) == sv_minuser &&
-	    vm_map_max(map) == sv->sv_maxuser &&
-	    cpu_exec_vmspace_reuse(p, map)) { // riscv: always return true
+	    vm_map_max(map) == sv->sv_maxuser) {
+WYC_PANIC();
 		exec_free_abi_mappings(p);
 		shmexit(vmspace);
 		pmap_remove_pages(vmspace_pmap(vmspace));
@@ -1333,7 +1334,7 @@ out:
 	 * are still used to enforce the stack rlimit on the process stack.
 	 */
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
-	vmspace->vm_maxsaddr = (char *)stack_addr;
+	vmspace->vm_maxsaddr = stack_addr;
 	vmspace->vm_stacktop = stack_top;
 	vmspace->vm_shp_base = sharedpage_addr;
 

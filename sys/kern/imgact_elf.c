@@ -1050,9 +1050,9 @@ __elfN(enforce_limits)
 
 	vmspace = imgp->proc->p_vmspace;
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
-	vmspace->vm_taddr = (caddr_t)(uintptr_t)text_addr + vmspace->vm_base; //wyc sa
+	vmspace->vm_taddr = text_addr + vmspace->vm_base; //wyc sa
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;
-	vmspace->vm_daddr = (caddr_t)(uintptr_t)data_addr + vmspace->vm_base; //wyc sa
+	vmspace->vm_daddr = data_addr + vmspace->vm_base; //wyc sa
 
 	return (0);
 }
