@@ -1220,6 +1220,7 @@ exec_map_stack(struct image_params *imgp)
 
 	p = imgp->proc;
 	sv = p->p_sysent;
+	vm_offset_t vm_base = p->p_vmspace->vm_base;
 
 	// get ssiz
 	if (imgp->stack_sz != 0) {
@@ -1247,14 +1248,14 @@ exec_map_stack(struct image_params *imgp)
 	if ((map->flags & MAP_ASLR_STACK) != 0) { // false, map->flags == 0
 WYC_PANIC();
 		stack_addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
-		    lim_max(curthread, RLIMIT_DATA));
+		    lim_max(curthread, RLIMIT_DATA)) + vm_base; //wyc sa
 		find_space = VMFS_ANY_SPACE;
 	} else {
-		stack_addr = sv->sv_usrstack - ssiz;
+		stack_addr = (sv->sv_usrstack - ssiz) + vm_base; //wyc sa
 		find_space = VMFS_NO_SPACE;
 	}
 	error = vm_map_find(map, NULL, 0, &stack_addr, (vm_size_t)ssiz,
-	    sv->sv_usrstack, find_space, stack_prot, VM_PROT_ALL,
+	    sv->sv_usrstack + vm_base, find_space, stack_prot, VM_PROT_ALL,
 	    MAP_STACK_GROWS_DOWN);
 	if (error != KERN_SUCCESS) {
 		uprintf("exec_new_vmspace: mapping stack size %#jx prot %#x "
@@ -1265,6 +1266,7 @@ WYC_PANIC();
 
 	stack_top = stack_addr + ssiz;
 	if ((map->flags & MAP_ASLR_STACK) != 0) {
+WYC_PANIC();
 		/* Randomize within the first page of the stack. */
 		arc4rand(&stack_off, sizeof(stack_off), 0);
 		stack_top -= rounddown2(stack_off & PAGE_MASK, sizeof(void *));
@@ -1287,11 +1289,12 @@ WYC_PANIC();
 	 */
 	vm_object_reference(obj);
 	if ((imgp->imgp_flags & IMGP_ASLR_SHARED_PAGE) != 0) {
+WYC_PANIC();
 		sharedpage_addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
 		    lim_max(curthread, RLIMIT_DATA));
 
 		error = vm_map_fixed(map, NULL, 0,
-		    sv->sv_maxuser - PAGE_SIZE, PAGE_SIZE,
+		    sv->sv_maxuser + vm_base - PAGE_SIZE, PAGE_SIZE,
 		    VM_PROT_NONE, VM_PROT_NONE, MAP_CREATE_GUARD);
 		if (error != KERN_SUCCESS) {
 			/*
@@ -1305,12 +1308,12 @@ WYC_PANIC();
 
 		error = vm_map_find(map, obj, 0,
 		    &sharedpage_addr, sv->sv_shared_page_len,
-		    sv->sv_maxuser, VMFS_ANY_SPACE,
+		    sv->sv_maxuser + vm_base, VMFS_ANY_SPACE,
 		    VM_PROT_READ | VM_PROT_EXECUTE,
 		    VM_PROT_READ | VM_PROT_EXECUTE,
 		    MAP_INHERIT_SHARE | MAP_ACC_NO_CHARGE);
 	} else {
-		sharedpage_addr = sv->sv_shared_page_base;
+		sharedpage_addr = sv->sv_shared_page_base + vm_base;
 		vm_map_fixed(map, obj, 0,
 		    sharedpage_addr, sv->sv_shared_page_len,
 		    VM_PROT_READ | VM_PROT_EXECUTE,

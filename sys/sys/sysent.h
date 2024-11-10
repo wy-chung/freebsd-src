@@ -122,7 +122,9 @@ struct sysentvec { // elf64_freebsd_sysvec_la48(amd64), elf64_freebsd_sysvec(ris
 	vm_offset_t	sv_maxuser;	// USER_MAX_ADDRESS
 	vm_offset_t	sv_usrstack;	/* USER_STACK */ // USRSTACK_LA48
 	vm_offset_t	sv_psstrings;	/* USER_PS_STRINGS */ // PS_STRINGS_LA48
-	size_t		sv_psstringssz;	/* USER_PS_STRINGS size */
+	size_t		sv_psstringssz;	// sizeof(struct ps_strings)
+	vm_offset_t	sv_shared_page_base; // SHAREDPAGE_LA48, SHAREDPAGE_SV48
+	vm_offset_t	sv_shared_page_len; // PAGE_SIZE
 	int		sv_stackprot;	/* vm protection for stack */ // VM_PROT_ALL
 	int		(*sv_copyout_strings)(struct image_params *,
 			    uintptr_t *); // exec_copyout_strings(amd64), exec_copyout_strings(riscv)
@@ -134,8 +136,6 @@ struct sysentvec { // elf64_freebsd_sysvec_la48(amd64), elf64_freebsd_sysvec(ris
 	void		(*sv_set_syscall_retval)(struct thread *, int); // cpu_set_syscall_retval
 	int		(*sv_fetch_syscall_args)(struct thread *); // cpu_fetch_syscall_args(amd64), cpu_fetch_syscall_args(riscv)
 	const char	**sv_syscallnames; // syscallnames
-	vm_offset_t	sv_shared_page_base; // SHAREDPAGE_LA48, SHAREDPAGE_SV48
-	vm_offset_t	sv_shared_page_len; // PAGE_SIZE
 	vm_offset_t	sv_timekeep_offset;
 	vm_offset_t	sv_sigcode_offset;
 	void		*sv_shared_page_obj; // shared_page_obj
