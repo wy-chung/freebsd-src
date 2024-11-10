@@ -40,12 +40,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bitstring.h>
-#include <sys/conf.h>
 #include <sys/elf.h>
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
-#include <sys/ipc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -64,7 +62,6 @@
 #include <sys/sbuf.h>
 #include <sys/sysent.h>
 #include <sys/sched.h>
-#include <sys/shm.h>
 #include <sys/smp.h>
 #include <sys/stack.h>
 #include <sys/stat.h>
@@ -328,10 +325,10 @@ bitstr_t bit_decl(proc_id_sessidmap, PID_MAX);
 bitstr_t bit_decl(proc_id_reapmap, PID_MAX);
 
 static bitstr_t *proc_id_array[] = {
-	proc_id_pidmap,
-	proc_id_grpidmap,
-	proc_id_sessidmap,
-	proc_id_reapmap,
+	proc_id_pidmap,		// PROC_ID_PID
+	proc_id_grpidmap,	// PROC_ID_GROUP
+	proc_id_sessidmap,	// PROC_ID_SESSION
+	proc_id_reapmap,	// PROC_ID_REAP
 };
 
 void
@@ -2542,29 +2539,26 @@ void
 kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
     int *resident_count, bool *super)
 {
-	vm_object_t obj, tobj;
-	vm_page_t m, m_adv;
-	vm_offset_t addr;
-	vm_paddr_t pa;
-	vm_pindex_t pi, pi_adv, pindex;
+	vm_page_t m;
+	vm_pindex_t pi_adv;
 
 	*super = false;
 	*resident_count = 0;
 	if (vmmap_skip_res_cnt)
 		return;
 
-	pa = 0;
-	obj = entry->object.vm_object;
-	addr = entry->start;
-	m_adv = NULL;
-	pi = OFF_TO_IDX(entry->offset);
+	vm_paddr_t pa = 0;
+	vm_object_t obj = entry->object.vm_object;
+	vm_offset_t addr = entry->start;
+	vm_page_t m_adv = NULL;
+	vm_pindex_t pi = OFF_TO_IDX(entry->offset);
 	for (; addr < entry->end; addr += IDX_TO_OFF(pi_adv), pi += pi_adv) {
 		if (m_adv != NULL) {
 			m = m_adv;
 		} else {
 			pi_adv = atop(entry->end - addr);
-			pindex = pi;
-			for (tobj = obj;; tobj = tobj->backing_object) {
+			vm_pindex_t pindex = pi;
+			for (vm_object_t tobj = obj;; tobj = tobj->backing_object) {
 				m = vm_page_find_least(tobj, pindex);
 				if (m != NULL) {
 					if (m->pindex == pindex)
@@ -2576,8 +2570,7 @@ kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
 				}
 				if (tobj->backing_object == NULL)
 					goto next;
-				pindex += OFF_TO_IDX(tobj->
-				    backing_object_offset);
+				pindex += OFF_TO_IDX(tobj->backing_object_offset);
 			}
 		}
 		m_adv = NULL;
@@ -2616,13 +2609,9 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 	struct ucred *cred;
 	struct vnode *vp;
 	struct vmspace *vm;
-	struct cdev *cdev;
-	struct cdevsw *csw;
 	vm_offset_t addr;
 	unsigned int last_timestamp;
-	int error, ref;
-	key_t key;
-	unsigned short seq;
+	int error;
 	bool guard, super;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -2682,12 +2671,6 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_protection |= KVME_PROT_WRITE;
 		if (entry->protection & VM_PROT_EXECUTE)
 			kve->kve_protection |= KVME_PROT_EXEC;
-		if (entry->max_protection & VM_PROT_READ)
-			kve->kve_protection |= KVME_MAX_PROT_READ;
-		if (entry->max_protection & VM_PROT_WRITE)
-			kve->kve_protection |= KVME_MAX_PROT_WRITE;
-		if (entry->max_protection & VM_PROT_EXECUTE)
-			kve->kve_protection |= KVME_MAX_PROT_EXEC;
 
 		if (entry->eflags & MAP_ENTRY_COW)
 			kve->kve_flags |= KVME_FLAG_COW;
@@ -2718,31 +2701,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 
 			kve->kve_ref_count = obj->ref_count;
 			kve->kve_shadow_count = obj->shadow_count;
-			if (obj->type == OBJT_DEVICE ||
-			    obj->type == OBJT_MGTDEVICE) {
-				cdev = obj->un_pager.devp.dev;
-				if (cdev != NULL) {
-					csw = dev_refthread(cdev, &ref);
-					if (csw != NULL) {
-						strlcpy(kve->kve_path,
-						    cdev->si_name, sizeof(
-						    kve->kve_path));
-						dev_relthread(cdev, ref);
-					}
-				}
-			}
 			VM_OBJECT_RUNLOCK(obj);
-			if ((lobj->flags & OBJ_SYSVSHM) != 0) {
-				kve->kve_flags |= KVME_FLAG_SYSVSHM;
-				shmobjinfo(lobj, &key, &seq);
-				kve->kve_vn_fileid = key;
-				kve->kve_vn_fsid_freebsd11 = seq;
-			}
-			if ((lobj->flags & OBJ_POSIXSHM) != 0) {
-				kve->kve_flags |= KVME_FLAG_POSIXSHM;
-				shm_get_path(lobj, kve->kve_path,
-				    sizeof(kve->kve_path));
-			}
 			if (vp != NULL) {
 				vn_fullpath(vp, &fullpath, &freepath);
 				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
@@ -2762,9 +2721,6 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 					kve->kve_status = KF_ATTR_VALID;
 				}
 				vput(vp);
-				strlcpy(kve->kve_path, fullpath, sizeof(
-				    kve->kve_path));
-				free(freepath, M_TEMP);
 			}
 		} else {
 			kve->kve_type = guard ? KVME_TYPE_GUARD :
@@ -2772,6 +2728,10 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_ref_count = 0;
 			kve->kve_shadow_count = 0;
 		}
+
+		strlcpy(kve->kve_path, fullpath, sizeof(kve->kve_path));
+		if (freepath != NULL)
+			free(freepath, M_TEMP);
 
 		/* Pack record size down */
 		if ((flags & KERN_VMMAP_PACK_KINFO) != 0)

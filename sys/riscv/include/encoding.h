@@ -569,11 +569,12 @@
 #define CSR_STVEC 0x105
 #define CSR_SCOUNTEREN 0x106
 #define CSR_SSCRATCH 0x140
-#define CSR_SEPC 0x141
+#define CSR_SEPC 0x141	// exception PC
 #define CSR_SCAUSE 0x142
-#define CSR_STVAL 0x143
+#define CSR_STVAL 0x143	// machine trap value, such as page fault address
 #define CSR_SIP 0x144
 #define CSR_SATP 0x180
+#define CSR_SPROCBASE 0x081 //wyc process base address
 #define CSR_MSTATUS 0x300
 #define CSR_MISA 0x301
 #define CSR_MEDELEG 0x302
@@ -1066,6 +1067,7 @@ DECLARE_CSR(scause, CSR_SCAUSE)
 DECLARE_CSR(stval, CSR_STVAL)
 DECLARE_CSR(sip, CSR_SIP)
 DECLARE_CSR(satp, CSR_SATP)
+DECLARE_CSR(sprocbase, CSR_SPROCBASE); //wyc process base address
 DECLARE_CSR(mstatus, CSR_MSTATUS)
 DECLARE_CSR(misa, CSR_MISA)
 DECLARE_CSR(medeleg, CSR_MEDELEG)

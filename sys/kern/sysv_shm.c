@@ -68,6 +68,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
@@ -133,8 +134,6 @@ static int shmunload(void);
 #ifndef SYSVSHM
 static void shmexit_myhook(struct vmspace *vm);
 static void shmfork_myhook(struct proc *p1, struct proc *p2);
-static void shmobjinfo_myhook(vm_object_t obj, key_t *key,
-    unsigned short *seq);
 #endif
 static int sysctl_shmsegs(SYSCTL_HANDLER_ARGS);
 static void shm_remove(struct shmid_kernel *, int);
@@ -368,6 +367,7 @@ sys_shmdt(struct thread *td, struct shmdt_args *uap)
 {
 	int error;
 
+ADD_PROCBASE(uap->shmaddr, td);
 	SYSVSHM_LOCK();
 	error = kern_shmdt_locked(td, uap->shmaddr);
 	SYSVSHM_UNLOCK();
@@ -485,7 +485,7 @@ struct shmat_args {
 int
 sys_shmat(struct thread *td, struct shmat_args *uap)
 {
-
+ADD_PROCBASE(uap->shmaddr, td);
 	return (kern_shmat(td, uap->shmid, uap->shmaddr, uap->shmflg));
 }
 
@@ -627,6 +627,7 @@ sys_shmctl(struct thread *td, struct shmctl_args *uap)
 	    uap->cmd == SHM_STAT)
 		return (EINVAL);
 
+ADD_PROCBASE(uap->buf, td);
 	/* IPC_SET needs to copyin the buffer before calling kern_shmctl */
 	if (uap->cmd == IPC_SET) {
 		if ((error = copyin(uap->buf, &buf, sizeof(struct shmid_ds))))
@@ -744,10 +745,6 @@ shmget_allocate_segment(struct thread *td, key_t key, size_t size, int mode)
 		return (ENOMEM);
 	}
 
-	VM_OBJECT_WLOCK(shm_object);
-	vm_object_set_flag(shm_object, OBJ_SYSVSHM);
-	VM_OBJECT_WUNLOCK(shm_object);
-
 	shmseg->object = shm_object;
 	shmseg->u.shm_perm.cuid = shmseg->u.shm_perm.uid = cred->cr_uid;
 	shmseg->u.shm_perm.cgid = shmseg->u.shm_perm.gid = cred->cr_gid;
@@ -858,29 +855,6 @@ shmexit_myhook(struct vmspace *vm)
 	}
 }
 
-#ifdef SYSVSHM
-void
-shmobjinfo(vm_object_t obj, key_t *key, unsigned short *seq)
-#else
-static void
-shmobjinfo_myhook(vm_object_t obj, key_t *key, unsigned short *seq)
-#endif
-{
-	int i;
-
-	*key = 0;	/* For statically compiled-in sysv_shm.c */
-	*seq = 0;
-	SYSVSHM_LOCK();
-	for (i = 0; i < shmalloced; i++) {
-		if (shmsegs[i].object == obj) {
-			*key = shmsegs[i].u.shm_perm.key;
-			*seq = shmsegs[i].u.shm_perm.seq;
-			break;
-		}
-	}
-	SYSVSHM_UNLOCK();
-}
-
 static void
 shmrealloc(void)
 {
@@ -987,7 +961,6 @@ shminit(void)
 #ifndef SYSVSHM
 	shmexit_hook = &shmexit_myhook;
 	shmfork_hook = &shmfork_myhook;
-	shmobjinfo_hook = &shmobjinfo_myhook;
 #endif
 
 	/* Set current prisons according to their allow.sysvipc. */
@@ -1055,7 +1028,6 @@ shmunload(void)
 #ifndef SYSVSHM
 	shmexit_hook = NULL;
 	shmfork_hook = NULL;
-	shmobjinfo_hook = NULL;
 #endif
 	sx_destroy(&sysvshmsx);
 	return (0);

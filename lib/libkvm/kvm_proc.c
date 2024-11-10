@@ -141,7 +141,7 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 			_kvm_err(kd, kd->program, "can't read proc at %p", p);
 			return (-1);
 		}
-		if (proc.p_state == PRS_NEW)
+		if (proc.p_state == PRS_NEWBORN)
 			continue;
 		if (KREAD(kd, (u_long)proc.p_ucred, &ucred) == 0) {
 			kp->ki_ruid = ucred.cr_ruid;

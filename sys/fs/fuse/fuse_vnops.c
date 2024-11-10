@@ -3082,8 +3082,8 @@ fuse_vnop_deallocate(struct vop_deallocate_args *ap)
 			    false);
 	}
 
-	fdisp_destroy(&fdi);
 out:
+	fdisp_destroy(&fdi);
 	if (closefufh)
 		fuse_filehandle_close(vp, fufh, curthread, cred);
 

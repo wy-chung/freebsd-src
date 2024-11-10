@@ -547,7 +547,7 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 }
 #endif	/* COMPAT_FREEBSD4 */
 
-void
+void // aout_sysvec.sv_sendsig, ia32_freebsd_sysvec.sv_sendsig
 ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct ia32_sigframe sf, *sfp;
@@ -919,7 +919,7 @@ freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
 /*
  * Clear registers on exec
  */
-void
+void // aout_sysvec.sv_setregs, ia32_freebsd_sysvec.sv_setregs
 ia32_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe *regs;
@@ -929,8 +929,8 @@ ia32_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	regs = td->td_frame;
 	pcb = td->td_pcb;
 
-	if (td->td_proc->p_md.md_ldt != NULL)
-		user_ldt_free(td);
+	//if (td->td_proc->p_md.md_ldt != NULL) //wyc false. It is NULL indeed
+	//	user_ldt_free(td);
 #ifdef COMPAT_43
 	setup_lcall_gate();
 #endif

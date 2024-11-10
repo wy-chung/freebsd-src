@@ -374,7 +374,8 @@ pfsync_status(if_ctx *ctx)
 
 	nvlist_destroy(nvl);
 
-	printf("\t");
+	if (syncdev[0] != '\0' || syncpeer.ss_family != AF_UNSPEC)
+		printf("\t");
 
 	if (syncdev[0] != '\0')
 		printf("syncdev: %s ", syncdev);

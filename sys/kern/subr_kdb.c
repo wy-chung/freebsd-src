@@ -275,7 +275,7 @@ kdb_stack_overflow(volatile int *x)
 	if (*x > 10000000)
 		return;
 	kdb_stack_overflow(x);
-	*x += PCPU_GET(cpuid) / 1000000;
+	*x += PCPU_GET(pc_cpuid) / 1000000;
 }
 
 static int
@@ -761,7 +761,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 #ifdef SMP
 		other_cpus = all_cpus;
 		CPU_ANDNOT(&other_cpus, &other_cpus, &stopped_cpus);
-		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+		CPU_CLR(PCPU_GET(pc_cpuid), &other_cpus);
 		stop_cpus_hard(other_cpus);
 #endif
 		curthread->td_stopsched = 1;

@@ -23,7 +23,9 @@
  * RFC 7868
  */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 

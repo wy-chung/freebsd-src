@@ -21,7 +21,9 @@
 
 /* \summary: IPv6 Internet Control Message Protocol (ICMPv6) printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 
@@ -524,7 +526,7 @@ struct nd_rpl_security {
 #endif
 };
 
-/* section 6.2.1, DODAG Information Solicitation (DIS_IS) */
+/* section 6.2.1, DODAG Information Solication (DIS_IS) */
 struct nd_rpl_dis_is {
     nd_uint8_t rpl_dis_flags;
     nd_uint8_t rpl_dis_reserved;
@@ -839,7 +841,7 @@ rpl_dio_print(netdissect_options *ndo,
 {
         const struct nd_rpl_dio *dio = (const struct nd_rpl_dio *)bp;
 
-        ND_ICHECK_ZU(length, <, sizeof(struct nd_rpl_dio));
+        ND_LCHECK_ZU(length, sizeof(struct nd_rpl_dio));
         ND_PRINT(" [dagid:%s,seq:%u,instance:%u,rank:%u,%smop:%s,prf:%u]",
                   GET_IP6ADDR_STRING(dio->rpl_dagid),
                   GET_U_1(dio->rpl_dtsn),
@@ -1269,8 +1271,7 @@ icmp6_print(netdissect_options *ndo,
 
 			ND_PRINT(", id 0x%04x",
 				 GET_BE_U_2(dp->icmp6_data16[0]));
-			cp = (const u_char *)dp +
-				ND_MIN(length, ND_BYTES_AVAILABLE_AFTER(dp));
+			cp = (const u_char *)dp + length;
 			p = (const u_char *)(dp + 1);
 			while (p < cp) {
 				ND_PRINT(", %s", GET_IP6ADDR_STRING(p));
@@ -1345,7 +1346,8 @@ get_upperlayer(netdissect_options *ndo, const u_char *bp, u_int *prot)
 			if (ND_TTEST_2(uh->uh_dport)) {
 				*prot = nh;
 				return(uh);
-			} else
+			}
+			else
 				return(NULL);
 			/* NOTREACHED */
 
@@ -1473,7 +1475,8 @@ icmp6_opt_print(netdissect_options *ndo, const u_char *bp, int resid)
 			ND_PRINT(" lifetime %us, domain(s):",
                                   GET_BE_U_4(opds->nd_opt_dnssl_lifetime));
 			domp = cp + 8; /* domain names, variable-sized, RFC1035-encoded */
-			while (domp < cp + (opt_len << 3) && GET_U_1(domp) != '\0') {
+			while (domp < cp + (opt_len << 3) && GET_U_1(domp) != '\0')
+			{
 				ND_PRINT(" ");
 				if ((domp = fqdn_print(ndo, domp, bp)) == NULL)
 					goto trunc;

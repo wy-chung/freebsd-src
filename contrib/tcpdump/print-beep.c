@@ -11,7 +11,9 @@
 
 /* \summary: Blocks Extensible Exchange Protocol (BEEP) printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 

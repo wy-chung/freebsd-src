@@ -21,7 +21,9 @@
 
 /* \summary: Sun Remote Procedure Call printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 /*
  * At least on HP-UX:

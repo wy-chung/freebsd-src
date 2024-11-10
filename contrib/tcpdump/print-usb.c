@@ -21,7 +21,9 @@
 
 /* \summary: USB printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 
@@ -146,7 +148,8 @@ get_direction(int transfer_type, int event_type)
 	case URB_BULK:
 	case URB_CONTROL:
 	case URB_ISOCHRONOUS:
-		switch(event_type) {
+		switch(event_type)
+		{
 		case URB_SUBMIT:
 			direction = 2;
 			break;
@@ -159,7 +162,8 @@ get_direction(int transfer_type, int event_type)
 		}
 		break;
 	case URB_INTERRUPT:
-		switch(event_type) {
+		switch(event_type)
+		{
 		case URB_SUBMIT:
 			direction = 1;
 			break;
@@ -192,7 +196,8 @@ usb_header_print(netdissect_options *ndo, const pcap_usb_header *uh)
 
 	ND_PRINT(" ");
 	transfer_type = GET_U_1(uh->transfer_type);
-	switch(transfer_type) {
+	switch(transfer_type)
+	{
 		case URB_ISOCHRONOUS:
 			ND_PRINT("ISOCHRONOUS");
 			break;
@@ -210,7 +215,8 @@ usb_header_print(netdissect_options *ndo, const pcap_usb_header *uh)
 	}
 
 	event_type = GET_U_1(uh->event_type);
-	switch(event_type) {
+	switch(event_type)
+	{
 		case URB_SUBMIT:
 			ND_PRINT(" SUBMIT");
 			break;

@@ -36,7 +36,7 @@
 MALLOC_DECLARE(M_ZSTD);
 
 #undef malloc
-#define	malloc(x)	(malloc)((x), M_ZSTD, M_WAITOK)
+#define	malloc(x)	_malloc((x), M_ZSTD, M_WAITOK)
 #define	free(x)		(free)((x), M_ZSTD)
 #define	calloc(a, b)	(mallocarray)((a), (b), M_ZSTD, M_WAITOK | M_ZERO)
 

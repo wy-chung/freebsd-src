@@ -32,11 +32,11 @@
 #include "opt_vm.h"
 
 struct malloc_type;
-struct vm_map;
+struct _vm_map;
 struct vmem;
 
 #ifdef DEBUG_MEMGUARD
-unsigned long	memguard_fudge(unsigned long, const struct vm_map *);
+unsigned long	memguard_fudge(unsigned long, const struct _vm_map *);
 void	memguard_init(struct vmem *);
 void 	*memguard_alloc(unsigned long, int);
 void	*memguard_realloc(void *, unsigned long, struct malloc_type *, int);

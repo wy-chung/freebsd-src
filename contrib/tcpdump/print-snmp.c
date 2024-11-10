@@ -58,13 +58,14 @@
 
 /* \summary: Simple Network Management Protocol (SNMP) printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 
 #include <stdio.h>
 #include <string.h>
-#include <limits.h>
 
 #ifdef USE_LIBSMI
 #include <smi.h>
@@ -530,7 +531,7 @@ asn1_parse(netdissect_options *ndo,
 				break;
 
 			case INTEGER: {
-				uint32_t data;
+				int32_t data;
 				elem->type = BE_INT;
 				data = 0;
 
@@ -539,7 +540,7 @@ asn1_parse(netdissect_options *ndo,
 					return -1;
 				}
 				if (GET_U_1(p) & ASN_BIT8)	/* negative */
-					data = UINT_MAX;
+					data = -1;
 				for (i = elem->asnlen; i != 0; p++, i--)
 					data = (data << ASN_SHIFT8) | GET_U_1(p);
 				elem->data.integer = data;
@@ -742,8 +743,7 @@ asn1_print(netdissect_options *ndo,
 		break;
 
 	case BE_OID: {
-		int first = -1;
-		uint32_t o = 0;
+		int o = 0, first = -1;
 
 		p = (const u_char *)elem->data.raw;
 		i = asnlen;
@@ -1088,7 +1088,7 @@ smi_print_value(netdissect_options *ndo,
 	}
 
 	if (NOTIFY_CLASS(pduid) && smiNode->access < SMI_ACCESS_NOTIFY) {
-	    ND_PRINT("[notNotifiable]");
+	    ND_PRINT("[notNotifyable]");
 	}
 
 	if (READ_CLASS(pduid) && smiNode->access < SMI_ACCESS_READ_ONLY) {

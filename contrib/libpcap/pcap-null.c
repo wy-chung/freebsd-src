@@ -19,7 +19,9 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include <string.h>
 
@@ -28,14 +30,14 @@
 static char nosup[] = "live packet capture not supported on this system";
 
 pcap_t *
-pcapint_create_interface(const char *device _U_, char *ebuf)
+pcap_create_interface(const char *device _U_, char *ebuf)
 {
-	(void)pcapint_strlcpy(ebuf, nosup, PCAP_ERRBUF_SIZE);
+	(void)pcap_strlcpy(ebuf, nosup, PCAP_ERRBUF_SIZE);
 	return (NULL);
 }
 
 int
-pcapint_platform_finddevs(pcap_if_list_t *devlistp _U_, char *errbuf _U_)
+pcap_platform_finddevs(pcap_if_list_t *devlistp _U_, char *errbuf _U_)
 {
 	/*
 	 * There are no interfaces on which we can capture.
@@ -48,7 +50,7 @@ int
 pcap_lookupnet(const char *device _U_, bpf_u_int32 *netp _U_,
     bpf_u_int32 *maskp _U_, char *errbuf)
 {
-	(void)pcapint_strlcpy(errbuf, nosup, PCAP_ERRBUF_SIZE);
+	(void)pcap_strlcpy(errbuf, nosup, PCAP_ERRBUF_SIZE);
 	return (-1);
 }
 #endif

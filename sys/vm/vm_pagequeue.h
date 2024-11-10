@@ -297,10 +297,13 @@ struct vm_domain {
 } __aligned(CACHE_LINE_SIZE);
 
 extern struct vm_domain vm_dom[MAXMEMDOM];
-
+#if !defined(WYC)
 #define	VM_DOMAIN(n)		(&vm_dom[(n)])
 #define	VM_DOMAIN_EMPTY(n)	(vm_dom[(n)].vmd_page_count == 0)
-
+#else
+struct vm_domain *VM_DOMAIN(int n) { return &vm_dom[n]; }
+bool VM_DOMAIN_EMPTY(int n) { return vm_dom[n].vmd_page_count == 0; }
+#endif
 #define	vm_pagequeue_assert_locked(pq)	mtx_assert(&(pq)->pq_mutex, MA_OWNED)
 #define	vm_pagequeue_lock(pq)		mtx_lock(&(pq)->pq_mutex)
 #define	vm_pagequeue_lockptr(pq)	(&(pq)->pq_mutex)
@@ -380,7 +383,7 @@ vm_batchqueue_pop(struct vm_batchqueue *bq)
 
 void vm_domain_set(struct vm_domain *vmd);
 void vm_domain_clear(struct vm_domain *vmd);
-int vm_domain_allocate(struct vm_domain *vmd, int req, int npages);
+bool vm_domain_allocate(struct vm_domain *vmd, int req, int npages);
 
 /*
  *      vm_pagequeue_domain:

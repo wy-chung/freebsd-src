@@ -1303,7 +1303,6 @@ mdinit(struct md_s *sc)
 {
 	struct g_geom *gp;
 	struct g_provider *pp;
-	unsigned remn;
 
 	g_topology_lock();
 	gp = g_new_geomf(&g_md_class, "md%d", sc->unit);
@@ -1312,13 +1311,6 @@ mdinit(struct md_s *sc)
 	devstat_remove_entry(pp->stat);
 	pp->stat = NULL;
 	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
-	/* Prune off any residual fractional sector. */
-	remn = sc->mediasize % sc->sectorsize;
-	if (remn != 0) {
-		printf("md%d: truncating fractional last sector by %u bytes\n",
-		    sc->unit, remn);
-		sc->mediasize -= remn;
-	}
 	pp->mediasize = sc->mediasize;
 	pp->sectorsize = sc->sectorsize;
 	switch (sc->type) {
@@ -1584,8 +1576,7 @@ mdresize(struct md_s *sc, struct md_req *mdr)
 		if (newpages < oldpages) {
 			VM_OBJECT_WLOCK(sc->object);
 			vm_object_page_remove(sc->object, newpages, 0, 0);
-			swap_release_by_cred(IDX_TO_OFF(oldpages -
-			    newpages), sc->cred);
+			swap_release_by_cred(IDX_TO_OFF(oldpages - newpages), sc->cred);
 			sc->object->charge = IDX_TO_OFF(newpages);
 			sc->object->size = newpages;
 			VM_OBJECT_WUNLOCK(sc->object);
@@ -1688,7 +1679,7 @@ kern_mdattach_locked(struct thread *td, struct md_req *mdr)
 {
 	struct md_s *sc;
 	unsigned sectsize;
-	int error;
+	int error, i;
 
 	sx_assert(&md_sx, SA_XLOCKED);
 
@@ -1759,6 +1750,10 @@ err_after_new:
 		mddestroy(sc, td);
 		return (error);
 	}
+
+	/* Prune off any residual fractional sector */
+	i = sc->mediasize % sc->sectorsize;
+	sc->mediasize -= i;
 
 	mdinit(sc);
 	return (0);

@@ -708,7 +708,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 		 * Route interrupts to the BSP by default.  Interrupts may
 		 * be routed to other CPUs later after they are enabled.
 		 */
-		intpin->io_cpu = PCPU_GET(apic_id);
+		intpin->io_cpu = PCPU_GET(pc_apic_id);
 		value = ioapic_read(apic, IOAPIC_REDTBL_LO(i));
 		ioapic_write(apic, IOAPIC_REDTBL_LO(i), value | IOART_INTMSET);
 #ifdef IOMMU
@@ -1079,22 +1079,6 @@ ioapic_get_rid(u_int apic_id, uint16_t *ridp)
 		return (error);
 	*ridp = rid;
 	return (0);
-}
-
-device_t
-ioapic_get_dev(u_int apic_id)
-{
-	struct ioapic *io;
-
-	mtx_lock_spin(&icu_lock);
-	STAILQ_FOREACH(io, &ioapic_list, io_next) {
-		if (io->io_hw_apic_id == apic_id)
-			break;
-	}
-	mtx_unlock_spin(&icu_lock);
-	if (io != NULL)
-		return (io->pci_dev);
-	return (NULL);
 }
 
 /*

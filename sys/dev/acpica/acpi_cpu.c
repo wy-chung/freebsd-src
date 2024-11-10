@@ -1087,7 +1087,7 @@ acpi_cpu_idle(sbintime_t sbt)
      * since there is no ACPI processor object for this CPU.  This occurs
      * for logical CPUs in the HTT case.
      */
-    sc = cpu_softc[PCPU_GET(cpuid)];
+    sc = cpu_softc[PCPU_GET(pc_cpuid)];
     if (sc == NULL) {
 	acpi_cpu_c1();
 	return;

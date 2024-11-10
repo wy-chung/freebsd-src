@@ -1,5 +1,6 @@
 // Tests of SCTP functionality
 // Requires: libsctp-dev package on Debian Linux, CONFIG_IP_SCTP in kernel config
+#ifdef HAVE_SCTP
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -11,7 +12,6 @@
 #include "capsicum.h"
 #include "capsicum-test.h"
 
-#ifdef HAVE_SCTP
 static cap_rights_t r_ro;
 static cap_rights_t r_wo;
 static cap_rights_t r_rw;
@@ -61,9 +61,6 @@ static int SctpClient(int port, unsigned char byte) {
 
 TEST(Sctp, Socket) {
   int sock = socket(AF_INET, SOCK_SEQPACKET, IPPROTO_SCTP);
-  if (sock == -1 && errno == EPROTONOSUPPORT) {
-    GTEST_SKIP() << "socket(..., IPPROTO_SCTP) -> EPROTONOSUPPORT";
-  }
   EXPECT_OK(sock);
   if (sock < 0) return;
 

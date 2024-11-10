@@ -91,7 +91,7 @@
  * The number of bits by which a physical address is shifted to obtain the
  * reservation number
  */
-#define	VM_LEVEL_0_SHIFT	(VM_LEVEL_0_ORDER + PAGE_SHIFT)
+#define	VM_LEVEL_0_SHIFT	(VM_LEVEL_0_ORDER + PAGE_SHIFT) // 9 + 12
 
 /*
  * The size of a level 0 reservation in bytes
@@ -278,7 +278,7 @@ sysctl_vm_reserv_fullpop(SYSCTL_HANDLER_ARGS)
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
 		paddr = roundup2(seg->start, VM_LEVEL_0_SIZE);
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 		rv = seg->first_reserv + (paddr >> VM_LEVEL_0_SHIFT) -
 		    (seg->start >> VM_LEVEL_0_SHIFT);
 #else
@@ -445,7 +445,7 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 static __inline vm_reserv_t
 vm_reserv_from_page(vm_page_t m)
 {
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 	struct vm_phys_seg *seg;
 
 	seg = &vm_phys_segs[m->segind];
@@ -956,7 +956,7 @@ vm_reserv_break_all(vm_object_t object)
  * Frees the given page if it belongs to a reservation.  Returns TRUE if the
  * page is freed and FALSE otherwise.
  */
-boolean_t
+bool
 vm_reserv_free_page(vm_page_t m)
 {
 	vm_reserv_t rv;
@@ -990,7 +990,7 @@ vm_reserv_init(void)
 	struct vm_phys_seg *seg;
 	struct vm_reserv *rv;
 	struct vm_reserv_domain *rvd;
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 	vm_pindex_t used;
 #endif
 	int i, segind;
@@ -999,12 +999,12 @@ vm_reserv_init(void)
 	 * Initialize the reservation array.  Specifically, initialize the
 	 * "pages" field for every element that has an underlying superpage.
 	 */
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 	used = 0;
 #endif
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 		seg->first_reserv = &vm_reserv_array[used];
 		used += howmany(seg->end, VM_LEVEL_0_SIZE) -
 		    seg->start / VM_LEVEL_0_SIZE;
@@ -1076,7 +1076,7 @@ vm_reserv_level(vm_page_t m)
  * reservation and -1 otherwise.
  */
 int
-vm_reserv_level_iffullpop(vm_page_t m)
+vm_reserv_level_iffullpop(vm_page_t m) // if fully populated
 {
 	vm_reserv_t rv;
 
@@ -1358,7 +1358,7 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end)
 
 	count = 0;
 	for (i = 0; i < vm_phys_nsegs; i++) {
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 		count += howmany(vm_phys_segs[i].end, VM_LEVEL_0_SIZE) -
 		    vm_phys_segs[i].start / VM_LEVEL_0_SIZE;
 #else
@@ -1368,7 +1368,7 @@ vm_reserv_startup(vm_offset_t *vaddr, vm_paddr_t end)
 	}
 
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
-#ifdef VM_PHYSSEG_SPARSE
+#ifdef VM_PHYSSEG_SPARSE // riscv
 		count += howmany(phys_avail[i + 1], VM_LEVEL_0_SIZE) -
 		    phys_avail[i] / VM_LEVEL_0_SIZE;
 #else

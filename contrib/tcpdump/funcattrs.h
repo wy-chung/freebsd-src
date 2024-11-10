@@ -52,14 +52,13 @@
     || ND_IS_AT_LEAST_GNUC_VERSION(2,5) \
     || ND_IS_AT_LEAST_SUNC_VERSION(5,9) \
     || ND_IS_AT_LEAST_XL_C_VERSION(10,1) \
-    || ND_IS_AT_LEAST_HP_C_VERSION(6,10) \
-    || __TINYC__
+    || ND_IS_AT_LEAST_HP_C_VERSION(6,10)
   /*
    * Compiler with support for __attribute((noreturn)), or GCC 2.5 and
    * later, or some compiler asserting compatibility with GCC 2.5 and
    * later, or Solaris Studio 12 (Sun C 5.9) and later, or IBM XL C 10.1
    * and later (do any earlier versions of XL C support this?), or HP aCC
-   * A.06.10 and later, or current TinyCC.
+   * A.06.10 and later.
    */
   #define NORETURN __attribute((noreturn))
 

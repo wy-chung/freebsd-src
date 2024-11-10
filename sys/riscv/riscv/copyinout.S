@@ -43,7 +43,7 @@
  * Fault handler for the copy{in,out} functions below.
  */
 ENTRY(copyio_fault)
-	SET_FAULT_HANDLER(x0, a1) /* Clear the handler */
+	SET_FAULT_HANDLER(x0, a1) /* Clear the handler */ // store 0 to curthread->td_pcb->pcb_onfault
 	EXIT_USER_ACCESS(a1)
 copyio_fault_nopcb:
 	li	a0, EFAULT
@@ -57,9 +57,9 @@ END(copyio_fault)
  * a1 - Destination address
  * a2 - Size of copy
  */
-	.macro copycommon
+.macro copycommon
 	la	a6, copyio_fault	/* Get the handler address */
-	SET_FAULT_HANDLER(a6, a7)	/* Set the handler */
+	SET_FAULT_HANDLER(a6, a7)	/* Set the handler */ // store function copyio_fault to curthread->td_pcb->pcb_onfault
 	ENTER_USER_ACCESS(a7)
 
 	li	t2, XLEN_BYTES
@@ -92,7 +92,7 @@ END(copyio_fault)
 	addi	a2, a2, -XLEN_BYTES	/* len -= XLEN_BYTES */
 3:	bgeu	a2, t2, 2b		/* Again if len >= XLEN_BYTES */
 
-	/* Check if we're finished */
+	/* Check if we`re finished */
 	beqz	a2, 5f
 
 	/* Copy any remaining bytes */
@@ -105,18 +105,18 @@ END(copyio_fault)
 
 5:	EXIT_USER_ACCESS(a7)
 	SET_FAULT_HANDLER(x0, a7)	/* Clear the handler */
-	.endm
+.endm
 
 /*
  * Copies from a kernel to user address
  *
- * int copyout(const void *kaddr, void *udaddr, size_t len)
+ * int copyout(const void *kaddr|a0, void *udaddr|a1, size_t len|a2)
  */
 ENTRY(copyout)
 	beqz	a2, copyout_end	/* If len == 0 then skip loop */
 	add	a3, a1, a2
-	li	a4, VM_MAXUSER_ADDRESS
-	bgeu	a3, a4, copyio_fault_nopcb
+	li	a4, VM_MAX_USER_ADDRESS
+	bgeu	a3, a4, copyio_fault_nopcb // branch greater than or equal to unsigned
 
 	copycommon
 
@@ -133,7 +133,7 @@ END(copyout)
 ENTRY(copyin)
 	beqz	a2, copyin_end	/* If len == 0 then skip loop */
 	add	a3, a0, a2
-	li	a4, VM_MAXUSER_ADDRESS
+	li	a4, VM_MAX_USER_ADDRESS
 	bgeu	a3, a4, copyio_fault_nopcb
 
 	copycommon
@@ -156,7 +156,7 @@ ENTRY(copyinstr)
 	SET_FAULT_HANDLER(a6, a7) /* Set the handler */
 	ENTER_USER_ACCESS(a7)
 
-	li	a7, VM_MAXUSER_ADDRESS
+	li	a7, VM_MAX_USER_ADDRESS
 1:	bgeu	a0, a7, copyio_fault
 	lb	a4, 0(a0)	/* Load from uaddr */
 	addi	a0, a0, 1

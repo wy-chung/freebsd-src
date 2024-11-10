@@ -38,7 +38,7 @@
 #define	_MACHINE_PSL_H_
 
 /*
- * 386 processor status longword.
+ * 386 processor status longword (PSL)
  */
 #define	PSL_C		0x00000001	/* carry bit */
 #define	PSL_PF		0x00000004	/* parity bit */

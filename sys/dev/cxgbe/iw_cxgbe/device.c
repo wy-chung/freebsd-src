@@ -259,14 +259,13 @@ static int c4iw_mod_load(void);
 static int c4iw_mod_unload(void);
 static int c4iw_activate(struct adapter *);
 static int c4iw_deactivate(struct adapter *);
-static int c4iw_stop(struct adapter *);
-static int c4iw_restart(struct adapter *);
+static void c4iw_async_event(struct adapter *);
 
 static struct uld_info c4iw_uld_info = {
-	.uld_activate = c4iw_activate,
-	.uld_deactivate = c4iw_deactivate,
-	.uld_stop = c4iw_stop,
-	.uld_restart = c4iw_restart,
+	.uld_id = ULD_IWARP,
+	.activate = c4iw_activate,
+	.deactivate = c4iw_deactivate,
+	.async_event = c4iw_async_event,
 };
 
 static int
@@ -284,7 +283,7 @@ c4iw_activate(struct adapter *sc)
 	}
 
 	if (uld_active(sc, ULD_IWARP)) {
-		KASSERT(0, ("%s: RDMA already enabled on sc %p", __func__, sc));
+		KASSERT(0, ("%s: RDMA already eanbled on sc %p", __func__, sc));
 		return (0);
 	}
 
@@ -327,34 +326,21 @@ c4iw_deactivate(struct adapter *sc)
 	return (0);
 }
 
-static int
-c4iw_stop(struct adapter *sc)
+static void
+c4iw_async_event(struct adapter *sc)
 {
 	struct c4iw_dev *iwsc = sc->iwarp_softc;
 
 	if (iwsc) {
 		struct ib_event event = {0};
 
-		device_printf(sc->dev, "iWARP driver stopped.\n");
-		iwsc->rdev.flags |= T4_IW_STOPPED;
+		device_printf(sc->dev,
+			      "iWARP driver received FATAL ERROR event.\n");
+		iwsc->rdev.flags |= T4_FATAL_ERROR;
 		event.event  = IB_EVENT_DEVICE_FATAL;
 		event.device = &iwsc->ibdev;
 		ib_dispatch_event(&event);
 	}
-
-	return (0);
-}
-
-static int
-c4iw_restart(struct adapter *sc)
-{
-	struct c4iw_dev *iwsc = sc->iwarp_softc;
-
-	if (iwsc) {
-		device_printf(sc->dev, "iWARP driver restarted.\n");
-		iwsc->rdev.flags &= ~T4_IW_STOPPED;
-	}
-	return (0);
 }
 
 static void
@@ -393,7 +379,7 @@ c4iw_mod_load(void)
 	if (rc != 0)
 		return (rc);
 
-	rc = t4_register_uld(&c4iw_uld_info, ULD_IWARP);
+	rc = t4_register_uld(&c4iw_uld_info);
 	if (rc != 0) {
 		c4iw_cm_term();
 		return (rc);
@@ -412,7 +398,7 @@ c4iw_mod_unload(void)
 
 	c4iw_cm_term();
 
-	if (t4_unregister_uld(&c4iw_uld_info, ULD_IWARP) == EBUSY)
+	if (t4_unregister_uld(&c4iw_uld_info) == EBUSY)
 		return (EBUSY);
 
 	return (0);

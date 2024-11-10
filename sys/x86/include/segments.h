@@ -47,6 +47,7 @@
  */
 #define	SEL_RPL_MASK	3		/* requester priv level */
 #define	ISPL(s)		((s)&3)		/* priority level of a selector */
+#define	SEL_PL(s)	((s)&3)		/* priority level of a selector */
 #define	SEL_KPL		0		/* kernel priority level */
 #define	SEL_UPL		3		/* user priority level */
 #define	ISLDT(s)	((s)&SEL_LDT)	/* is it local or global */
@@ -58,7 +59,7 @@
 /*
  * User segment descriptors (%cs, %ds etc for i386 apps. 64 bit wide)
  * For long-mode apps, %cs only has the conforming bit in sd_type, the sd_dpl,
- * sd_p, sd_l and sd_def32 which must be zero).  %ds only has sd_p.
+ * sd_p, sd_long and sd_def32 which must be zero).  %ds only has sd_p.
  */
 struct segment_descriptor {
 	unsigned sd_lolimit:16;		/* segment extent (lsb) */
@@ -256,20 +257,22 @@ union descriptor {
 /*
  * Entries in the Global Descriptor Table (GDT)
  */
-#define	GNULL_SEL	0	/* Null Descriptor */
-#define	GNULL2_SEL	1	/* Null Descriptor */
-#define	GUFS32_SEL	2	/* User 32 bit %fs Descriptor */
-#define	GUGS32_SEL	3	/* User 32 bit %gs Descriptor */
-#define	GCODE_SEL	4	/* Kernel Code Descriptor */
-#define	GDATA_SEL	5	/* Kernel Data Descriptor */
-#define	GUCODE32_SEL	6	/* User 32 bit code Descriptor */
-#define	GUDATA_SEL	7	/* User 32/64 bit Data Descriptor */
-#define	GUCODE_SEL	8	/* User 64 bit Code Descriptor */
-#define	GPROC0_SEL	9	/* TSS for entering kernel etc */
-/* slot 10 is second half of GPROC0_SEL */
-#define	GUSERLDT_SEL	11	/* LDT */
-/* slot 12 is second half of GUSERLDT_SEL */
-#define	NGDT 		13
+enum global_sel { // struct soft_segment_descriptor gdt_segs[]
+ GNULL_SEL,	// 0 /* Null Descriptor */
+ GNULL2_SEL,	// 1 /* Null Descriptor */ // not referenced
+ GUFS32_SEL,	// 2 /* User 32 bit %fs Descriptor */	// _ufssel
+ GUGS32_SEL,	// 3 /* User 32 bit %gs Descriptor */	// _ugssel
+ GCODE_SEL,	// 4 /* Kernel Code Descriptor */	// the cs for SYSCALL
+ GDATA_SEL,	// 5 /* Kernel Data Descriptor */	// the ss for SYSCALL
+ GUCODE32_SEL,	// 6 /* User 32 bit code Descriptor */	// _ucode32sel,	the cs for SYSRET(32-bit)
+ GUDATA_SEL,	// 7 /* User 32/64 bit Data Descriptor  // _udatasel,	the ss for SYSRET
+ GUCODE_SEL,	// 8 /* User 64 bit Code Descriptor */	// _ucodesel,	the cs for SYSRET(64-bit)
+ GPROC0_SEL,	// 9 /* TSS for entering kernel etc */
+ GPROC0_SEL2,	/* slot 10 is second half of GPROC0_SEL */
+ GUSERLDT_SEL,	// 11 /* LDT */
+ GUSERLDT_SEL2,	/* slot 12 is second half of GUSERLDT_SEL */
+ NGDT,		// 13
+};
 #endif /* __i386__ */
 
 #endif /* !_X86_SEGMENTS_H_ */

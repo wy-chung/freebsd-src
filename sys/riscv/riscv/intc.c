@@ -130,7 +130,7 @@ intc_identify(driver_t *driver, device_t parent)
 	if (device_find_child(parent, "intc", -1) != NULL)
 		return;
 
-	node = intc_ofw_find(parent, PCPU_GET(hart));
+	node = intc_ofw_find(parent, PCPU_GET(pc_hart));
 	if (node == -1)
 		return;
 
@@ -234,7 +234,7 @@ intc_setup_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)
 {
 	if (isrc->isrc_flags & INTR_ISRCF_PPI)
-		CPU_SET(PCPU_GET(cpuid), &isrc->isrc_cpu);
+		CPU_SET(PCPU_GET(pc_cpuid), &isrc->isrc_cpu);
 
 	return (0);
 }
@@ -248,7 +248,7 @@ intc_init_secondary(device_t dev)
 	u_int cpu, irq;
 
 	sc = device_get_softc(dev);
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(pc_cpuid);
 
 	/* Unmask attached interrupts */
 	for (irq = 0; irq < INTC_NIRQS; irq++) {

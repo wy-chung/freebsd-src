@@ -341,6 +341,9 @@ intr_irq_handler(struct trapframe *tf)
 	oldframe = td->td_intr_frame;
 	td->td_intr_frame = tf;
 	irq_root_filter(irq_root_arg);
+#if defined(WYC)
+	intc_intr(irq_root_arg);
+#endif
 	td->td_intr_frame = oldframe;
 	critical_exit();
 #ifdef HWPMC_HOOKS
@@ -1237,7 +1240,7 @@ intr_irq_next_cpu(u_int last_cpu, cpuset_t *cpumask)
 
 	KASSERT(!CPU_EMPTY(cpumask), ("%s: Empty CPU mask", __func__));
 	if (!irq_assign_cpu || mp_ncpus == 1) {
-		cpu = PCPU_GET(cpuid);
+		cpu = PCPU_GET(pc_cpuid);
 
 		if (CPU_ISSET(cpu, cpumask))
 			return (curcpu);
@@ -1301,7 +1304,7 @@ u_int
 intr_irq_next_cpu(u_int current_cpu, cpuset_t *cpumask)
 {
 
-	return (PCPU_GET(cpuid));
+	return (PCPU_GET(pc_cpuid));
 }
 #endif /* SMP */
 
@@ -1919,7 +1922,7 @@ intr_ipi_dispatch(u_int ipi)
 	if (ii->ii_count == NULL)
 		panic("%s: not setup IPI %u", __func__, ipi);
 
-	intr_ipi_increment_count(ii->ii_count, PCPU_GET(cpuid));
+	intr_ipi_increment_count(ii->ii_count, PCPU_GET(pc_cpuid));
 
 	ii->ii_handler(ii->ii_handler_arg);
 }

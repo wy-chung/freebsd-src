@@ -11,7 +11,7 @@
  * it been given an infinite-sized buffer.
  */
 int
-pcapint_vasprintf(char **strp, const char *format, va_list args)
+pcap_vasprintf(char **strp, const char *format, va_list args)
 {
 	char buf;
 	int len;
@@ -21,7 +21,7 @@ pcapint_vasprintf(char **strp, const char *format, va_list args)
 
 	/*
 	 * XXX - the C99 standard says, in section 7.19.6.5 "The
-	 * snprintf function":
+	 * nprintf function":
 	 *
 	 *    The snprintf function is equivalent to fprintf, except that
 	 *    the output is written into an array (specified by argument s)
@@ -88,13 +88,13 @@ pcapint_vasprintf(char **strp, const char *format, va_list args)
 }
 
 int
-pcapint_asprintf(char **strp, const char *format, ...)
+pcap_asprintf(char **strp, const char *format, ...)
 {
 	va_list args;
 	int ret;
 
 	va_start(args, format);
-	ret = pcapint_vasprintf(strp, format, args);
+	ret = pcap_vasprintf(strp, format, args);
 	va_end(args);
 	return (ret);
 }

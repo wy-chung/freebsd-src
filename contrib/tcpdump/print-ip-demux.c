@@ -21,7 +21,9 @@
 
 /* \summary: IPv4/IPv6 payload printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 

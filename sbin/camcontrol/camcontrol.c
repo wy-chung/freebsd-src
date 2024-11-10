@@ -652,7 +652,6 @@ getdevtree(int argc, char **argv, char *combinedopt)
 	if (need_close)
 		fprintf(stdout, ")\n");
 
-	free(ccb.cdm.matches);
 	close(fd);
 
 	return (error);

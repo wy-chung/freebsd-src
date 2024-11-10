@@ -21,12 +21,15 @@
 
 /* \summary: MACsec printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 
 #include "netdissect.h"
 #include "addrtoname.h"
+#include "ethertype.h"
 #include "extract.h"
 
 #define MACSEC_DEFAULT_ICV_LEN 16

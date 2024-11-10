@@ -2,10 +2,6 @@
  * Copyright (c) 2016 Matthew Macy (mmacy@mattmacy.io)
  * Copyright (c) 2017-2021 Hans Petter Selasky (hselasky@freebsd.org)
  * All rights reserved.
- * Copyright (c) 2024 The FreeBSD Foundation
- *
- * Portions of this software were developed by Björn Zeeb
- * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -250,33 +246,6 @@ linux_rcu_read_unlock(unsigned type)
 	sched_unpin();
 }
 
-bool
-linux_rcu_read_lock_held(unsigned type)
-{
-#ifdef INVARINATS
-	struct linux_epoch_record *record __diagused;
-	struct task_struct *ts;
-
-	MPASS(type < RCU_TYPE_MAX);
-
-	if (RCU_SKIP())
-		return (false);
-
-	if (__current_unallocated(curthread))
-		return (false);
-
-	ts = current;
-	if (ts->rcu_recurse[type] == 0)
-		return (false);
-
-	MPASS(curthread->td_pinned != 0);
-	MPASS((record = &DPCPU_GET(linux_epoch_record[type])) &&
-	    record->epoch_record.active != 0);
-#endif
-
-	return (true);
-}
-
 static void
 linux_synchronize_rcu_cb(ck_epoch_t *epoch __unused, ck_epoch_record_t *epoch_record, void *arg __unused)
 {
@@ -286,7 +255,7 @@ linux_synchronize_rcu_cb(ck_epoch_t *epoch __unused, ck_epoch_record_t *epoch_re
 	struct task_struct *ts;
 
 	/* check if blocked on the current CPU */
-	if (record->cpuid == PCPU_GET(cpuid)) {
+	if (record->cpuid == PCPU_GET(pc_cpuid)) {
 		bool is_sleeping = 0;
 		u_char prio = 0;
 
@@ -360,7 +329,7 @@ linux_synchronize_rcu(unsigned type)
 	 */
 	thread_lock(td);
 
-	old_cpu = PCPU_GET(cpuid);
+	old_cpu = PCPU_GET(pc_cpuid);
 	old_pinned = td->td_pinned;
 	old_prio = td->td_priority;
 	was_bound = sched_is_bound(td);

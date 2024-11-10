@@ -72,7 +72,7 @@ static void usage(void) __dead2;
 int
 main(int argc, char **argv)
 {
-	char *altpath, *altwd, **ep, *p, **parg, term;
+	char *altpath, **ep, *p, **parg, term;
 	char *cleanenv[1];
 	char *login_class, *login_name;
 	struct passwd *pw;
@@ -83,7 +83,6 @@ main(int argc, char **argv)
 	int rtrn;
 
 	altpath = NULL;
-	altwd = NULL;
 	login_class = NULL;
 	login_name = NULL;
 	pw = NULL;
@@ -91,7 +90,7 @@ main(int argc, char **argv)
 	login_as_user = false;
 	want_clear = 0;
 	term = '\n';
-	while ((ch = getopt(argc, argv, "-0C:iL:P:S:U:u:v")) != -1)
+	while ((ch = getopt(argc, argv, "-0iL:P:S:U:u:v")) != -1)
 		switch(ch) {
 		case '-':
 		case 'i':
@@ -100,9 +99,6 @@ main(int argc, char **argv)
 		case '0':
 			term = '\0';
 			break;
-		case 'C':
-			altwd = optarg;
-			break;
 		case 'U':
 			login_as_user = true;
 			/* FALLTHROUGH */
@@ -110,7 +106,7 @@ main(int argc, char **argv)
 			login_name = optarg;
 			break;
 		case 'P':
-			altpath = optarg;
+			altpath = strdup(optarg);
 			break;
 		case 'S':
 			/*
@@ -203,9 +199,6 @@ main(int argc, char **argv)
 	if (*argv) {
 		if (term == '\0')
 			errx(EXIT_CANCELED, "cannot specify command with -0");
-		if (altwd && chdir(altwd) != 0)
-			err(EXIT_CANCELED, "cannot change directory to '%s'",
-			    altwd);
 		if (altpath)
 			search_paths(altpath, argv);
 		if (env_verbosity) {
@@ -219,16 +212,9 @@ main(int argc, char **argv)
 		execvp(*argv, argv);
 		err(errno == ENOENT ? EXIT_ENOENT : EXIT_CANNOT_INVOKE,
 		    "%s", *argv);
-	} else {
-		if (altwd)
-			errx(EXIT_CANCELED, "must specify command with -C");
-		if (altpath)
-			errx(EXIT_CANCELED, "must specify command with -P");
 	}
 	for (ep = environ; *ep; ep++)
 		(void)printf("%s%c", *ep, term);
-	if (fflush(stdout) != 0)
-		err(1, "stdout");
 	exit(0);
 }
 
@@ -236,7 +222,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: env [-0iv] [-C workdir] [-L|-U user[/class]] [-P utilpath] [-S string]\n"
-	    "           [-u name] [name=value ...] [utility [argument ...]]\n");
+	    "usage: env [-0iv] [-L|-U user[/class]] [-P utilpath] [-S string] [-u name]\n"
+	    "           [name=value ...] [utility [argument ...]]\n");
 	exit(1);
 }

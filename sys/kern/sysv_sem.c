@@ -44,6 +44,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
@@ -69,6 +70,11 @@
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
+
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 FEATURE(sysv_sem, "System V semaphores support");
 
@@ -625,7 +631,7 @@ struct __semctl_args {
 	int	semid;
 	int	semnum;
 	int	cmd;
-	union	semun *arg;
+	union semun *arg;
 };
 #endif
 int
@@ -636,10 +642,11 @@ sys___semctl(struct thread *td, struct __semctl_args *uap)
 	register_t rval;
 	int error;
 
+ADD_PROCBASE(uap->arg, td);
 	switch (uap->cmd) {
 	case SEM_STAT:
-	case IPC_SET:
 	case IPC_STAT:
+	case IPC_SET:
 	case GETALL:
 	case SETVAL:
 	case SETALL:
@@ -655,6 +662,7 @@ sys___semctl(struct thread *td, struct __semctl_args *uap)
 		semun.buf = &dsbuf;
 		break;
 	case IPC_SET:
+ADD_PROCBASE(arg.buf, td);
 		error = copyin(arg.buf, &dsbuf, sizeof(dsbuf));
 		if (error)
 			return (error);
@@ -677,6 +685,7 @@ sys___semctl(struct thread *td, struct __semctl_args *uap)
 	switch (uap->cmd) {
 	case SEM_STAT:
 	case IPC_STAT:
+ADD_PROCBASE(arg.buf, td);
 		error = copyout(&dsbuf, arg.buf, sizeof(dsbuf));
 		break;
 	}
@@ -1095,7 +1104,7 @@ struct semop_args {
 int
 sys_semop(struct thread *td, struct semop_args *uap)
 {
-
+ADD_PROCBASE(uap->sops, td);
 	return (kern_semop(td, uap->semid, uap->sops, uap->nsops, NULL));
 }
 

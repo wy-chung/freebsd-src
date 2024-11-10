@@ -116,36 +116,37 @@ struct pf_addr {
 };
 
 struct pfloghdr {
-	nd_uint8_t	length;
-	nd_uint8_t	af;
-	nd_uint8_t	action;
-	nd_uint8_t	reason;
+	uint8_t		length;
+	uint8_t		af;
+	uint8_t		action;
+	uint8_t		reason;
 	char		ifname[PFLOG_IFNAMSIZ];
 	char		ruleset[PFLOG_RULESET_NAME_SIZE];
-	nd_uint32_t	rulenr;
-	nd_uint32_t	subrulenr;
-	nd_uint32_t	uid;
-	nd_int32_t	pid;
-	nd_uint32_t	rule_uid;
-	nd_int32_t	rule_pid;
-	nd_uint8_t	dir;
-/* Minimum header length (without padding): 61 */
-#define MIN_PFLOG_HDRLEN 61
+	uint32_t	rulenr;
+	uint32_t	subrulenr;
+	uint32_t	uid;
+	int32_t		pid;
+	uint32_t	rule_uid;
+	int32_t		rule_pid;
+	uint8_t		dir;
 #if defined(__OpenBSD__)
-	nd_uint8_t	rewritten;
-	nd_uint8_t	naf;
-	nd_uint8_t	pad[1];
+	uint8_t		rewritten;
+	uint8_t		naf;
+	uint8_t		pad[1];
 #else
-	nd_uint8_t	pad[3];
+	uint8_t		pad[3];
 #endif
 #if defined(__FreeBSD__)
-	nd_uint32_t	ridentifier;
-	nd_uint8_t	reserve;
-	nd_uint8_t	pad2[3];
+	uint32_t	ridentifier;
+	uint8_t		reserve;
+	uint8_t		pad2[3];
 #elif defined(__OpenBSD__)
 	struct pf_addr	saddr;
 	struct pf_addr	daddr;
-	nd_uint16_t	sport;
-	nd_uint16_t	dport;
+	uint16_t	sport;
+	uint16_t	dport;
 #endif
 };
+
+
+

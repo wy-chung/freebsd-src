@@ -22,7 +22,9 @@
 __RCSID("NetBSD: print-juniper.c,v 1.3 2007/07/25 06:31:32 dogcow Exp ");
 #endif
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 
@@ -1329,8 +1331,7 @@ juniper_parse_header(netdissect_options *ndo,
             /* sanity checks */
             if (tlv_type == 0 || tlv_len == 0)
                 break;
-            ND_ICHECK_U(extension_length, <,
-                        tlv_len + JUNIPER_EXT_TLV_OVERHEAD);
+            ND_LCHECK_U(extension_length, tlv_len + JUNIPER_EXT_TLV_OVERHEAD);
 
             if (ndo->ndo_vflag > 1)
                 ND_PRINT("\n\t  %s Extension TLV #%u, length %u, value ",

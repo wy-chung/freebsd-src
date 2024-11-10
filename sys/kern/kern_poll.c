@@ -578,5 +578,4 @@ static struct kproc_desc idlepoll_kp = {
 	 poll_idle,
 	 &idlepoll
 };
-SYSINIT(idlepoll, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, kproc_start,
-    &idlepoll_kp);
+SYSINIT(idlepoll, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, kproc_start, &idlepoll_kp);

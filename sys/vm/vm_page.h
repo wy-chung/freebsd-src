@@ -198,7 +198,7 @@
  */
 
 #if PAGE_SIZE == 4096
-#define VM_PAGE_BITS_ALL 0xffu
+#define VM_PAGE_BITS_ALL 0xffu	// 4096 = DEV_BSIZE(512) * 8
 typedef uint8_t vm_page_bits_t;
 #elif PAGE_SIZE == 8192
 #define VM_PAGE_BITS_ALL 0xffffu
@@ -211,69 +211,21 @@ typedef uint32_t vm_page_bits_t;
 typedef uint64_t vm_page_bits_t;
 #endif
 
-typedef union vm_page_astate {
-	struct {
-		uint16_t flags;
-		uint8_t	queue;
-		uint8_t act_count;
-	};
-	uint32_t _bits;
-} vm_page_astate_t;
-
-struct vm_page {
-	union {
-		TAILQ_ENTRY(vm_page) q; /* page queue or free list (Q) */
-		struct {
-			SLIST_ENTRY(vm_page) ss; /* private slists */
-		} s;
-		struct {
-			u_long p;
-			u_long v;
-		} memguard;
-		struct {
-			void *slab;
-			void *zone;
-		} uma;
-	} plinks;
-	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) */
-	vm_object_t object;		/* which object am I in (O) */
-	vm_pindex_t pindex;		/* offset into object (O,P) */
-	vm_paddr_t phys_addr;		/* physical address of page (C) */
-	struct md_page md;		/* machine dependent stuff */
-	u_int ref_count;		/* page references (A) */
-	u_int busy_lock;		/* busy owners lock (A) */
-	union vm_page_astate a;		/* state accessed atomically (A) */
-	uint8_t order;			/* index of the buddy queue (F) */
-	uint8_t pool;			/* vm_phys freepool index (F) */
-	uint8_t flags;			/* page PG_* flags (P) */
-	uint8_t oflags;			/* page VPO_* flags (O) */
-	int8_t psind;			/* pagesizes[] index (O) */
-	int8_t segind;			/* vm_phys segment index (C) */
-	/* NOTE that these must support one bit per DEV_BSIZE in a page */
-	/* so, on normal X86 kernels, they must be at least 8 bits wide */
-	vm_page_bits_t valid;		/* valid DEV_BSIZE chunk map (O,B) */
-	vm_page_bits_t dirty;		/* dirty DEV_BSIZE chunk map (M,B) */
-};
-
 /*
- * Special bits used in the ref_count field.
+ * Page flags.  Updates to these flags are not synchronized, and thus they must
+ * be set during page allocation or free to avoid races.
  *
- * ref_count is normally used to count wirings that prevent the page from being
- * reclaimed, but also supports several special types of references that do not
- * prevent reclamation.  Accesses to the ref_count field must be atomic unless
- * the page is unallocated.
- *
- * VPRC_OBJREF is the reference held by the containing object.  It can set or
- * cleared only when the corresponding object's write lock is held.
- *
- * VPRC_BLOCKED is used to atomically block wirings via pmap lookups while
- * attempting to tear down all mappings of a given page.  The page busy lock and
- * object write lock must both be held in order to set or clear this bit.
+ * The PG_PCPU_CACHE flag is set at allocation time if the page was
+ * allocated from a per-CPU cache.  It is cleared the next time that the
+ * page is allocated from the physical memory allocator.
  */
-#define	VPRC_BLOCKED	0x40000000u	/* mappings are being removed */
-#define	VPRC_OBJREF	0x80000000u	/* object reference, cleared with (O) */
-#define	VPRC_WIRE_COUNT(c)	((c) & ~(VPRC_BLOCKED | VPRC_OBJREF))
-#define	VPRC_WIRE_COUNT_MAX	(~(VPRC_BLOCKED | VPRC_OBJREF))
+enum pg_flags : uint8_t {
+	PG_PCPU_CACHE	= 0x01,		/* was allocated from per-CPU caches */
+	PG_FICTITIOUS	= 0x02,		/* physical page doesn't exist */
+	PG_ZERO		= 0x04,		/* page is zeroed */
+	PG_MARKER	= 0x08,		/* special queue marker page */
+	PG_NODUMP	= 0x10,		/* don't include this page in a dump */
+};
 
 /*
  * Page flags stored in oflags:
@@ -289,103 +241,12 @@ struct vm_page {
  * 	 mappings, and such pages are also not on any PQ queue.
  *
  */
-#define	VPO_KMEM_EXEC	0x01		/* kmem mapping allows execution */
-#define	VPO_SWAPSLEEP	0x02		/* waiting for swap to finish */
-#define	VPO_UNMANAGED	0x04		/* no PV management for page */
-#define	VPO_SWAPINPROG	0x08		/* swap I/O in progress on page */
-
-/*
- * Busy page implementation details.
- * The algorithm is taken mostly by rwlock(9) and sx(9) locks implementation,
- * even if the support for owner identity is removed because of size
- * constraints.  Checks on lock recursion are then not possible, while the
- * lock assertions effectiveness is someway reduced.
- */
-#define	VPB_BIT_SHARED		0x01
-#define	VPB_BIT_EXCLUSIVE	0x02
-#define	VPB_BIT_WAITERS		0x04
-#define	VPB_BIT_FLAGMASK						\
-	(VPB_BIT_SHARED | VPB_BIT_EXCLUSIVE | VPB_BIT_WAITERS)
-
-#define	VPB_SHARERS_SHIFT	3
-#define	VPB_SHARERS(x)							\
-	(((x) & ~VPB_BIT_FLAGMASK) >> VPB_SHARERS_SHIFT)
-#define	VPB_SHARERS_WORD(x)	((x) << VPB_SHARERS_SHIFT | VPB_BIT_SHARED)
-#define	VPB_ONE_SHARER		(1 << VPB_SHARERS_SHIFT)
-
-#define	VPB_SINGLE_EXCLUSIVE	VPB_BIT_EXCLUSIVE
-#ifdef INVARIANTS
-#define	VPB_CURTHREAD_EXCLUSIVE						\
-	(VPB_BIT_EXCLUSIVE | ((u_int)(uintptr_t)curthread & ~VPB_BIT_FLAGMASK))
-#else
-#define	VPB_CURTHREAD_EXCLUSIVE	VPB_SINGLE_EXCLUSIVE
-#endif
-
-#define	VPB_UNBUSIED		VPB_SHARERS_WORD(0)
-
-/* Freed lock blocks both shared and exclusive. */
-#define	VPB_FREED		(0xffffffff - VPB_BIT_SHARED)
-
-#define	PQ_NONE		255
-#define	PQ_INACTIVE	0
-#define	PQ_ACTIVE	1
-#define	PQ_LAUNDRY	2
-#define	PQ_UNSWAPPABLE	3
-#define	PQ_COUNT	4
-
-#ifndef VM_PAGE_HAVE_PGLIST
-TAILQ_HEAD(pglist, vm_page);
-#define VM_PAGE_HAVE_PGLIST
-#endif
-SLIST_HEAD(spglist, vm_page);
-
-#ifdef _KERNEL
-extern vm_page_t bogus_page;
-#endif	/* _KERNEL */
-
-extern struct mtx_padalign pa_lock[];
-
-#if defined(__arm__)
-#define	PDRSHIFT	PDR_SHIFT
-#elif !defined(PDRSHIFT)
-#define PDRSHIFT	21
-#endif
-
-#define	pa_index(pa)	((pa) >> PDRSHIFT)
-#define	PA_LOCKPTR(pa)	((struct mtx *)(&pa_lock[pa_index(pa) % PA_LOCK_COUNT]))
-#define	PA_LOCKOBJPTR(pa)	((struct lock_object *)PA_LOCKPTR((pa)))
-#define	PA_LOCK(pa)	mtx_lock(PA_LOCKPTR(pa))
-#define	PA_TRYLOCK(pa)	mtx_trylock(PA_LOCKPTR(pa))
-#define	PA_UNLOCK(pa)	mtx_unlock(PA_LOCKPTR(pa))
-#define	PA_UNLOCK_COND(pa) 			\
-	do {		   			\
-		if ((pa) != 0) {		\
-			PA_UNLOCK((pa));	\
-			(pa) = 0;		\
-		}				\
-	} while (0)
-
-#define	PA_LOCK_ASSERT(pa, a)	mtx_assert(PA_LOCKPTR(pa), (a))
-
-#if defined(KLD_MODULE) && !defined(KLD_TIED)
-#define	vm_page_lock(m)		vm_page_lock_KBI((m), LOCK_FILE, LOCK_LINE)
-#define	vm_page_unlock(m)	vm_page_unlock_KBI((m), LOCK_FILE, LOCK_LINE)
-#define	vm_page_trylock(m)	vm_page_trylock_KBI((m), LOCK_FILE, LOCK_LINE)
-#else	/* !KLD_MODULE */
-#define	vm_page_lockptr(m)	(PA_LOCKPTR(VM_PAGE_TO_PHYS((m))))
-#define	vm_page_lock(m)		mtx_lock(vm_page_lockptr((m)))
-#define	vm_page_unlock(m)	mtx_unlock(vm_page_lockptr((m)))
-#define	vm_page_trylock(m)	mtx_trylock(vm_page_lockptr((m)))
-#endif
-#if defined(INVARIANTS)
-#define	vm_page_assert_locked(m)		\
-    vm_page_assert_locked_KBI((m), __FILE__, __LINE__)
-#define	vm_page_lock_assert(m, a)		\
-    vm_page_lock_assert_KBI((m), (a), __FILE__, __LINE__)
-#else
-#define	vm_page_assert_locked(m)
-#define	vm_page_lock_assert(m, a)
-#endif
+enum vpo_flags : uint8_t {
+	VPO_KMEM_EXEC	= 0x01,		/* kmem mapping allows execution */
+	VPO_SWAPSLEEP	= 0x02,		/* waiting for swap to finish */
+	VPO_UNMANAGED	= 0x04,		/* no PV management for page */
+	VPO_SWAPINPROG	= 0x08,		/* swap I/O in progress on page */
+};
 
 /*
  * The vm_page's aflags are updated using atomic operations.  To set or clear
@@ -432,33 +293,183 @@ extern struct mtx_padalign pa_lock[];
  * when the context that dirties the page does not have the object write lock
  * held.
  */
-#define	PGA_WRITEABLE	0x0001		/* page may be mapped writeable */
-#define	PGA_REFERENCED	0x0002		/* page has been referenced */
-#define	PGA_EXECUTABLE	0x0004		/* page may be mapped executable */
-#define	PGA_ENQUEUED	0x0008		/* page is enqueued in a page queue */
-#define	PGA_DEQUEUE	0x0010		/* page is due to be dequeued */
-#define	PGA_REQUEUE	0x0020		/* page is due to be requeued */
-#define	PGA_REQUEUE_HEAD 0x0040		/* page requeue should bypass LRU */
-#define	PGA_NOSYNC	0x0080		/* do not collect for syncer */
-#define	PGA_SWAP_FREE	0x0100		/* page with swap space was dirtied */
-#define	PGA_SWAP_SPACE	0x0200		/* page has allocated swap space */
+enum pga_flags : uint16_t {
+	PGA_WRITEABLE	= 0x0001,	/* page may be mapped writeable */
+	PGA_REFERENCED	= 0x0002,	/* page has been referenced */
+	PGA_EXECUTABLE	= 0x0004,	/* page may be mapped executable */
+	PGA_ENQUEUED	= 0x0008,	/* page is enqueued in a page queue */
+	PGA_DEQUEUE	= 0x0010,	/* page is due to be dequeued */
+	PGA_REQUEUE	= 0x0020,	/* page is due to be requeued */
+	PGA_REQUEUE_HEAD= 0x0040,	/* page requeue should bypass LRU */
+	PGA_NOSYNC	= 0x0080,	/* do not collect for syncer */
+	PGA_SWAP_FREE	= 0x0100,	/* page with swap space was dirtied */
+	PGA_SWAP_SPACE	= 0x0200,	/* page has allocated swap space */
+	PGA_QUEUE_OP_MASK	= PGA_DEQUEUE | PGA_REQUEUE | PGA_REQUEUE_HEAD,
+	PGA_QUEUE_STATE_MASK	= PGA_ENQUEUED | PGA_QUEUE_OP_MASK,
+};
 
-#define	PGA_QUEUE_OP_MASK	(PGA_DEQUEUE | PGA_REQUEUE | PGA_REQUEUE_HEAD)
-#define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_QUEUE_OP_MASK)
+enum pq_queue : uint8_t {
+	PQ_INACTIVE,
+	PQ_ACTIVE,
+	PQ_LAUNDRY,
+	PQ_UNSWAPPABLE,
+	PQ_COUNT,
+	PQ_NONE		= 255
+};
+
+typedef union vm_page_astate {
+	struct {
+		enum pga_flags flags;
+		enum pq_queue queue;
+		uint8_t act_count;
+	};
+	uint32_t _bits;
+} vm_page_astate_t;
+
+struct vm_page {
+	union {
+		TAILQ_ENTRY(vm_page) q; /* page queue or free list (Q) */
+		struct {
+			SLIST_ENTRY(vm_page) ss; /* private slists */
+		} s;
+		struct {
+			u_long p;
+			u_long v;
+		} memguard;
+		struct {
+			void *slab;
+			void *zone;
+		} uma;
+	} plinks;
+	TAILQ_ENTRY(vm_page) listq;	/* pages in same object (O) */
+	vm_object_t object;		/* which object am I in (O) */
+	vm_pindex_t pindex;	// for page table page, index of the pagetable page
+				/* offset into object (O,P) */
+	vm_paddr_t phys_addr;		/* physical address of page (C) */
+	struct md_page md;	// 4k pv_list /* machine dependent stuff */
+	u_int ref_count; 	// for pagetable page, the number of valid PTEs within this page
+				/* page references (A) */
+	u_int busy_lock;		/* busy owners lock (A) */
+	union vm_page_astate a;		/* state accessed atomically (A) */
+	uint8_t order;			/* index of the buddy queue (F) */
+	uint8_t pool;			/* vm_phys freepool index (F) */
+	enum pg_flags flags;		/* page PG_* flags (P) */
+	enum vpo_flags oflags;		/* page VPO_* flags (O) */
+	int8_t psind;			/* pagesizes[] index (O) */
+	int8_t segind;			/* vm_phys segment index (C) */
+	/* NOTE that these must support one bit per DEV_BSIZE in a page */
+	/* so, on normal X86 kernels, they must be at least 8 bits wide */
+	vm_page_bits_t valid;		/* valid DEV_BSIZE chunk map (O,B) */
+	vm_page_bits_t dirty;		/* dirty DEV_BSIZE chunk map (M,B) */
+};
 
 /*
- * Page flags.  Updates to these flags are not synchronized, and thus they must
- * be set during page allocation or free to avoid races.
+ * Special bits used in the ref_count field.
  *
- * The PG_PCPU_CACHE flag is set at allocation time if the page was
- * allocated from a per-CPU cache.  It is cleared the next time that the
- * page is allocated from the physical memory allocator.
+ * ref_count is normally used to count wirings that prevent the page from being
+ * reclaimed, but also supports several special types of references that do not
+ * prevent reclamation.  Accesses to the ref_count field must be atomic unless
+ * the page is unallocated.
+ *
+ * VPRC_BLOCKED is used to atomically block wirings via pmap lookups while
+ * attempting to tear down all mappings of a given page.  The page busy lock and
+ * object write lock must both be held in order to set or clear this bit.
+ *
+ * VPRC_OBJREF is the reference held by the containing object.  It can *be* set or
+ * cleared only when the corresponding object's write lock is held.
  */
-#define	PG_PCPU_CACHE	0x01		/* was allocated from per-CPU caches */
-#define	PG_FICTITIOUS	0x02		/* physical page doesn't exist */
-#define	PG_ZERO		0x04		/* page is zeroed */
-#define	PG_MARKER	0x08		/* special queue marker page */
-#define	PG_NODUMP	0x10		/* don't include this page in a dump */
+#define	VPRC_BLOCKED	0x40000000u	/* mappings are being removed */
+#define	VPRC_OBJREF	0x80000000u	/* object reference, cleared with (O) */
+#define	VPRC_WIRE_COUNT(c)	((c) & ~(VPRC_BLOCKED | VPRC_OBJREF))
+#define	VPRC_WIRE_COUNT_MAX	(~(VPRC_BLOCKED | VPRC_OBJREF))
+
+/*
+ * Busy page implementation details.
+ * The algorithm is taken mostly by rwlock(9) and sx(9) locks implementation,
+ * even if the support for owner identity is removed because of size
+ * constraints.  Checks on lock recursion are then not possible, while the
+ * lock assertions effectiveness is someway reduced.
+ */
+#define	VPB_BIT_SHARED		0x01
+#define	VPB_BIT_EXCLUSIVE	0x02
+#define	VPB_BIT_WAITERS		0x04
+#define	VPB_BIT_FLAGMASK						\
+	(VPB_BIT_SHARED | VPB_BIT_EXCLUSIVE | VPB_BIT_WAITERS)
+
+#define	VPB_SHARERS_SHIFT	3
+#define	VPB_SHARERS(x)							\
+	(((x) & ~VPB_BIT_FLAGMASK) >> VPB_SHARERS_SHIFT)
+#define	VPB_SHARERS_WORD(x)	((x) << VPB_SHARERS_SHIFT | VPB_BIT_SHARED)
+#define	VPB_ONE_SHARER		(1 << VPB_SHARERS_SHIFT)
+
+#define	VPB_SINGLE_EXCLUSIVE	VPB_BIT_EXCLUSIVE
+#ifdef INVARIANTS
+#define	VPB_CURTHREAD_EXCLUSIVE						\
+	(VPB_BIT_EXCLUSIVE | ((u_int)(uintptr_t)curthread & ~VPB_BIT_FLAGMASK))
+#else
+#define	VPB_CURTHREAD_EXCLUSIVE	VPB_SINGLE_EXCLUSIVE
+#endif
+
+#define	VPB_UNBUSIED		VPB_SHARERS_WORD(0)
+
+/* Freed lock blocks both shared and exclusive. */
+#define	VPB_FREED		(0xffffffff - VPB_BIT_SHARED)
+
+#ifndef VM_PAGE_HAVE_PGLIST
+TAILQ_HEAD(pglist, vm_page);	// page list
+#define VM_PAGE_HAVE_PGLIST
+#endif
+typedef SLIST_HEAD(spglist, vm_page) spglist_t;	// singly-linked page List
+
+#ifdef _KERNEL
+extern vm_page_t bogus_page;
+#endif	/* _KERNEL */
+
+extern struct mtx_padalign pa_lock[];
+
+#if defined(__arm__)
+#define	PDRSHIFT	PDR_SHIFT
+#elif !defined(PDRSHIFT)
+#if !defined(WYC)
+#define PDRSHIFT	21
+#endif
+#endif
+
+#define	pa_index(pa)	((pa) >> PDRSHIFT) // index for 2M page
+#define	PA_LOCKPTR(pa)	((struct mtx *)(&pa_lock[pa_index(pa) % PA_LOCK_COUNT]))
+#define	PA_LOCKOBJPTR(pa)	((struct lock_object *)PA_LOCKPTR((pa)))
+#define	PA_LOCK(pa)	mtx_lock(PA_LOCKPTR(pa))
+#define	PA_TRYLOCK(pa)	mtx_trylock(PA_LOCKPTR(pa))
+#define	PA_UNLOCK(pa)	mtx_unlock(PA_LOCKPTR(pa))
+#define	PA_UNLOCK_COND(pa) 			\
+	do {		   			\
+		if ((pa) != 0) {		\
+			PA_UNLOCK((pa));	\
+			(pa) = 0;		\
+		}				\
+	} while (0)
+
+#define	PA_LOCK_ASSERT(pa, a)	mtx_assert(PA_LOCKPTR(pa), (a))
+
+#if defined(KLD_MODULE) && !defined(KLD_TIED)
+#define	vm_page_lock(m)		vm_page_lock_KBI((m), LOCK_FILE, LOCK_LINE)
+#define	vm_page_unlock(m)	vm_page_unlock_KBI((m), LOCK_FILE, LOCK_LINE)
+#define	vm_page_trylock(m)	vm_page_trylock_KBI((m), LOCK_FILE, LOCK_LINE)
+#else	/* !KLD_MODULE */
+#define	vm_page_lockptr(m)	(PA_LOCKPTR(VM_PAGE_TO_PHYS((m))))
+#define	vm_page_lock(m)		mtx_lock(vm_page_lockptr((m)))
+#define	vm_page_unlock(m)	mtx_unlock(vm_page_lockptr((m)))
+#define	vm_page_trylock(m)	mtx_trylock(vm_page_lockptr((m)))
+#endif
+#if defined(INVARIANTS)
+#define	vm_page_assert_locked(m)		\
+    vm_page_assert_locked_KBI((m), __FILE__, __LINE__)
+#define	vm_page_lock_assert(m, a)		\
+    vm_page_lock_assert_KBI((m), (a), __FILE__, __LINE__)
+#else
+#define	vm_page_assert_locked(m)
+#define	vm_page_lock_assert(m, a)
+#endif
 
 /*
  * Misc constants.
@@ -501,7 +512,11 @@ extern vm_page_t vm_page_array;		/* First resident page in table */
 extern long vm_page_array_size;		/* number of vm_page_t's */
 extern long first_page;			/* first physical page number */
 
+#if !defined(WYC)
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
+#else
+vm_paddr_t VM_PAGE_TO_PHYS(struct vm_page *entry) { return entry->phys_addr; }
+#endif
 
 /*
  * PHYS_TO_VM_PAGE() returns the vm_page_t object that represents a memory
@@ -536,7 +551,7 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define	VM_ALLOC_CLASS_MASK	3
 #define	VM_ALLOC_WAITOK		0x0008	/* (acn) Sleep and retry */
 #define	VM_ALLOC_WAITFAIL	0x0010	/* (acn) Sleep and return error */
-#define	VM_ALLOC_WIRED		0x0020	/* (acgnp) Allocate a wired page */
+#define	VM_ALLOC_WIRED		0x0020	/* (acgnp) Allocate a wired page */ // increment vm_page.ref_count
 #define	VM_ALLOC_ZERO		0x0040	/* (acgnp) Allocate a zeroed page */
 #define	VM_ALLOC_NORECLAIM	0x0080	/* (c) Do not reclaim after failure */
 #define	VM_ALLOC_AVAIL0		0x0100
@@ -797,7 +812,7 @@ void vm_page_assert_pga_writeable(vm_page_t m, uint16_t bits);
 #define	vm_page_xbusy_claim(m)
 #endif
 
-#if BYTE_ORDER == BIG_ENDIAN
+#if 0//BYTE_ORDER == BIG_ENDIAN
 #define	VM_PAGE_AFLAG_SHIFT	16
 #else
 #define	VM_PAGE_AFLAG_SHIFT	0
@@ -836,7 +851,7 @@ vm_page_astate_fcmpset(vm_page_t m, vm_page_astate_t *old, vm_page_astate_t new)
  *	Clear the given bits in the specified page.
  */
 static inline void
-vm_page_aflag_clear(vm_page_t m, uint16_t bits)
+vm_page_aflag_clear(vm_page_t m, uint16_t bits) // a in aflag means atomic
 {
 	uint32_t *addr, val;
 
@@ -845,7 +860,7 @@ vm_page_aflag_clear(vm_page_t m, uint16_t bits)
 	 * atomic update.  Parallel non-atomic updates to the other fields
 	 * within this word are handled properly by the atomic update.
 	 */
-	addr = (void *)&m->a;
+	addr = (void *)&m->a; // a means atomic
 	val = bits << VM_PAGE_AFLAG_SHIFT;
 	atomic_clear_32(addr, val);
 }
@@ -977,7 +992,7 @@ vm_page_drop(vm_page_t m, u_int val)
 	atomic_thread_fence_rel();
 	old = atomic_fetchadd_int(&m->ref_count, -val);
 	KASSERT(old != VPRC_BLOCKED,
-	    ("vm_page_drop: page %p has an invalid refcount value", m));
+	    ("%s: page %p has an invalid refcount value", __func__, m));
 	return (old);
 }
 

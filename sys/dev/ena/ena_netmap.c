@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2015-2024 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2023 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,6 +71,7 @@ static void ena_netmap_unmap_last_socket_chain(struct ena_netmap_ctx *,
     struct ena_tx_buffer *);
 static void ena_netmap_tx_cleanup(struct ena_netmap_ctx *);
 static uint16_t ena_netmap_tx_clean_one(struct ena_netmap_ctx *, uint16_t);
+static inline int validate_tx_req_id(struct ena_ring *, uint16_t);
 static int ena_netmap_rx_frames(struct ena_netmap_ctx *);
 static int ena_netmap_rx_frame(struct ena_netmap_ctx *);
 static int ena_netmap_rx_load_desc(struct ena_netmap_ctx *, uint16_t, int *);
@@ -577,7 +578,7 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 	remaining_len = *packet_len;
 	delta = 0;
 
-	__builtin_prefetch(&ctx->slots[nm_next(ctx->nm_i, ctx->lim)]);
+	__builtin_prefetch(&ctx->slots[ctx->nm_i + 1]);
 	if (tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
 		/*
 		 * When the device is in LLQ mode, the driver will copy
@@ -664,7 +665,7 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 		 * The first segment is already counted in.
 		 */
 		while (delta > 0) {
-			__builtin_prefetch(&ctx->slots[nm_next(ctx->nm_i, ctx->lim)]);
+			__builtin_prefetch(&ctx->slots[ctx->nm_i + 1]);
 			frag_len = slot->len;
 
 			/*
@@ -722,7 +723,7 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 
 	/* Map all remaining data (regular routine for non-LLQ mode) */
 	while (remaining_len > 0) {
-		__builtin_prefetch(&ctx->slots[nm_next(ctx->nm_i, ctx->lim)]);
+		__builtin_prefetch(&ctx->slots[ctx->nm_i + 1]);
 
 		rc = ena_netmap_map_single_slot(ctx->na, slot,
 		    adapter->tx_buf_tag, *nm_maps, &vaddr, &paddr);
@@ -783,10 +784,10 @@ ena_netmap_unmap_last_socket_chain(struct ena_netmap_ctx *ctx,
 	/* Next, retain the sockets back to the userspace */
 	n = nm_info->sockets_used;
 	while (n--) {
-		ctx->nm_i = nm_prev(ctx->nm_i, ctx->lim);
 		ctx->slots[ctx->nm_i].buf_idx = nm_info->socket_buf_idx[n];
 		ctx->slots[ctx->nm_i].flags = NS_BUF_CHANGED;
 		nm_info->socket_buf_idx[n] = 0;
+		ctx->nm_i = nm_prev(ctx->nm_i, ctx->lim);
 	}
 	nm_info->sockets_used = 0;
 }
@@ -794,33 +795,25 @@ ena_netmap_unmap_last_socket_chain(struct ena_netmap_ctx *ctx,
 static void
 ena_netmap_tx_cleanup(struct ena_netmap_ctx *ctx)
 {
-	struct ena_ring *tx_ring = ctx->ring;
-	int rc;
 	uint16_t req_id;
 	uint16_t total_tx_descs = 0;
 
 	ctx->nm_i = ctx->kring->nr_hwtail;
-	ctx->nt = tx_ring->next_to_clean;
+	ctx->nt = ctx->ring->next_to_clean;
 
 	/* Reclaim buffers for completed transmissions */
-	do {
-		rc = ena_com_tx_comp_req_id_get(ctx->io_cq, &req_id);
-		if(unlikely(rc == ENA_COM_TRY_AGAIN))
+	while (ena_com_tx_comp_req_id_get(ctx->io_cq, &req_id) >= 0) {
+		if (validate_tx_req_id(ctx->ring, req_id) != 0)
 			break;
-
-		rc = validate_tx_req_id(tx_ring, req_id, rc);
-		if(unlikely(rc != 0))
-			break;
-
 		total_tx_descs += ena_netmap_tx_clean_one(ctx, req_id);
-	} while (1);
+	}
 
 	ctx->kring->nr_hwtail = ctx->nm_i;
 
 	if (total_tx_descs > 0) {
 		/* acknowledge completion of sent packets */
-		tx_ring->next_to_clean = ctx->nt;
-		ena_com_comp_ack(tx_ring->ena_com_io_sq, total_tx_descs);
+		ctx->ring->next_to_clean = ctx->nt;
+		ena_com_comp_ack(ctx->ring->ena_com_io_sq, total_tx_descs);
 	}
 }
 
@@ -861,6 +854,23 @@ ena_netmap_tx_clean_one(struct ena_netmap_ctx *ctx, uint16_t req_id)
 	ctx->nt = ENA_TX_RING_IDX_NEXT(ctx->nt, ctx->lim);
 
 	return tx_info->tx_descs;
+}
+
+static inline int
+validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
+{
+	struct ena_adapter *adapter = tx_ring->adapter;
+
+	if (likely(req_id < tx_ring->ring_size))
+		return (0);
+
+	ena_log_nm(adapter->pdev, WARN, "Invalid req_id %hu in qid %hu\n",
+	    req_id, tx_ring->qid);
+	counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
+
+	ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
+
+	return (EFAULT);
 }
 
 static int
@@ -938,8 +948,6 @@ ena_netmap_rx_frame(struct ena_netmap_ctx *ctx)
 		if (rc == ENA_COM_NO_SPACE) {
 			counter_u64_add(ctx->ring->rx_stats.bad_desc_num, 1);
 			reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
-		} else if (rc == ENA_COM_FAULT) {
-			reset_reason = ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED;
 		} else {
 			counter_u64_add(ctx->ring->rx_stats.bad_req_id, 1);
 			reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
@@ -964,7 +972,7 @@ ena_netmap_rx_frame(struct ena_netmap_ctx *ctx)
 	 * It just set flag NS_MOREFRAG to all slots, then here flag of
 	 * last slot is cleared.
 	 */
-	ctx->slots[nm_prev(ctx->nm_i, ctx->lim)].flags &= ~NS_MOREFRAG;
+	ctx->slots[nm_prev(ctx->nm_i, ctx->lim)].flags = NS_BUF_CHANGED;
 
 	if (rc != 0) {
 		goto rx_clear_desc;

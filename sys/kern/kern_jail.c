@@ -66,6 +66,11 @@
 #include <sys/uuid.h>
 #include <sys/vnode.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #include <net/if.h>
 #include <net/vnet.h>
 
@@ -313,6 +318,7 @@ sys_jail(struct thread *td, struct jail_args *uap)
 	int error;
 	struct jail j;
 
+ADD_PROCBASE(uap->jail, td);
 	error = copyin(uap->jail, &version, sizeof(uint32_t));
 	if (error)
 		return (error);
@@ -529,7 +535,7 @@ sys_jail_set(struct thread *td, struct jail_set_args *uap)
 	/* Check that we have an even number of iovecs. */
 	if (uap->iovcnt & 1)
 		return (EINVAL);
-
+ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
@@ -2257,7 +2263,7 @@ sys_jail_get(struct thread *td, struct jail_get_args *uap)
 	/* Check that we have an even number of iovecs. */
 	if (uap->iovcnt & 1)
 		return (EINVAL);
-
+ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
@@ -4424,35 +4430,6 @@ SYSCTL_PROC(_security_jail, OID_AUTO, devfs_ruleset,
     &jail_default_devfs_rsnum, offsetof(struct prison, pr_devfs_rsnum),
     sysctl_jail_default_level, "I",
     "Ruleset for the devfs filesystem in jail (deprecated)");
-
-SYSCTL_NODE(_security_jail, OID_AUTO, children, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "Limits and stats of child jails");
-
-static int
-sysctl_jail_children(SYSCTL_HANDLER_ARGS)
-{
-	struct prison *pr;
-	int i;
-
-	pr = req->td->td_ucred->cr_prison;
-
-	switch (oidp->oid_kind & CTLTYPE) {
-	case CTLTYPE_INT:
-		i = *(int *)((char *)pr + arg2);
-		return (SYSCTL_OUT(req, &i, sizeof(i)));
-	}
-
-	return (0);
-}
-
-SYSCTL_PROC(_security_jail_children, OID_AUTO, max,
-    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, offsetof(struct prison, pr_childmax), sysctl_jail_children,
-    "I", "Maximum number of child jails");
-SYSCTL_PROC(_security_jail_children, OID_AUTO, cur,
-    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-    NULL, offsetof(struct prison, pr_childcount), sysctl_jail_children,
-    "I", "Current number of child jails");
 
 /*
  * Nodes to describe jail parameters.  Maximum length of string parameters

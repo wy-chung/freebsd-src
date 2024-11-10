@@ -1,7 +1,6 @@
 #!/usr/libexec/flua
 
 local n = require("nuage")
-
 if n.addgroup() then
 	n.err("addgroup should not accept empty value")
 end

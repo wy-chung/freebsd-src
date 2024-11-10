@@ -46,7 +46,8 @@ struct pmap;
  */
 typedef struct pv_entry {
 	vm_offset_t	pv_va;		/* virtual address for mapping */
-	TAILQ_ENTRY(pv_entry)	pv_next;
+	TAILQ_ENTRY(pv_entry)	pv_next; // on either vm_page's md.pv_list or pa_to_pvh(pa) list
+	//SLIST_ENTRY(pv_entry)	pv_hnext; //wyc hash list
 } *pv_entry_t;
 
 /*
@@ -60,6 +61,8 @@ typedef struct pv_entry {
  * is the value of all the other entries in the pc_map[] array when a
  * chunk is completely free.
  */
+//#define WYC_PV_TEST 1 //wyctest failed
+
 #if PAGE_SIZE == 4 * 1024
 #ifdef __LP64__
 #define	_NPCPV	168
@@ -68,7 +71,7 @@ typedef struct pv_entry {
 #define	_NPCPV	336
 #define	_NPAD	0
 #endif
-#elif PAGE_SIZE == 16 * 1024
+#elif 0 //PAGE_SIZE == 16 * 1024
 #ifdef __LP64__
 #define	_NPCPV	677
 #define	_NPAD	1
@@ -90,42 +93,71 @@ typedef struct pv_entry {
 
 #define	PV_CHUNK_HEADER							\
 	struct pmap		*pc_pmap;				\
-	TAILQ_ENTRY(pv_chunk)	pc_list;				\
-	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */	\
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
+	TAILQ_ENTRY(pv_chunk)	pc_pmlist;				\
+	TAILQ_ENTRY(pv_chunk)	pc_pvclist;				\
+	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
 
+// pv_chunk_header will not be used by riscv
+#if !defined(__riscv)
 struct pv_chunk_header {
+ #if !defined(WYC)
 	PV_CHUNK_HEADER
+ #else
+	struct pmap		*pc_pmap;
+	TAILQ_ENTRY(pv_chunk)	pc_pmlist;
+	TAILQ_ENTRY(pv_chunk)	pc_pvclist;
+	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
+ #endif
 };
+#endif
 
 struct pv_chunk {
+#if !defined(__riscv)
 	PV_CHUNK_HEADER
+#else
+	struct pmap		*pc_pmap;
+	TAILQ_ENTRY(pv_chunk)	pc_pmlist; // for pmap.pm_pvchunk list
+	TAILQ_ENTRY(pv_chunk)	pc_pvclist;  // for pv_chunks list
+ #ifdef WYC_PV_TEST
+	TAILQ_HEAD(, pv_entry)	pc_free_pv_head;
+	int			pc_free_pv_count;
+ #else
+	unsigned long		pc_map[_NPCM];	/* bitmap; 1 = free */
+ #endif
+#endif
 	struct pv_entry		pc_pventry[_NPCPV];
 	unsigned long		pc_pad[_NPAD];
 };
 
-_Static_assert(sizeof(struct pv_chunk) == PAGE_SIZE,
-    "PV entry chunk size mismatch");
+_Static_assert(sizeof(struct pv_chunk) == PAGE_SIZE, "PV entry chunk size mismatch");
 
 #ifdef _KERNEL
 static __inline bool
 pc_is_full(struct pv_chunk *pc)
 {
+#ifdef WYC_PV_TEST
+	return (pc->pc_free_pv_count == 0);
+#else
 	for (u_int i = 0; i < _NPCM; i++) {
 		if (pc->pc_map[i] != 0)
 			return (false);
 	}
 	return (true);
+#endif
 }
 
 static __inline bool
 pc_is_free(struct pv_chunk *pc)
 {
+#ifdef WYC_PV_TEST
+	return (pc->pc_free_pv_count == _NPCPV);
+#else
 	for (u_int i = 0; i < _NPCM - 1; i++) {
 		if (pc->pc_map[i] != PC_FREEN)
 			return (false);
 	}
 	return (pc->pc_map[_NPCM - 1] == PC_FREEL);
+#endif
 }
 
 static __inline struct pv_chunk *
@@ -133,8 +165,15 @@ pv_to_chunk(pv_entry_t pv)
 {
 	return ((struct pv_chunk *)((uintptr_t)pv & ~(uintptr_t)PAGE_MASK));
 }
-
+#if !defined(WYC)
 #define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
+#else
+struct pmap *PV_PMAP(pv_entry_t pv)
+{
+	struct pv_chunk *chunk = pv_to_chunk(pv);
+	return chunk->pc_pmap;
+}
+#endif
 #endif
 
 #endif /* !__SYS__PV_ENTRY_H__ */

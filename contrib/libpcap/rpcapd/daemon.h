@@ -33,7 +33,9 @@
 #ifndef __DAEMON_H__
 #define __DAEMON_H__
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "sslutils.h"
 
@@ -42,7 +44,7 @@
 // otherwise; the return value is used only by callers that call us
 // for active mode.
 //
-int daemon_serviceloop(PCAP_SOCKET sockctrl, int isactive, char *passiveClients,
+int daemon_serviceloop(SOCKET sockctrl, int isactive, char *passiveClients,
     int nullAuthAllowed, int uses_ssl);
 
 void sleep_secs(int secs);

@@ -147,9 +147,7 @@ main(int argc, char *argv[])
 
 parse:
 	while (argc > 0) {
-		char *orig;
-
-		if ((orig = p = strdup(*argv)) == NULL)
+		if ((p = strdup(*argv)) == NULL)
 			err(1, "strdup(%s)", *argv);
 
 		/* Check if we're using the shorthand syntax for volume setting. */
@@ -202,7 +200,7 @@ parse:
 		/* Input: `dev.control=val`. */
 		cp->mod(cp->parent_dev, valstr);
 next:
-		free(orig);
+		free(p);
 		argc--;
 		argv++;
 	}

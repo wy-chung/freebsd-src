@@ -34,12 +34,14 @@
  * From: @(#)strtok.c	8.1 (Berkeley) 6/4/93
  */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "portability.h"
 
 char *
-pcapint_strtok_r(char *s, const char *delim, char **last)
+pcap_strtok_r(char *s, const char *delim, char **last)
 {
 	char *spanp, *tok;
 	int c, sc;

@@ -88,6 +88,11 @@
 
 #include <vm/uma.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 FEATURE(process_descriptors, "Process Descriptors");
 
 MALLOC_DEFINE(M_PROCDESC, "procdesc", "process descriptors");
@@ -197,8 +202,10 @@ sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
 
 	AUDIT_ARG_FD(uap->fd);
 	error = kern_pdgetpid(td, uap->fd, &cap_pdgetpid_rights, &pid);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->pidp, td);
 		error = copyout(&pid, uap->pidp, sizeof(pid));
+	}
 	return (error);
 }
 

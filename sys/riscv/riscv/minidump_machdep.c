@@ -182,7 +182,7 @@ retry:
 	 */
 	for (va = VM_MIN_KERNEL_ADDRESS; va < kva_max; va += L2_SIZE) {
 		pmapsize += PAGE_SIZE;
-		if (!pmap_get_tables(pmap_kernel(), va, &l1, &l2, &l3))
+		if (!pmap_get_tables(kernel_pmap, va, &l1, &l2, &l3))
 			continue;
 
 		/* We should always be using the l2 table for kvm */
@@ -281,7 +281,7 @@ retry:
 	/* Dump kernel page directory pages */
 	bzero(&tmpbuffer, sizeof(tmpbuffer));
 	for (va = VM_MIN_KERNEL_ADDRESS; va < kva_max; va += L2_SIZE) {
-		if (!pmap_get_tables(pmap_kernel(), va, &l1, &l2, &l3)) {
+		if (!pmap_get_tables(kernel_pmap, va, &l1, &l2, &l3)) {
 			/* We always write a page, even if it is zero */
 			error = blk_write(di, (char *)&tmpbuffer, 0, PAGE_SIZE);
 			if (error)

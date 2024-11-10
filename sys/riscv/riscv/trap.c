@@ -124,7 +124,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	KASSERT(sa->callp->sy_narg <= nitems(sa->args),
 	    ("Syscall %d takes too many arguments", sa->code));
 
-	memcpy(dst_ap, ap, (NARGREG - 1) * sizeof(*dst_ap));
+	memcpy(dst_ap, ap, (NARGREG - 1) * sizeof(*dst_ap)); // copy the uap to td->td_sa.args
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
@@ -203,15 +203,11 @@ ecall_handler(void)
 }
 
 static void
-page_fault_handler(struct trapframe *frame, int usermode)
+page_fault_handler(struct trapframe *frame, bool usermode)
 {
-	struct vm_map *map;
-	uint64_t stval;
-	struct thread *td;
-	struct pcb *pcb;
+	struct _vm_map *map;
 	vm_prot_t ftype;
 	vm_offset_t va;
-	struct proc *p;
 	int error, sig, ucode;
 #ifdef KDB
 	bool handled;
@@ -224,16 +220,16 @@ page_fault_handler(struct trapframe *frame, int usermode)
 	}
 #endif
 
-	td = curthread;
-	p = td->td_proc;
-	pcb = td->td_pcb;
-	stval = frame->tf_stval;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+	struct pcb *pcb = td->td_pcb;
+	uint64_t stval = frame->tf_stval;
 
 	if (td->td_critnest != 0 || td->td_intr_nesting_level != 0 ||
-	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
-	    "Kernel page fault") != 0)
+	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL, "Kernel page fault") != 0) {
+//uprintf("ch 0\n"); //wycdebug
 		goto fatal;
-
+	}
 	if (usermode) {
 		if (!VIRT_IS_VALID(stval)) {
 			call_trapsignal(td, SIGSEGV, SEGV_MAPERR, (void *)stval,
@@ -251,8 +247,10 @@ page_fault_handler(struct trapframe *frame, int usermode)
 		if (stval >= VM_MIN_KERNEL_ADDRESS) {
 			map = kernel_map;
 		} else {
-			if (pcb->pcb_onfault == 0)
+			if (pcb->pcb_onfault == 0) {
+//uprintf("ch 1\n"); //wycdebug
 				goto fatal;
+			}
 			map = &p->p_vmspace->vm_map;
 		}
 	}
@@ -281,6 +279,7 @@ page_fault_handler(struct trapframe *frame, int usermode)
 				frame->tf_sepc = pcb->pcb_onfault;
 				return;
 			}
+//uprintf("ch 2\n"); //wycdebug
 			goto fatal;
 		}
 	}
@@ -349,7 +348,7 @@ do_trap_supervisor(struct trapframe *frame)
 	case SCAUSE_STORE_PAGE_FAULT:
 	case SCAUSE_LOAD_PAGE_FAULT:
 	case SCAUSE_INST_PAGE_FAULT:
-		page_fault_handler(frame, 0);
+		page_fault_handler(frame, false);
 		break;
 	case SCAUSE_BREAKPOINT:
 #ifdef KDTRACE_HOOKS
@@ -426,7 +425,7 @@ do_trap_user(struct trapframe *frame)
 	case SCAUSE_STORE_PAGE_FAULT:
 	case SCAUSE_LOAD_PAGE_FAULT:
 	case SCAUSE_INST_PAGE_FAULT:
-		page_fault_handler(frame, 1);
+		page_fault_handler(frame, true);
 		break;
 	case SCAUSE_ECALL_USER:
 		frame->tf_sepc += 4;	/* Next instruction */

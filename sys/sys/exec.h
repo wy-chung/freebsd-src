@@ -85,7 +85,7 @@ struct execsw {
  * Address of ps_strings structure (in user space).
  * Prefer the kern.ps_strings or kern.proc.ps_strings sysctls to this constant.
  */
-#define	PS_STRINGS	(USRSTACK - sizeof(struct ps_strings))
+//#define	USER_PS_STRINGS	(USER_STACK - sizeof(struct ps_strings))
 #define	PROC_PS_STRINGS(p)	\
 	((p)->p_vmspace->vm_stacktop - (p)->p_sysent->sv_psstringssz)
 
@@ -157,6 +157,6 @@ extern int coredump_pack_vmmapinfo;
 	}; \
 	DECLARE_MODULE_TIED(name, __CONCAT(name,_mod), SI_SUB_EXEC, \
 	    SI_ORDER_ANY)
-#endif
+#endif // _KERNEL
 
 #endif

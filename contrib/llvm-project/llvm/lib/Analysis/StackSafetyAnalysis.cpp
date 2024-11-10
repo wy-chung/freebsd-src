@@ -506,7 +506,7 @@ void StackSafetyLocalAnalysis::analyzeAllUses(Value *Ptr,
         // dso_preemptable aliases or aliases with interposable linkage.
         const GlobalValue *Callee =
             dyn_cast<GlobalValue>(CB.getCalledOperand()->stripPointerCasts());
-        if (!Callee || isa<GlobalIFunc>(Callee)) {
+        if (!Callee) {
           US.addRange(I, UnknownRange, /*IsSafe=*/false);
           break;
         }

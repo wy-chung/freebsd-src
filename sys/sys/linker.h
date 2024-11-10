@@ -29,8 +29,6 @@
 #ifndef _SYS_LINKER_H_
 #define _SYS_LINKER_H_
 
-#include <sys/param.h>
-
 #ifdef _KERNEL
 
 #include <machine/elf.h>

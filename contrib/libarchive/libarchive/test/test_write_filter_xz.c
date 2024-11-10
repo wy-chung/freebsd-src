@@ -43,12 +43,12 @@ DEFINE_TEST(test_write_filter_xz)
 	int i, r;
 
 	buffsize = 2000000;
-	assert(NULL != (buff = malloc(buffsize)));
+	assert(NULL != (buff = (char *)malloc(buffsize)));
 	if (buff == NULL)
 		return;
 
 	datasize = 10000;
-	assert(NULL != (data = malloc(datasize)));
+	assert(NULL != (data = (char *)malloc(datasize)));
 	if (data == NULL) {
 		free(buff);
 		return;

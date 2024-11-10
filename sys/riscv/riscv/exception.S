@@ -48,7 +48,7 @@
 .if \mode == 0	/* We came from userspace. */
 .option push
 .option norelax
-	/* Load the kernel's global pointer */
+	/* Load the kernel`s global pointer */
 	la	gp, __global_pointer$
 .option pop
 
@@ -142,7 +142,7 @@
 	sd	tp, (TF_SIZE)(sp)
 	ld	tp, (TF_TP)(sp)
 
-	/* And restore the user's global pointer */
+	/* And restore the user`s global pointer */
 	ld	gp, (TF_GP)(sp)
 .endif
 

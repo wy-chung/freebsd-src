@@ -43,9 +43,9 @@ static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 5/4/95";
 #include <stdlib.h>
 
 #include "shell.h"
-#define DEFINE_OPTIONS
+//#define DEFINE_OPTIONS
 #include "options.h"
-#undef DEFINE_OPTIONS
+//#undef DEFINE_OPTIONS
 #include "nodes.h"	/* for other header files */
 #include "eval.h"
 #include "jobs.h"
@@ -61,6 +61,33 @@ static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 5/4/95";
 #include "myhistedit.h"
 #endif
 
+char optval[NOPTS];
+const char optletter[NSHORTOPTS] = "efIimnsxvVECabupTPh";
+static const unsigned char optname[] =
+	"\007errexit"
+	"\006noglob"
+	"\011ignoreeof"
+	"\013interactive"
+	"\007monitor"
+	"\006noexec"
+	"\005stdin"
+	"\006xtrace"
+	"\007verbose"
+	"\002vi"
+	"\005emacs"
+	"\011noclobber"
+	"\011allexport"
+	"\006notify"
+	"\007nounset"
+	"\012privileged"
+	"\012trapsasync"
+	"\010physical"
+	"\010trackall"
+	"\005nolog"
+	"\010pipefail"
+	"\006verify"
+;
+
 char *arg0;			/* value of $0 */
 struct shparam shellparam;	/* current positional parameters */
 char **argptr;			/* argument list for builtin commands */
@@ -69,19 +96,16 @@ char *nextopt_optptr;		/* used by nextopt */
 
 char *minusc;			/* argument to -c option */
 
-
-static void options(int);
+static void options(bool);
 static void minus_o(char *, int);
 static void setoption(int, int);
 static void setoptionbyindex(int, int);
 static void setparam(int, char **);
 static int getopts(char *, char *, char **, char ***, char **);
 
-
 /*
  * Process the shell command line arguments.
  */
-
 void
 procargs(int argc, char **argv)
 {
@@ -94,7 +118,7 @@ procargs(int argc, char **argv)
 	for (i = 0; i < NOPTS; i++)
 		optval[i] = 2;
 	privileged = (getuid() != geteuid() || getgid() != getegid());
-	options(1);
+	options(true);
 	if (*argptr == NULL && minusc == NULL)
 		sflag = 1;
 	if (iflag != 0 && sflag == 1 && isatty(0) && isatty(1)) {
@@ -110,7 +134,7 @@ procargs(int argc, char **argv)
 	arg0 = argv[0];
 	if (sflag == 0 && minusc == NULL) {
 		scriptname = *argptr++;
-		setinputfile(scriptname, 0, -1 /* verify */);
+		setinputfile(scriptname, false, -1 /* verify */);
 		commandname = arg0 = scriptname;
 	}
 	/* POSIX 1003.2: first arg after -c cmd is $0, remainder $1... */
@@ -126,7 +150,6 @@ procargs(int argc, char **argv)
 	}
 	optschanged();
 }
-
 
 void
 optschanged(void)
@@ -144,9 +167,8 @@ optschanged(void)
  * If cmdline is true, process the shell's argv; otherwise, process arguments
  * to the set special builtin.
  */
-
 static void
-options(int cmdline)
+options(bool cmdline)
 {
 	char *kp, *p;
 	int val;
@@ -278,7 +300,6 @@ minus_o(char *name, int val)
 	}
 }
 
-
 static void
 setoptionbyindex(int idx, int val)
 {
@@ -311,11 +332,9 @@ setoption(int flag, int val)
 	error("Illegal option -%c", flag);
 }
 
-
 /*
  * Set the shell parameters.
  */
-
 static void
 setparam(int argc, char **argv)
 {
@@ -336,11 +355,9 @@ setparam(int argc, char **argv)
 	shellparam.optnext = NULL;
 }
 
-
 /*
  * Free the list of positional parameters.
  */
-
 void
 freeparam(struct shparam *param)
 {
@@ -358,14 +375,11 @@ freeparam(struct shparam *param)
 	}
 }
 
-
-
 /*
  * The shift builtin command.
  */
-
 int
-shiftcmd(int argc, char **argv)
+shiftcmd(int argc, char **argv) // refer to builtins.def
 {
 	int i, n;
 
@@ -386,19 +400,16 @@ shiftcmd(int argc, char **argv)
 	return 0;
 }
 
-
-
 /*
  * The set builtin command.
  */
-
 int
-setcmd(int argc, char **argv)
+setcmd(int argc, char **argv) // refer to builtins.def
 {
 	if (argc == 1)
 		return showvarscmd(argc, argv);
 	INTOFF;
-	options(0);
+	options(false);
 	optschanged();
 	if (*argptr != NULL) {
 		setparam(argc - (argptr - argv), argptr);
@@ -406,7 +417,6 @@ setcmd(int argc, char **argv)
 	INTON;
 	return 0;
 }
-
 
 void
 getoptsreset(const char *value)
@@ -423,9 +433,8 @@ getoptsreset(const char *value)
  * be processed in the current argument.  If shellparam.optnext is NULL,
  * then it's the first time getopts has been called.
  */
-
 int
-getoptscmd(int argc, char **argv)
+getoptscmd(int argc, char **argv) // refer to builtins.def
 {
 	char **optbase = NULL, **ap;
 	int i;
@@ -558,7 +567,6 @@ out:
  * other arguments are unnecessary.  It returns the option, or '\0' on
  * end of input.
  */
-
 int
 nextopt(const char *optstring)
 {

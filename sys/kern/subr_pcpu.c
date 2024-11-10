@@ -75,7 +75,7 @@ static TAILQ_HEAD(, dpcpu_free) dpcpu_head = TAILQ_HEAD_INITIALIZER(dpcpu_head);
 static struct sx dpcpu_lock;
 uintptr_t dpcpu_off[MAXCPU];
 struct pcpu *cpuid_to_pcpu[MAXCPU];
-struct cpuhead cpuhead = STAILQ_HEAD_INITIALIZER(cpuhead);
+struct cpu_head cpuhead = STAILQ_HEAD_INITIALIZER(cpuhead);
 
 /*
  * Initialize the MI portions of a struct pcpu.
@@ -108,7 +108,7 @@ dpcpu_init(void *dpcpu, int cpuid)
 	/*
 	 * Initialize defaults from our linker section.
 	 */
-	memcpy(dpcpu, (void *)DPCPU_START, DPCPU_BYTES);
+	memcpy(dpcpu, (void *)DPCPU_START, DPCPU_BYTES); // to, from, len
 
 	/*
 	 * Place it in the global pcpu offset array.
@@ -398,7 +398,7 @@ DB_SHOW_COMMAND_FLAGS(pcpu, db_show_pcpu, DB_CMD_MEMSAFE)
 	if (have_addr)
 		id = ((addr >> 4) % 16) * 10 + (addr % 16);
 	else
-		id = PCPU_GET(cpuid);
+		id = PCPU_GET(pc_cpuid);
 	pc = pcpu_find(id);
 	if (pc == NULL) {
 		db_printf("CPU %d not found\n", id);
@@ -412,7 +412,7 @@ DB_SHOW_ALL_COMMAND(pcpu, db_show_cpu_all)
 	struct pcpu *pc;
 	int id;
 
-	db_printf("Current CPU: %d\n\n", PCPU_GET(cpuid));
+	db_printf("Current CPU: %d\n\n", PCPU_GET(pc_cpuid));
 	CPU_FOREACH(id) {
 		pc = pcpu_find(id);
 		if (pc != NULL) {

@@ -90,7 +90,6 @@ SUBDIR=	alias \
 	mandoc \
 	mdo \
 	mesg \
-	mididump \
 	ministat \
 	mkdep \
 	mkfifo \

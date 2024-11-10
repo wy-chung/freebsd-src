@@ -53,6 +53,11 @@
 #include <security/audit/audit_private.h>
 #include <security/mac/mac_framework.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #ifdef AUDIT
 
 /*
@@ -107,7 +112,7 @@ sys_audit(struct thread *td, struct audit_args *uap)
 		return (EINVAL);
 
 	rec = malloc(uap->length, M_AUDITDATA, M_WAITOK);
-
+ADD_PROCBASE(uap->record, td);
 	error = copyin(uap->record, rec, uap->length);
 	if (error)
 		goto free_out;
@@ -188,6 +193,7 @@ sys_auditon(struct thread *td, struct auditon_args *uap)
 	/*
 	 * Some of the GET commands use the arguments too.
 	 */
+ADD_PROCBASE(uap->data, td);
 	switch (uap->cmd) {
 	case A_SETPOLICY:
 	case A_OLDSETPOLICY:
@@ -598,6 +604,7 @@ sys_getauid(struct thread *td, struct getauid_args *uap)
 	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
+ADD_PROCBASE(uap->auid, td);
 	return (copyout(&td->td_ucred->cr_audit.ai_auid, uap->auid,
 	    sizeof(td->td_ucred->cr_audit.ai_auid)));
 }
@@ -612,6 +619,7 @@ sys_setauid(struct thread *td, struct setauid_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
+ADD_PROCBASE(uap->auid, td);
 	error = copyin(uap->auid, &id, sizeof(id));
 	if (error)
 		return (error);
@@ -664,6 +672,7 @@ sys_getaudit(struct thread *td, struct getaudit_args *uap)
 	ai.ai_asid = cred->cr_audit.ai_asid;
 	ai.ai_termid.machine = cred->cr_audit.ai_termid.at_addr[0];
 	ai.ai_termid.port = cred->cr_audit.ai_termid.at_port;
+ADD_PROCBASE(uap->auditinfo, td);
 	return (copyout(&ai, uap->auditinfo, sizeof(ai)));
 }
 
@@ -677,6 +686,7 @@ sys_setaudit(struct thread *td, struct setaudit_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
+ADD_PROCBASE(uap->auditinfo, td);
 	error = copyin(uap->auditinfo, &ai, sizeof(ai));
 	if (error)
 		return (error);
@@ -723,6 +733,7 @@ sys_getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
+ADD_PROCBASE(uap->auditinfo_addr, td);
 	return (copyout(&td->td_ucred->cr_audit, uap->auditinfo_addr,
 	    sizeof(*uap->auditinfo_addr)));
 }
@@ -737,6 +748,7 @@ sys_setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
+ADD_PROCBASE(uap->auditinfo_addr, td);
 	error = copyin(uap->auditinfo_addr, &aia, sizeof(aia));
 	if (error)
 		return (error);
@@ -798,7 +810,7 @@ sys_auditctl(struct thread *td, struct auditctl_args *uap)
 	 */
 	if (uap->path == NULL)
 		return (EINVAL);
-
+ADD_PROCBASE(uap->path, td);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path);
 	flags = AUDIT_OPEN_FLAGS;

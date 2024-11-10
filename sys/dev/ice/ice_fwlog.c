@@ -29,7 +29,6 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "ice_osdep.h"
 #include "ice_common.h"
 #include "ice_fwlog.h"
 
@@ -121,7 +120,7 @@ static bool valid_cfg(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
  * ice_init_hw(). Firmware logging will be configured based on these settings
  * and also the PF will be registered on init.
  */
-int
+enum ice_status
 ice_fwlog_init(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 {
 	if (!valid_cfg(hw, cfg))
@@ -129,7 +128,7 @@ ice_fwlog_init(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 
 	cache_cfg(hw, cfg);
 
-	return 0;
+	return ICE_SUCCESS;
 }
 
 /**
@@ -140,14 +139,14 @@ ice_fwlog_init(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
  * @options: options from ice_fwlog_cfg->options structure
  * @log_resolution: logging resolution
  */
-static int
+static enum ice_status
 ice_aq_fwlog_set(struct ice_hw *hw, struct ice_fwlog_module_entry *entries,
 		 u16 num_entries, u16 options, u16 log_resolution)
 {
 	struct ice_aqc_fw_log_cfg_resp *fw_modules;
 	struct ice_aqc_fw_log *cmd;
 	struct ice_aq_desc desc;
-	int status;
+	enum ice_status status;
 	u16 i;
 
 	fw_modules = (struct ice_aqc_fw_log_cfg_resp *)
@@ -209,10 +208,10 @@ bool ice_fwlog_supported(struct ice_hw *hw)
  * ice_fwlog_register. Note, that ice_fwlog_register does not need to be called
  * for init.
  */
-int
+enum ice_status
 ice_fwlog_set(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 {
-	int status;
+	enum ice_status status;
 
 	if (!ice_fwlog_supported(hw))
 		return ICE_ERR_NOT_SUPPORTED;
@@ -269,13 +268,13 @@ update_cached_entries(struct ice_hw *hw, struct ice_fwlog_module_entry *entries,
  * Only the entries passed in will be affected. All other firmware logging
  * settings will be unaffected.
  */
-int
+enum ice_status
 ice_fwlog_update_modules(struct ice_hw *hw,
 			 struct ice_fwlog_module_entry *entries,
 			 u16 num_entries)
 {
 	struct ice_fwlog_cfg *cfg;
-	int status;
+	enum ice_status status;
 
 	if (!ice_fwlog_supported(hw))
 		return ICE_ERR_NOT_SUPPORTED;
@@ -306,7 +305,7 @@ status_out:
  * @hw: pointer to the HW structure
  * @reg: true to register and false to unregister
  */
-static int ice_aq_fwlog_register(struct ice_hw *hw, bool reg)
+static enum ice_status ice_aq_fwlog_register(struct ice_hw *hw, bool reg)
 {
 	struct ice_aq_desc desc;
 
@@ -325,9 +324,9 @@ static int ice_aq_fwlog_register(struct ice_hw *hw, bool reg)
  * After this call the PF will start to receive firmware logging based on the
  * configuration set in ice_fwlog_set.
  */
-int ice_fwlog_register(struct ice_hw *hw)
+enum ice_status ice_fwlog_register(struct ice_hw *hw)
 {
-	int status;
+	enum ice_status status;
 
 	if (!ice_fwlog_supported(hw))
 		return ICE_ERR_NOT_SUPPORTED;
@@ -345,9 +344,9 @@ int ice_fwlog_register(struct ice_hw *hw)
  * ice_fwlog_unregister - Unregister the PF from firmware logging
  * @hw: pointer to the HW structure
  */
-int ice_fwlog_unregister(struct ice_hw *hw)
+enum ice_status ice_fwlog_unregister(struct ice_hw *hw)
 {
-	int status;
+	enum ice_status status;
 
 	if (!ice_fwlog_supported(hw))
 		return ICE_ERR_NOT_SUPPORTED;
@@ -366,14 +365,14 @@ int ice_fwlog_unregister(struct ice_hw *hw)
  * @hw: pointer to the HW structure
  * @cfg: firmware logging configuration to populate
  */
-static int
+static enum ice_status
 ice_aq_fwlog_get(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 {
 	struct ice_aqc_fw_log_cfg_resp *fw_modules;
 	struct ice_aqc_fw_log *cmd;
 	struct ice_aq_desc desc;
+	enum ice_status status;
 	u16 i, module_id_cnt;
-	int status;
 	void *buf;
 
 	ice_memset(cfg, 0, sizeof(*cfg), ICE_NONDMA_MEM);
@@ -439,7 +438,7 @@ status_out:
 void ice_fwlog_set_support_ena(struct ice_hw *hw)
 {
 	struct ice_fwlog_cfg *cfg;
-	int status;
+	enum ice_status status;
 
 	hw->fwlog_support_ena = false;
 
@@ -466,10 +465,10 @@ void ice_fwlog_set_support_ena(struct ice_hw *hw)
  * @hw: pointer to the HW structure
  * @cfg: config to populate based on current firmware logging settings
  */
-int
+enum ice_status
 ice_fwlog_get(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 {
-	int status;
+	enum ice_status status;
 
 	if (!ice_fwlog_supported(hw))
 		return ICE_ERR_NOT_SUPPORTED;
@@ -483,7 +482,7 @@ ice_fwlog_get(struct ice_hw *hw, struct ice_fwlog_cfg *cfg)
 
 	cache_cfg(hw, cfg);
 
-	return 0;
+	return ICE_SUCCESS;
 }
 
 /**

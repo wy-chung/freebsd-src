@@ -79,9 +79,19 @@ extern u_long maxphys;		/* max raw I/O transfer size */
  * ever implemented (e.g. vendor-specific paravirtualization features).
  * Keep in sync with vm_guest_sysctl_names[].
  */
-enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
-		VM_GUEST_VMWARE, VM_GUEST_KVM, VM_GUEST_BHYVE, VM_GUEST_VBOX,
-		VM_GUEST_PARALLELS, VM_GUEST_NVMM, VM_LAST };
+enum VM_GUEST {
+	VM_GUEST_NO,
+	VM_GUEST_VM,	// in qemu
+	VM_GUEST_XEN,
+	VM_GUEST_HV,
+	VM_GUEST_VMWARE,
+	VM_GUEST_KVM,	// in kvm
+	VM_GUEST_BHYVE,
+	VM_GUEST_VBOX,	// in VirtualBox
+	VM_GUEST_PARALLELS,
+	VM_GUEST_NVMM,
+	VM_LAST,
+};
 
 #endif /* KERNEL */
 
@@ -260,7 +270,7 @@ void	*SAN_INTERCEPTOR(memset)(void *, int, size_t);
 void	*SAN_INTERCEPTOR(memcpy)(void *, const void *, size_t);
 void	*SAN_INTERCEPTOR(memmove)(void *, const void *, size_t);
 int	SAN_INTERCEPTOR(memcmp)(const void *, const void *, size_t);
-#ifndef SAN_RUNTIME
+ #ifndef SAN_RUNTIME
 #define bcopy(from, to, len)	SAN_INTERCEPTOR(memmove)((to), (from), (len))
 #define bzero(buf, len)		SAN_INTERCEPTOR(memset)((buf), 0, (len))
 #define bcmp(b1, b2, len)	SAN_INTERCEPTOR(memcmp)((b1), (b2), (len))
@@ -268,7 +278,7 @@ int	SAN_INTERCEPTOR(memcmp)(const void *, const void *, size_t);
 #define memcpy(to, from, len)	SAN_INTERCEPTOR(memcpy)((to), (from), (len))
 #define memmove(dest, src, n)	SAN_INTERCEPTOR(memmove)((dest), (src), (n))
 #define memcmp(b1, b2, len)	SAN_INTERCEPTOR(memcmp)((b1), (b2), (len))
-#endif /* !SAN_RUNTIME */
+ #endif /* !SAN_RUNTIME */
 #else /* !SAN_NEEDS_INTERCEPTORS */
 #define bcopy(from, to, len)	__builtin_memmove((to), (from), (len))
 #define bzero(buf, len)		__builtin_memset((buf), 0, (len))
@@ -319,6 +329,8 @@ int	SAN_INTERCEPTOR(copyout)(const void *, void *, size_t);
 #endif /* !SAN_RUNTIME */
 #endif /* SAN_NEEDS_INTERCEPTORS */
 
+// fetch data from base (user-space)
+// return it / store to val (kernel-space)
 int	fubyte(volatile const void *base);
 long	fuword(volatile const void *base);
 int	fuword16(volatile const void *base);
@@ -327,16 +339,20 @@ int64_t	fuword64(volatile const void *base);
 int	fueword(volatile const void *base, long *val);
 int	fueword32(volatile const void *base, int32_t *val);
 int	fueword64(volatile const void *base, int64_t *val);
+// store data to base (user-space)
 int	subyte(volatile void *base, int byte);
 int	suword(volatile void *base, long word);
 int	suword16(volatile void *base, int word);
 int	suword32(volatile void *base, int32_t word);
 int	suword64(volatile void *base, int64_t word);
+
+// compare and swap from user space. if *base(user-space) == oldval then *base = newval
+// the old value is stored to oldvalp(kernel-space)
 uint32_t casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval);
-u_long	casuword(volatile u_long *p, u_long oldval, u_long newval);
+u_long	casuword(volatile u_long *base, u_long oldval, u_long newval);
 int	casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
 	    uint32_t newval);
-int	casueword(volatile u_long *p, u_long oldval, u_long *oldvalp,
+int	casueword(volatile u_long *base, u_long oldval, u_long *oldvalp,
 	    u_long newval);
 
 #if defined(SAN_NEEDS_INTERCEPTORS) && !defined(KCSAN)

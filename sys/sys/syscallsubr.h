@@ -64,7 +64,7 @@ struct stat;
 struct thr_param;
 struct timex;
 struct uio;
-struct vm_map;
+struct _vm_map;
 struct vmspace;
 
 typedef int (*mmap_check_fp_fn)(struct file *, int, int, int);
@@ -235,7 +235,7 @@ int	kern_mknodat(struct thread *td, int fd, const char *path,
 int	kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr,
 	    size_t len);
 int	kern_mmap(struct thread *td, const struct mmap_req *mrp);
-int	kern_mmap_racct_check(struct thread *td, struct vm_map *map,
+int	kern_mmap_racct_check(struct thread *td, struct _vm_map *map,
 	    vm_size_t size);
 int	kern_mmap_maxprot(struct proc *p, int prot);
 int	kern_mprotect(struct thread *td, uintptr_t addr, size_t size,

@@ -47,7 +47,6 @@ static char sccsid[] = "@(#)output.c	8.2 (Berkeley) 5/4/95";
  *		via malloc, rather than doing a fork and reading the
  *		output of the command via a pipe.
  */
-
 #include <stdio.h>	/* defines BUFSIZ */
 #include <string.h>
 #include <stdarg.h>
@@ -63,7 +62,6 @@ static char sccsid[] = "@(#)output.c	8.2 (Berkeley) 5/4/95";
 #include "memalloc.h"
 #include "error.h"
 #include "var.h"
-
 
 #define OUTBUFSIZ BUFSIZ
 #define MEM_OUT -2		/* output to dynamically allocated memory */
@@ -230,14 +228,12 @@ emptyoutbuf(struct output *dest)
 	}
 }
 
-
 void
 flushall(void)
 {
 	flushout(&output);
 	flushout(&errout);
 }
-
 
 void
 flushout(struct output *dest)
@@ -250,13 +246,11 @@ flushout(struct output *dest)
 	dest->nextc = dest->buf;
 }
 
-
 void
 freestdout(void)
 {
 	output.nextc = output.buf;
 }
-
 
 int
 outiserror(struct output *file)
@@ -264,13 +258,11 @@ outiserror(struct output *file)
 	return (file->flags & OUTPUT_ERR);
 }
 
-
 void
 outclearerror(struct output *file)
 {
 	file->flags &= ~OUTPUT_ERR;
 }
-
 
 void
 outfmt(struct output *file, const char *fmt, ...)
@@ -281,7 +273,6 @@ outfmt(struct output *file, const char *fmt, ...)
 	doformat(file, fmt, ap);
 	va_end(ap);
 }
-
 
 void
 out1fmt(const char *fmt, ...)
@@ -347,7 +338,6 @@ out1fp(void)
 /*
  * Version of write which resumes after a signal is caught.
  */
-
 int
 xwrite(int fd, const char *buf, int nbytes)
 {

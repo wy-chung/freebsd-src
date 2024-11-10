@@ -53,63 +53,45 @@
 #define	CR0_NW  0x20000000	/* Not Write-through */
 #define	CR0_CD  0x40000000	/* Cache Disable */
 
-#define	CR3_PCID_MASK	0x0000000000000fff
-#define	CR3_LAM_U57	0x2000000000000000
-#define	CR3_LAM_U48	0x4000000000000000
-#define	CR3_PCID_SAVE	0x8000000000000000
+#define	CR3_PCID_SAVE 0x8000000000000000
+#define	CR3_PCID_MASK 0xfff
 
 /*
  * Bits in PPro special registers
  */
-#define	CR4_VME		0x00000001	/* Virtual 8086 mode extensions */
-#define	CR4_PVI		0x00000002	/* Protected-mode virtual interrupts */
-#define	CR4_TSD		0x00000004	/* Time stamp disable */
-#define	CR4_DE		0x00000008	/* Debugging extensions */
-#define	CR4_PSE		0x00000010	/* Page size extensions */
-#define	CR4_PAE		0x00000020	/* Physical address extension */
-#define	CR4_MCE		0x00000040	/* Machine check enable */
-#define	CR4_PGE		0x00000080	/* Page global enable */
-#define	CR4_PCE		0x00000100	/* Performance monitoring counter
-					   enable */
-#define	CR4_FXSR	0x00000200	/* Fast FPU save/restore used by OS */
-#define	CR4_XMM		0x00000400	/* enable SIMD/MMX2 to use except 16 */
-#define	CR4_UMIP	0x00000800	/* User Mode Instruction Prevention */
-#define	CR4_LA57	0x00001000	/* Enable 5-level paging */
-#define	CR4_VMXE	0x00002000	/* enable VMX operation
-					   (Intel-specific) */
-#define	CR4_FSGSBASE	0x00010000	/* Enable FS/GS BASE access
-					   instructions */
-#define	CR4_PCIDE	0x00020000	/* Enable Context ID */
-#define	CR4_XSAVE	0x00040000	/* XSETBV/XGETBV */
-#define	CR4_SMEP	0x00100000	/* Supervisor-Mode Execution
-					   Prevention */
-#define	CR4_SMAP	0x00200000	/* Supervisor-Mode Access
-					   Prevention */
-#define	CR4_PKE		0x00400000	/* Protection Keys Enable */
-#define	CR4_CET		0x00800000	/* Control-flow Enforcement
-					   Technology */
-#define	CR4_PKS		0x01000000	/* Protection Keys for Supervisor */
-#define	CR4_UINTR	0x02000000	/* User Interrupts Enable */
-#define	CR4_LASS	0x08000000	/* Linear Address Space Separation */
-#define	CR4_LAM_SUP	0x10000000	/* Linear-Address Masking for
-					   Supervisor */
+#define	CR4_VME	0x00000001	/* Virtual 8086 mode extensions */
+#define	CR4_PVI	0x00000002	/* Protected-mode virtual interrupts */
+#define	CR4_TSD	0x00000004	/* Time stamp disable */
+#define	CR4_DE	0x00000008	/* Debugging extensions */
+#define	CR4_PSE	0x00000010	/* Page size extensions */
+#define	CR4_PAE	0x00000020	/* Physical address extension */
+#define	CR4_MCE	0x00000040	/* Machine check enable */
+#define	CR4_PGE	0x00000080	/* Page global enable */
+#define	CR4_PCE	0x00000100	/* Performance monitoring counter enable */
+#define	CR4_FXSR 0x00000200	/* Fast FPU save/restore used by OS */
+#define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
+#define	CR4_UMIP 0x00000800	/* User Mode Instruction Prevention */
+#define	CR4_LA57 0x00001000	/* Enable 5-level paging */
+#define	CR4_VMXE 0x00002000	/* enable VMX operation (Intel-specific) */
+#define	CR4_FSGSBASE 0x00010000	/* Enable FS/GS BASE accessing instructions */
+#define	CR4_PCIDE 0x00020000	/* Enable Context ID */
+#define	CR4_XSAVE 0x00040000	/* XSETBV/XGETBV */
+#define	CR4_SMEP 0x00100000	/* Supervisor-Mode Execution Prevention */
+#define	CR4_SMAP 0x00200000	/* Supervisor-Mode Access Prevention */
+#define	CR4_PKE	0x00400000	/* Protection Keys Enable */
 
 /*
  * Bits in AMD64 special registers.  EFER is 64 bits wide.
  */
-#define	EFER_SCE	0x000000001	/* System Call Extensions (R/W) */
-#define	EFER_LME	0x000000100	/* Long mode enable (R/W) */
-#define	EFER_LMA	0x000000400	/* Long mode active (R) */
-#define	EFER_NXE	0x000000800	/* PTE No-Execute bit enable (R/W) */
-#define	EFER_SVM	0x000001000	/* SVM enable bit for AMD, reserved
-					   for Intel */
-#define	EFER_LMSLE	0x000002000	/* Long Mode Segment Limit Enable */
-#define	EFER_FFXSR	0x000004000	/* Fast FXSAVE/FSRSTOR */
-#define	EFER_TCE	0x000008000	/* Translation Cache Extension */
-#define	EFER_MCOMMIT	0x000020000	/* Enable MCOMMIT (AMD) */
-#define	EFER_INTWB	0x000040000	/* Interruptible WBINVD */
-#define	EFER_UAIE	0x000100000	/* Upper Address Ignore */
-#define	EFER_AIBRSE	0x000200000	/* Automatic IBRS */
+#define	EFER_SCE 0x000000001	/* System Call Extensions (R/W) */
+#define	EFER_LME 0x000000100	/* Long mode enable (R/W) */
+#define	EFER_LMA 0x000000400	/* Long mode active (R) */
+#define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
+#define	EFER_SVM 0x000001000	/* SVM enable bit for AMD, reserved for Intel */
+#define	EFER_LMSLE 0x000002000	/* Long Mode Segment Limit Enable */
+#define	EFER_FFXSR 0x000004000	/* Fast FXSAVE/FSRSTOR */
+#define	EFER_TCE   0x000008000	/* Translation Cache Extension */
+#define	EFER_MCOMMIT	0x00020000	/* Enable MCOMMIT (AMD) */
 
 /*
  * Intel Extended Features registers
@@ -176,7 +158,7 @@
 
 #define	CPUID2_SSE3	0x00000001
 #define	CPUID2_PCLMULQDQ 0x00000002
-#define	CPUID2_DTES64	0x00000004
+#define	CPUID2_DTES64	0x00000004 // DS area using 64-bit layout
 #define	CPUID2_MON	0x00000008
 #define	CPUID2_DS_CPL	0x00000010
 #define	CPUID2_VMX	0x00000020
@@ -185,12 +167,12 @@
 #define	CPUID2_TM2	0x00000100
 #define	CPUID2_SSSE3	0x00000200
 #define	CPUID2_CNXTID	0x00000400
-#define	CPUID2_SDBG	0x00000800
-#define	CPUID2_FMA	0x00001000
-#define	CPUID2_CX16	0x00002000
+#define	CPUID2_SDBG	0x00000800 // IA32_DEBUG_INTERFACE MSR for silicon debug
+#define	CPUID2_FMA	0x00001000 // FMA extensions using YMM state
+#define	CPUID2_CX16	0x00002000 // CMPXCHG16B Available
 #define	CPUID2_XTPR	0x00004000
-#define	CPUID2_PDCM	0x00008000
-#define	CPUID2_PCID	0x00020000
+#define	CPUID2_PDCM	0x00008000 // the performance and debug feature indication MSR IA32_PERF_CAPABILITIES
+#define	CPUID2_PCID	0x00020000 // Process-context Identifiers
 #define	CPUID2_DCA	0x00040000
 #define	CPUID2_SSE41	0x00080000
 #define	CPUID2_SSE42	0x00100000
@@ -199,11 +181,11 @@
 #define	CPUID2_POPCNT	0x00800000
 #define	CPUID2_TSCDLT	0x01000000
 #define	CPUID2_AESNI	0x02000000
-#define	CPUID2_XSAVE	0x04000000
+#define	CPUID2_XSAVE	0x04000000 // the XSAVE/XRSTOR processor extended states feature, the XSETBV/XGETBV instructions, and XCR0
 #define	CPUID2_OSXSAVE	0x08000000
-#define	CPUID2_AVX	0x10000000
-#define	CPUID2_F16C	0x20000000
-#define	CPUID2_RDRAND	0x40000000
+#define	CPUID2_AVX	0x10000000 // the AVX instruction extensions
+#define	CPUID2_F16C	0x20000000 // 16-bit floating-point conversion instructions
+#define	CPUID2_RDRAND	0x40000000 // RDRAND instruction
 #define	CPUID2_HV	0x80000000
 
 /* Intel Processor Trace CPUID. */
@@ -460,7 +442,7 @@
 /*
  * CPUID instruction 7 Structured Extended Features, leaf 0 ebx info
  */
-#define	CPUID_STDEXT_FSGSBASE	0x00000001
+#define	CPUID_STDEXT_FSGSBASE	0x00000001	/* Enable FS/GS BASE accessing instructions */
 #define	CPUID_STDEXT_TSC_ADJUST	0x00000002
 #define	CPUID_STDEXT_SGX	0x00000004
 #define	CPUID_STDEXT_BMI1	0x00000008
@@ -499,7 +481,7 @@
 #define	CPUID_STDEXT2_PREFETCHWT1 	0x00000001
 #define	CPUID_STDEXT2_AVX512VBMI	0x00000002
 #define	CPUID_STDEXT2_UMIP		0x00000004
-#define	CPUID_STDEXT2_PKU		0x00000008
+#define	CPUID_STDEXT2_PKU		0x00000008	/* Protection Keys Enable */
 #define	CPUID_STDEXT2_OSPKE		0x00000010
 #define	CPUID_STDEXT2_WAITPKG		0x00000020
 #define	CPUID_STDEXT2_AVX512VBMI2	0x00000040
@@ -536,18 +518,12 @@
 #define	CPUID_STDEXT3_CORE_CAP		0x40000000
 #define	CPUID_STDEXT3_SSBD		0x80000000
 
-/*
- * CPUID instruction 7 Structured Extended Features, leaf 1 eax info
- */
-#define	CPUID_STDEXT4_LASS		0x00000040
-#define	CPUID_STDEXT4_LAM		0x04000000
-
 /* CPUID_HYBRID_ID leaf 0x1a */
 #define	CPUID_HYBRID_CORE_MASK	0xff000000
 #define	CPUID_HYBRID_SMALL_CORE	0x20000000
 #define	CPUID_HYBRID_LARGE_CORE	0x40000000
 
-/* MSR IA32_ARCH_CAP(ABILITIES) bits */
+/* MSR_IA32_ARCH_CAP(ABILITIES) bits */
 #define	IA32_ARCH_CAP_RDCL_NO	0x00000001
 #define	IA32_ARCH_CAP_IBRS_ALL	0x00000002
 #define	IA32_ARCH_CAP_RSBA	0x00000004
@@ -558,7 +534,7 @@
 #define	IA32_ARCH_CAP_TSX_CTRL	0x00000080
 #define	IA32_ARCH_CAP_TAA_NO	0x00000100
 
-/* MSR IA32_TSX_CTRL bits */
+/* MSR_IA32_TSX_CTRL bits */
 #define	IA32_TSX_CTRL_RTM_DISABLE	0x00000001
 #define	IA32_TSX_CTRL_TSX_CPUID_CLEAR	0x00000002
 
@@ -910,7 +886,7 @@
 #define	IA32_PKG_THERM_INTERRUPT_HFI_ENABLE		(0x1ULL << 25)
 
 /*
- * PAT modes.
+ * PAT(Page Attribute Table) modes. related: MSR_PAT
  */
 #define	PAT_UNCACHEABLE		0x00
 #define	PAT_WRITE_COMBINING	0x01
@@ -1195,10 +1171,17 @@
 #define	MSR_LSTAR	0xc0000082	/* long mode SYSCALL target rip */
 #define	MSR_CSTAR	0xc0000083	/* compat mode SYSCALL target rip */
 #define	MSR_SF_MASK	0xc0000084	/* syscall flags mask */
-#define	MSR_FSBASE	0xc0000100	/* base address of the %fs "segment" */
-#define	MSR_GSBASE	0xc0000101	/* base address of the %gs "segment" */
-#define	MSR_KGSBASE	0xc0000102	/* base address of the kernel %gs */
+#define	MSR_FSBASE	0xc0000100	/* base address of the %fs "segment", for TLS */
+#define	MSR_GSBASE	0xc0000101	/* base address of the %gs "segment", for pcpu */
+#define	MSR_KGSBASE	0xc0000102	// in user mode, the base address of the kgs;
+					// in kernel mode, the base address of ugs is backuped here */
 #define	MSR_TSC_AUX	0xc0000103
+//wyc
+#define MSC_CSBASE	0xc000010c
+#define MSC_DSBASE	0xc000010d
+#define MSC_ESBASE	0xc000010e
+#define MSC_SSBASE	0xc000010f
+
 #define	MSR_PERFEVSEL0	0xc0010000
 #define	MSR_PERFEVSEL1	0xc0010001
 #define	MSR_PERFEVSEL2	0xc0010002

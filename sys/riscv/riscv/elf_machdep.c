@@ -72,10 +72,11 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_elf_core_abi_vendor = FREEBSD_ABI_VENDOR,
 	.sv_elf_core_prepare_notes = __elfN(prepare_notes),
 	.sv_minsigstksz	= MINSIGSTKSZ,
-	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= 0,	/* Filled in during boot. */
-	.sv_usrstack	= 0,	/* Filled in during boot. */
-	.sv_psstrings	= 0,	/* Filled in during boot. */
+	.sv_minuser	= USER_MIN_ADDRESS,
+	.sv_maxuser	= 0,	// USER_MAX_ADDRESS	/* Filled in during boot by elf64_register_sysvec. */
+	.sv_shared_page_base = 0,//SHAREDPAGE_SV48	/* Filled in during boot by elf64_register_sysvec. */
+	.sv_usrstack	= 0,	// USRSTACK_SV48	/* Filled in during boot by elf64_register_sysvec. */
+	.sv_psstrings	= 0,	// PS_STRINGS_SV48	/* Filled in during boot by elf64_register_sysvec. */
 	.sv_psstringssz	= sizeof(struct ps_strings),
 	.sv_stackprot	= VM_PROT_READ | VM_PROT_WRITE,
 	.sv_copyout_auxargs = __elfN(freebsd_copyout_auxargs),
@@ -88,7 +89,6 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
-	.sv_shared_page_base = 0,	/* Filled in during boot. */
 	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= NULL,
 	.sv_thread_detach = NULL,
@@ -99,7 +99,7 @@ static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_regset_begin = SET_BEGIN(__elfN(regset)),
 	.sv_regset_end  = SET_LIMIT(__elfN(regset)),
 };
-INIT_SYSENTVEC(elf64_sysvec, &elf64_freebsd_sysvec);
+INIT_SYSENTVEC(elf64_sysvec, &elf64_freebsd_sysvec); // exec_sysvec_init will init other fields in elf64_freebsd_sysvec
 
 static Elf64_Brandinfo freebsd_brand_info = {
 	.brand		= ELFOSABI_FREEBSD,
@@ -122,16 +122,22 @@ elf64_register_sysvec(void *arg)
 	sv = arg;
 	switch (pmap_mode) {
 	case PMAP_MODE_SV48:
-		sv->sv_maxuser = VM_MAX_USER_ADDRESS_SV48;
+		sv->sv_maxuser = USER_MAX_ADDRESS;
+		sv->sv_shared_page_base = SHAREDPAGE_SV48;
 		sv->sv_usrstack = USRSTACK_SV48;
 		sv->sv_psstrings = PS_STRINGS_SV48;
-		sv->sv_shared_page_base = SHAREDPAGE_SV48;
 		break;
 	case PMAP_MODE_SV39:
+WYC_PANIC();
+#if 0
 		sv->sv_maxuser = VM_MAX_USER_ADDRESS_SV39;
 		sv->sv_usrstack = USRSTACK_SV39;
 		sv->sv_psstrings = PS_STRINGS_SV39;
 		sv->sv_shared_page_base = SHAREDPAGE_SV39;
+#endif
+		break;
+	case PMAP_MODE_SV57:
+WYC_PANIC();
 		break;
 	}
 }

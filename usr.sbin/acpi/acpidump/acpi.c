@@ -1275,16 +1275,14 @@ devscope_type2str(int type)
 	static char typebuf[16];
 
 	switch (type) {
-	case ACPI_DMAR_SCOPE_TYPE_ENDPOINT:
+	case 1:
 		return ("PCI Endpoint Device");
-	case ACPI_DMAR_SCOPE_TYPE_BRIDGE:
+	case 2:
 		return ("PCI Sub-Hierarchy");
-	case ACPI_DMAR_SCOPE_TYPE_IOAPIC:
+	case 3:
 		return ("IOAPIC");
-	case ACPI_DMAR_SCOPE_TYPE_HPET:
+	case 4:
 		return ("HPET");
-	case ACPI_DMAR_SCOPE_TYPE_NAMESPACE:
-		return ("ACPI NS DEV");
 	default:
 		snprintf(typebuf, sizeof(typebuf), "%d", type);
 		return (typebuf);
@@ -2621,7 +2619,7 @@ aml_disassemble(ACPI_TABLE_HEADER *rsdt, ACPI_TABLE_HEADER *dsdp)
 		goto out;
 	}
 	if (status != 0) {
-		fprintf(stderr, "iasl exit status = %d\n", status);
+		fprintf(stderr, "iast exit status = %d\n", status);
 	}
 
 	/* Dump iasl's output to stdout */

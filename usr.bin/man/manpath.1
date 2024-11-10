@@ -1,6 +1,4 @@
 .\"-
-.\" SPDX-License-Identifer: BSD-2-Clause
-.\"
 .\"  Copyright (c) 2010 Gordon Tetlow
 .\"  All rights reserved.
 .\"
@@ -42,7 +40,7 @@ the user's
 .Ev PATH ,
 and local configuration files.
 This result is echoed to the standard output.
-.Bl -tag -width "-L"
+.Bl -tag -width ".Fl d"
 .It Fl L
 Output manual locales list instead of the manual path.
 .It Fl d
@@ -91,7 +89,7 @@ entries.
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
-.Bl -tag -width "MANLOCALES"
+.Bl -tag -width ".Ev MANLOCALES"
 .It Ev MANLOCALES
 If set with the
 .Fl L
@@ -105,7 +103,7 @@ Influences the manual path as described in the
 .Sx IMPLEMENTATION NOTES .
 .El
 .Sh FILES
-.Bl -tag -width "/usr/local/etc/man.d/*.conf" -compact
+.Bl -tag -width indent -compact
 .It Pa /etc/man.conf
 System configuration file.
 .It Pa /usr/local/etc/man.d/*.conf

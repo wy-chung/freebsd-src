@@ -44,6 +44,11 @@
 #include <net/if_types.h>
 #include <net/vnet.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 /*
  * See also:
  *	http://www.opengroup.org/dce/info/draft-leach-uuids-guids-01.txt
@@ -192,6 +197,7 @@ sys_uuidgen(struct thread *td, struct uuidgen_args *uap)
 	count = uap->count;
 	store = malloc(count * sizeof(struct uuid), M_TEMP, M_WAITOK);
 	kern_uuidgen(store, count);
+ADD_PROCBASE(uap->store, td);
 	error = copyout(store, uap->store, count * sizeof(struct uuid));
 	free(store, M_TEMP);
 	return (error);

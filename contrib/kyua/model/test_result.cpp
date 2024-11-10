@@ -35,42 +35,6 @@
 namespace text = utils::text;
 
 
-const std::map<enum model::test_result_type,
-               const struct model::test_result_type_desc>
-    model::test_result_types =
-{
-    { test_result_broken,
-        { .id =      test_result_broken,
-          .name =    "broken",
-          .is_run =  true,
-          .is_good = false, } },
-
-    { test_result_expected_failure,
-        { .id =      test_result_expected_failure,
-          .name =    "xfail",
-          .is_run =  true,
-          .is_good = true, } },
-
-    { test_result_failed,
-        { .id =      test_result_failed,
-          .name =    "failed",
-          .is_run =  true,
-          .is_good = false, } },
-
-    { test_result_passed,
-        { .id =      test_result_passed,
-          .name =    "passed",
-          .is_run =  true,
-          .is_good = true, } },
-
-    { test_result_skipped,
-        { .id =      test_result_skipped,
-          .name =    "skipped",
-          .is_run =  false,
-          .is_good = true, } },
-};
-
-
 /// Constructs a base result.
 ///
 /// \param type_ The type of the result.
@@ -110,7 +74,17 @@ model::test_result::reason(void) const
 bool
 model::test_result::good(void) const
 {
-    return test_result_types.at(_type).is_good;
+    switch (_type) {
+    case test_result_expected_failure:
+    case test_result_passed:
+    case test_result_skipped:
+        return true;
+
+    case test_result_broken:
+    case test_result_failed:
+        return false;
+    }
+    UNREACHABLE;
 }
 
 

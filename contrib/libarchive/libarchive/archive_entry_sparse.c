@@ -76,7 +76,7 @@ archive_entry_sparse_add_entry(struct archive_entry *entry,
 		}
 	}
 
-	if ((sp = malloc(sizeof(*sp))) == NULL)
+	if ((sp = (struct ae_sparse *)malloc(sizeof(*sp))) == NULL)
 		/* XXX Error XXX */
 		return;
 

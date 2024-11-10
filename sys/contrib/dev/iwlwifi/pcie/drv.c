@@ -1628,27 +1628,18 @@ sysctl_iwlwifi_pci_ids_name(SYSCTL_HANDLER_ARGS)
 
 		if ((id->driver_data & TRANS_CFG_MARKER) != 0) {
 			/* Skip and print them below. */
-			struct iwl_cfg_trans_params *trans;
-
-			trans = (void *)(id->driver_data & ~TRANS_CFG_MARKER);
-			sbuf_printf(sb, "%#06x/%#06x/%#06x/%#06x\t%s\t%s\t%d\t%s\n",
-			    id->vendor, id->device, id->subvendor, id->subdevice,
-			    "", "", trans->device_family,
-			    iwl_device_family_name(trans->device_family));
 
 		} else if (id->driver_data != 0) {
 			const struct iwl_cfg *cfg;
 
 			cfg = (void *)(id->driver_data & ~TRANS_CFG_MARKER);
-			sbuf_printf(sb, "%#06x/%#06x/%#06x/%#06x\t%s\t%s\t%d\t%s\n",
+			sbuf_printf(sb, "%#06x/%#06x/%#06x/%#06x\t%s\t%s\n",
 			    id->vendor, id->device, id->subvendor, id->subdevice,
-			    cfg->name, cfg->fw_name_pre, cfg->trans.device_family,
-			    iwl_device_family_name(cfg->trans.device_family));
+			    cfg->name, cfg->fw_name_pre);
 		} else {
-			sbuf_printf(sb, "%#06x/%#06x/%#06x/%#06x\t%s\t%s\t%d\t%s\n",
+			sbuf_printf(sb, "%#06x/%#06x/%#06x/%#06x\t%s\t%s\n",
 			    id->vendor, id->device, id->subvendor, id->subdevice,
-			    "","", IWL_DEVICE_FAMILY_UNDEFINED,
-			    iwl_device_family_name(IWL_DEVICE_FAMILY_UNDEFINED));
+			    "","");
 		}
 		id++;
 	}
@@ -1664,10 +1655,9 @@ sysctl_iwlwifi_pci_ids_name(SYSCTL_HANDLER_ARGS)
 		else
 			name = "";
 
-		sbuf_printf(sb, "%#06x/%#06x/%#06x/%#06x\t%s\t%s\t%d\t%s\n",
+		sbuf_printf(sb, "%#06x/%#06x/%#06x/%#06x\t%s\t%s\n",
 		    PCI_VENDOR_ID_INTEL, dev_info->device, PCI_ANY_ID, dev_info->subdevice,
-		    name, dev_info->cfg->fw_name_pre, dev_info->cfg->trans.device_family,
-		    iwl_device_family_name(dev_info->cfg->trans.device_family));
+		    name, dev_info->cfg->fw_name_pre);
 	}
 
 	error = sbuf_finish(sb);

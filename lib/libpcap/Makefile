@@ -19,6 +19,7 @@ SRCS=	bpf_dump.c \
 	pcap-bpf.c \
 	pcap-common.c \
 	pcap-netmap.c \
+	pcap-usb-linux-common.c \
 	pcap-util.c \
 	pcap.c \
 	savefile.c \

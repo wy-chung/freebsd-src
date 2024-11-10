@@ -1038,10 +1038,8 @@ badopt:
 			warnx("argument to -b must be duration.pitch or [quiet.]visual|normal|off");
 			return;
 		}
-		if (!is_vt4()) {
-			if (pitch != 0)
-				pitch = 1193182 / pitch;	/* in Hz */
-		}
+		if (pitch != 0)
+			pitch = 1193182 / pitch;	/* in Hz */
 		duration /= 10;	/* in 10 m sec */
 	}
 

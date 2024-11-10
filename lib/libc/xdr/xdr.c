@@ -88,10 +88,12 @@ xdr_free(xdrproc_t proc, void *objp)
  * XDR nothing
  */
 bool_t
-xdr_void(XDR *xdrs __unused, void *ptr __unused)
+xdr_void(void)
 {
+
 	return (TRUE);
 }
+
 
 /*
  * XDR integers

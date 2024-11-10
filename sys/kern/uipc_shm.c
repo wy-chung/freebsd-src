@@ -944,20 +944,19 @@ shm_alloc(struct ucred *ucred, mode_t mode, bool largepage)
 	shmfd->shm_gid = ucred->cr_gid;
 	shmfd->shm_mode = mode;
 	if (largepage) {
-		obj = phys_pager_allocate(NULL, &shm_largepage_phys_ops,
-		    NULL, shmfd->shm_size, VM_PROT_DEFAULT, 0, ucred);
-		obj->un_pager.phys.phys_priv = shmfd;
+		shmfd->shm_object = phys_pager_allocate(NULL,
+		    &shm_largepage_phys_ops, NULL, shmfd->shm_size,
+		    VM_PROT_DEFAULT, 0, ucred);
 		shmfd->shm_lp_alloc_policy = SHM_LARGEPAGE_ALLOC_DEFAULT;
 	} else {
 		obj = vm_pager_allocate(shmfd_pager_type, NULL,
 		    shmfd->shm_size, VM_PROT_DEFAULT, 0, ucred);
+		VM_OBJECT_WLOCK(obj);
 		obj->un_pager.swp.swp_priv = shmfd;
+		VM_OBJECT_WUNLOCK(obj);
+		shmfd->shm_object = obj;
 	}
-	KASSERT(obj != NULL, ("shm_create: vm_pager_allocate"));
-	VM_OBJECT_WLOCK(obj);
-	vm_object_set_flag(obj, OBJ_POSIXSHM);
-	VM_OBJECT_WUNLOCK(obj);
-	shmfd->shm_object = obj;
+	KASSERT(shmfd->shm_object != NULL, ("shm_create: vm_pager_allocate"));
 	vfs_timestamp(&shmfd->shm_birthtime);
 	shmfd->shm_atime = shmfd->shm_mtime = shmfd->shm_ctime =
 	    shmfd->shm_birthtime;
@@ -993,12 +992,11 @@ shm_drop(struct shmfd *shmfd)
 		rangelock_destroy(&shmfd->shm_rl);
 		mtx_destroy(&shmfd->shm_mtx);
 		obj = shmfd->shm_object;
-		VM_OBJECT_WLOCK(obj);
-		if (shm_largepage(shmfd))
-			obj->un_pager.phys.phys_priv = NULL;
-		else
+		if (!shm_largepage(shmfd)) {
+			VM_OBJECT_WLOCK(obj);
 			obj->un_pager.swp.swp_priv = NULL;
-		VM_OBJECT_WUNLOCK(obj);
+			VM_OBJECT_WUNLOCK(obj);
+		}
 		vm_object_deallocate(obj);
 		free(shmfd, M_SHMFD);
 	}
@@ -1368,7 +1366,7 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 int
 freebsd12_shm_open(struct thread *td, struct freebsd12_shm_open_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_shm_open(td, uap->path, uap->flags | O_CLOEXEC,
 	    uap->mode, NULL));
 }
@@ -1380,7 +1378,7 @@ sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 	char *path;
 	Fnv32_t fnv;
 	int error;
-
+ADD_PROCBASE(uap->path, td);
 	error = shm_copyin_path(td, uap->path, &path);
 	if (error != 0)
 		return (error);
@@ -1435,11 +1433,11 @@ sys_shm_rename(struct thread *td, struct shm_rename_args *uap)
 		error = EINVAL;
 		goto out;
 	}
-
+ADD_PROCBASE(uap->path_from, td);
 	error = shm_copyin_path(td, uap->path_from, &path_from);
 	if (error != 0)
 		goto out;
-
+ADD_PROCBASE(uap->path_to, td);
 	error = shm_copyin_path(td, uap->path_to, &path_to);
 	if (error != 0)
 		goto out;
@@ -1648,7 +1646,7 @@ fail:
 
 static int
 shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
-    vm_prot_t prot, vm_prot_t max_maxprot, int flags,
+    vm_prot_t prot, vm_prot_t cap_maxprot, int flags,
     vm_ooffset_t foff, struct thread *td)
 {
 	struct shmfd *shmfd;
@@ -1671,8 +1669,8 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 	 * writeable.
 	 */
 	if ((flags & MAP_SHARED) == 0) {
-		if ((max_maxprot & VM_PROT_WRITE) != 0)
-			maxprot |= VM_PROT_WRITE;
+		cap_maxprot |= VM_PROT_WRITE;
+		maxprot |= VM_PROT_WRITE;
 		writecnt = false;
 	} else {
 		if ((fp->f_flag & FWRITE) != 0 &&
@@ -1692,7 +1690,7 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 			goto out;
 		}
 	}
-	maxprot &= max_maxprot;
+	maxprot &= cap_maxprot;
 
 	/* See comment in vn_mmap(). */
 	if (
@@ -1868,7 +1866,7 @@ shm_unmap(struct file *fp, void *mem, size_t size)
 	vm_object_t obj;
 	vm_pindex_t pindex;
 	vm_prot_t prot;
-	boolean_t wired;
+	bool wired;
 	vm_map_t map;
 	int rv;
 
@@ -2188,38 +2186,8 @@ kern_shm_open(struct thread *td, const char *path, int flags, mode_t mode,
 int
 sys_shm_open2(struct thread *td, struct shm_open2_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->name, td);
 	return (kern_shm_open2(td, uap->path, uap->flags, uap->mode,
 	    uap->shmflags, NULL, uap->name));
-}
-
-int
-shm_get_path(struct vm_object *obj, char *path, size_t sz)
-{
-	struct shmfd *shmfd;
-	int error;
-
-	error = 0;
-	shmfd = NULL;
-	sx_slock(&shm_dict_lock);
-	VM_OBJECT_RLOCK(obj);
-	if ((obj->flags & OBJ_POSIXSHM) == 0) {
-		error = EINVAL;
-	} else {
-		if (obj->type == shmfd_pager_type)
-			shmfd = obj->un_pager.swp.swp_priv;
-		else if (obj->type == OBJT_PHYS)
-			shmfd = obj->un_pager.phys.phys_priv;
-		if (shmfd == NULL) {
-			error = ENXIO;
-		} else {
-			strlcpy(path, shmfd->shm_path == NULL ? "anon" :
-			    shmfd->shm_path, sz);
-		}
-	}
-	if (error != 0)
-		path[0] = '\0';
-	VM_OBJECT_RUNLOCK(obj);
-	sx_sunlock(&shm_dict_lock);
-	return (error);
 }

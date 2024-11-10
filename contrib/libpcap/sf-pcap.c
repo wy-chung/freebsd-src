@@ -28,7 +28,9 @@
  * dependent values so we can print the dump file on any architecture.
  */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include <pcap-types.h>
 #ifdef _WIN32
@@ -88,7 +90,7 @@
 #define FMESQUITA_TCPDUMP_MAGIC	0xa1b234cd
 
 /*
- * Navtel Communications' format, with nanosecond timestamps,
+ * Navtel Communcations' format, with nanosecond timestamps,
  * as per a request from Dumas Hwang <dumas.hwang@navtelcom.com>.
  */
 #define NAVTEL_TCPDUMP_MAGIC	0xa12b3c4d
@@ -100,79 +102,16 @@
 #define NSEC_TCPDUMP_MAGIC	0xa1b23c4d
 
 /*
- * This is a timeval as stored in a savefile.
- * It has to use the same types everywhere, independent of the actual
- * `struct timeval'; `struct timeval' has 32-bit tv_sec values on some
- * platforms and 64-bit tv_sec values on other platforms, and writing
- * out native `struct timeval' values would mean files could only be
- * read on systems with the same tv_sec size as the system on which
- * the file was written.
+ * Mechanism for storing information about a capture in the upper
+ * 6 bits of a linktype value in a capture file.
  *
- * THe fields are unsigned, as that's what the pcap draft specification
- * says they are.  (That gives pcap a 68-year Y2.038K reprieve, although
- * in 2106 it runs out for good.  pcapng doesn't have that problem,
- * unless you pick a *really* high time stamp precision.)
+ * LT_LINKTYPE_EXT(x) extracts the additional information.
+ *
+ * The rest of the bits are for a value describing the link-layer
+ * value.  LT_LINKTYPE(x) extracts that value.
  */
-
-struct pcap_timeval {
-	bpf_u_int32 tv_sec;	/* seconds */
-	bpf_u_int32 tv_usec;	/* microseconds */
-};
-
-/*
- * This is a `pcap_pkthdr' as actually stored in a savefile.
- *
- * Do not change the format of this structure, in any way (this includes
- * changes that only affect the length of fields in this structure),
- * and do not make the time stamp anything other than seconds and
- * microseconds (e.g., seconds and nanoseconds).  Instead:
- *
- *	introduce a new structure for the new format;
- *
- *	send mail to "tcpdump-workers@lists.tcpdump.org", requesting
- *	a new magic number for your new capture file format, and, when
- *	you get the new magic number, put it in "savefile.c";
- *
- *	use that magic number for save files with the changed record
- *	header;
- *
- *	make the code in "savefile.c" capable of reading files with
- *	the old record header as well as files with the new record header
- *	(using the magic number to determine the header format).
- *
- * Then supply the changes by forking the branch at
- *
- *	https://github.com/the-tcpdump-group/libpcap/tree/master
- *
- * and issuing a pull request, so that future versions of libpcap and
- * programs that use it (such as tcpdump) will be able to read your new
- * capture file format.
- */
-
-struct pcap_sf_pkthdr {
-	struct pcap_timeval ts;	/* time stamp */
-	bpf_u_int32 caplen;	/* length of portion present */
-	bpf_u_int32 len;	/* length of this packet (off wire) */
-};
-
-/*
- * How a `pcap_pkthdr' is actually stored in savefiles written
- * by some patched versions of libpcap (e.g. the ones in Red
- * Hat Linux 6.1 and 6.2).
- *
- * Do not change the format of this structure, in any way (this includes
- * changes that only affect the length of fields in this structure).
- * Instead, introduce a new structure, as per the above.
- */
-
-struct pcap_sf_patched_pkthdr {
-	struct pcap_timeval ts;	/* time stamp */
-	bpf_u_int32 caplen;	/* length of portion present */
-	bpf_u_int32 len;	/* length of this packet (off wire) */
-	int index;
-	unsigned short protocol;
-	unsigned char pkt_type;
-};
+#define LT_LINKTYPE(x)		((x) & 0x03FFFFFF)
+#define LT_LINKTYPE_EXT(x)	((x) & 0xFC000000)
 
 static int pcap_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char **datap);
 
@@ -257,7 +196,7 @@ pcap_check_header(const uint8_t *magic, FILE *fp, u_int precision, char *errbuf,
 	    sizeof(hdr) - sizeof(hdr.magic), fp);
 	if (amt_read != sizeof(hdr) - sizeof(hdr.magic)) {
 		if (ferror(fp)) {
-			pcapint_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE,
+			pcap_fmt_errmsg_for_errno(errbuf, PCAP_ERRBUF_SIZE,
 			    errno, "error reading dump file");
 		} else {
 			snprintf(errbuf, PCAP_ERRBUF_SIZE,
@@ -303,17 +242,6 @@ pcap_check_header(const uint8_t *magic, FILE *fp, u_int precision, char *errbuf,
 	}
 
 	/*
-	 * Check the main reserved field.
-	 */
-	if (LT_RESERVED1(hdr.linktype) != 0) {
-		snprintf(errbuf, PCAP_ERRBUF_SIZE,
-			 "savefile linktype reserved field not zero (0x%08x)",
-			 LT_RESERVED1(hdr.linktype));
-		*err = 1;
-		return NULL;
-	}
-
-	/*
 	 * OK, this is a good pcap file.
 	 * Allocate a pcap_t for it.
 	 */
@@ -328,7 +256,7 @@ pcap_check_header(const uint8_t *magic, FILE *fp, u_int precision, char *errbuf,
 	p->version_minor = hdr.version_minor;
 	p->linktype = linktype_to_dlt(LT_LINKTYPE(hdr.linktype));
 	p->linktype_ext = LT_LINKTYPE_EXT(hdr.linktype);
-	p->snapshot = pcapint_adjust_snapshot(p->linktype, hdr.snaplen);
+	p->snapshot = pcap_adjust_snapshot(p->linktype, hdr.snaplen);
 
 	p->next_packet_op = pcap_next_packet;
 
@@ -486,7 +414,7 @@ pcap_check_header(const uint8_t *magic, FILE *fp, u_int precision, char *errbuf,
 		return (NULL);
 	}
 
-	p->cleanup_op = pcapint_sf_cleanup;
+	p->cleanup_op = sf_cleanup;
 
 	return (p);
 }
@@ -533,7 +461,7 @@ pcap_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char **data)
 	amt_read = fread(&sf_hdr, 1, ps->hdrsize, fp);
 	if (amt_read != ps->hdrsize) {
 		if (ferror(fp)) {
-			pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+			pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
 			    errno, "error reading dump file");
 			return (-1);
 		} else {
@@ -658,7 +586,7 @@ pcap_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char **data)
 		 * However, perhaps some versions of libpcap failed to
 		 * set the snapshot length correctly in the file header
 		 * or the per-packet header, or perhaps this is a
-		 * corrupted savefile or a savefile built/modified by a
+		 * corrupted safefile or a savefile built/modified by a
 		 * fuzz tester, so we check anyway.  We grow the buffer
 		 * to be big enough for the snapshot length, read up
 		 * to the snapshot length, discard the rest of the
@@ -687,7 +615,7 @@ pcap_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char **data)
 		amt_read = fread(p->buffer, 1, p->snapshot, fp);
 		if (amt_read != (bpf_u_int32)p->snapshot) {
 			if (ferror(fp)) {
-				pcapint_fmt_errmsg_for_errno(p->errbuf,
+				pcap_fmt_errmsg_for_errno(p->errbuf,
 				     PCAP_ERRBUF_SIZE, errno,
 				    "error reading dump file");
 			} else {
@@ -718,7 +646,7 @@ pcap_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char **data)
 			bytes_read += amt_read;
 			if (amt_read != bytes_to_read) {
 				if (ferror(fp)) {
-					pcapint_fmt_errmsg_for_errno(p->errbuf,
+					pcap_fmt_errmsg_for_errno(p->errbuf,
 					    PCAP_ERRBUF_SIZE, errno,
 					    "error reading dump file");
 				} else {
@@ -770,7 +698,7 @@ pcap_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char **data)
 		amt_read = fread(p->buffer, 1, hdr->caplen, fp);
 		if (amt_read != hdr->caplen) {
 			if (ferror(fp)) {
-				pcapint_fmt_errmsg_for_errno(p->errbuf,
+				pcap_fmt_errmsg_for_errno(p->errbuf,
 				    PCAP_ERRBUF_SIZE, errno,
 				    "error reading dump file");
 			} else {
@@ -783,7 +711,7 @@ pcap_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char **data)
 	}
 	*data = p->buffer;
 
-	pcapint_post_process(p->linktype, p->swapped, hdr, *data);
+	pcap_post_process(p->linktype, p->swapped, hdr, *data);
 
 	return (1);
 }
@@ -799,8 +727,9 @@ sf_write_header(pcap_t *p, FILE *fp, int linktype, int snaplen)
 
 	/*
 	 * https://www.tcpdump.org/manpages/pcap-savefile.5.txt states:
-	 * thiszone (Reserved1): 4-byte not used - SHOULD be filled with 0
-	 * sigfigs (Reserved2):  4-byte not used - SHOULD be filled with 0
+	 * thiszone: 4-byte time zone offset; this is always 0.
+	 * sigfigs:  4-byte number giving the accuracy of time stamps
+	 *           in the file; this is always 0.
 	 */
 	hdr.thiszone = 0;
 	hdr.sigfigs = 0;
@@ -843,17 +772,10 @@ pcap_dump(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 		return;
 	/*
 	 * Better not try writing pcap files after
-	 * 2106-02-07 06:28:15 UTC; switch to pcapng.
-	 * (And better not try writing pcap files with time stamps
-	 * that predate 1970-01-01 00:00:00 UTC; that's not supported.
-	 * You could try using pcapng with the if_tsoffset field in
-	 * the IDB for the interface(s) with packets with those time
-	 * stamps, but you may also have to get a link-layer type for
-	 * IBM Bisync or whatever link layer even older forms
-	 * of computer communication used.)
+	 * 2038-01-19 03:14:07 UTC; switch to pcapng.
 	 */
-	sf_hdr.ts.tv_sec  = (bpf_u_int32)h->ts.tv_sec;
-	sf_hdr.ts.tv_usec = (bpf_u_int32)h->ts.tv_usec;
+	sf_hdr.ts.tv_sec  = (bpf_int32)h->ts.tv_sec;
+	sf_hdr.ts.tv_usec = (bpf_int32)h->ts.tv_usec;
 	sf_hdr.caplen     = h->caplen;
 	sf_hdr.len        = h->len;
 	/*
@@ -887,7 +809,7 @@ pcap_setup_dump(pcap_t *p, int linktype, FILE *f, const char *fname)
 		setvbuf(f, NULL, _IONBF, 0);
 #endif
 	if (sf_write_header(p, f, linktype, p->snapshot) == -1) {
-		pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
 		    errno, "Can't write to %s", fname);
 		if (f != stdout)
 			(void)fclose(f);
@@ -939,9 +861,9 @@ pcap_dump_open(pcap_t *p, const char *fname)
 		 * required on Windows, as the file is a binary file
 		 * and must be written in binary mode.
 		 */
-		f = pcapint_charset_fopen(fname, "wb");
+		f = charset_fopen(fname, "wb");
 		if (f == NULL) {
-			pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+			pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
 			    errno, "%s", fname);
 			return (NULL);
 		}
@@ -962,14 +884,14 @@ pcap_dump_hopen(pcap_t *p, intptr_t osfd)
 
 	fd = _open_osfhandle(osfd, _O_APPEND);
 	if (fd < 0) {
-		pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
 		    errno, "_open_osfhandle");
 		return NULL;
 	}
 
 	file = _fdopen(fd, "wb");
 	if (file == NULL) {
-		pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
 		    errno, "_fdopen");
 		_close(fd);
 		return NULL;
@@ -1039,9 +961,9 @@ pcap_dump_open_append(pcap_t *p, const char *fname)
 	 * even though it does nothing.  It's required on Windows, as the
 	 * file is a binary file and must be read in binary mode.
 	 */
-	f = pcapint_charset_fopen(fname, "ab+");
+	f = charset_fopen(fname, "ab+");
 	if (f == NULL) {
-		pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
 		    errno, "%s", fname);
 		return (NULL);
 	}
@@ -1059,7 +981,7 @@ pcap_dump_open_append(pcap_t *p, const char *fname)
 	 * compliant systems or on Windows.
 	 */
 	if (fseek(f, 0, SEEK_SET) == -1) {
-		pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
 		    errno, "Can't seek to the beginning of %s", fname);
 		(void)fclose(f);
 		return (NULL);
@@ -1067,7 +989,7 @@ pcap_dump_open_append(pcap_t *p, const char *fname)
 	amt_read = fread(&ph, 1, sizeof (ph), f);
 	if (amt_read != sizeof (ph)) {
 		if (ferror(f)) {
-			pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+			pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
 			    errno, "%s", fname);
 			(void)fclose(f);
 			return (NULL);
@@ -1175,7 +1097,7 @@ pcap_dump_open_append(pcap_t *p, const char *fname)
 		 * A header isn't present; attempt to write it.
 		 */
 		if (sf_write_header(p, f, linktype, p->snapshot) == -1) {
-			pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+			pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
 			    errno, "Can't write to %s", fname);
 			(void)fclose(f);
 			return (NULL);
@@ -1190,7 +1112,7 @@ pcap_dump_open_append(pcap_t *p, const char *fname)
 	 * are done at the end of the file in that mode.
 	 */
 	if (fseek(f, 0, SEEK_END) == -1) {
-		pcapint_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
+		pcap_fmt_errmsg_for_errno(p->errbuf, PCAP_ERRBUF_SIZE,
 		    errno, "Can't seek to the end of %s", fname);
 		(void)fclose(f);
 		return (NULL);

@@ -81,11 +81,6 @@ static driver_t acpi_ged_driver = {
 DRIVER_MODULE(acpi_ged, acpi, acpi_ged_driver, 0, 0);
 MODULE_DEPEND(acpi_ged, acpi, 1, 1, 1);
 
-static int acpi_ged_defer;
-SYSCTL_INT(_debug_acpi, OID_AUTO, ged_defer, CTLFLAG_RWTUN,
-    &acpi_ged_defer, 0,
-    "Handle ACPI GED via a task, rather than in the ISR");
-
 static void
 acpi_ged_evt(void *arg)
 {
@@ -97,12 +92,7 @@ acpi_ged_evt(void *arg)
 static void
 acpi_ged_intr(void *arg)
 {
-	struct acpi_ged_event *evt = arg;
-
-	if (acpi_ged_defer)
-		AcpiOsExecute(OSL_GPE_HANDLER, acpi_ged_evt, arg);
-	else
-		AcpiEvaluateObject(evt->ah, NULL, &evt->args, NULL);
+	AcpiOsExecute(OSL_GPE_HANDLER, acpi_ged_evt, arg);
 }
 static int
 acpi_ged_probe(device_t dev)

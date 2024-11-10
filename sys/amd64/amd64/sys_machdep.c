@@ -68,6 +68,7 @@
 
 #include <security/audit/audit.h>
 
+#if 0 //!defined(WYC_NO_LDT)
 static void user_ldt_deref(struct proc_ldt *pldt);
 static void user_ldt_derefl(struct proc_ldt *pldt);
 
@@ -88,6 +89,7 @@ max_ldt_segment_init(void *arg __unused)
 		max_ldt_segment = MAX_LD;
 }
 SYSINIT(maxldt, SI_SUB_VM_CONF, SI_ORDER_ANY, max_ldt_segment_init, NULL);
+#endif // !defined(WYC_NO_LDT)
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -95,50 +97,6 @@ struct sysarch_args {
 	char *parms;
 };
 #endif
-
-int
-sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
-{
-	struct i386_ldt_args *largs, la;
-	struct user_segment_descriptor *lp;
-	int error = 0;
-
-	/*
-	 * XXXKIB check that the BSM generation code knows to encode
-	 * the op argument.
-	 */
-	AUDIT_ARG_CMD(uap->op);
-	if (uap_space == UIO_USERSPACE) {
-		error = copyin(uap->parms, &la, sizeof(struct i386_ldt_args));
-		if (error != 0)
-			return (error);
-		largs = &la;
-	} else
-		largs = (struct i386_ldt_args *)uap->parms;
-
-	switch (uap->op) {
-	case I386_GET_LDT:
-		error = amd64_get_ldt(td, largs);
-		break;
-	case I386_SET_LDT:
-		if (largs->descs != NULL && largs->num > max_ldt_segment)
-			return (EINVAL);
-		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
-		if (largs->descs != NULL) {
-			lp = malloc(largs->num * sizeof(struct
-			    user_segment_descriptor), M_TEMP, M_WAITOK);
-			error = copyin(largs->descs, lp, largs->num *
-			    sizeof(struct user_segment_descriptor));
-			if (error == 0)
-				error = amd64_set_ldt(td, largs, lp);
-			free(lp, M_TEMP);
-		} else {
-			error = amd64_set_ldt(td, largs, NULL);
-		}
-		break;
-	}
-	return (error);
-}
 
 void
 update_gdt_gsbase(struct thread *td, uint32_t base)
@@ -149,7 +107,7 @@ update_gdt_gsbase(struct thread *td, uint32_t base)
 		return;
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	critical_enter();
-	sd = PCPU_GET(gs32p);
+	sd = PCPU_GET(pc_gs32p);
 	sd->sd_lobase = base & 0xffffff;
 	sd->sd_hibase = (base >> 24) & 0xff;
 	critical_exit();
@@ -164,7 +122,7 @@ update_gdt_fsbase(struct thread *td, uint32_t base)
 		return;
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	critical_enter();
-	sd = PCPU_GET(fs32p);
+	sd = PCPU_GET(pc_fs32p);
 	sd->sd_lobase = base & 0xffffff;
 	sd->sd_hibase = (base >> 24) & 0xff;
 	critical_exit();
@@ -174,7 +132,7 @@ int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	struct pcb *pcb;
-	struct vm_map *map;
+	struct _vm_map *map;
 	uint32_t i386base;
 	uint64_t a64base;
 	struct i386_ioperm_args iargs;
@@ -219,10 +177,10 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 	}
 #endif
-
+#if 0
 	if (uap->op == I386_GET_LDT || uap->op == I386_SET_LDT)
 		return (sysarch_ldt(td, uap, UIO_USERSPACE));
-
+#endif
 	error = 0;
 	pcb = td->td_pcb;
 
@@ -280,11 +238,13 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	case I386_SET_IOPERM:
 		error = amd64_set_ioperm(td, &iargs);
 		break;
+
 	case I386_GET_FSBASE:
 		update_pcb_bases(pcb);
 		i386base = pcb->pcb_fsbase;
 		error = copyout(&i386base, uap->parms, sizeof(i386base));
 		break;
+
 	case I386_SET_FSBASE:
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
 		if (error == 0) {
@@ -294,11 +254,13 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 			update_gdt_fsbase(td, i386base);
 		}
 		break;
+
 	case I386_GET_GSBASE:
 		update_pcb_bases(pcb);
 		i386base = pcb->pcb_gsbase;
 		error = copyout(&i386base, uap->parms, sizeof(i386base));
 		break;
+
 	case I386_SET_GSBASE:
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
 		if (error == 0) {
@@ -337,7 +299,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		if (error == 0) {
 			if (a64base < curproc->p_sysent->sv_maxuser) {
 				set_pcb_flags(pcb, PCB_FULL_IRET);
-				pcb->pcb_gsbase = a64base;
+				pcb->pcb_gsbase = a64base + pcb->pcb_csbase;
 				td->td_frame->tf_gs = _ugssel;
 			} else
 				error = EINVAL;
@@ -362,7 +324,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		 */
 		map = &td->td_proc->p_vmspace->vm_map;
 		vm_map_lock_read(map);
-		error = pmap_pkru_set(PCPU_GET(curpmap),
+		error = pmap_pkru_set(PCPU_GET(pc_curpmap),
 		    (vm_offset_t)a64pkru.addr, (vm_offset_t)a64pkru.addr +
 		    a64pkru.len, a64pkru.keyidx, a64pkru.flags);
 		vm_map_unlock_read(map);
@@ -376,7 +338,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		}
 		map = &td->td_proc->p_vmspace->vm_map;
 		vm_map_lock_read(map);
-		error = pmap_pkru_clear(PCPU_GET(curpmap),
+		error = pmap_pkru_clear(PCPU_GET(pc_curpmap),
 		    (vm_offset_t)a64pkru.addr,
 		    (vm_offset_t)a64pkru.addr + a64pkru.len);
 		vm_map_unlock_read(map);
@@ -422,15 +384,15 @@ amd64_set_ioperm(struct thread *td, struct i386_ioperm_args *uap)
 		memset(iomap, 0xff, IOPERM_BITMAP_SIZE);
 		critical_enter();
 		/* Takes care of tss_rsp0. */
-		memcpy(tssp, PCPU_PTR(common_tss), sizeof(struct amd64tss));
+		memcpy(tssp, PCPU_PTR(pc_common_tss), sizeof(struct amd64tss));
 		tssp->tss_iobase = sizeof(*tssp);
 		pcb->pcb_tssp = tssp;
-		tss_sd = PCPU_GET(tss);
+		tss_sd = PCPU_GET(pc_tss);
 		tss_sd->sd_lobase = (u_long)tssp & 0xffffff;
 		tss_sd->sd_hibase = ((u_long)tssp >> 24) & 0xfffffffffful;
 		tss_sd->sd_type = SDT_SYSTSS;
 		ltr(GSEL(GPROC0_SEL, SEL_KPL));
-		PCPU_SET(tssp, tssp);
+		PCPU_SET(pc_tssp, tssp);
 		critical_exit();
 	} else
 		iomap = (char *)&pcb->pcb_tssp[1];
@@ -473,6 +435,56 @@ done:
 	return (0);
 }
 
+int
+sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space) //wyc cannot remove. Link error
+{
+#if 1 //defined(WYC_NO_LDT)
+	panic("%s", __func__);
+	return EOPNOTSUPP;
+#else
+	struct i386_ldt_args *largs, la;
+	struct user_segment_descriptor *lp;
+	int error = 0;
+
+	/*
+	 * XXXKIB check that the BSM generation code knows to encode
+	 * the op argument.
+	 */
+	AUDIT_ARG_CMD(uap->op);
+	if (uap_space == UIO_USERSPACE) {
+		error = copyin(uap->parms, &la, sizeof(struct i386_ldt_args));
+		if (error != 0)
+			return (error);
+		largs = &la;
+	} else
+		largs = (struct i386_ldt_args *)uap->parms;
+
+	switch (uap->op) {
+	case I386_GET_LDT:
+		error = amd64_get_ldt(td, largs);
+		break;
+	case I386_SET_LDT:
+		if (largs->descs != NULL && largs->num > max_ldt_segment)
+			return (EINVAL);
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
+		if (largs->descs != NULL) {
+			lp = malloc(largs->num * sizeof(struct
+			    user_segment_descriptor), M_TEMP, M_WAITOK);
+			error = copyin(largs->descs, lp, largs->num *
+			    sizeof(struct user_segment_descriptor));
+			if (error == 0)
+				error = amd64_set_ldt(td, largs, lp);
+			free(lp, M_TEMP);
+		} else {
+			error = amd64_set_ldt(td, largs, NULL);
+		}
+		break;
+	}
+	return (error);
+#endif // !WYC_NO_LDT
+}
+
+#if 0 //!defined(WYC_NO_LDT)
 /*
  * Update the GDT entry pointing to the LDT to point to the LDT of the
  * current process.
@@ -481,7 +493,7 @@ static void
 set_user_ldt(struct mdproc *mdp)
 {
 
-	*PCPU_GET(ldt) = mdp->md_ldt_sd;
+	*PCPU_GET(pc_ldt) = mdp->md_ldt_sd;
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 }
 
@@ -500,10 +512,15 @@ set_user_ldt_rv(void *arg)
 
 	set_user_ldt(&target->p_md);
 }
+#endif
 
 struct proc_ldt *
 user_ldt_alloc(struct proc *p, int force)
 {
+#if 1 //defined(WYC_NO_LDT)
+	panic("%s", __func__);
+	return NULL;
+#else
 	struct proc_ldt *pldt, *new_ldt;
 	struct mdproc *mdp;
 	struct soft_segment_descriptor sldt;
@@ -551,11 +568,15 @@ user_ldt_alloc(struct proc *p, int force)
 	smp_rendezvous(NULL, set_user_ldt_rv, NULL, p);
 
 	return (mdp->md_ldt);
+#endif // !WYC_NO_LDT
 }
 
 void
 user_ldt_free(struct thread *td)
 {
+#if 1 //defined(WYC_NO_LDT)
+	panic("%s: EOPNOTSUPP", __func__);
+#else
 	struct proc *p = td->td_proc;
 	struct mdproc *mdp = &p->p_md;
 	struct proc_ldt *pldt;
@@ -574,8 +595,10 @@ user_ldt_free(struct thread *td)
 		lldt(GSEL(GNULL_SEL, SEL_KPL));
 	critical_exit();
 	user_ldt_deref(pldt);
+#endif // !WYC_NO_LDT
 }
 
+#if 0 //!defined(WYC_NO_LDT)
 static void
 user_ldt_derefl(struct proc_ldt *pldt)
 {
@@ -599,6 +622,7 @@ user_ldt_deref(struct proc_ldt *pldt)
 	user_ldt_derefl(pldt);
 	mtx_unlock(&dt_lock);
 }
+#endif // !defined(WYC_NO_LDT)
 
 /*
  * Note for the authors of compat layers (linux, etc): copyout() in
@@ -609,6 +633,10 @@ user_ldt_deref(struct proc_ldt *pldt)
 int
 amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 {
+#if 1 //defined(WYC_NO_LDT)
+	panic("%s", __func__);
+	return EOPNOTSUPP;
+#else
 	struct proc_ldt *pldt;
 	struct user_segment_descriptor *lp;
 	uint64_t *data;
@@ -616,7 +644,7 @@ amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 	int error;
 
 #ifdef	DEBUG
-	printf("amd64_get_ldt: start=%u num=%u descs=%p\n",
+	printf("%s: start=%u num=%u descs=%p\n", __func__,
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
@@ -639,12 +667,17 @@ amd64_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 	if (error == 0)
 		td->td_retval[0] = num;
 	return (error);
+#endif // !WYC_NO_LDT
 }
 
 int
 amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
     struct user_segment_descriptor *descs)
 {
+#if 1 //defined(WYC_NO_LDT)
+	panic("%s", __func__);
+	return EOPNOTSUPP;
+#else
 	struct mdproc *mdp;
 	struct proc_ldt *pldt;
 	struct user_segment_descriptor *dp;
@@ -653,7 +686,7 @@ amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 	int error;
 
 #ifdef	DEBUG
-	printf("amd64_set_ldt: start=%u num=%u descs=%p\n",
+	printf("%s: start=%u num=%u descs=%p\n", __func__,
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 	mdp = &td->td_proc->p_md;
@@ -787,12 +820,17 @@ amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
 	if (error == 0)
 		td->td_retval[0] = uap->start;
 	return (error);
+#endif // !WYC_NO_LDT
 }
 
 int
 amd64_set_ldt_data(struct thread *td, int start, int num,
     struct user_segment_descriptor *descs)
 {
+#if 1 //defined(WYC_NO_LDT)
+	panic("%s", __func__);
+	return EOPNOTSUPP;
+#else
 	struct mdproc *mdp;
 	struct proc_ldt *pldt;
 	volatile uint64_t *dst, *src;
@@ -807,4 +845,5 @@ amd64_set_ldt_data(struct thread *td, int start, int num,
 	for (i = 0; i < num; i++)
 		dst[start + i] = src[i];
 	return (0);
+#endif
 }

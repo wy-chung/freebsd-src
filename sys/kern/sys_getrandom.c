@@ -36,6 +36,11 @@
 #include <sys/systm.h>
 #include <sys/uio.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #define GRND_VALIDFLAGS	(GRND_NONBLOCK | GRND_RANDOM | GRND_INSECURE)
 
 /*
@@ -124,5 +129,6 @@ struct getrandom_args {
 int
 sys_getrandom(struct thread *td, struct getrandom_args *uap)
 {
+ADD_PROCBASE(uap->buf, td);
 	return (kern_getrandom(td, uap->buf, uap->buflen, uap->flags));
 }

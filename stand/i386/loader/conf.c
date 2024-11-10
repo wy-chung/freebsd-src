@@ -134,7 +134,7 @@ extern struct console nullconsole;
 extern struct console spinconsole;
 
 struct console *consoles[] = {
-#ifdef BIOS_TEXT_ONLY	/* Note: We need a forced commit for this */
+#ifdef BIOS_TEXT_ONLY
     &textvidc,
 #else
     &vidconsole,

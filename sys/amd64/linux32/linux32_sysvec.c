@@ -577,8 +577,8 @@ linux_exec_setregs(struct thread *td, struct image_params *imgp,
 	regs = td->td_frame;
 	pcb = td->td_pcb;
 
-	if (td->td_proc->p_md.md_ldt != NULL)
-		user_ldt_free(td);
+	//if (td->td_proc->p_md.md_ldt != NULL) //wyc false. It is NULL indeed
+	//	user_ldt_free(td);
 
 	critical_enter();
 	wrmsr(MSR_FSBASE, 0);

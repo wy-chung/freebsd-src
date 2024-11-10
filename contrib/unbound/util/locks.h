@@ -88,7 +88,6 @@
 #define lock_get_mem(lock) (0) /* nothing */
 #define checklock_start() /* nop */
 #define checklock_stop() /* nop */
-#define checklock_set_output_name(name) /* nop */
 
 #ifdef HAVE_PTHREAD
 #include <pthread.h>

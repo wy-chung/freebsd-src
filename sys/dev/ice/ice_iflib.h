@@ -146,6 +146,7 @@ struct ice_tx_queue {
 	struct ice_tx_desc	*tx_base;
 	bus_addr_t		tx_paddr;
 	struct tx_stats		stats;
+	u64			tso;
 	u16			desc_count;
 	u32			tail;
 	struct ice_irq_vector	*irqv;

@@ -2921,10 +2921,6 @@ start_wrq_wr(struct sge_wrq *wrq, int len16, struct wrq_cookie *cookie)
 	MPASS(ndesc > 0 && ndesc <= SGE_MAX_WR_NDESC);
 
 	EQ_LOCK(eq);
-	if (__predict_false((eq->flags & EQ_HW_ALLOCATED) == 0)) {
-		EQ_UNLOCK(eq);
-		return (NULL);
-	}
 
 	if (TAILQ_EMPTY(&wrq->incomplete_wrs) && !STAILQ_EMPTY(&wrq->wr_list))
 		drain_wrq_wr_list(sc, wrq);
@@ -3020,10 +3016,7 @@ commit_wrq_wr(struct sge_wrq *wrq, void *w, struct wrq_cookie *cookie)
 				    F_FW_WR_EQUEQ);
 			}
 
-			if (__predict_true(eq->flags & EQ_HW_ALLOCATED))
-				ring_eq_db(wrq->adapter, eq, ndesc);
-			else
-				IDXINCR(eq->dbidx, ndesc, eq->sidx);
+			ring_eq_db(wrq->adapter, eq, ndesc);
 		} else {
 			MPASS(IDXDIFF(next->pidx, pidx, eq->sidx) == ndesc);
 			next->pidx = pidx;
@@ -3859,8 +3852,6 @@ alloc_ctrlq(struct adapter *sc, int idx)
 
 	if (!(ctrlq->eq.flags & EQ_HW_ALLOCATED)) {
 		MPASS(ctrlq->eq.flags & EQ_SW_ALLOCATED);
-		MPASS(ctrlq->nwr_pending == 0);
-		MPASS(ctrlq->ndesc_needed == 0);
 
 		rc = alloc_eq_hwq(sc, NULL, &ctrlq->eq);
 		if (rc != 0) {
@@ -4565,7 +4556,6 @@ free_wrq(struct adapter *sc, struct sge_wrq *wrq)
 {
 	free_eq(sc, &wrq->eq);
 	MPASS(wrq->nwr_pending == 0);
-	MPASS(wrq->ndesc_needed == 0);
 	MPASS(TAILQ_EMPTY(&wrq->incomplete_wrs));
 	MPASS(STAILQ_EMPTY(&wrq->wr_list));
 	bzero(wrq, sizeof(*wrq));
@@ -4860,9 +4850,6 @@ alloc_ofld_txq(struct vi_info *vi, struct sge_ofld_txq *ofld_txq, int idx)
 	}
 
 	if (!(eq->flags & EQ_HW_ALLOCATED)) {
-		MPASS(eq->flags & EQ_SW_ALLOCATED);
-		MPASS(ofld_txq->wrq.nwr_pending == 0);
-		MPASS(ofld_txq->wrq.ndesc_needed == 0);
 		rc = alloc_eq_hwq(sc, vi, eq);
 		if (rc != 0) {
 			CH_ERR(vi, "failed to create hw ofld_txq%d: %d\n", idx,

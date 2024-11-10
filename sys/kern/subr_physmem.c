@@ -95,8 +95,8 @@ static size_t excnt;
  * realmem is the total number of hardware pages, excluded or not.
  * Maxmem is one greater than the last physical page number.
  */
-long realmem;
-long Maxmem;
+long realmem; // in 4K pages
+long Maxmem;  // in 4k pages
 
 #ifndef _KERNEL
 static void

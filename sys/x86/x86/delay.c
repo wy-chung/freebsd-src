@@ -117,7 +117,9 @@ DELAY(int n)
 		return;
 	}
 
-	init_ops.early_delay(n);
+	if (init_ops.early_delay != i8254_delay)
+		panic("%s: wyctest", __func__); // pass
+	i8254_delay(n);
 	TSEXIT();
 }
 

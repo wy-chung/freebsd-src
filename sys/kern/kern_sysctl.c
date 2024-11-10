@@ -78,6 +78,10 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+//wyc sa
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 static MALLOC_DEFINE(M_SYSCTL, "sysctl", "sysctl internal magic");
 static MALLOC_DEFINE(M_SYSCTLOID, "sysctloid", "sysctl dynamic oids");
 static MALLOC_DEFINE(M_SYSCTLTMP, "sysctltmp", "sysctl temp output buffer");
@@ -2295,9 +2299,9 @@ out:
 struct __sysctl_args {
 	int	*name;
 	u_int	namelen;
-	void	*old;
+	void	*old;	// adjusted in userland_sysctl
 	size_t	*oldlenp;
-	void	*new;
+	void	*new;	// adjusted in userland_sysctl
 	size_t	newlen;
 };
 #endif
@@ -2310,12 +2314,14 @@ sys___sysctl(struct thread *td, struct __sysctl_args *uap)
 	if (uap->namelen > CTL_MAXNAME || uap->namelen < 2)
 		return (EINVAL);
 
+ADD_PROCBASE(uap->name, td);
+if (uap->oldlenp) ADD_PROCBASE(uap->oldlenp, td);
  	error = copyin(uap->name, &name, uap->namelen * sizeof(int));
  	if (error)
 		return (error);
 
 	error = userland_sysctl(td, name, uap->namelen,
-		uap->old, uap->oldlenp, 0,
+		uap->old, uap->oldlenp, false,
 		uap->new, uap->newlen, &j, 0);
 	if (error && error != ENOMEM)
 		return (error);
@@ -2329,7 +2335,7 @@ sys___sysctl(struct thread *td, struct __sysctl_args *uap)
 
 int
 kern___sysctlbyname(struct thread *td, const char *oname, size_t namelen,
-    void *old, size_t *oldlenp, void *new, size_t newlen, size_t *retval,
+    void *uold, size_t *oldlenp, void *unew, size_t newlen, size_t *retval,
     int flags, bool inkernel)
 {
 	int oid[CTL_MAXNAME];
@@ -2338,6 +2344,7 @@ kern___sysctlbyname(struct thread *td, const char *oname, size_t namelen,
 	size_t oidlen;
 	int error;
 
+WYC_ASSERT(inkernel == false); // assert false only when called from freebsd32___sysctlbyname
 	if (namelen > MAXPATHLEN || namelen == 0)
 		return (EINVAL);
 	name = namebuf;
@@ -2354,8 +2361,9 @@ kern___sysctlbyname(struct thread *td, const char *oname, size_t namelen,
 	    retval, flags);
 	if (error != 0)
 		goto out;
-	error = userland_sysctl(td, oid, *retval / sizeof(int), old, oldlenp,
-	    inkernel, new, newlen, retval, flags);
+	error = userland_sysctl(td, oid, *retval / sizeof(int),
+	    uold, oldlenp, inkernel,
+	    unew, newlen, retval, flags);
 
 out:
 	if (namelen > sizeof(namebuf))
@@ -2379,6 +2387,10 @@ sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
 	size_t rv;
 	int error;
 
+ADD_PROCBASE(uap->name, td);
+ADD_PROCBASE(uap->old, td);
+if (uap->oldlenp != NULL ) ADD_PROCBASE(uap->oldlenp, td);
+ADD_PROCBASE(uap->new, td);
 	error = kern___sysctlbyname(td, uap->name, uap->namelen, uap->old,
 	    uap->oldlenp, uap->new, uap->newlen, &rv, 0, 0);
 	if (error != 0)
@@ -2394,9 +2406,9 @@ sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
  * must be in kernel space.
  */
 int
-userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
-    size_t *oldlenp, int inkernel, const void *new, size_t newlen,
-    size_t *retval, int flags)
+userland_sysctl(struct thread *td, int *name, u_int namelen,
+    void *uold, size_t *oldlenp, bool inkernel,
+    const void *unew, size_t newlen, size_t *retval, int flags) // u means user
 {
 	int error = 0, memlocked;
 	struct sysctl_req req;
@@ -2416,11 +2428,13 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		}
 	}
 	req.validlen = req.oldlen;
-	req.oldptr = old;
+ADD_PROCBASE(uold, td);
+	req.oldptr = uold;
 
-	if (new != NULL) {
+	if (unew != NULL) {
+ADD_PROCBASE(unew, td);
 		req.newlen = newlen;
-		req.newptr = new;
+		req.newptr = unew;
 	}
 
 	req.oldfunc = sysctl_old_user;

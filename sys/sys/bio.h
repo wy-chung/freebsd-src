@@ -77,7 +77,7 @@
 #ifdef _KERNEL
 struct disk;
 struct bio;
-struct vm_map;
+struct _vm_map;
 
 typedef void bio_task_t(void *);
 
@@ -146,7 +146,7 @@ struct bio_queue_head {
 	int batched;
 };
 
-extern struct vm_map *bio_transient_map;
+extern struct _vm_map *bio_transient_map;
 extern int bio_transient_maxcnt;
 
 void biodone(struct bio *bp);

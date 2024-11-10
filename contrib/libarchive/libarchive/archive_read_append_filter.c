@@ -111,7 +111,7 @@ archive_read_append_filter(struct archive *_a, int code)
     number_bidders = sizeof(a->bidders) / sizeof(a->bidders[0]);
 
     bidder = a->bidders;
-    for (i = 1; i < number_bidders; i++, bidder++)
+    for (i = 0; i < number_bidders; i++, bidder++)
     {
       if (!bidder->name || !strcmp(bidder->name, str))
         break;
@@ -123,7 +123,8 @@ archive_read_append_filter(struct archive *_a, int code)
       return (ARCHIVE_FATAL);
     }
 
-    filter = calloc(1, sizeof(*filter));
+    filter
+        = (struct archive_read_filter *)calloc(1, sizeof(*filter));
     if (filter == NULL)
     {
       archive_set_error(&a->archive, ENOMEM, "Out of memory");
@@ -179,7 +180,8 @@ archive_read_append_filter_program_signature(struct archive *_a,
     return (ARCHIVE_FATAL);
   }
 
-  filter = calloc(1, sizeof(*filter));
+  filter
+      = (struct archive_read_filter *)calloc(1, sizeof(*filter));
   if (filter == NULL)
   {
     archive_set_error(&a->archive, ENOMEM, "Out of memory");

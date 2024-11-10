@@ -325,7 +325,7 @@ racct_getpcpu(struct proc *p, u_int pcpu)
 #endif
 #ifdef SMP
 	struct pcpu *pc;
-	int found;
+	bool found;
 #endif
 	fixpt_t p_pctcpu;
 	struct thread *td;
@@ -350,13 +350,13 @@ racct_getpcpu(struct proc *p, u_int pcpu)
 
 	p_pctcpu = 0;
 	FOREACH_THREAD_IN_PROC(p, td) {
-		if (td == PCPU_GET(idlethread))
+		if (td == PCPU_GET(pc_idlethread))
 			continue;
 #ifdef SMP
-		found = 0;
+		found = false;
 		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 			if (td == pc->pc_idlethread) {
-				found = 1;
+				found = true;
 				break;
 			}
 		}

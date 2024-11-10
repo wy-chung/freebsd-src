@@ -304,7 +304,7 @@ sys_rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 	struct rtprio rtp;
 	struct thread *td1;
 	int cierror, error;
-
+ADD_PROCBASE(uap->rtp, td);
 	/* Perform copyin before acquiring locks if needed. */
 	if (uap->function == RTP_SET)
 		cierror = copyin(uap->rtp, &rtp, sizeof(struct rtprio));
@@ -385,7 +385,7 @@ sys_rtprio(struct thread *td, struct rtprio_args *uap)
 	struct thread *tdp;
 	struct rtprio rtp;
 	int cierror, error;
-
+ADD_PROCBASE(uap->rtp, td);
 	/* Perform copyin before acquiring locks if needed. */
 	if (uap->function == RTP_SET)
 		cierror = copyin(uap->rtp, &rtp, sizeof(struct rtprio));
@@ -604,6 +604,7 @@ sys_setrlimit(struct thread *td, struct setrlimit_args *uap)
 	struct rlimit alim;
 	int error;
 
+ADD_PROCBASE(uap->rlp, td);
 	if ((error = copyin(uap->rlp, &alim, sizeof(struct rlimit))))
 		return (error);
 	error = kern_setrlimit(td, uap->which, &alim);
@@ -805,6 +806,7 @@ sys_getrlimit(struct thread *td, struct getrlimit_args *uap)
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
 	lim_rlimit(td, uap->which, &rlim);
+ADD_PROCBASE(uap->rlp, td);
 	error = copyout(&rlim, uap->rlp, sizeof(struct rlimit));
 	return (error);
 }
@@ -917,8 +919,10 @@ sys_getrlimitusage(struct thread *td, struct getrlimitusage_args *uap)
 	if ((uap->flags & ~(GETRLIMITUSAGE_EUID)) != 0)
 		return (EINVAL);
 	error = getrlimitusage_one(curproc, uap->which, uap->flags, &res);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->res, td);
 		error = copyout(&res, uap->res, sizeof(res));
+	}
 	return (error);
 }
 
@@ -956,10 +960,10 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 	td = curthread;
 	if (td->td_proc == p) {
 		u = cpu_ticks();
-		runtime = u - PCPU_GET(switchtime);
+		runtime = u - PCPU_GET(pc_switchtime);
 		td->td_runtime += runtime;
 		td->td_incruntime += runtime;
-		PCPU_SET(switchtime, u);
+		PCPU_SET(pc_switchtime, u);
 	}
 	/* Make sure the per-thread stats are current. */
 	FOREACH_THREAD_IN_PROC(p, td) {
@@ -988,10 +992,10 @@ rufetchtd(struct thread *td, struct rusage *ru)
 	 */
 	if (td == curthread) {
 		u = cpu_ticks();
-		runtime = u - PCPU_GET(switchtime);
+		runtime = u - PCPU_GET(pc_switchtime);
 		td->td_runtime += runtime;
 		td->td_incruntime += runtime;
-		PCPU_SET(switchtime, u);
+		PCPU_SET(pc_switchtime, u);
 	}
 	ruxagg_locked(p, td);
 	*ru = td->td_ru;
@@ -1171,8 +1175,10 @@ sys_getrusage(struct thread *td, struct getrusage_args *uap)
 	int error;
 
 	error = kern_getrusage(td, uap->who, &ru);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->rusage, td);
 		error = copyout(&ru, uap->rusage, sizeof(struct rusage));
+	}
 	return (error);
 }
 

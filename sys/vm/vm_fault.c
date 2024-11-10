@@ -124,12 +124,12 @@ struct faultstate {
 	vm_prot_t	fault_type;
 	vm_prot_t	prot;
 	int		fault_flags;
-	boolean_t	wired;
+	bool		wired;
 
 	/* Control state. */
+	int		nera;
 	struct timeval	oom_start_time;
 	bool		oom_started;
-	int		nera;
 	bool		can_read_lock;
 
 	/* Page reference for cow. */
@@ -337,10 +337,6 @@ static enum fault_status
 vm_fault_soft_fast(struct faultstate *fs)
 {
 	vm_page_t m, m_map;
-#if VM_NRESERVLEVEL > 0
-	vm_page_t m_super;
-	int flags;
-#endif
 	int psind;
 	vm_offset_t vaddr;
 
@@ -381,6 +377,8 @@ vm_fault_soft_fast(struct faultstate *fs)
 	m_map = m;
 	psind = 0;
 #if VM_NRESERVLEVEL > 0
+	vm_page_t m_super;
+	int flags;
 	if ((m->flags & PG_FICTITIOUS) == 0 &&
 	    (m_super = vm_reserv_to_superpage(m)) != NULL &&
 	    rounddown2(vaddr, pagesizes[m_super->psind]) >= fs->entry->start &&
@@ -573,8 +571,8 @@ vm_fault_populate(struct faultstate *fs)
 		    ("unaligned superpage m %p %#jx", m,
 		    (uintmax_t)VM_PAGE_TO_PHYS(m)));
 		rv = pmap_enter(fs->map->pmap, vaddr, m, fs->prot,
-		    fs->fault_type | (fs->wired ? PMAP_ENTER_WIRED : 0) |
-		    PMAP_ENTER_LARGEPAGE, bdry_idx);
+		    fs->fault_type | (fs->wired ? PMAP_ENTER_WIRED : 0) | PMAP_ENTER_LARGEPAGE,
+		    bdry_idx);
 		VM_OBJECT_WLOCK(fs->first_object);
 		vm_page_xunbusy(m);
 		if (rv != KERN_SUCCESS) {
@@ -709,8 +707,7 @@ vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	if (map != kernel_map && KTRPOINT(curthread, KTR_FAULT))
 		ktrfault(vaddr, fault_type);
 #endif
-	result = vm_fault(map, trunc_page(vaddr), fault_type, fault_flags,
-	    NULL);
+	result = vm_fault(map, trunc_page(vaddr), fault_type, fault_flags, NULL);
 	KASSERT(result == KERN_SUCCESS || result == KERN_FAILURE ||
 	    result == KERN_INVALID_ADDRESS ||
 	    result == KERN_RESOURCE_SHORTAGE ||
@@ -745,7 +742,7 @@ vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 				 */
 				if (SV_CURPROC_ABI() == SV_ABI_FREEBSD &&
 				    curproc->p_osrel >= P_OSREL_SIGSEGV) {
-					*signo = SIGSEGV;
+					*signo = SIGSEGV;	//wyc failed here. pid 17 (sh), jid 0, uid 0: exited on signal 11 (no core dump - other error)
 					*ucode = SEGV_ACCERR;
 				} else {
 					*signo = SIGBUS;
@@ -762,8 +759,7 @@ vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 			}
 			break;
 		default:
-			KASSERT(0, ("Unexpected Mach error %d from vm_fault()",
-			    result));
+			KASSERT(0, ("Unexpected Mach error %d from vm_fault()", result));
 			break;
 		}
 	}
@@ -1970,7 +1966,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
     vm_prot_t prot, vm_page_t *ma, int max_count)
 {
 	vm_offset_t end, va;
-	vm_page_t *mp;
+	struct vm_page **mp;
 	int count;
 	boolean_t pmap_failed;
 

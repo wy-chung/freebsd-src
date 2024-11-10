@@ -109,8 +109,7 @@ LINUXKPI_GENSRCS+= \
 
 LINUXKPI_INCLUDES+= \
 	-I${SYSDIR}/compat/linuxkpi/common/include \
-	-I${SYSDIR}/compat/linuxkpi/dummy/include \
-	-include ${SYSDIR}/compat/linuxkpi/common/include/linux/kconfig.h
+	-I${SYSDIR}/compat/linuxkpi/dummy/include
 
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL

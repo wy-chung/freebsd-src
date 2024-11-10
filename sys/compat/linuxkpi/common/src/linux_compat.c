@@ -117,10 +117,6 @@ int linuxkpi_debug;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &linuxkpi_debug, 0, "Set to enable pr_debug() prints. Clear to disable.");
 
-int linuxkpi_rcu_debug;
-SYSCTL_INT(_compat_linuxkpi, OID_AUTO, rcu_debug, CTLFLAG_RWTUN,
-    &linuxkpi_rcu_debug, 0, "Set to enable RCU warning. Clear to disable.");
-
 int linuxkpi_warn_dump_stack = 0;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, warn_dump_stack, CTLFLAG_RWTUN,
     &linuxkpi_warn_dump_stack, 0,
@@ -892,7 +888,7 @@ linux_access_ok(const void *uaddr, size_t len)
 
 	/* verify addresses are valid for userspace */
 	return ((saddr == eaddr) ||
-	    (eaddr > saddr && eaddr <= VM_MAXUSER_ADDRESS));
+	    (eaddr > saddr && eaddr <= VM_MAX_USER_ADDRESS));
 }
 
 /*

@@ -139,6 +139,27 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #define MPASS4(ex, what, file, line)					\
 	KASSERT((ex), ("Assertion %s failed at %s:%d", what, file, line))
 
+#define WYC_PANIC()	panic("%s(%s:%d)", __func__, __FILE__, __LINE__)
+
+#define WYC_ASSERT(exp) do { \
+	if (__predict_false(!(exp))) \
+		panic("Assertion \"%s\" failed at %s(%s:%d)", #exp, __func__, __FILE__, __LINE__); \
+} while (0)
+
+#define WYC_BREAK() do { \
+	void kdb_enter(const char *, const char *); \
+	uprintf(__FILE__ " %d\n", __LINE__); \
+	kdb_enter("wyc", __func__); \
+} while(0)
+
+#define WYC_ASSERT_BREAK(x) do { \
+	if (__predict_false(!(x))) { \
+		void kdb_enter(const char *, const char *); \
+		uprintf(__FILE__ " %d\n", __LINE__); \
+		kdb_enter("wyc", __func__); \
+	} \
+} while(0)
+
 /*
  * Assert that a pointer can be loaded from memory atomically.
  *

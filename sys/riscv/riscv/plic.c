@@ -167,7 +167,7 @@ plic_intr(void *arg)
 	uint32_t cpu;
 
 	sc = arg;
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(pc_cpuid);
 
 	/* Claim any pending interrupt. */
 	pending = RD4(sc, PLIC_CLAIM(sc, cpu));

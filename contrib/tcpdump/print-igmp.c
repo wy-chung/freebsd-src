@@ -29,7 +29,9 @@
  *	draft-asaeda-mboned-mtrace-v2 for the mtrace message
  */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 

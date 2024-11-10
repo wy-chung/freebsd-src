@@ -839,13 +839,15 @@ fasttrap_do_seg(fasttrap_tracepoint_t *tp, struct reg *rp, uintptr_t *addr)
 		desc = (struct segment_descriptor *)
 		    p->p_md.md_ldt[ndx].ldt_base;
 #else
+		panic("%s", __func__);
+ #if 0 //wyc
 		if (ndx > max_ldt_segment)
 			return (-1);
 
 		desc = (struct user_segment_descriptor *)
 		    p->p_md.md_ldt[ndx].ldt_base;
+ #endif
 #endif
-
 	} else {
 		if (ndx >= NGDT)
 			return (-1);
@@ -853,7 +855,7 @@ fasttrap_do_seg(fasttrap_tracepoint_t *tp, struct reg *rp, uintptr_t *addr)
 #ifdef __i386__
 		desc = &gdt[ndx].sd;
 #else
-		desc = PCPU_PTR(gdt)[ndx];
+		desc = PCPU_PTR(pc_gdt)[ndx];
 #endif
 	}
 

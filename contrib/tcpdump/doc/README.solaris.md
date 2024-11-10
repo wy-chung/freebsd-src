@@ -39,8 +39,3 @@ developer/gcc
 developer/llvm/clang
 ENDOFTEXT
 ```
-
-## Solaris 9
-
-This version of this OS is not supported because the snprintf(3) implementation
-in its libc is not suitable.

@@ -1124,6 +1124,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 	const struct procctl_cmd_info *cmd_info;
 	int error, error1;
 
+if (uap->data != NULL) ADD_PROCBASE(uap->data, td);
 	if (uap->com >= PROC_PROCCTL_MD_MIN)
 		return (cpu_procctl(td, uap->idtype, uap->id,
 		    uap->com, uap->data));

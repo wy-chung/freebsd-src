@@ -28,3 +28,5 @@ tags
 .cache
 .clangd
 .ccls-cache
+.vscode/
+crypto/openssl/test/smime-eml/SignedInvalidMappingFromanyPolicyTest7.eml:OECustomProperty

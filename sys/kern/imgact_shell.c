@@ -37,7 +37,7 @@
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if 1//BYTE_ORDER == LITTLE_ENDIAN
 #define SHELLMAGIC	0x2123 /* #! */
 #else
 #define SHELLMAGIC	0x2321

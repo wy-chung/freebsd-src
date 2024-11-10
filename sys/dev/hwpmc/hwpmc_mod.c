@@ -1462,7 +1462,7 @@ pmc_process_csw_in(struct thread *td)
 
 	critical_enter(); /* no preemption from this point */
 
-	cpu = PCPU_GET(cpuid); /* td->td_oncpu is invalid */
+	cpu = PCPU_GET(pc_cpuid); /* td->td_oncpu is invalid */
 
 	PMCDBG5(CSW,SWI,1, "cpu=%d proc=%p (%d, %s) pp=%p", cpu, p,
 	    p->p_pid, p->p_comm, pp);
@@ -1629,7 +1629,7 @@ pmc_process_csw_out(struct thread *td)
 
 	critical_enter();
 
-	cpu = PCPU_GET(cpuid); /* td->td_oncpu is invalid */
+	cpu = PCPU_GET(pc_cpuid); /* td->td_oncpu is invalid */
 
 	PMCDBG5(CSW,SWO,1, "cpu=%d proc=%p (%d, %s) pp=%p", cpu, p,
 	    p->p_pid, p->p_comm, pp);
@@ -2196,7 +2196,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		 * lose the interrupt sample.
 		 */
 		DPCPU_SET(pmc_sampled, 0);
-		cpu = PCPU_GET(cpuid);
+		cpu = PCPU_GET(pc_cpuid);
 		pmc_process_samples(cpu, PMC_HR);
 		pmc_process_samples(cpu, PMC_SR);
 		pmc_process_samples(cpu, PMC_UR);
@@ -2222,7 +2222,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		KASSERT(td == curthread, ("[pmc,%d] td != curthread",
 		    __LINE__));
 
-		pmc_capture_user_callchain(PCPU_GET(cpuid), PMC_HR,
+		pmc_capture_user_callchain(PCPU_GET(pc_cpuid), PMC_HR,
 		    (struct trapframe *)arg);
 
 		KASSERT(td->td_pinned == 1,
@@ -2239,7 +2239,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		KASSERT(td == curthread, ("[pmc,%d] td != curthread",
 		    __LINE__));
 
-		cpu = PCPU_GET(cpuid);
+		cpu = PCPU_GET(pc_cpuid);
 		pmc_capture_user_callchain(cpu, PMC_SR,
 		    (struct trapframe *) arg);
 
@@ -4754,7 +4754,7 @@ restart:
 
 		KASSERT(ps->ps_cpu == cpu,
 		    ("[pmc,%d] cpu mismatch ps_cpu=%d pcpu=%d", __LINE__,
-		    ps->ps_cpu, PCPU_GET(cpuid)));
+		    ps->ps_cpu, PCPU_GET(pc_cpuid)));
 
 		pm = ps->ps_pmc;
 		KASSERT(pm->pm_flags & PMC_F_CALLCHAIN,
@@ -4833,9 +4833,9 @@ pmc_process_samples(int cpu, ring_type_t ring)
 	uint64_t delta __diagused;
 	int adjri, n;
 
-	KASSERT(PCPU_GET(cpuid) == cpu,
+	KASSERT(PCPU_GET(pc_cpuid) == cpu,
 	    ("[pmc,%d] not on the correct CPU pcpu=%d cpu=%d", __LINE__,
-		PCPU_GET(cpuid), cpu));
+		PCPU_GET(pc_cpuid), cpu));
 
 	psb = pmc_pcpu[cpu]->pc_sb[ring];
 	delta = psb->ps_prodidx - psb->ps_considx;

@@ -1540,7 +1540,7 @@ vfs_freevnodes_inc(void)
 	int8_t *lfreevnodes;
 
 	critical_enter();
-	lfreevnodes = PCPU_PTR(vfs_freevnodes);
+	lfreevnodes = PCPU_PTR(pc_vfs_freevnodes);
 	(*lfreevnodes)++;
 	if (__predict_false(*lfreevnodes == VNLRU_FREEVNODES_SLOP))
 		vfs_freevnodes_rollup(lfreevnodes);
@@ -1554,7 +1554,7 @@ vfs_freevnodes_dec(void)
 	int8_t *lfreevnodes;
 
 	critical_enter();
-	lfreevnodes = PCPU_PTR(vfs_freevnodes);
+	lfreevnodes = PCPU_PTR(pc_vfs_freevnodes);
 	(*lfreevnodes)--;
 	if (__predict_false(*lfreevnodes == -VNLRU_FREEVNODES_SLOP))
 		vfs_freevnodes_rollup(lfreevnodes);

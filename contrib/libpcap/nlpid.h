@@ -19,7 +19,7 @@
 /* Types missing from some systems */
 
 /*
- * Network layer protocol identifiers
+ * Network layer prototocol identifiers
  */
 #ifndef ISO8473_CLNP
 #define ISO8473_CLNP		0x81

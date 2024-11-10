@@ -739,8 +739,8 @@ swapper_wkilled_only(void)
 	    (u_int)(ticks - last_swapin) < SWAPIN_INTERVAL);
 }
 
-void
-swapper(void)
+void // address of swapper is 0xffffffc00059a4f4 (riscv)
+swapper(void) // < mi_startup < _start
 {
 	struct proc *p;
 

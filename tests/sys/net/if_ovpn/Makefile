@@ -6,8 +6,8 @@ TESTSDIR=	${TESTSBASE}/sys/net/if_ovpn
 
 .if ${MK_PF} != "no"
 ATF_TESTS_SH+=	if_ovpn
-TEST_METADATA.if_ovpn+= execenv="jail"
-TEST_METADATA.if_ovpn+= execenv_jail_params="vnet allow.raw_sockets"
+# Tests reuse jail names and so cannot run in parallel.
+TEST_METADATA.if_ovpn+=	is_exclusive=true
 .endif
 ATF_TESTS_C+=	if_ovpn_c
 

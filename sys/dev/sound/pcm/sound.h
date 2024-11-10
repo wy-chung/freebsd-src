@@ -99,7 +99,11 @@ struct snd_mixer;
 #define SOUND_PREFVER	SOUND_MODVER
 #define SOUND_MAXVER	SOUND_MODVER
 
-#define SND_MAXVCHANS		256
+/*
+ * By design, limit possible channels for each direction.
+ */
+#define SND_MAXHWCHAN		256
+#define SND_MAXVCHANS		SND_MAXHWCHAN
 
 #define SD_F_SIMPLEX		0x00000001
 #define SD_F_AUTOVCHAN		0x00000002
@@ -225,10 +229,15 @@ enum {
 	SND_DEV_MIDIN,		/* Raw midi access */
 	SND_DEV_DSP,		/* Digitized voice /dev/dsp */
 	SND_DEV_STATUS,		/* /dev/sndstat */
+	SND_DEV_DSPHW_PLAY,	/* specific playback channel */
+	SND_DEV_DSPHW_VPLAY,	/* specific virtual playback channel */
+	SND_DEV_DSPHW_REC,	/* specific record channel */
+	SND_DEV_DSPHW_VREC,	/* specific virtual record channel */
 };
 
 #define DSP_DEFAULT_SPEED	8000
 
+extern int pcm_veto_load;
 extern int snd_unit;
 extern int snd_verbose;
 extern devclass_t pcm_devclass;
@@ -243,11 +252,14 @@ SYSCTL_DECL(_hw_snd);
 int pcm_chnalloc(struct snddev_info *d, struct pcm_channel **ch, int direction,
     pid_t pid, char *comm);
 
+void pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch);
+int pcm_chn_remove(struct snddev_info *d, struct pcm_channel *ch);
+
 int pcm_addchan(device_t dev, int dir, kobj_class_t cls, void *devinfo);
 unsigned int pcm_getbuffersize(device_t dev, unsigned int minbufsz, unsigned int deflt, unsigned int maxbufsz);
-void pcm_init(device_t dev, void *devinfo);
-int pcm_register(device_t dev, char *str);
+int pcm_register(device_t dev, void *devinfo, int numplay, int numrec);
 int pcm_unregister(device_t dev);
+int pcm_setstatus(device_t dev, char *str);
 u_int32_t pcm_getflags(device_t dev);
 void pcm_setflags(device_t dev, u_int32_t val);
 void *pcm_getdevinfo(device_t dev);
@@ -313,10 +325,6 @@ struct snddev_info {
 	struct sysctl_ctx_list play_sysctl_ctx, rec_sysctl_ctx;
 	struct sysctl_oid *play_sysctl_tree, *rec_sysctl_tree;
 	struct cv cv;
-	struct unrhdr *p_unr;
-	struct unrhdr *vp_unr;
-	struct unrhdr *r_unr;
-	struct unrhdr *vr_unr;
 };
 
 void	sound_oss_sysinfo(oss_sysinfo *);

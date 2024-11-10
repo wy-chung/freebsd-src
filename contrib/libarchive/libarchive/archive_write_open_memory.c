@@ -52,7 +52,7 @@ archive_write_open_memory(struct archive *a, void *buff, size_t buffSize, size_t
 {
 	struct write_memory_data *mine;
 
-	mine = calloc(1, sizeof(*mine));
+	mine = (struct write_memory_data *)calloc(1, sizeof(*mine));
 	if (mine == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
 		return (ARCHIVE_FATAL);

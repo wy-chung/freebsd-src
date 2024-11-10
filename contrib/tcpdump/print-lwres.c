@@ -29,7 +29,9 @@
 
 /* \summary: BIND9 Lightweight Resolver protocol printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 
@@ -265,7 +267,7 @@ lwres_printaddr(netdissect_options *ndo,
 		}
 	}
 
-	return ND_BYTES_BETWEEN(p0, p);
+	return ND_BYTES_BETWEEN(p, p0);
 }
 
 void
@@ -289,9 +291,7 @@ lwres_print(netdissect_options *ndo,
 	if (ndo->ndo_vflag || v != LWRES_LWPACKETVERSION_0)
 		ND_PRINT(" v%u", v);
 	if (v != LWRES_LWPACKETVERSION_0) {
-		uint32_t pkt_len = GET_BE_U_4(np->length);
-		ND_TCHECK_LEN(bp, pkt_len);
-		s = bp + pkt_len;
+		s = bp + GET_BE_U_4(np->length);
 		goto tail;
 	}
 
@@ -546,7 +546,7 @@ lwres_print(netdissect_options *ndo,
 		ND_PRINT(" [len: %u != %u]", GET_BE_U_4(np->length),
 			  length);
 	}
-	if (!unsupported && ND_BYTES_BETWEEN(bp, s) < GET_BE_U_4(np->length))
+	if (!unsupported && ND_BYTES_BETWEEN(s, bp) < GET_BE_U_4(np->length))
 		ND_PRINT("[extra]");
 	return;
 

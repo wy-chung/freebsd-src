@@ -57,7 +57,7 @@
 #include <machine/vmparam.h>
 
 ASSYM(KERNBASE, KERNBASE);
-ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
+ASSYM(VM_MAX_USER_ADDRESS, VM_MAX_USER_ADDRESS);
 ASSYM(VM_MAX_KERNEL_ADDRESS, VM_MAX_KERNEL_ADDRESS);
 ASSYM(VM_EARLY_DTB_ADDRESS, VM_EARLY_DTB_ADDRESS);
 ASSYM(PMAP_MAPDEV_EARLY_SIZE, PMAP_MAPDEV_EARLY_SIZE);
@@ -84,6 +84,9 @@ ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
+
+ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
+ASSYM(VM_BASE, offsetof(struct vmspace, vm_base));
 
 ASSYM(TF_SIZE, roundup2(sizeof(struct trapframe), STACKALIGNBYTES + 1));
 ASSYM(TF_RA, offsetof(struct trapframe, tf_ra));

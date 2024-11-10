@@ -21,7 +21,9 @@
 
 /* \summary: Ethernet printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 
@@ -236,7 +238,7 @@ recurse:
 			 */
 			length_type = GET_BE_U_2(p);
 
-			ND_ICHECK_U(caplen, <, 2);
+			ND_LCHECK_U(caplen, 2);
 			length -= 2;
 			caplen -= 2;
 			p += 2;
@@ -410,7 +412,7 @@ invalid:
 }
 
 /*
- * Print an Ethernet frame while specifying a non-standard Ethernet header
+ * Print an Ethernet frame while specyfing a non-standard Ethernet header
  * length.
  * This might be encapsulated within another frame; we might be passed
  * a pointer to a function that can print header information for that

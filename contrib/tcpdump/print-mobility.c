@@ -30,7 +30,9 @@
 /* \summary: IPv6 mobility printer */
 /* RFC 3775 */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 
@@ -128,7 +130,8 @@ mobility_opt_print(netdissect_options *ndo,
 		else {
 			if (i + 1 < len) {
 				optlen = GET_U_1(bp + i + 1) + 2;
-			} else
+			}
+			else
 				goto trunc;
 		}
 		if (i + optlen > len)

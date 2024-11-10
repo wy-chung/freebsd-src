@@ -4,10 +4,9 @@
 
 # PROVIDE: mail
 # REQUIRE: LOGIN FILESYSTEMS
+#	we make mail start late, so that things like .forward's are not
+#	processed until the system is fully operational
 # KEYWORD: shutdown
-#
-# We make mail start late, so that things like .forward's are not processed
-# until the system is fully operational.
 
 # XXX - Get together with sendmail mantainer to figure out how to
 #	better handle SENDMAIL_ENABLE and 3rd party MTAs.
@@ -204,7 +203,6 @@ sendmail_precmd()
 }
 
 run_rc_command "$1"
-_ret=$?
 
 required_files=
 
@@ -213,7 +211,6 @@ if checkyesno sendmail_submit_enable; then
 	rcvar="sendmail_submit_enable"
 	_rc_restart_done=false
 	run_rc_command "$1"
-	_ret=$(( _ret > $? ? _ret : $? ))
 fi
 
 if checkyesno sendmail_outbound_enable; then
@@ -221,7 +218,6 @@ if checkyesno sendmail_outbound_enable; then
 	rcvar="sendmail_outbound_enable"
 	_rc_restart_done=false
 	run_rc_command "$1"
-	_ret=$(( _ret > $? ? _ret : $? ))
 fi
 
 name="sendmail_msp_queue"
@@ -230,6 +226,3 @@ pidfile="${sendmail_msp_queue_pidfile:-/var/spool/clientmqueue/sm-client.pid}"
 required_files="/etc/mail/submit.cf"
 _rc_restart_done=false
 run_rc_command "$1"
-_ret=$(( _ret > $? ? _ret : $? ))
-
-(exit "$_ret")

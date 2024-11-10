@@ -212,8 +212,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 			goto fail;
 		}
 		if (p->md_phys + p->md_pages * EFI_PAGE_SIZE < p->md_phys ||
-		    p->md_phys + p->md_pages * EFI_PAGE_SIZE >=
-		    VM_MAXUSER_ADDRESS) {
+		    p->md_phys + p->md_pages * EFI_PAGE_SIZE >= VM_MAXUSER_ADDRESS_LA48) {
 			printf("EFI Runtime entry %d is not in mappable for RT:"
 			    "base %#016jx %#jx pages\n",
 			    i, (uintmax_t)p->md_phys,
@@ -290,7 +289,7 @@ efi_arch_enter(void)
 	pmap_t curpmap;
 	uint64_t cr3;
 
-	curpmap = PCPU_GET(curpmap);
+	curpmap = PCPU_GET(pc_curpmap);
 	PMAP_LOCK_ASSERT(curpmap, MA_OWNED);
 	curthread->td_md.md_efirt_dis_pf = vm_fault_disable_pagefaults();
 
@@ -302,7 +301,7 @@ efi_arch_enter(void)
 	 * pmap.c:pmap_activate_sw().
 	 */
 	if (pmap_pcid_enabled && !invpcid_works)
-		PCPU_SET(curpmap, NULL);
+		PCPU_SET(pc_curpmap, NULL);
 
 	cr3 = VM_PAGE_TO_PHYS(efi_pmltop_page);
 	if (pmap_pcid_enabled)
@@ -328,7 +327,7 @@ efi_arch_leave(void)
 	if (pmap_pcid_enabled) {
 		cr3 |= pmap_get_pcid(curpmap);
 		if (!invpcid_works)
-			PCPU_SET(curpmap, curpmap);
+			PCPU_SET(pc_curpmap, curpmap);
 	}
 	load_cr3(cr3);
 	if (!pmap_pcid_enabled)

@@ -37,13 +37,13 @@
  * @hw: pointer to the HW struct
  * @dvm: output variable to determine if DDP supports DVM(true) or SVM(false)
  */
-static int
+static enum ice_status
 ice_pkg_get_supported_vlan_mode(struct ice_hw *hw, bool *dvm)
 {
 	u16 meta_init_size = sizeof(struct ice_meta_init_section);
 	struct ice_meta_init_section *sect;
 	struct ice_buf_build *bld;
-	int status;
+	enum ice_status status;
 
 	/* if anything fails, we assume there is no DVM support */
 	*dvm = false;
@@ -88,7 +88,7 @@ ice_pkg_get_supported_vlan_mode(struct ice_hw *hw, bool *dvm)
  *
  * Get VLAN Mode Parameters (0x020D)
  */
-static int
+static enum ice_status
 ice_aq_get_vlan_mode(struct ice_hw *hw,
 		     struct ice_aqc_get_vlan_mode *get_params)
 {
@@ -118,7 +118,7 @@ ice_aq_get_vlan_mode(struct ice_hw *hw,
 static bool ice_aq_is_dvm_ena(struct ice_hw *hw)
 {
 	struct ice_aqc_get_vlan_mode get_params = { 0 };
-	int status;
+	enum ice_status status;
 
 	status = ice_aq_get_vlan_mode(hw, &get_params);
 	if (status) {
@@ -163,7 +163,7 @@ static void ice_cache_vlan_mode(struct ice_hw *hw)
  */
 static bool ice_pkg_supports_dvm(struct ice_hw *hw)
 {
-	int status;
+	enum ice_status status;
 	bool pkg_supports_dvm;
 
 	status = ice_pkg_get_supported_vlan_mode(hw, &pkg_supports_dvm);
@@ -183,7 +183,7 @@ static bool ice_pkg_supports_dvm(struct ice_hw *hw)
 static bool ice_fw_supports_dvm(struct ice_hw *hw)
 {
 	struct ice_aqc_get_vlan_mode get_vlan_mode = { 0 };
-	int status;
+	enum ice_status status;
 
 	/* If firmware returns success, then it supports DVM, else it only
 	 * supports SVM
@@ -230,7 +230,7 @@ static bool ice_is_dvm_supported(struct ice_hw *hw)
  *
  * Set VLAN Mode Parameters (0x020C)
  */
-static int
+static enum ice_status
 ice_aq_set_vlan_mode(struct ice_hw *hw,
 		     struct ice_aqc_set_vlan_mode *set_params)
 {
@@ -265,10 +265,10 @@ ice_aq_set_vlan_mode(struct ice_hw *hw,
  * ice_set_svm - set single VLAN mode
  * @hw: pointer to the HW structure
  */
-static int ice_set_svm(struct ice_hw *hw)
+static enum ice_status ice_set_svm(struct ice_hw *hw)
 {
 	struct ice_aqc_set_vlan_mode *set_params;
-	int status;
+	enum ice_status status;
 
 	status = ice_aq_set_port_params(hw->port_info, 0, false, false, false, NULL);
 	if (status) {
@@ -298,10 +298,10 @@ static int ice_set_svm(struct ice_hw *hw)
  * ice_set_vlan_mode
  * @hw: pointer to the HW structure
  */
-int ice_set_vlan_mode(struct ice_hw *hw)
+enum ice_status ice_set_vlan_mode(struct ice_hw *hw)
 {
 	if (!ice_is_dvm_supported(hw))
-		return 0;
+		return ICE_SUCCESS;
 
 	return ice_set_svm(hw);
 }

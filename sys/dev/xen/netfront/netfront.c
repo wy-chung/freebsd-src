@@ -597,10 +597,8 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 		num_queues = max_queues;
 
 	err = setup_device(dev, info, num_queues);
-	if (err != 0) {
-		xenbus_dev_fatal(dev, err, "setup device");
+	if (err != 0)
 		goto out;
-	}
 
  again:
 	err = xs_transaction_start(&xst);
@@ -727,10 +725,7 @@ disconnect_rxq(struct netfront_rxq *rxq)
 
 	xn_release_rx_bufs(rxq);
 	gnttab_free_grant_references(rxq->gref_head);
-	if (rxq->ring_ref != GRANT_REF_INVALID) {
-		gnttab_end_foreign_access(rxq->ring_ref, NULL);
-		rxq->ring_ref = GRANT_REF_INVALID;
-	}
+	gnttab_end_foreign_access(rxq->ring_ref, NULL);
 	/*
 	 * No split event channel support at the moment, handle will
 	 * be unbound in tx. So no need to call xen_intr_unbind here,
@@ -745,7 +740,6 @@ destroy_rxq(struct netfront_rxq *rxq)
 
 	callout_drain(&rxq->rx_refill);
 	free(rxq->ring.sring, M_DEVBUF);
-	rxq->ring.sring = NULL;
 }
 
 static void
@@ -777,8 +771,6 @@ setup_rxqs(device_t dev, struct netfront_info *info,
 
 		rxq->id = q;
 		rxq->info = info;
-
-		rxq->gref_head = GNTTAB_LIST_END;
 		rxq->ring_ref = GRANT_REF_INVALID;
 		rxq->ring.sring = NULL;
 		snprintf(rxq->name, XN_QUEUE_NAME_LEN, "xnrx_%u", q);
@@ -835,10 +827,7 @@ disconnect_txq(struct netfront_txq *txq)
 
 	xn_release_tx_bufs(txq);
 	gnttab_free_grant_references(txq->gref_head);
-	if (txq->ring_ref != GRANT_REF_INVALID) {
-		gnttab_end_foreign_access(txq->ring_ref, NULL);
-		txq->ring_ref = GRANT_REF_INVALID;
-	}
+	gnttab_end_foreign_access(txq->ring_ref, NULL);
 	xen_intr_unbind(&txq->xen_intr_handle);
 }
 
@@ -848,14 +837,9 @@ destroy_txq(struct netfront_txq *txq)
 	unsigned int i;
 
 	free(txq->ring.sring, M_DEVBUF);
-	txq->ring.sring = NULL;
 	buf_ring_free(txq->br, M_DEVBUF);
-	txq->br = NULL;
-	if (txq->tq) {
-		taskqueue_drain_all(txq->tq);
-		taskqueue_free(txq->tq);
-		txq->tq = NULL;
-	}
+	taskqueue_drain_all(txq->tq);
+	taskqueue_free(txq->tq);
 
 	for (i = 0; i <= NET_TX_RING_SIZE; i++) {
 		bus_dmamap_destroy(txq->info->dma_tag,
@@ -894,7 +878,6 @@ setup_txqs(device_t dev, struct netfront_info *info,
 		txq->id = q;
 		txq->info = info;
 
-		txq->gref_head = GNTTAB_LIST_END;
 		txq->ring_ref = GRANT_REF_INVALID;
 		txq->ring.sring = NULL;
 

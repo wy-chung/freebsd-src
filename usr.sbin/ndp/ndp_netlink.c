@@ -316,24 +316,12 @@ print_entries_nl(uint32_t ifindex, struct sockaddr_in6 *addr, bool cflag)
 	struct snl_state ss_req = {}, ss_cmd = {};
 	struct snl_parsed_link_simple link = {};
 	struct snl_writer nw;
-	struct nlmsghdr *hdr;
-	struct ndmsg *ndmsg;
 
 	nl_init_socket(&ss_req);
 	snl_init_writer(&ss_req, &nw);
 
-	/* Print header */
-	if (!opts.tflag && !cflag) {
-		char xobuf[200];
-		snprintf(xobuf, sizeof(xobuf),
-		    "{T:/%%-%d.%ds} {T:/%%-%d.%ds} {T:/%%%d.%ds} {T:/%%-9.9s} {T:/%%1s} {T:/%%5s}\n",
-		    W_ADDR, W_ADDR, W_LL, W_LL, W_IF, W_IF);
-		xo_emit(xobuf, "Neighbor", "Linklayer Address", "Netif", "Expire", "S", "Flags");
-	}
-
-again:
-	hdr = snl_create_msg_request(&nw, RTM_GETNEIGH);
-	ndmsg = snl_reserve_msg_object(&nw, struct ndmsg);
+	struct nlmsghdr *hdr = snl_create_msg_request(&nw, RTM_GETNEIGH);
+	struct ndmsg *ndmsg = snl_reserve_msg_object(&nw, struct ndmsg);
 	if (ndmsg != NULL) {
 		ndmsg->ndm_family = AF_INET6;
 		ndmsg->ndm_ifindex = ifindex;
@@ -349,6 +337,14 @@ again:
 	int count = 0;
 	nl_init_socket(&ss_cmd);
 
+	/* Print header */
+	if (!opts.tflag && !cflag) {
+		char xobuf[200];
+		snprintf(xobuf, sizeof(xobuf),
+		    "{T:/%%-%d.%ds} {T:/%%-%d.%ds} {T:/%%%d.%ds} {T:/%%-9.9s} {T:/%%1s} {T:/%%5s}\n",
+		    W_ADDR, W_ADDR, W_LL, W_LL, W_IF, W_IF);
+		xo_emit(xobuf, "Neighbor", "Linklayer Address", "Netif", "Expire", "S", "Flags");
+	}
 	xo_open_list("neighbor-cache");
 
 	while ((hdr = snl_read_reply_multi(&ss_req, nlmsg_seq, &e)) != NULL) {
@@ -385,12 +381,6 @@ again:
 		}
 		count++;
 		snl_clear_lb(&ss_req);
-	}
-	if (opts.repeat) {
-		xo_emit("\n");
-		xo_flush();
-		sleep(opts.repeat);
-		goto again;
 	}
 	xo_close_list("neighbor-cache");
 

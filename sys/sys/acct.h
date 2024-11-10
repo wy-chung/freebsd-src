@@ -53,6 +53,14 @@
  * Time units are microseconds.
  */
 
+#define	AFORK	0x01			/* forked but not exec'ed */
+/* ASU is no longer supported */
+#define	ASU	0x02			/* used super-user permissions */
+#define	ACOMPAT	0x04			/* used compatibility mode */
+#define	ACORE	0x08			/* dumped core */
+#define	AXSIG	0x10			/* killed by a signal */
+#define ANVER	0x20			/* new record version */
+#define ac_flagx ac_trailer.ac_flag
 struct acctv3 {
 	uint8_t   ac_zero;		/* zero identifies new version */
 	uint8_t   ac_version;		/* record version number */
@@ -72,19 +80,8 @@ struct acctv3 {
 	uint16_t  ac_len2;		/* record length */
 	union {
 		uint32_t  ac_align;	/* force v1 compatible alignment */
-
-#define	AFORK	0x01			/* forked but not exec'ed */
-/* ASU is no longer supported */
-#define	ASU	0x02			/* used super-user permissions */
-#define	ACOMPAT	0x04			/* used compatibility mode */
-#define	ACORE	0x08			/* dumped core */
-#define	AXSIG	0x10			/* killed by a signal */
-#define ANVER	0x20			/* new record version */
-
-		uint8_t   ac_flag;	/* accounting flags */
+		uint8_t   ac_flag;	/* accounting flags */ // see the defines above
 	} ac_trailer;
-
-#define ac_flagx ac_trailer.ac_flag
 };
 
 struct acctv2 {

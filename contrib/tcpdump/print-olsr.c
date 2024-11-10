@@ -21,7 +21,9 @@
 
 /* specification: RFC 3626 */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 
@@ -359,7 +361,8 @@ olsr_print(netdissect_options *ndo,
         } msgptr;
         int msg_len_valid = 0;
 
-        if (is_ipv6) {
+        if (is_ipv6)
+        {
             ND_TCHECK_LEN(tptr, sizeof(struct olsr_msg6));
             msgptr.v6 = (const struct olsr_msg6 *) tptr;
             msg_type = GET_U_1(msgptr.v6->msg_type);
@@ -388,7 +391,9 @@ olsr_print(netdissect_options *ndo,
 
             msg_tlen = msg_len - sizeof(struct olsr_msg6);
             msg_data = tptr + sizeof(struct olsr_msg6);
-        } else {	/* (!is_ipv6) */
+        }
+        else /* (!is_ipv6) */
+        {
             ND_TCHECK_LEN(tptr, sizeof(struct olsr_msg4));
             msgptr.v4 = (const struct olsr_msg4 *) tptr;
             msg_type = GET_U_1(msgptr.v4->msg_type);
@@ -529,7 +534,8 @@ olsr_print(netdissect_options *ndo,
         }
 
         case OLSR_HNA_MSG:
-            if (is_ipv6) {
+            if (is_ipv6)
+            {
                 int i = 0;
 
                 ND_PRINT("\n\t  Advertised networks (total %u)",
@@ -549,7 +555,9 @@ olsr_print(netdissect_options *ndo,
                     msg_data += sizeof(struct olsr_hna6);
                     msg_tlen -= sizeof(struct olsr_hna6);
                 }
-            } else {
+            }
+            else
+            {
                 int col = 0;
 
                 ND_PRINT("\n\t  Advertised networks (total %u)",

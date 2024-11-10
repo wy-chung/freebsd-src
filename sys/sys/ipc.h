@@ -129,7 +129,6 @@ struct ipc_perm {
 struct thread;
 struct proc;
 struct vmspace;
-struct vm_object;
 
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
@@ -140,8 +139,6 @@ void	ipcperm_new2old(struct ipc_perm *, struct ipc_perm_old *);
 int	ipcperm(struct thread *, struct ipc_perm *, int);
 extern void (*shmfork_hook)(struct proc *, struct proc *);
 extern void (*shmexit_hook)(struct vmspace *);
-extern void (*shmobjinfo_hook)(struct vm_object *obj, key_t *key,
-    unsigned short *seq);
 
 #else /* ! _KERNEL */
 

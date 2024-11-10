@@ -55,6 +55,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
@@ -79,6 +80,11 @@
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
+
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 FEATURE(sysv_msg, "System V message queues support");
 
@@ -482,6 +488,7 @@ sys_msgctl(struct thread *td, struct msgctl_args *uap)
 	struct msqid_ds msqbuf;
 	int error;
 
+ADD_PROCBASE(uap->buf, td);
 	DPRINTF(("call to msgctl(%d, %d, %p)\n", msqid, cmd, uap->buf));
 	if (cmd == IPC_SET &&
 	    (error = copyin(uap->buf, &msqbuf, sizeof(msqbuf))) != 0)
@@ -1110,6 +1117,7 @@ sys_msgsnd(struct thread *td, struct msgsnd_args *uap)
 	int error;
 	long mtype;
 
+ADD_PROCBASE(uap->msgp, td);
 	DPRINTF(("call to msgsnd(%d, %p, %zu, %d)\n", uap->msqid, uap->msgp,
 	    uap->msgsz, uap->msgflg));
 
@@ -1398,6 +1406,7 @@ sys_msgrcv(struct thread *td, struct msgrcv_args *uap)
 	int error;
 	long mtype;
 
+ADD_PROCBASE(uap->msgp, td);
 	DPRINTF(("call to msgrcv(%d, %p, %zu, %ld, %d)\n", uap->msqid,
 	    uap->msgp, uap->msgsz, uap->msgtyp, uap->msgflg));
 

@@ -2354,7 +2354,7 @@ sys_swapon(struct thread *td, struct swapon_args *uap)
 		error = ENOMEM;
 		goto done;
 	}
-
+ADD_PROCBASE(uap->name, td);
 	NDINIT(&nd, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
 	    UIO_USERSPACE, uap->name);
 	error = namei(&nd);
@@ -2516,6 +2516,7 @@ done:
 int
 freebsd13_swapoff(struct thread *td, struct freebsd13_swapoff_args *uap)
 {
+ADD_PROCBASE(uap->name, td);
 	return (kern_swapoff(td, uap->name, UIO_USERSPACE, 0));
 }
 #endif
@@ -2523,6 +2524,7 @@ freebsd13_swapoff(struct thread *td, struct freebsd13_swapoff_args *uap)
 int
 sys_swapoff(struct thread *td, struct swapoff_args *uap)
 {
+ADD_PROCBASE(uap->name, td);
 	return (kern_swapoff(td, uap->name, UIO_USERSPACE, uap->flags));
 }
 

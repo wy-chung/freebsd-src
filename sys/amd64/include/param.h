@@ -101,19 +101,19 @@
 #define	NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
 #define	NPDEPGSHIFT	9		/* LOG2(NPDEPG) */
 #define	PDRSHIFT	21              /* LOG2(NBPDR) */
-#define	NBPDR		(1<<PDRSHIFT)   /* bytes/page dir */
+#define	NBPDR		(1<<PDRSHIFT)   /* bytes/page dir */ // 2M
 #define	PDRMASK		(NBPDR-1)
 /* Size of the level 3 page directory pointer table units */
 #define	NPDPEPG		(PAGE_SIZE/(sizeof (pdp_entry_t)))
 #define	NPDPEPGSHIFT	9		/* LOG2(NPDPEPG) */
 #define	PDPSHIFT	30		/* LOG2(NBPDP) */
-#define	NBPDP		(1<<PDPSHIFT)	/* bytes/page dir ptr table */
+#define	NBPDP		(1<<PDPSHIFT)	/* bytes/page dir ptr table */ // 1G
 #define	PDPMASK		(NBPDP-1)
 /* Size of the level 4 page-map level-4 table units */
 #define	NPML4EPG	(PAGE_SIZE/(sizeof (pml4_entry_t)))
 #define	NPML4EPGSHIFT	9		/* LOG2(NPML4EPG) */
 #define	PML4SHIFT	39		/* LOG2(NBPML4) */
-#define	NBPML4		(1UL<<PML4SHIFT)/* bytes/page map lev4 table */
+#define	NBPML4		(1UL<<PML4SHIFT)/* bytes/page map lev4 table */ // 0.5T
 #define	PML4MASK	(NBPML4-1)
 /* Size of the level 5 page-map level-5 table units */
 #define	NPML5EPG	(PAGE_SIZE/(sizeof (pml5_entry_t)))

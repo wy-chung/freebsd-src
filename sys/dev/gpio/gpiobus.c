@@ -53,6 +53,8 @@
 static void gpiobus_print_pins(struct gpiobus_ivar *, struct sbuf *);
 static int gpiobus_parse_pins(struct gpiobus_softc *, device_t, int);
 static int gpiobus_probe(device_t);
+static int gpiobus_attach(device_t);
+static int gpiobus_detach(device_t);
 static int gpiobus_suspend(device_t);
 static int gpiobus_resume(device_t);
 static void gpiobus_probe_nomatch(device_t, device_t);
@@ -549,7 +551,7 @@ gpiobus_probe(device_t dev)
 	return (BUS_PROBE_GENERIC);
 }
 
-int
+static int
 gpiobus_attach(device_t dev)
 {
 	int err;
@@ -571,7 +573,7 @@ gpiobus_attach(device_t dev)
  * Since this is not a self-enumerating bus, and since we always add
  * children in attach, we have to always delete children here.
  */
-int
+static int
 gpiobus_detach(device_t dev)
 {
 	struct gpiobus_softc *sc;
@@ -753,7 +755,7 @@ gpiobus_hinted_child(device_t bus, const char *dname, int dunit)
 	}
 }
 
-int
+static int
 gpiobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct gpiobus_ivar *devi;

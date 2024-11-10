@@ -280,8 +280,7 @@ __archive_mktempx(const char *tmpdir, wchar_t *template)
 			if (archive_wstring_append_from_mbs(&temp_name, tmpdir,
 			    strlen(tmpdir)) < 0)
 				goto exit_tmpfile;
-			if (temp_name.length == 0 ||
-			    temp_name.s[temp_name.length-1] != L'/')
+			if (temp_name.s[temp_name.length-1] != L'/')
 				archive_wstrappend_wchar(&temp_name, L'/');
 		}
 
@@ -455,7 +454,7 @@ get_tempdir(struct archive_string *temppath)
                 tmp = "/tmp";
 #endif
 	archive_strcpy(temppath, tmp);
-	if (temppath->length == 0 || temppath->s[temppath->length-1] != '/')
+	if (temppath->s[temppath->length-1] != '/')
 		archive_strappend_char(temppath, '/');
 	return (ARCHIVE_OK);
 }
@@ -478,8 +477,7 @@ __archive_mktemp(const char *tmpdir)
 			goto exit_tmpfile;
 	} else {
 		archive_strcpy(&temp_name, tmpdir);
-		if (temp_name.length == 0 ||
-		    temp_name.s[temp_name.length-1] != '/')
+		if (temp_name.s[temp_name.length-1] != '/')
 			archive_strappend_char(&temp_name, '/');
 	}
 #ifdef O_TMPFILE
@@ -540,7 +538,7 @@ __archive_mktempx(const char *tmpdir, char *template)
 				goto exit_tmpfile;
 		} else
 			archive_strcpy(&temp_name, tmpdir);
-		if (temp_name.length > 0 && temp_name.s[temp_name.length-1] == '/') {
+		if (temp_name.s[temp_name.length-1] == '/') {
 			temp_name.s[temp_name.length-1] = '\0';
 			temp_name.length --;
 		}
@@ -651,7 +649,8 @@ archive_utility_string_sort_helper(char **strings, unsigned int n)
 		if (strcmp(strings[i], pivot) < 0)
 		{
 			lesser_count++;
-			tmp = realloc(lesser, lesser_count * sizeof(*tmp));
+			tmp = (char **)realloc(lesser,
+				lesser_count * sizeof(char *));
 			if (!tmp) {
 				free(greater);
 				free(lesser);
@@ -663,7 +662,8 @@ archive_utility_string_sort_helper(char **strings, unsigned int n)
 		else
 		{
 			greater_count++;
-			tmp = realloc(greater, greater_count * sizeof(*tmp));
+			tmp = (char **)realloc(greater,
+				greater_count * sizeof(char *));
 			if (!tmp) {
 				free(greater);
 				free(lesser);

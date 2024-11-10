@@ -69,7 +69,7 @@ struct service_hndl {
 static inline int
 get_current_node(void)
 {
-	return PCPU_GET(domain);
+	return PCPU_GET(pc_domain);
 }
 
 int adf_service_register(struct service_hndl *service);

@@ -52,6 +52,11 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #include <security/mac/mac_framework.h>
 
 static char *_getenv_dynamic_locked(const char *name, int *idx);
@@ -156,6 +161,7 @@ kenv_dump(struct thread *td, char **envp, int what, char *value, int len)
 int
 sys_kenv(struct thread *td, struct kenv_args *uap)
 {
+ADD_PROCBASE(uap->value, td);
 	char *name, *value;
 	size_t len;
 	int error;
@@ -201,6 +207,7 @@ sys_kenv(struct thread *td, struct kenv_args *uap)
 
 	name = malloc(KENV_MNAMELEN + 1, M_TEMP, M_WAITOK);
 
+ADD_PROCBASE(uap->name, td);
 	error = copyinstr(uap->name, name, KENV_MNAMELEN + 1, NULL);
 	if (error)
 		goto done;

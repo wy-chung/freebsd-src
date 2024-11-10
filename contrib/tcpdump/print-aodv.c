@@ -32,7 +32,9 @@
 
 /* \summary: Ad hoc On-Demand Distance Vector (AODV) Routing printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 

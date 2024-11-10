@@ -23,7 +23,9 @@
 
 /* \summary: Novell IPX printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 
@@ -154,7 +156,7 @@ ipx_sap_print(netdissect_options *ndo, const u_char *ipx, u_int length)
     int command, i;
 
     command = GET_BE_U_2(ipx);
-    ND_ICHECK_U(length, <, 2);
+    ND_LCHECK_U(length, 2);
     ipx += 2;
     length -= 2;
 
@@ -228,7 +230,7 @@ ipx_rip_print(netdissect_options *ndo, const u_char *ipx, u_int length)
     int command, i;
 
     command = GET_BE_U_2(ipx);
-    ND_ICHECK_U(length, <, 2);
+    ND_LCHECK_U(length, 2);
     ipx += 2;
     length -= 2;
 

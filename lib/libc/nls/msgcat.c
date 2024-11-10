@@ -136,7 +136,7 @@ __catopen_l(const char *name, int type, locale_t locale)
 
 	/* sanity checking */
 	if (name == NULL || *name == '\0')
-		NLRETERR(ENOENT);
+		NLRETERR(EINVAL);
 
 	if (strchr(name, '/') != NULL)
 		/* have a pathname */
@@ -390,7 +390,7 @@ load_msgcat(const char *path, const char *name, const char *lang)
 	struct catentry *np;
 	void *data;
 	char *copy_path, *copy_name, *copy_lang;
-	int fd, saved_errno;
+	int fd;
 
 	/* path/name will never be NULL here */
 
@@ -414,17 +414,9 @@ load_msgcat(const char *path, const char *name, const char *lang)
 	}
 
 	if (_fstat(fd, &st) != 0) {
-		saved_errno = errno;
 		_close(fd);
-		SAVEFAIL(name, lang, saved_errno);
-		NLRETERR(saved_errno);
-	}
-
-	/* The file is too small to contain a _NLS_MAGIC. */
-	if (st.st_size < sizeof(u_int32_t)) {
-		_close(fd);
-		SAVEFAIL(name, lang, ENOENT);
-		NLRETERR(ENOENT);
+		SAVEFAIL(name, lang, EFTYPE);
+		NLRETERR(EFTYPE);
 	}
 
 	/*
@@ -434,13 +426,13 @@ load_msgcat(const char *path, const char *name, const char *lang)
 	 */
 	if (st.st_size > SIZE_T_MAX) {
 		_close(fd);
-		SAVEFAIL(name, lang, ENOENT);
-		NLRETERR(ENOENT);
+		SAVEFAIL(name, lang, EFBIG);
+		NLRETERR(EFBIG);
 	}
 
-	data = mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
-	if (data == MAP_FAILED) {
-		saved_errno = errno;
+	if ((data = mmap(0, (size_t)st.st_size, PROT_READ,
+	    MAP_FILE|MAP_SHARED, fd, (off_t)0)) == MAP_FAILED) {
+		int saved_errno = errno;
 		_close(fd);
 		SAVEFAIL(name, lang, saved_errno);
 		NLRETERR(saved_errno);
@@ -450,8 +442,8 @@ load_msgcat(const char *path, const char *name, const char *lang)
 	if (ntohl((u_int32_t)((struct _nls_cat_hdr *)data)->__magic) !=
 	    _NLS_MAGIC) {
 		munmap(data, (size_t)st.st_size);
-		SAVEFAIL(name, lang, ENOENT);
-		NLRETERR(ENOENT);
+		SAVEFAIL(name, lang, EFTYPE);
+		NLRETERR(EFTYPE);
 	}
 
 	copy_name = strdup(name);

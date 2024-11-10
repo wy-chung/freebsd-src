@@ -244,7 +244,6 @@ pbuf_prealloc(void *arg __unused)
 	uma_prealloc(pbuf_zone, nswbuf_max);
 	nswbuf_max = -1;
 }
-
 SYSINIT(pbuf, SI_SUB_KTHREAD_BUF, SI_ORDER_ANY, pbuf_prealloc, NULL);
 
 /*

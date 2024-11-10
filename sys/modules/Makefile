@@ -41,7 +41,6 @@ SUBDIR=	\
 	${_arcmsr} \
 	${_allwinner} \
 	${_armv8crypto} \
-	${_armv8_rng} \
 	${_asmc} \
 	ata \
 	ath \
@@ -343,7 +342,6 @@ SUBDIR=	\
 	rtsx \
 	${_rtw88} \
 	${_rtw88fw} \
-	${_rtw89} \
 	rtwn \
 	rtwn_pci \
 	rtwn_usb \
@@ -574,7 +572,6 @@ _rtw88=		rtw88
 .if ${MK_SOURCELESS_UCODE} != "no"
 _rtw88fw=	rtw88fw
 .endif
-_rtw89=		rtw89
 _vmware=	vmware
 .endif
 
@@ -689,7 +686,6 @@ _cxgb=		cxgb
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 _armv8crypto=	armv8crypto
-_armv8_rng=	armv8_rng
 _dpaa2=		dpaa2
 _sff=		sff
 _em=		em

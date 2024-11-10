@@ -228,7 +228,7 @@ aplic_intr(void *arg)
 	int cpu;
 
 	sc = arg;
-	cpu = PCPU_GET(cpuid);
+	cpu = PCPU_GET(pc_cpuid);
 
 	/* Claim any pending interrupt. */
 	claimi = aplic_read(sc, APLIC_IDC_CLAIMI(sc, cpu));

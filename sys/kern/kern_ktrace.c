@@ -61,6 +61,9 @@
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
 
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #include <security/mac/mac_framework.h>
 
 /*
@@ -331,7 +334,7 @@ ktr_getrequest_entered(struct thread *td, int type)
 		req->ktr_header.ktr_type |= KTR_VERSIONED;
 		req->ktr_header.ktr_pid = p->p_pid;
 		req->ktr_header.ktr_tid = td->td_tid;
-		req->ktr_header.ktr_cpu = PCPU_GET(cpuid);
+		req->ktr_header.ktr_cpu = PCPU_GET(pc_cpuid);
 		req->ktr_header.ktr_version = KTR_VERSION1;
 		bcopy(td->td_name, req->ktr_header.ktr_comm,
 		    sizeof(req->ktr_header.ktr_comm));
@@ -1050,6 +1053,7 @@ sys_ktrace(struct thread *td, struct ktrace_args *uap)
 		/*
 		 * an operation which requires a file argument.
 		 */
+ADD_PROCBASE(uap->fname, td);
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname);
 		flags = FREAD | FWRITE | O_NOFOLLOW;
 		error = vn_open(&nd, &flags, 0, NULL);
@@ -1173,6 +1177,7 @@ sys_utrace(struct thread *td, struct utrace_args *uap)
 	if (uap->len > KTR_USER_MAXLEN)
 		return (EINVAL);
 	cp = malloc(uap->len, M_KTRACE, M_WAITOK);
+ADD_PROCBASE(uap->addr, td);
 	error = copyin(uap->addr, cp, uap->len);
 	if (error) {
 		free(cp, M_KTRACE);

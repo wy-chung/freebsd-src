@@ -37,12 +37,12 @@ DEFINE_TEST(test_write_filter_gzip_timestamp)
 	int r, use_prog = 0;
 
 	buffsize = 10000;
-	assert(NULL != (buff = malloc(buffsize)));
+	assert(NULL != (buff = (char *)malloc(buffsize)));
 	if (buff == NULL)
 		return;
 
 	datasize = 10000;
-	assert(NULL != (data = malloc(datasize)));
+	assert(NULL != (data = (char *)malloc(datasize)));
 	if (data == NULL) {
 		free(buff);
 		return;

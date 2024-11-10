@@ -412,7 +412,7 @@ sleepq_set_timeout_sbt(const void *wchan, sbintime_t sbt, sbintime_t pr,
 	callout_when(sbt, pr, flags, &td->td_sleeptimo, &pr1);
 	thread_unlock(td);
 	callout_reset_sbt_on(&td->td_slpcallout, td->td_sleeptimo, pr1,
-	    sleepq_timeout, td, PCPU_GET(cpuid), flags | C_PRECALC |
+	    sleepq_timeout, td, PCPU_GET(pc_cpuid), flags | C_PRECALC |
 	    C_DIRECT_EXEC);
 }
 

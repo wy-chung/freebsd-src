@@ -92,6 +92,10 @@
 #include <sys/sysproto.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -208,11 +212,13 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	if (error)
 		return (error);
 
+	flags = 0; //wycpull
 	/*
 	 * If accounting is to be started to a file, open that file for
 	 * appending and make sure it's a 'normal'.
 	 */
 	if (uap->path != NULL) {
+ADD_PROCBASE(uap->path, td);
 		NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
 		    uap->path);
 		flags = FWRITE | O_APPEND;
@@ -278,7 +284,7 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	 */
 	acct_vp = nd.ni_vp;
 	acct_cred = crhold(td->td_ucred);
-	acct_flags = flags;
+	acct_flags = flags; //wycpush variable 'flags' is uninitialized when used here
 	if (acct_state & ACCT_RUNNING)
 		acct_state &= ~ACCT_EXITREQ;
 	else {

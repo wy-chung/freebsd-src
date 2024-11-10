@@ -69,6 +69,11 @@
 #include <security/mac/mac_internal.h>
 #include <security/mac/mac_policy.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #ifdef MAC
 
 FEATURE(security_mac, "Mandatory Access Control Framework support");
@@ -86,7 +91,7 @@ sys___mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 	struct proc *tproc;
 	struct ucred *tcred;
 	int error;
-
+ADD_PROCBASE(uap->mac_p, td);
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -133,7 +138,7 @@ sys___mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 	char *elements, *buffer;
 	struct mac mac;
 	int error;
-
+ADD_PROCBASE(uap->mac_p, td);
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -152,8 +157,10 @@ sys___mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
 	error = mac_cred_externalize_label(td->td_ucred->cr_label,
 	    elements, buffer, mac.m_buflen);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(mac.m_string, td);
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
+	}
 
 	free(buffer, M_MACTEMP);
 	free(elements, M_MACTEMP);
@@ -172,7 +179,7 @@ sys___mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 
 	if (!(mac_labeled & MPC_OBJECT_CRED))
 		return (EINVAL);
-
+ADD_PROCBASE(uap->mac_p, td);
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -233,7 +240,7 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	struct socket *so;
 	cap_rights_t rights;
 	int error;
-
+ADD_PROCBASE(uap->mac_p, td);
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -318,14 +325,16 @@ out:
 int
 sys___mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 {
-
+ADD_PROCBASE(uap->path_p, td);
+ADD_PROCBASE(uap->mac_p, td);
 	return (kern___mac_get_path(td, uap->path_p, uap->mac_p, FOLLOW));
 }
 
 int
 sys___mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 {
-
+ADD_PROCBASE(uap->path_p, td);
+ADD_PROCBASE(uap->mac_p, td);
 	return (kern___mac_get_path(td, uap->path_p, uap->mac_p, NOFOLLOW));
 }
 
@@ -394,7 +403,7 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 	cap_rights_t rights;
 	char *buffer;
 	int error;
-
+ADD_PROCBASE(uap->mac_p, td);
 	error = copyin(uap->mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -486,14 +495,16 @@ out:
 int
 sys___mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 {
-
+ADD_PROCBASE(uap->path_p, td);
+ADD_PROCBASE(uap->mac_p, td);
 	return (kern___mac_set_path(td, uap->path_p, uap->mac_p, FOLLOW));
 }
 
 int
 sys___mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 {
-
+ADD_PROCBASE(uap->path_p, td);
+ADD_PROCBASE(uap->mac_p, td);
 	return (kern___mac_set_path(td, uap->path_p, uap->mac_p, NOFOLLOW));
 }
 
@@ -555,11 +566,11 @@ sys_mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 	struct mac_policy_conf *mpc;
 	char target[MAC_MAX_POLICY_NAME];
 	int error;
-
+ADD_PROCBASE(uap->policy, td);
 	error = copyinstr(uap->policy, target, sizeof(target), NULL);
 	if (error)
 		return (error);
-
+ADD_PROCBASE(uap->arg, td);
 	error = ENOSYS;
 	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {
 		if (strcmp(mpc->mpc_name, target) == 0 &&

@@ -68,9 +68,7 @@
 
 #include <sys/systm.h>
 #include <sys/blockcount.h>
-#include <sys/conf.h>
 #include <sys/cpuset.h>
-#include <sys/ipc.h>
 #include <sys/jail.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -81,7 +79,6 @@
 #include <sys/pctrie.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
-#include <sys/shm.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/resourcevar.h>
@@ -2374,23 +2371,21 @@ vm_object_unwire(vm_object_t object, vm_ooffset_t offset, vm_size_t length,
     uint8_t queue)
 {
 	vm_object_t tobject, t1object;
-	vm_page_t m, tm;
-	vm_pindex_t end_pindex, pindex, tpindex;
-	int depth, locked_depth;
+	vm_page_t tm;
 
 	KASSERT((offset & PAGE_MASK) == 0,
-	    ("vm_object_unwire: offset is not page aligned"));
+	    ("%s: offset is not page aligned", __func__));
 	KASSERT((length & PAGE_MASK) == 0,
-	    ("vm_object_unwire: length is not a multiple of PAGE_SIZE"));
+	    ("%s: length is not a multiple of PAGE_SIZE", __func__));
 	/* The wired count of a fictitious page never changes. */
 	if ((object->flags & OBJ_FICTITIOUS) != 0)
 		return;
-	pindex = OFF_TO_IDX(offset);
-	end_pindex = pindex + atop(length);
-again:
-	locked_depth = 1;
+	vm_pindex_t pindex = OFF_TO_IDX(offset);
+	vm_pindex_t end_pindex = pindex + atop(length);
+again:; // ';' is needed to silence a compiler error
+	int locked_depth = 1;
 	VM_OBJECT_RLOCK(object);
-	m = vm_page_find_least(object, pindex);
+	vm_page_t m = vm_page_find_least(object, pindex);
 	while (pindex < end_pindex) {
 		if (m == NULL || pindex < m->pindex) {
 			/*
@@ -2399,14 +2394,14 @@ again:
 			 * the page must exist in a backing object.
 			 */
 			tobject = object;
-			tpindex = pindex;
-			depth = 0;
+			vm_pindex_t tpindex = pindex;
+			int depth = 0;
 			do {
 				tpindex +=
 				    OFF_TO_IDX(tobject->backing_object_offset);
 				tobject = tobject->backing_object;
 				KASSERT(tobject != NULL,
-				    ("vm_object_unwire: missing page"));
+				    ("%s: missing page", __func__));
 				if ((tobject->flags & OBJ_FICTITIOUS) != 0)
 					goto next_page;
 				depth++;
@@ -2414,8 +2409,7 @@ again:
 					locked_depth++;
 					VM_OBJECT_RLOCK(tobject);
 				}
-			} while ((tm = vm_page_lookup(tobject, tpindex)) ==
-			    NULL);
+			} while ((tm = vm_page_lookup(tobject, tpindex)) == NULL);
 		} else {
 			tm = m;
 			m = TAILQ_NEXT(m, listq);
@@ -2429,8 +2423,7 @@ again:
 				tobject = t1object;
 			}
 			tobject = tm->object;
-			if (!vm_page_busy_sleep(tm, "unwbo",
-			    VM_ALLOC_IGN_SBUSY))
+			if (!vm_page_busy_sleep(tm, "unwbo", VM_ALLOC_IGN_SBUSY))
 				VM_OBJECT_RUNLOCK(tobject);
 			goto again;
 		}
@@ -2518,12 +2511,8 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 	struct vattr va;
 	vm_object_t obj;
 	vm_page_t m;
-	struct cdev *cdev;
-	struct cdevsw *csw;
 	u_long sp;
-	int count, error, ref;
-	key_t key;
-	unsigned short seq;
+	int count, error;
 	bool want_path;
 
 	if (req->oldptr == NULL) {
@@ -2571,7 +2560,6 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 		kvo->kvo_memattr = obj->memattr;
 		kvo->kvo_active = 0;
 		kvo->kvo_inactive = 0;
-		kvo->kvo_flags = 0;
 		if (!swap_only) {
 			TAILQ_FOREACH(m, &obj->memq, listq) {
 				/*
@@ -2583,12 +2571,10 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 				 * sysctl is only meant to give an
 				 * approximation of the system anyway.
 				 */
-				if (vm_page_active(m))
+				if (m->a.queue == PQ_ACTIVE)
 					kvo->kvo_active++;
-				else if (vm_page_inactive(m))
+				else if (m->a.queue == PQ_INACTIVE)
 					kvo->kvo_inactive++;
-				else if (vm_page_in_laundry(m))
-					kvo->kvo_laundry++;
 			}
 		}
 
@@ -2610,29 +2596,7 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 			sp = swap_pager_swapped_pages(obj);
 			kvo->kvo_swapped = sp > UINT32_MAX ? UINT32_MAX : sp;
 		}
-		if (obj->type == OBJT_DEVICE || obj->type == OBJT_MGTDEVICE) {
-			cdev = obj->un_pager.devp.dev;
-			if (cdev != NULL) {
-				csw = dev_refthread(cdev, &ref);
-				if (csw != NULL) {
-					strlcpy(kvo->kvo_path, cdev->si_name,
-					    sizeof(kvo->kvo_path));
-					dev_relthread(cdev, ref);
-				}
-			}
-		}
 		VM_OBJECT_RUNLOCK(obj);
-		if ((obj->flags & OBJ_SYSVSHM) != 0) {
-			kvo->kvo_flags |= KVMO_FLAG_SYSVSHM;
-			shmobjinfo(obj, &key, &seq);
-			kvo->kvo_vn_fileid = key;
-			kvo->kvo_vn_fsid_freebsd11 = seq;
-		}
-		if ((obj->flags & OBJ_POSIXSHM) != 0) {
-			kvo->kvo_flags |= KVMO_FLAG_POSIXSHM;
-			shm_get_path(obj, kvo->kvo_path,
-			    sizeof(kvo->kvo_path));
-		}
 		if (vp != NULL) {
 			vn_fullpath(vp, &fullpath, &freepath);
 			vn_lock(vp, LK_SHARED | LK_RETRY);
@@ -2643,9 +2607,10 @@ vm_object_list_handler(struct sysctl_req *req, bool swap_only)
 								/* truncate */
 			}
 			vput(vp);
-			strlcpy(kvo->kvo_path, fullpath, sizeof(kvo->kvo_path));
-			free(freepath, M_TEMP);
 		}
+
+		strlcpy(kvo->kvo_path, fullpath, sizeof(kvo->kvo_path));
+		free(freepath, M_TEMP);
 
 		/* Pack record size down */
 		kvo->kvo_structsize = offsetof(struct kinfo_vmobject, kvo_path)

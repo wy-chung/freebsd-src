@@ -1449,7 +1449,7 @@ cache_drain_safe_cpu(uma_zone_t zone, void *unused)
 	b1 = b2 = b3 = NULL;
 	critical_enter();
 	cache = &zone->uz_cpu[curcpu];
-	domain = PCPU_GET(domain);
+	domain = PCPU_GET(pc_domain);
 	b1 = cache_bucket_unload_alloc(cache);
 
 	/*
@@ -1956,7 +1956,7 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 {
 	struct pglist alloctail;
 	vm_offset_t addr, zkva;
-	int cpu, flags;
+	int flags;
 	vm_page_t p, p_next;
 #ifdef NUMA
 	struct pcpu *pc;
@@ -1967,7 +1967,7 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	TAILQ_INIT(&alloctail);
 	flags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED | malloc2vm_flags(wait);
 	*pflag = UMA_SLAB_KERNEL;
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+	for (int cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (CPU_ABSENT(cpu)) {
 			p = vm_page_alloc_noobj(flags);
 		} else {
@@ -3665,7 +3665,7 @@ cache_alloc_retry(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 	 * We can not get a bucket so try to return a single item.
 	 */
 	if (zone->uz_flags & UMA_ZONE_FIRSTTOUCH)
-		domain = PCPU_GET(domain);
+		domain = PCPU_GET(pc_domain);
 	else
 		domain = UMA_ANYDOMAIN;
 	return (zone_alloc_item(zone, udata, domain, flags));
@@ -3791,7 +3791,7 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 	 * thread-local state specific to the cache from prior to releasing
 	 * the critical section.
 	 */
-	domain = PCPU_GET(domain);
+	domain = PCPU_GET(pc_domain);
 	if ((cache_uz_flags(cache) & UMA_ZONE_ROUNDROBIN) != 0 ||
 	    VM_DOMAIN_EMPTY(domain))
 		domain = zone_domain_highest(zone, domain);
@@ -3819,7 +3819,7 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 	cache = &zone->uz_cpu[curcpu];
 	if (cache->uc_allocbucket.ucb_bucket == NULL &&
 	    ((cache_uz_flags(cache) & UMA_ZONE_FIRSTTOUCH) == 0 ||
-	    (curdomain = PCPU_GET(domain)) == domain ||
+	    (curdomain = PCPU_GET(pc_domain)) == domain ||
 	    VM_DOMAIN_EMPTY(curdomain))) {
 		if (new)
 			atomic_add_long(&ZDOM_GET(zone, domain)->uzd_imax,
@@ -4462,7 +4462,7 @@ uma_zfree_smr(uma_zone_t zone, void *item)
 		bucket = &cache->uc_freebucket;
 #ifdef NUMA
 		if ((uz_flags & UMA_ZONE_FIRSTTOUCH) != 0 &&
-		    PCPU_GET(domain) != itemdomain) {
+		    PCPU_GET(pc_domain) != itemdomain) {
 			bucket = &cache->uc_crossbucket;
 		}
 #endif
@@ -4552,7 +4552,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 		bucket = &cache->uc_allocbucket;
 #ifdef NUMA
 		if ((uz_flags & UMA_ZONE_FIRSTTOUCH) != 0 &&
-		    PCPU_GET(domain) != itemdomain) {
+		    PCPU_GET(pc_domain) != itemdomain) {
 			bucket = &cache->uc_crossbucket;
 		} else
 #endif
@@ -4680,7 +4680,7 @@ zone_free_bucket(uma_zone_t zone, uma_bucket_t bucket, void *udata,
 	 * correct domains.
 	 */
 	if ((zone->uz_flags & UMA_ZONE_FIRSTTOUCH) != 0 &&
-	    vm_ndomains > 2 && PCPU_GET(domain) != itemdomain) {
+	    vm_ndomains > 2 && PCPU_GET(pc_domain) != itemdomain) {
 		zone_free_cross(zone, bucket, udata);
 		return;
 	}
@@ -4728,7 +4728,7 @@ cache_free(uma_zone_t zone, uma_cache_t cache, void *udata, int itemdomain)
 	cbucket = &cache->uc_freebucket;
 #ifdef NUMA
 	if ((cache_uz_flags(cache) & UMA_ZONE_FIRSTTOUCH) != 0) {
-		if (PCPU_GET(domain) != itemdomain) {
+		if (PCPU_GET(pc_domain) != itemdomain) {
 			cbucket = &cache->uc_crossbucket;
 			if (cbucket->ucb_cnt != 0)
 				counter_u64_add(zone->uz_xdomain,
@@ -4775,7 +4775,7 @@ cache_free(uma_zone_t zone, uma_cache_t cache, void *udata, int itemdomain)
 	 * the free bucket.
 	 */
 	if ((cache_uz_flags(cache) & UMA_ZONE_FIRSTTOUCH) != 0) {
-		if (PCPU_GET(domain) != itemdomain &&
+		if (PCPU_GET(pc_domain) != itemdomain &&
 		    cache->uc_crossbucket.ucb_bucket == NULL) {
 			cache_bucket_load_cross(cache, bucket);
 			return (true);

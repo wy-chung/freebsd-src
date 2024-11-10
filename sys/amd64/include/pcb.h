@@ -49,6 +49,14 @@
  * NB: The fields marked with (*) are used by kernel debuggers.  Their
  * ABI should be preserved.
  */
+#define	PCB_FULL_IRET	0x0001	/* full iret is required */
+#define	PCB_DBREGS	0x0002	/* process using debug registers */
+#define	PCB_KERNFPU	0x0004	/* kernel uses fpu */
+#define	PCB_FPUINITDONE	0x0008	/* fpu state is initialized */
+#define	PCB_USERFPUINITDONE 0x0010 /* fpu user state is initialized */
+#define	PCB_KERNFPU_THR	0x0020	/* fpu_kern_thread() */
+#define	PCB_32BIT	0x0040	/* process has 32 bit context (segs etc) */
+#define	PCB_FPUNOSAVE	0x0080	/* no save area for current FPU ctx */
 struct pcb {
 	register_t	pcb_r15;	/* (*) */
 	register_t	pcb_r14;	/* (*) */
@@ -58,8 +66,8 @@ struct pcb {
 	register_t	pcb_rsp;	/* (*) */
 	register_t	pcb_rbx;	/* (*) */
 	register_t	pcb_rip;	/* (*) */
-	register_t	pcb_fsbase;
-	register_t	pcb_gsbase;
+	register_t	pcb_fsbase; // tls
+	register_t	pcb_gsbase; // pcpu
 	register_t	pcb_kgsbase;
 	register_t	pcb_cr0;
 	register_t	pcb_cr2;
@@ -78,14 +86,7 @@ struct pcb {
 	uint16_t	pcb_tr;
 
 	u_int		pcb_flags;
-#define	PCB_FULL_IRET	0x0001	/* full iret is required */
-#define	PCB_DBREGS	0x0002	/* process using debug registers */
-#define	PCB_KERNFPU	0x0004	/* kernel uses fpu */
-#define	PCB_FPUINITDONE	0x0008	/* fpu state is initialized */
-#define	PCB_USERFPUINITDONE 0x0010 /* fpu user state is initialized */
-#define	PCB_KERNFPU_THR	0x0020	/* fpu_kern_thread() */
-#define	PCB_32BIT	0x0040	/* process has 32 bit context (segs etc) */
-#define	PCB_FPUNOSAVE	0x0080	/* no save area for current FPU ctx */
+	// flags definitions moved up
 
 	uint16_t	pcb_initial_fpucw;
 
@@ -106,7 +107,9 @@ struct pcb {
 
 	struct savefpu	*pcb_save;
 
-	uint64_t	pcb_pad[5];
+	//wyc
+	register_t	pcb_csbase;
+	uint64_t	pcb_pad[4];
 };
 
 /* Per-CPU state saved during suspend and resume. */

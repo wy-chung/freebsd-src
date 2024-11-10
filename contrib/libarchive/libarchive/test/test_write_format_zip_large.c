@@ -96,7 +96,7 @@ memory_write(struct archive *a, void *_private, const void *buff, size_t size)
 	} else {
 		/* Yes, we're assuming the very first write is metadata. */
 		/* It's header or metadata, copy and save it. */
-		block = malloc(sizeof(*block));
+		block = (struct fileblock *)malloc(sizeof(*block));
 		memset(block, 0, sizeof(*block));
 		block->size = (int)size;
 		block->buff = malloc(size);

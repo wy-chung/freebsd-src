@@ -74,6 +74,11 @@
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #ifdef REGRESSION
 FEATURE(regression,
     "Kernel support for interfaces necessary for regression testing (SECURITY RISK!)");
@@ -312,7 +317,7 @@ sys_getgroups(struct thread *td, struct getgroups_args *uap)
 	}
 	if (uap->gidsetsize < ngrp)
 		return (EINVAL);
-
+ADD_PROCBASE(uap->gidset, td);
 	error = copyout(cred->cr_groups, uap->gidset, ngrp * sizeof(gid_t));
 out:
 	td->td_retval[0] = ngrp;
@@ -822,7 +827,7 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 		groups = malloc(gidsetsize * sizeof(gid_t), M_TEMP, M_WAITOK);
 	else
 		groups = smallgroups;
-
+ADD_PROCBASE(uap->gidset, td);
 	error = copyin(uap->gidset, groups, gidsetsize * sizeof(gid_t));
 	if (error == 0)
 		error = kern_setgroups(td, gidsetsize, groups);
@@ -1187,15 +1192,21 @@ sys_getresuid(struct thread *td, struct getresuid_args *uap)
 	int error1 = 0, error2 = 0, error3 = 0;
 
 	cred = td->td_ucred;
-	if (uap->ruid)
+	if (uap->ruid) {
+ADD_PROCBASE(uap->ruid, td);
 		error1 = copyout(&cred->cr_ruid,
 		    uap->ruid, sizeof(cred->cr_ruid));
-	if (uap->euid)
+	}
+	if (uap->euid) {
+ADD_PROCBASE(uap->euid, td);
 		error2 = copyout(&cred->cr_uid,
 		    uap->euid, sizeof(cred->cr_uid));
-	if (uap->suid)
+	}
+	if (uap->suid) {
+ADD_PROCBASE(uap->suid, td);
 		error3 = copyout(&cred->cr_svuid,
 		    uap->suid, sizeof(cred->cr_svuid));
+	}
 	return (error1 ? error1 : error2 ? error2 : error3);
 }
 
@@ -1214,15 +1225,21 @@ sys_getresgid(struct thread *td, struct getresgid_args *uap)
 	int error1 = 0, error2 = 0, error3 = 0;
 
 	cred = td->td_ucred;
-	if (uap->rgid)
+	if (uap->rgid) {
+ADD_PROCBASE(uap->rgid, td);
 		error1 = copyout(&cred->cr_rgid,
 		    uap->rgid, sizeof(cred->cr_rgid));
-	if (uap->egid)
+	}
+	if (uap->egid) {
+ADD_PROCBASE(uap->egid, td);
 		error2 = copyout(&cred->cr_groups[0],
 		    uap->egid, sizeof(cred->cr_groups[0]));
-	if (uap->sgid)
+	}
+	if (uap->sgid) {
+ADD_PROCBASE(uap->sgid, td);
 		error3 = copyout(&cred->cr_svgid,
 		    uap->sgid, sizeof(cred->cr_svgid));
+	}
 	return (error1 ? error1 : error2 ? error2 : error3);
 }
 
@@ -1309,13 +1326,6 @@ supplementary_group_member(gid_t gid, struct ucred *cred)
 bool
 groupmember(gid_t gid, struct ucred *cred)
 {
-
-	/*
-	 * The nfsd server can use a credential with zero groups in it
-	 * when certain mapped export credentials are specified via exports(5).
-	 */
-	if (cred->cr_ngroups == 0)
-		return (false);
 
 	if (gid == cred->cr_groups[0])
 		return (true);
@@ -2400,6 +2410,7 @@ sys_getlogin(struct thread *td, struct getlogin_args *uap)
 	PROC_UNLOCK(p);
 	if (len > uap->namelen)
 		return (ERANGE);
+ADD_PROCBASE(uap->namebuf, td);
 	return (copyout(login, uap->namebuf, len));
 }
 
@@ -2424,6 +2435,7 @@ sys_setlogin(struct thread *td, struct setlogin_args *uap)
 	error = priv_check(td, PRIV_PROC_SETLOGIN);
 	if (error)
 		return (error);
+ADD_PROCBASE(uap->namebuf, td);
 	error = copyinstr(uap->namebuf, logintmp, sizeof(logintmp), NULL);
 	if (error != 0) {
 		if (error == ENAMETOOLONG)

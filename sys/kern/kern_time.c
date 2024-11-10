@@ -61,6 +61,10 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+//wyc sa
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #define MAX_CLOCKS 	(CLOCK_MONOTONIC+1)
 #define CPUCLOCK_BIT		0x80000000
 #define CPUCLOCK_PROCESS_BIT	0x40000000
@@ -185,8 +189,10 @@ sys_clock_getcpuclockid2(struct thread *td, struct clock_getcpuclockid2_args *ua
 	int error;
 
 	error = kern_clock_getcpuclockid2(td, uap->id, uap->which, &clk_id);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->clock_id, td);
 		error = copyout(&clk_id, uap->clock_id, sizeof(clockid_t));
+	}
 	return (error);
 }
 
@@ -235,8 +241,10 @@ sys_clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 	int error;
 
 	error = kern_clock_gettime(td, uap->clock_id, &ats);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->tp, td);
 		error = copyout(&ats, uap->tp, sizeof(ats));
+	}
 
 	return (error);
 }
@@ -257,7 +265,7 @@ kern_thread_cputime(struct thread *targettd, struct timespec *ats)
 
 	if (targettd == NULL) { /* current thread */
 		spinlock_enter();
-		switchtime = PCPU_GET(switchtime);
+		switchtime = PCPU_GET(pc_switchtime);
 		curtime = cpu_ticks();
 		runtime = curthread->td_runtime;
 		spinlock_exit();
@@ -282,7 +290,7 @@ kern_process_cputime(struct proc *targetp, struct timespec *ats)
 	rufetch(targetp, &ru);
 	runtime = targetp->p_rux.rux_runtime;
 	if (curthread->td_proc == targetp)
-		runtime += cpu_ticks() - PCPU_GET(switchtime);
+		runtime += cpu_ticks() - PCPU_GET(pc_switchtime);
 	PROC_STATUNLOCK(targetp);
 	cputick2timespec(runtime, ats);
 }
@@ -390,6 +398,7 @@ sys_clock_settime(struct thread *td, struct clock_settime_args *uap)
 	struct timespec ats;
 	int error;
 
+ADD_PROCBASE(uap->tp, td);
 	if ((error = copyin(uap->tp, &ats, sizeof(ats))) != 0)
 		return (error);
 	return (kern_clock_settime(td, uap->clock_id, &ats));
@@ -438,8 +447,10 @@ sys_clock_getres(struct thread *td, struct clock_getres_args *uap)
 		return (0);
 
 	error = kern_clock_getres(td, uap->clock_id, &ts);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->tp, td);
 		error = copyout(&ts, uap->tp, sizeof(ts));
+	}
 	return (error);
 }
 
@@ -592,7 +603,8 @@ struct nanosleep_args {
 int
 sys_nanosleep(struct thread *td, struct nanosleep_args *uap)
 {
-
+ADD_PROCBASE(uap->rqtp, td);
+ADD_PROCBASE(uap->rmtp, td);
 	return (user_clock_nanosleep(td, CLOCK_REALTIME, TIMER_RELTIME,
 	    uap->rqtp, uap->rmtp));
 }
@@ -610,7 +622,8 @@ int
 sys_clock_nanosleep(struct thread *td, struct clock_nanosleep_args *uap)
 {
 	int error;
-
+ADD_PROCBASE(uap->rqtp, td);
+ADD_PROCBASE(uap->rmtp, td);
 	error = user_clock_nanosleep(td, uap->clock_id, uap->flags, uap->rqtp,
 	    uap->rmtp);
 	return (kern_posix_error(td, error));
@@ -651,21 +664,25 @@ sys_gettimeofday(struct thread *td, struct gettimeofday_args *uap)
 
 	if (uap->tp) {
 		microtime(&atv);
+ADD_PROCBASE(uap->tp, td);
 		error = copyout(&atv, uap->tp, sizeof (atv));
 	}
 	if (error == 0 && uap->tzp != NULL) {
 		rtz.tz_minuteswest = 0;
 		rtz.tz_dsttime = 0;
+ADD_PROCBASE(uap->tzp, td);
 		error = copyout(&rtz, uap->tzp, sizeof (rtz));
 	}
 	return (error);
 }
 
+#if !defined(WYC)
 #ifndef _SYS_SYSPROTO_H_
 struct settimeofday_args {
 	struct	timeval *tv;
 	struct	timezone *tzp;
 };
+#endif
 #endif
 /* ARGSUSED */
 int
@@ -676,6 +693,7 @@ sys_settimeofday(struct thread *td, struct settimeofday_args *uap)
 	int error;
 
 	if (uap->tv) {
+ADD_PROCBASE(uap->tv, td);
 		error = copyin(uap->tv, &atv, sizeof(atv));
 		if (error)
 			return (error);
@@ -683,6 +701,7 @@ sys_settimeofday(struct thread *td, struct settimeofday_args *uap)
 	} else
 		tvp = NULL;
 	if (uap->tzp) {
+ADD_PROCBASE(uap->tzp, td);
 		error = copyin(uap->tzp, &atz, sizeof(atz));
 		if (error)
 			return (error);
@@ -746,6 +765,7 @@ sys_getitimer(struct thread *td, struct getitimer_args *uap)
 	error = kern_getitimer(td, uap->which, &aitv);
 	if (error != 0)
 		return (error);
+ADD_PROCBASE(uap->itv, td);
 	return (copyout(&aitv, uap->itv, sizeof (struct itimerval)));
 }
 
@@ -803,12 +823,13 @@ sys_setitimer(struct thread *td, struct setitimer_args *uap)
 		uap->itv = uap->oitv;
 		return (sys_getitimer(td, (struct getitimer_args *)uap));
 	}
-
+ADD_PROCBASE(uap->itv, td);
 	if ((error = copyin(uap->itv, &aitv, sizeof(struct itimerval))))
 		return (error);
 	error = kern_setitimer(td, uap->which, &aitv, &oitv);
 	if (error != 0 || uap->oitv == NULL)
 		return (error);
+ADD_PROCBASE(uap->oitv, td);
 	return (copyout(&oitv, uap->oitv, sizeof(struct itimerval)));
 }
 
@@ -1215,6 +1236,7 @@ sys_ktimer_create(struct thread *td, struct ktimer_create_args *uap)
 	if (uap->evp == NULL) {
 		evp = NULL;
 	} else {
+ADD_PROCBASE(uap->evp, td);
 		error = copyin(uap->evp, &ev, sizeof(ev));
 		if (error != 0)
 			return (error);
@@ -1222,6 +1244,7 @@ sys_ktimer_create(struct thread *td, struct ktimer_create_args *uap)
 	}
 	error = kern_ktimer_create(td, uap->clock_id, evp, &id, -1);
 	if (error == 0) {
+ADD_PROCBASE(uap->timerid, td);
 		error = copyout(&id, uap->timerid, sizeof(int));
 		if (error != 0)
 			kern_ktimer_delete(td, id);
@@ -1412,13 +1435,16 @@ sys_ktimer_settime(struct thread *td, struct ktimer_settime_args *uap)
 	struct itimerspec val, oval, *ovalp;
 	int error;
 
+ADD_PROCBASE(uap->value, td);
 	error = copyin(uap->value, &val, sizeof(val));
 	if (error != 0)
 		return (error);
 	ovalp = uap->ovalue != NULL ? &oval : NULL;
 	error = kern_ktimer_settime(td, uap->timerid, uap->flags, &val, ovalp);
-	if (error == 0 && uap->ovalue != NULL)
+	if (error == 0 && uap->ovalue != NULL) {
+ADD_PROCBASE(uap->ovalue, td);
 		error = copyout(ovalp, uap->ovalue, sizeof(*ovalp));
+	}
 	return (error);
 }
 
@@ -1459,8 +1485,10 @@ sys_ktimer_gettime(struct thread *td, struct ktimer_gettime_args *uap)
 	int error;
 
 	error = kern_ktimer_gettime(td, uap->timerid, &val);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->value, td);
 		error = copyout(&val, uap->value, sizeof(val));
+	}
 	return (error);
 }
 

@@ -17,7 +17,9 @@
 
 /* specification: draft-hasmit-otv-04 */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 

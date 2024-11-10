@@ -75,6 +75,10 @@
 #include <machine/atomic.h>
 
 #include <vm/uma.h>
+//wyc sa
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 static MALLOC_DEFINE(M_KQUEUE, "kqueue", "memory for kqueue system");
 
@@ -833,7 +837,7 @@ filt_timerattach(struct knote *kn)
 	kn->kn_ptr.p_v = kc = malloc(sizeof(*kc), M_KQUEUE, M_WAITOK);
 	kc->kn = kn;
 	kc->p = curproc;
-	kc->cpuid = PCPU_GET(cpuid);
+	kc->cpuid = PCPU_GET(pc_cpuid);
 	kc->flags = 0;
 	callout_init(&kc->c, 1);
 	filt_timerstart(kn, to);
@@ -1133,6 +1137,9 @@ sys_kevent(struct thread *td, struct kevent_args *uap)
 		.k_copyin = kevent_copyin,
 		.kevent_size = sizeof(struct kevent),
 	};
+ADD_PROCBASE(uap->changelist, td);
+ADD_PROCBASE(uap->eventlist, td);
+ADD_PROCBASE(uap->timeout, td);
 	struct g_kevent_args gk_args = {
 		.fd = uap->fd,
 		.changelist = uap->changelist,

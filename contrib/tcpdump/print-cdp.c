@@ -26,7 +26,9 @@
 
 /* \summary: Cisco Discovery Protocol (CDP) printer */
 
+#ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 
 #include "netdissect-stdinc.h"
 
@@ -307,7 +309,7 @@ cdp_print(netdissect_options *ndo,
 			}
 		}
 
-		if (ndo->ndo_vflag && !covered) {
+		if (!covered) {
 			ND_TCHECK_LEN(tptr, len);
 			print_unknown_data(ndo, tptr, "\n\t  ", len);
 		}
@@ -387,7 +389,8 @@ cdp_print_addr(netdissect_options *ndo,
 			ND_PRINT("IPv4 (%u) %s", num, GET_IPADDR_STRING(p));
 			p += al;
 			l -= al;
-		} else if (pt == PT_IEEE_802_2 && pl == 8 &&
+		}
+		else if (pt == PT_IEEE_802_2 && pl == 8 &&
 		         memcmp(p, prot_ipv6, 8) == 0 && al == 16) {
 			/*
 			 * IPv6: protocol type = IEEE 802.2 header,
@@ -405,7 +408,8 @@ cdp_print_addr(netdissect_options *ndo,
 			ND_PRINT("IPv6 (%u) %s", num, GET_IP6ADDR_STRING(p));
 			p += al;
 			l -= al;
-		} else {
+		}
+		else {
 			/*
 			 * Generic case: just print raw data
 			 */

@@ -410,8 +410,7 @@ linuxkpi_alloc_netdev(size_t len, const char *name, uint32_t flags,
 
 	/* This needs extending as we support more. */
 
-	if (setup_func != NULL)
-		setup_func(ndev);
+	setup_func(ndev);
 
 	return (ndev);
 }

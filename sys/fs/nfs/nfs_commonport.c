@@ -431,7 +431,7 @@ static int
 nfssvc_nfscommon(struct thread *td, struct nfssvc_args *uap)
 {
 	int error;
-
+panic("%s: %p\n", __func__, uap); //WYC_PANIC never reached
 	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(td));
 	error = nfssvc_call(td, uap, td->td_ucred);
 	NFSD_CURVNET_RESTORE();
@@ -449,6 +449,7 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		int vers;	/* Just the first field of nfsstats. */
 	} nfsstatver;
 
+ADD_PROCBASE(uap->argp, p);
 	if (uap->flag & NFSSVC_IDNAME) {
 		if ((uap->flag & NFSSVC_NEWSTRUCT) != 0)
 			error = copyin(uap->argp, &nid, sizeof(nid));

@@ -33,7 +33,7 @@
 #ifndef _SYS_PCPU_H_
 #define	_SYS_PCPU_H_
 
-#ifdef LOCORE
+#ifdef LOCORE // LOCORE means "don't declare C stuff"
 #error "no assembler-serviceable parts inside"
 #endif
 
@@ -118,7 +118,7 @@ extern uintptr_t dpcpu_off[];
 /*
  * Accessors for the current cpu.
  */
-#define	DPCPU_PTR(n)		_DPCPU_PTR(PCPU_GET(dynamic), n)
+#define	DPCPU_PTR(n)		_DPCPU_PTR(PCPU_GET(pc_dynamic), n)
 #define	DPCPU_GET(n)		(*DPCPU_PTR(n))
 #define	DPCPU_SET(n, v)		(*DPCPU_PTR(n) = v)
 
@@ -205,27 +205,90 @@ struct pcpu {
 	 * reason not to keep the offsets of the MI fields constant
 	 * if only to make kernel debugging easier.
 	 */
+#if !defined(WYC)
 	PCPU_MD_FIELDS;
+#else
+  #if 1 // for riscv
+	struct pmap *pc_curpmap;	/* Currently active pmap */
+	uint32_t pc_pending_ipis;	/* IPIs pending to this CPU */
+	uint32_t pc_hart;		/* Hart ID */
+	char __pad[56];			/* Pad to factor of PAGE_SIZE */
+  #else // for amd64
+	struct monitorbuf pc_monitorbuf __aligned(128);	/* cache line */
+	struct	pcpu *pc_prvspace;	/* Self-reference */
+	struct	pmap *pc_curpmap;
+	struct	amd64tss *pc_tssp;	/* TSS segment active on CPU */
+	void	*pc_pad0;
+	uint64_t pc_kcr3;
+	uint64_t pc_ucr3;
+	uint64_t pc_saved_ucr3;
+	register_t pc_rsp0;
+	register_t pc_scratch_rsp;	/* User %rsp in syscall */
+	register_t pc_scratch_rax;
+	u_int	pc_apic_id;
+	u_int   pc_acpi_id;		/* ACPI CPU id */
+	/* Pointer to the CPU %fs descriptor */
+	struct user_segment_descriptor	*pc_fs32p;
+	/* Pointer to the CPU %gs descriptor */
+	struct user_segment_descriptor	*pc_gs32p;
+	/* Pointer to the CPU LDT descriptor */
+	struct system_segment_descriptor *pc_ldt;
+	/* Pointer to the CPU TSS descriptor */
+	struct system_segment_descriptor *pc_tss;
+	u_int	pc_cmci_mask;		/* MCx banks for CMCI */
+	uint64_t pc_dbreg[16];		/* ddb debugging regs */
+	uint64_t pc_pti_stack[PC_PTI_STACK_SZ];
+	register_t pc_pti_rsp0;
+	int pc_dbreg_cmd;		/* ddb debugging reg cmd */
+	u_int	pc_vcpu_id;		/* Xen vCPU ID */
+	uint32_t pc_pcid_next;
+	uint32_t pc_pcid_gen;
+	uint32_t pc_unused;
+	uint32_t pc_ibpb_set;
+	void	*pc_mds_buf;
+	void	*pc_mds_buf64;
+	uint32_t pc_pad[4];
+	uint8_t	pc_mds_tmp[64];
+	u_int 	pc_ipi_bitmap;
+	struct amd64tss pc_common_tss;
+	void	*pc_smp_tlb_pmap;
+	uint64_t pc_smp_tlb_addr1;
+	uint64_t pc_smp_tlb_addr2;
+	uint32_t pc_smp_tlb_gen;
+	u_int	pc_smp_tlb_op;
+	uint64_t pc_ucr3_load_mask;
+	u_int	pc_small_core;
+	u_int	pc_pcid_invlpg_workaround;
+	struct pmap_pcid pc_kpmap_store;
+	struct user_segment_descriptor pc_gdt[NGDT];
+	char	__pad[2900];		/* pad to UMA_PCPU_ALLOC_SIZE == PAGE_SIZE */
+  #endif
+#endif
 } __aligned(CACHE_LINE_SIZE);
 
 #ifdef _KERNEL
 
-STAILQ_HEAD(cpuhead, pcpu);
+STAILQ_HEAD(cpu_head, pcpu);
 
-extern struct cpuhead cpuhead;
+extern struct cpu_head cpuhead;
 extern struct pcpu *cpuid_to_pcpu[];
 
-#define	curcpu		PCPU_GET(cpuid)
-#define	curvidata	PCPU_GET(vidata)
+#define	curcpu		PCPU_GET(pc_cpuid)
+#define	curvidata	PCPU_GET(pc_vidata)
 
 #define UMA_PCPU_ALLOC_SIZE		PAGE_SIZE
 
 #include <machine/pcpu_aux.h>
 
+#if !defined(WYC)
 #ifndef curthread
-#define	curthread	PCPU_GET(curthread)
+#define	curthread	PCPU_GET(pc_curthread)
 #endif
 #define	curproc		(curthread->td_proc)
+#else
+struct thread *curthread;
+struct proc *curproc;
+#endif
 
 #ifndef ZPCPU_ASSERT_PROTECTED
 #define ZPCPU_ASSERT_PROTECTED() MPASS(curthread->td_critnest > 0)
@@ -235,7 +298,7 @@ extern struct pcpu *cpuid_to_pcpu[];
 #define zpcpu_offset_cpu(cpu)	(UMA_PCPU_ALLOC_SIZE * cpu)
 #endif
 #ifndef zpcpu_offset
-#define zpcpu_offset()		(PCPU_GET(zpcpu_offset))
+#define zpcpu_offset()		(PCPU_GET(pc_zpcpu_offset))
 #endif
 
 #ifndef zpcpu_base_to_offset

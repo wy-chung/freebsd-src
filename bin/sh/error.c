@@ -49,21 +49,20 @@ static char sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 #include "nodes.h" /* show.h needs nodes.h */
 #include "show.h"
 #include "trap.h"
+#include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 
-
 /*
  * Code to handle exceptions in C.
  */
 
-struct jmploc *handler;
+_Thread_local struct jmploc *handler;
 volatile sig_atomic_t exception;
 volatile sig_atomic_t suppressint;
 volatile sig_atomic_t intpending;
-
 
 static void verrorwithstatus(int, const char *, va_list) __printf0like(2, 0) __dead2;
 
@@ -75,7 +74,6 @@ static void verrorwithstatus(int, const char *, va_list) __printf0like(2, 0) __d
  * Interrupts are disabled; they should be re-enabled when the exception is
  * caught.
  */
-
 void
 exraise(int e)
 {
@@ -85,7 +83,6 @@ exraise(int e)
 	exception = e;
 	longjmp(handler->loc, 1);
 }
-
 
 /*
  * Called from trap.c when a SIGINT is received and not suppressed, or when
@@ -97,13 +94,12 @@ exraise(int e)
  * terminated if we get here, as if we were terminated directly by a SIGINT.
  * Arrange for this here.
  */
-
 void
 onint(void)
 {
 	sigset_t sigs;
 
-	intpending = 0;
+	intpending = false;
 	sigemptyset(&sigs);
 	sigprocmask(SIG_SETMASK, &sigs, NULL);
 
@@ -123,6 +119,27 @@ onint(void)
 	}
 }
 
+/* Obtain a backtrace and print it to stdout. */
+#define BACKTRACE_DEPTH 60
+
+void
+print_trace(const char *fn)
+{
+	void *array[BACKTRACE_DEPTH];
+	size_t size;
+	char **strings;
+	size_t i;
+
+	size = backtrace(array, BACKTRACE_DEPTH);
+	strings = backtrace_symbols(array, size);
+
+	fprintf (stderr, "%s: Obtained %zd stack frames.\n", fn, size);
+	for (i = 0; i < size; i++)
+		fprintf (stderr, "%s\n", strings[i]);
+	fprintf(stderr, "\n");
+
+	free(strings);
+}
 
 static void
 vwarning(const char *msg, va_list ap)
@@ -135,7 +152,6 @@ vwarning(const char *msg, va_list ap)
 	out2fmt_flush("\n");
 }
 
-
 void
 warning(const char *msg, ...)
 {
@@ -145,9 +161,8 @@ warning(const char *msg, ...)
 	va_end(ap);
 }
 
-
 /*
- * Exverror is called to raise the error exception.  If the first argument
+ * exraise is called to raise the error exception.  If the first argument
  * is not NULL then error prints an error message using printf style
  * formatting.  It then raises the error exception.
  */
@@ -179,9 +194,8 @@ verrorwithstatus(int status, const char *msg, va_list ap)
 	exraise(EXERROR);
 }
 
-
 void
-error(const char *msg, ...)
+error(const char *msg, ...) // will call a longjmp
 {
 	va_list ap;
 	va_start(ap, msg);
@@ -189,9 +203,8 @@ error(const char *msg, ...)
 	va_end(ap);
 }
 
-
 void
-errorwithstatus(int status, const char *msg, ...)
+errorwithstatus(int status, const char *msg, ...) // will call a longjmp
 {
 	va_list ap;
 	va_start(ap, msg);

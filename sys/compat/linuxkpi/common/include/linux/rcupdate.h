@@ -1,10 +1,6 @@
 /*-
  * Copyright (c) 2016-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
- * Copyright (c) 2024 The FreeBSD Foundation
- *
- * Portions of this software were developed by Björn Zeeb
- * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,19 +26,10 @@
 #ifndef	_LINUXKPI_LINUX_RCUPDATE_H_
 #define	_LINUXKPI_LINUX_RCUPDATE_H_
 
-#include <sys/cdefs.h>
-
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/kernel.h>
 
 #include <machine/atomic.h>
-
-extern int linuxkpi_rcu_debug;
-#define	RCU_WARN_ONCE(c, ...)	do {					\
-	if (unlikely(linuxkpi_rcu_debug > 0))				\
-		WARN_ONCE((c), ##__VA_ARGS__);				\
-} while(0)
 
 #define	LINUX_KFREE_RCU_OFFSET_MAX	4096	/* exclusive */
 
@@ -74,9 +61,6 @@ extern int linuxkpi_rcu_debug;
 	linux_rcu_read_unlock(RCU_TYPE_REGULAR);\
 } while (0)
 
-#define	rcu_read_lock_held(void)					\
-	linux_rcu_read_lock_held(RCU_TYPE_REGULAR)
-
 #define	synchronize_rcu(void) do {	\
 	linux_synchronize_rcu(RCU_TYPE_REGULAR);	\
 } while (0)
@@ -95,34 +79,14 @@ extern int linuxkpi_rcu_debug;
 #define	rcu_access_pointer(p)			\
 	((__typeof(*p) *)READ_ONCE(p))
 
-#define	rcu_dereference(p)			\
+#define	rcu_dereference_protected(p, c)		\
 	((__typeof(*p) *)READ_ONCE(p))
 
-#define	__rcu_var_name(n, f, l)						\
-	__CONCAT(__CONCAT(__CONCAT(rcu_, n), _), __COUNTER__)
+#define	rcu_dereference(p)			\
+	rcu_dereference_protected(p, 0)
 
-#define	__rcu_dereference_protected(p, c, n)				\
-({									\
-    RCU_WARN_ONCE(!(c), "%s:%d: condition for %s failed\n",		\
-	__func__, __LINE__, __XSTRING(n));				\
-    rcu_dereference(p);							\
-})
-
-#define	rcu_dereference_protected(p, c)					\
-    __rcu_dereference_protected((p), (c),				\
-	__rcu_var_name(protected, __func__, __LINE__))
-
-#define	__rcu_dereference_check(p, c, n)				\
-({									\
-    __typeof(*p) *n = rcu_dereference(p);				\
-    RCU_WARN_ONCE(!(c), "%s:%d: condition for %s failed\n",		\
-	__func__, __LINE__, __XSTRING(n));				\
-    n;									\
-})
-
-#define	rcu_dereference_check(p, c)					\
-    __rcu_dereference_check((p), (c) || rcu_read_lock_held(),		\
-	__rcu_var_name(check, __func__, __LINE__))
+#define	rcu_dereference_check(p, c)		\
+	rcu_dereference_protected(p, c)
 
 #define	rcu_dereference_raw(p)			\
 	((__typeof(*p) *)READ_ONCE(p))
@@ -149,12 +113,11 @@ extern int linuxkpi_rcu_debug;
 
 /* prototypes */
 
-void linux_call_rcu(unsigned type, struct rcu_head *ptr, rcu_callback_t func);
-void linux_rcu_barrier(unsigned type);
-void linux_rcu_read_lock(unsigned type);
-void linux_rcu_read_unlock(unsigned type);
-bool linux_rcu_read_lock_held(unsigned);
-void linux_synchronize_rcu(unsigned type);
+extern void linux_call_rcu(unsigned type, struct rcu_head *ptr, rcu_callback_t func);
+extern void linux_rcu_barrier(unsigned type);
+extern void linux_rcu_read_lock(unsigned type);
+extern void linux_rcu_read_unlock(unsigned type);
+extern void linux_synchronize_rcu(unsigned type);
 
 /* Empty implementation for !DEBUG */
 #define	init_rcu_head(...)

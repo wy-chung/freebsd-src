@@ -92,10 +92,12 @@ dtrace_fork_func_t	dtrace_fasttrap_fork;
 SDT_PROVIDER_DECLARE(proc);
 SDT_PROBE_DEFINE3(proc, , , create, "struct proc *", "struct proc *", "int");
 
+#if !defined(WYC)
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
 	int     dummy;
 };
+#endif
 #endif
 
 /* ARGSUSED */
@@ -138,6 +140,7 @@ sys_pdfork(struct thread *td, struct pdfork_args *uap)
 	if (error == 0) {
 		td->td_retval[0] = pid;
 		td->td_retval[1] = 0;
+ADD_PROCBASE(uap->fdp, td);
 		error = copyout(&fd, uap->fdp, sizeof(fd));
 	}
 	return (error);
@@ -247,7 +250,7 @@ extern bitstr_t proc_id_sessidmap;
 extern bitstr_t proc_id_reapmap;
 
 /*
- * Find an unused process ID
+ * Find an unused process ID. i.e. PROC_ID_PID
  *
  * If RFHIGHPID is set (used during system boot), do not allocate
  * low-numbered pids.
@@ -278,7 +281,7 @@ retry:
 	if (trypid >= pid_max)
 		trypid = 2;
 
-	bit_ffc_at(&proc_id_pidmap, trypid, pid_max, &result);
+	bit_ffc_at(&proc_id_pidmap, trypid, pid_max, &result); // find first clear
 	if (result == -1) {
 		KASSERT(trypid != 2, ("unexpectedly ran out of IDs"));
 		trypid = 2;
@@ -365,8 +368,11 @@ fail:
 	return (error);
 }
 
+static int fork_debug = 0; //wyc
+SYSCTL_INT(_debug, OID_AUTO, fork, CTLFLAG_RW, &fork_debug, 0, "for PRS_CHILD testing");
+
 static void
-do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *td2,
+do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, pid_t p2_pid, struct thread *td2,
     struct vmspace *vm2, struct file *fp_procdesc)
 {
 	struct proc *p1, *pptr;
@@ -390,7 +396,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	prison_proc_hold(p2->p_ucred->cr_prison);
 
 	p2->p_state = PRS_NEW;		/* protect against others */
-	p2->p_pid = fork_findpid(fr->fr_flags);
+	p2->p_pid = p2_pid;
 	AUDIT_ARG_PID(p2->p_pid);
 	TSFORK(p2->p_pid, p1->p_pid);
 
@@ -472,7 +478,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	td2->td_flags = TDF_INMEM;
 	td2->td_lend_user_pri = PRI_MAX;
 
-#ifdef VIMAGE
+#ifdef VIMAGE // conf options, Subsystem virtualization
 	td2->td_vnet = NULL;
 	td2->td_vnet_lpush = NULL;
 #endif
@@ -673,11 +679,11 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	 */
 	vm_forkproc(td, p2, td2, vm2, fr->fr_flags);
 
-	if (fr->fr_flags == (RFFDG | RFPROC)) {
+	if (fr->fr_flags == (RFFDG | RFPROC)) { // fork
 		VM_CNT_INC(v_forks);
 		VM_CNT_ADD(v_forkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
-	} else if (fr->fr_flags == (RFFDG | RFPROC | RFPPWAIT | RFMEM)) {
+	} else if (fr->fr_flags == (RFFDG | RFPROC | RFPPWAIT | RFMEM)) { // vfork
 		VM_CNT_INC(v_vforks);
 		VM_CNT_ADD(v_vforkpages, p2->p_vmspace->vm_dsize +
 		    p2->p_vmspace->vm_ssize);
@@ -712,7 +718,10 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	PROC_LOCK(p1);
 	microuptime(&p2->p_stats->p_start);
 	PROC_SLOCK(p2);
-	p2->p_state = PRS_NORMAL;
+	if (fork_debug)
+		p2->p_state = PRS_CHILD; //wyc
+	else
+		p2->p_state = PRS_NORMAL;
 	PROC_SUNLOCK(p2);
 
 #ifdef KDTRACE_HOOKS
@@ -775,8 +784,8 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 			td->td_dbg_forked = p2->p_pid;
 			td2->td_dbgflags |= TDB_STOPATFORK;
 			proc_set_traced(p2, true);
-			CTR2(KTR_PTRACE,
-			    "do_fork: attaching to new child pid %d: oppid %d",
+			CTR3(KTR_PTRACE,
+			    "%s: attaching to new child pid %d: oppid %d", __func__, //wyc
 			    p2->p_pid, p2->p_oppid);
 			proc_reparent(p2, p1->p_pptr, false);
 		}
@@ -849,13 +858,13 @@ again:
 int
 fork1(struct thread *td, struct fork_req *fr)
 {
-	struct proc *p1, *newproc;
+	struct proc *p1, *p2; //wyc newproc -> p2
 	struct thread *td2;
 	struct vmspace *vm2;
 	struct ucred *cred;
 	struct file *fp_procdesc;
 	struct pgrp *pg;
-	vm_ooffset_t mem_charged;
+	//vm_ooffset_t mem_charged; //wyc moved into a block
 	int error, nprocs_new;
 	static int curfail;
 	static struct timeval lastfail;
@@ -863,7 +872,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	bool killsx_locked, singlethreaded;
 
 	flags = fr->fr_flags;
-	pages = fr->fr_pages;
+	pages = fr->fr_pages;	//wyc number of pages for kernel stack
 
 	if ((flags & RFSTOPPED) != 0)
 		MPASS(fr->fr_procp != NULL && fr->fr_pidp == NULL);
@@ -901,6 +910,14 @@ fork1(struct thread *td, struct fork_req *fr)
 	}
 
 	p1 = td->td_proc;
+	if (fork_debug) { //wyc
+		PROC_LOCK(p1);
+		if (p1->p_state == PRS_CHILD) { //wyc child cannot fork another child
+			PROC_UNLOCK(p1);
+			return ECHILD;
+		}
+		PROC_UNLOCK(p1);
+	}
 
 	/*
 	 * Here we don't create a new process, but we divorce
@@ -915,7 +932,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	}
 
 	fp_procdesc = NULL;
-	newproc = NULL;
+	p2 = NULL;
 	vm2 = NULL;
 	killsx_locked = false;
 	singlethreaded = false;
@@ -944,7 +961,7 @@ fork1(struct thread *td, struct fork_req *fr)
 				    td->td_ucred->cr_ruid, p1->p_pid);
 			}
 			sx_xunlock(&allproc_lock);
-			goto fail2;
+			goto fail4; //wyc org fail2
 		}
 	}
 
@@ -964,7 +981,7 @@ fork1(struct thread *td, struct fork_req *fr)
 			if (thread_single(p1, SINGLE_BOUNDARY)) {
 				PROC_UNLOCK(p1);
 				error = ERESTART;
-				goto fail2;
+				goto fail4; //wyc org fail2
 			}
 			PROC_UNLOCK(p1);
 			singlethreaded = true;
@@ -977,7 +994,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	 */
 	if (!killsx_locked && sx_slock_sig(&pg->pg_killsx) != 0) {
 		error = ERESTART;
-		goto fail2;
+		goto fail4; //wyc org fail2
 	}
 	if (__predict_false(p1->p_pgrp != pg || sig_intr() != 0)) {
 		/*
@@ -989,7 +1006,7 @@ fork1(struct thread *td, struct fork_req *fr)
 		sx_sunlock(&pg->pg_killsx);
 		killsx_locked = false;
 		error = ERESTART;
-		goto fail2;
+		goto fail4; //wyc org fail2
 	} else {
 		killsx_locked = true;
 	}
@@ -1003,23 +1020,23 @@ fork1(struct thread *td, struct fork_req *fr)
 		error = procdesc_falloc(td, &fp_procdesc, fr->fr_pd_fd,
 		    fr->fr_pd_flags, fr->fr_pd_fcaps);
 		if (error != 0)
-			goto fail2;
+			goto fail4; //wyc org fail2
 		AUDIT_ARG_FD(*fr->fr_pd_fd);
 	}
 
-	mem_charged = 0;
-	if (pages == 0)
+	//mem_charged = 0; //wyc moved below
+	if (pages == 0) //wyc always true
 		pages = kstack_pages;
 	/* Allocate new proc. */
-	newproc = uma_zalloc(proc_zone, M_WAITOK);
-	td2 = FIRST_THREAD_IN_PROC(newproc);
+	p2 = uma_zalloc(proc_zone, M_WAITOK);
+	td2 = FIRST_THREAD_IN_PROC(p2);
 	if (td2 == NULL) {
 		td2 = thread_alloc(pages);
 		if (td2 == NULL) {
 			error = ENOMEM;
-			goto fail2;
+			goto fail3;
 		}
-		proc_linkup(newproc, td2);
+		proc_linkup(p2, td2);
 	} else {
 		kmsan_thread_alloc(td2);
 		if (td2->td_kstack == 0 || td2->td_kstack_pages != pages) {
@@ -1027,7 +1044,7 @@ fork1(struct thread *td, struct fork_req *fr)
 				vm_thread_dispose(td2);
 			if (!thread_alloc_stack(td2, pages)) {
 				error = ENOMEM;
-				goto fail2;
+				goto fail3;
 			}
 		} else {
 			kasan_mark((void *)td2->td_kstack,
@@ -1035,9 +1052,11 @@ fork1(struct thread *td, struct fork_req *fr)
 			    ptoa(td2->td_kstack_pages), 0);
 		}
 	}
+	pid_t p2_pid = fork_findpid(fr->fr_flags);
+	if ((flags & RFMEM) == 0) { // not share address space
+		vm_ooffset_t mem_charged;
 
-	if ((flags & RFMEM) == 0) {
-		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
+		vm2 = vmspace_fork(p1, p2_pid, &mem_charged);
 		if (vm2 == NULL) {
 			error = ENOMEM;
 			goto fail2;
@@ -1053,29 +1072,29 @@ fork1(struct thread *td, struct fork_req *fr)
 			error = ENOMEM;
 			goto fail2;
 		}
-	} else
+	} else {
 		vm2 = NULL;
-
+	}
 	/*
 	 * XXX: This is ugly; when we copy resource usage, we need to bump
 	 *      per-cred resource counters.
 	 */
-	proc_set_cred_init(newproc, td->td_ucred);
+	proc_set_cred_init(p2, td->td_ucred);
 
 	/*
 	 * Initialize resource accounting for the child process.
 	 */
-	error = racct_proc_fork(p1, newproc);
+	error = racct_proc_fork(p1, p2);
 	if (error != 0) {
 		error = EAGAIN;
 		goto fail1;
 	}
 
 #ifdef MAC
-	mac_proc_init(newproc);
+	mac_proc_init(p2);
 #endif
-	newproc->p_klist = knlist_alloc(&newproc->p_mtx);
-	STAILQ_INIT(&newproc->p_ktr);
+	p2->p_klist = knlist_alloc(&p2->p_mtx);
+	STAILQ_INIT(&p2->p_ktr);
 
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
@@ -1088,21 +1107,24 @@ fork1(struct thread *td, struct fork_req *fr)
 		chgproccnt(cred->cr_ruidinfo, 1, 0);
 	}
 
-	do_fork(td, fr, newproc, td2, vm2, fp_procdesc);
+	do_fork(td, fr, p2, p2_pid, td2, vm2, fp_procdesc);
 	error = 0;
 	goto cleanup;
 fail0:
 	error = EAGAIN;
 #ifdef MAC
-	mac_proc_destroy(newproc);
+	mac_proc_destroy(p2);
 #endif
-	racct_proc_exit(newproc);
+	racct_proc_exit(p2);
 fail1:
-	proc_unset_cred(newproc);
+	proc_unset_cred(p2);
 fail2:
+	proc_id_clear(PROC_ID_PID, p2_pid);
+fail3:
+	uma_zfree(proc_zone, p2);
+fail4: //wycpull
 	if (vm2 != NULL)
 		vmspace_free(vm2);
-	uma_zfree(proc_zone, newproc);
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
 		fdclose(td, fp_procdesc, *fr->fr_pd_fd);
 		fdrop(fp_procdesc, td);
@@ -1124,7 +1146,7 @@ cleanup:
 /*
  * Handle the return of a child process from fork1().  This function
  * is called from the MD fork_trampoline() entry point.
- */
+ */	    // called by fork_trampoline(exception.S)
 void
 fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
     struct trapframe *frame)
@@ -1149,8 +1171,8 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	 * cpu_switch()'ed to, but when children start up they arrive here
 	 * instead, so we must do much the same things as mi_switch() would.
 	 */
-	if ((dtd = PCPU_GET(deadthread))) {
-		PCPU_SET(deadthread, NULL);
+	if ((dtd = PCPU_GET(pc_deadthread))) {
+		PCPU_SET(pc_deadthread, NULL);
 		thread_stash(dtd);
 	}
 	thread_unlock(td);
@@ -1162,6 +1184,9 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	 */
 	KASSERT(callout != NULL, ("NULL callout in fork_exit"));
 	callout(arg, frame);
+#if defined(WYC)
+	fork_return(td2, frame);
+#endif
 
 	/*
 	 * Check if a kernel thread misbehaved and returned from its main

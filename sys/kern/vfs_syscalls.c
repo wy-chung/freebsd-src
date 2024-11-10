@@ -88,6 +88,10 @@
 #include <vm/vnode_pager.h>
 #include <vm/uma.h>
 
+//wyc sa
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+
 #include <fs/devfs/devfs.h>
 
 MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
@@ -171,7 +175,7 @@ struct sync_args {
 #endif
 /* ARGSUSED */
 int
-sys_sync(struct thread *td, struct sync_args *uap)
+sys_sync(struct thread *td, struct sync_args *uap __unused)
 {
 
 	return (kern_sync(td));
@@ -200,6 +204,7 @@ sys_quotactl(struct thread *td, struct quotactl_args *uap)
 	AUDIT_ARG_UID(uap->uid);
 	if (!prison_allow(td->td_ucred, PR_ALLOW_QUOTAS))
 		return (EPERM);
+ADD_PROCBASE(uap->path, td);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path);
 	if ((error = namei(&nd)) != 0)
@@ -214,6 +219,7 @@ sys_quotactl(struct thread *td, struct quotactl_args *uap)
 		return (error);
 	}
 	mp_busy = true;
+ADD_PROCBASE(uap->arg, td);
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, &mp_busy);
 
 	/*
@@ -318,9 +324,12 @@ sys_statfs(struct thread *td, struct statfs_args *uap)
 	int error;
 
 	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+ADD_PROCBASE(uap->path, td);
 	error = kern_statfs(td, uap->path, UIO_USERSPACE, sfp);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->buf, td);
 		error = copyout(sfp, uap->buf, sizeof(struct statfs));
+	}
 	free(sfp, M_STATFS);
 	return (error);
 }
@@ -360,8 +369,10 @@ sys_fstatfs(struct thread *td, struct fstatfs_args *uap)
 
 	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 	error = kern_fstatfs(td, uap->fd, sfp);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->buf, td);
 		error = copyout(sfp, uap->buf, sizeof(struct statfs));
+	}
 	free(sfp, M_STATFS);
 	return (error);
 }
@@ -409,6 +420,7 @@ sys_getfsstat(struct thread *td, struct getfsstat_args *uap)
 
 	if (uap->bufsize < 0 || uap->bufsize > SIZE_MAX)
 		return (EINVAL);
+ADD_PROCBASE(uap->buf, td);
 	error = kern_getfsstat(td, &uap->buf, uap->bufsize, &count,
 	    UIO_USERSPACE, uap->mode);
 	if (error == 0)
@@ -940,6 +952,7 @@ struct chdir_args {
 int
 sys_chdir(struct thread *td, struct chdir_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	return (kern_chdir(td, uap->path, UIO_USERSPACE));
 }
@@ -995,6 +1008,7 @@ sys_chroot(struct thread *td, struct chroot_args *uap)
 		}
 		PROC_UNLOCK(p);
 	}
+ADD_PROCBASE(uap->path, td);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
 	    UIO_USERSPACE, uap->path);
 	error = namei(&nd);
@@ -1090,6 +1104,7 @@ struct open_args {
 int
 sys_open(struct thread *td, struct open_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	return (kern_openat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, uap->mode));
@@ -1106,6 +1121,7 @@ struct openat_args {
 int
 sys_openat(struct thread *td, struct openat_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	AUDIT_ARG_FD(uap->fd);
 	return (kern_openat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
@@ -1324,7 +1340,7 @@ struct mknodat_args {
 int
 sys_mknodat(struct thread *td, struct mknodat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_mknodat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode,
 	    uap->dev));
 }
@@ -1459,7 +1475,7 @@ struct mkfifo_args {
 int
 sys_mkfifo(struct thread *td, struct mkfifo_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_mkfifoat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode));
 }
@@ -1474,7 +1490,7 @@ struct mkfifoat_args {
 int
 sys_mkfifoat(struct thread *td, struct mkfifoat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_mkfifoat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->mode));
 }
@@ -1545,6 +1561,8 @@ struct link_args {
 int
 sys_link(struct thread *td, struct link_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->link, td);
 
 	return (kern_linkat(td, AT_FDCWD, AT_FDCWD, uap->path, uap->link,
 	    UIO_USERSPACE, AT_SYMLINK_FOLLOW));
@@ -1562,7 +1580,8 @@ struct linkat_args {
 int
 sys_linkat(struct thread *td, struct linkat_args *uap)
 {
-
+ADD_PROCBASE(uap->path1, td);
+ADD_PROCBASE(uap->path2, td);
 	return (kern_linkat(td, uap->fd1, uap->fd2, uap->path1, uap->path2,
 	    UIO_USERSPACE, uap->flag));
 }
@@ -1726,11 +1745,13 @@ struct symlink_args {
 int
 sys_symlink(struct thread *td, struct symlink_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->link, td);
 	return (kern_symlinkat(td, uap->path, AT_FDCWD, uap->link,
 	    UIO_USERSPACE));
 }
 
+#if !defined(WYC)
 #ifndef _SYS_SYSPROTO_H_
 struct symlinkat_args {
 	char	*path;
@@ -1738,10 +1759,12 @@ struct symlinkat_args {
 	char	*path2;
 };
 #endif
+#endif
 int
 sys_symlinkat(struct thread *td, struct symlinkat_args *uap)
 {
-
+ADD_PROCBASE(uap->path1, td);
+ADD_PROCBASE(uap->path2, td);
 	return (kern_symlinkat(td, uap->path1, uap->fd, uap->path2,
 	    UIO_USERSPACE));
 }
@@ -1830,6 +1853,7 @@ sys_undelete(struct thread *td, struct undelete_args *uap)
 	struct nameidata nd;
 	int error;
 
+ADD_PROCBASE(uap->path, td);
 	NDPREINIT(&nd);
 restart:
 	bwillwrite();
@@ -1876,6 +1900,7 @@ struct unlink_args {
 int
 sys_unlink(struct thread *td, struct unlink_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	return (kern_funlinkat(td, AT_FDCWD, uap->path, FD_NONE, UIO_USERSPACE,
 	    0, 0));
@@ -1905,7 +1930,7 @@ struct unlinkat_args {
 int
 sys_unlinkat(struct thread *td, struct unlinkat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_funlinkat_ex(td, uap->fd, uap->path, FD_NONE, uap->flag,
 	    UIO_USERSPACE, 0));
 }
@@ -1921,7 +1946,7 @@ struct funlinkat_args {
 int
 sys_funlinkat(struct thread *td, struct funlinkat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_funlinkat_ex(td, uap->dfd, uap->path, uap->fd, uap->flag,
 	    UIO_USERSPACE, 0));
 }
@@ -2123,7 +2148,7 @@ struct access_args {
 int
 sys_access(struct thread *td, struct access_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    0, uap->amode));
 }
@@ -2139,7 +2164,7 @@ struct faccessat_args {
 int
 sys_faccessat(struct thread *td, struct faccessat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_accessat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
 	    uap->amode));
 }
@@ -2204,7 +2229,7 @@ struct eaccess_args {
 int
 sys_eaccess(struct thread *td, struct eaccess_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    AT_EACCESS, uap->amode));
 }
@@ -2449,10 +2474,13 @@ sys_fstatat(struct thread *td, struct fstatat_args *uap)
 	struct stat sb;
 	int error;
 
+ADD_PROCBASE(uap->path, td);
 	error = kern_statat(td, uap->flag, uap->fd, uap->path,
 	    UIO_USERSPACE, &sb);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->buf, td);
 		error = copyout(&sb, uap->buf, sizeof (sb));
+	}
 	return (error);
 }
 
@@ -2590,7 +2618,7 @@ sys_pathconf(struct thread *td, struct pathconf_args *uap)
 {
 	long value;
 	int error;
-
+ADD_PROCBASE(uap->path, td);
 	error = kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name, FOLLOW,
 	    &value);
 	if (error == 0)
@@ -2610,6 +2638,7 @@ sys_lpathconf(struct thread *td, struct lpathconf_args *uap)
 	long value;
 	int error;
 
+ADD_PROCBASE(uap->path, td);
 	error = kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name,
 	    NOFOLLOW, &value);
 	if (error == 0)
@@ -2648,7 +2677,8 @@ struct readlink_args {
 int
 sys_readlink(struct thread *td, struct readlink_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->buf, td);
 	return (kern_readlinkat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->buf, UIO_USERSPACE, uap->count));
 }
@@ -2663,7 +2693,8 @@ struct readlinkat_args {
 int
 sys_readlinkat(struct thread *td, struct readlinkat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->buf, td);
 	return (kern_readlinkat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->buf, UIO_USERSPACE, uap->bufsize));
 }
@@ -2780,7 +2811,7 @@ struct chflags_args {
 int
 sys_chflags(struct thread *td, struct chflags_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, 0));
 }
@@ -2796,7 +2827,7 @@ struct chflagsat_args {
 int
 sys_chflagsat(struct thread *td, struct chflagsat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_chflagsat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->flags, uap->atflag));
 }
@@ -2813,7 +2844,7 @@ struct lchflags_args {
 int
 sys_lchflags(struct thread *td, struct lchflags_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, AT_SYMLINK_NOFOLLOW));
 }
@@ -2911,6 +2942,7 @@ struct chmod_args {
 int
 sys_chmod(struct thread *td, struct chmod_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	return (kern_fchmodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode, 0));
@@ -2927,7 +2959,7 @@ struct fchmodat_args {
 int
 sys_fchmodat(struct thread *td, struct fchmodat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_fchmodat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->mode, uap->flag));
 }
@@ -2944,7 +2976,7 @@ struct lchmod_args {
 int
 sys_lchmod(struct thread *td, struct lchmod_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_fchmodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode, AT_SYMLINK_NOFOLLOW));
 }
@@ -3039,6 +3071,7 @@ struct chown_args {
 int
 sys_chown(struct thread *td, struct chown_args *uap)
 {
+ADD_PROCBASE(uap->path, td);
 
 	return (kern_fchownat(td, AT_FDCWD, uap->path, UIO_USERSPACE, uap->uid,
 	    uap->gid, 0));
@@ -3056,7 +3089,7 @@ struct fchownat_args {
 int
 sys_fchownat(struct thread *td, struct fchownat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_fchownat(td, uap->fd, uap->path, UIO_USERSPACE, uap->uid,
 	    uap->gid, uap->flag));
 }
@@ -3098,7 +3131,7 @@ struct lchown_args {
 int
 sys_lchown(struct thread *td, struct lchown_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_fchownat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->uid, uap->gid, AT_SYMLINK_NOFOLLOW));
 }
@@ -3261,7 +3294,8 @@ struct utimes_args {
 int
 sys_utimes(struct thread *td, struct utimes_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->tptr, td);
 	return (kern_utimesat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->tptr, UIO_USERSPACE));
 }
@@ -3276,7 +3310,8 @@ struct futimesat_args {
 int
 sys_futimesat(struct thread *td, struct futimesat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->times, td);
 	return (kern_utimesat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->times, UIO_USERSPACE));
 }
@@ -3314,7 +3349,8 @@ struct lutimes_args {
 int
 sys_lutimes(struct thread *td, struct lutimes_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->tptr, td);
 	return (kern_lutimes(td, uap->path, UIO_USERSPACE, uap->tptr,
 	    UIO_USERSPACE));
 }
@@ -3350,7 +3386,7 @@ struct futimes_args {
 int
 sys_futimes(struct thread *td, struct futimes_args *uap)
 {
-
+ADD_PROCBASE(uap->tptr, td);
 	return (kern_futimes(td, uap->fd, uap->tptr, UIO_USERSPACE));
 }
 
@@ -3384,7 +3420,7 @@ kern_futimes(struct thread *td, int fd, const struct timeval *tptr,
 int
 sys_futimens(struct thread *td, struct futimens_args *uap)
 {
-
+ADD_PROCBASE(uap->times, td);
 	return (kern_futimens(td, uap->fd, uap->times, UIO_USERSPACE));
 }
 
@@ -3420,7 +3456,8 @@ kern_futimens(struct thread *td, int fd, const struct timespec *tptr,
 int
 sys_utimensat(struct thread *td, struct utimensat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->times, td);
 	return (kern_utimensat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->times, UIO_USERSPACE, uap->flag));
 }
@@ -3471,7 +3508,7 @@ struct truncate_args {
 int
 sys_truncate(struct thread *td, struct truncate_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_truncate(td, uap->path, UIO_USERSPACE, uap->length));
 }
 
@@ -3620,16 +3657,19 @@ sys_fdatasync(struct thread *td, struct fdatasync_args *uap)
  * Rename files.  Source and destination must either both be directories, or
  * both not be directories.  If target is a directory, it must be empty.
  */
+#if !defined(WYC)
 #ifndef _SYS_SYSPROTO_H_
 struct rename_args {
 	char	*from;
 	char	*to;
 };
 #endif
+#endif
 int
 sys_rename(struct thread *td, struct rename_args *uap)
 {
-
+ADD_PROCBASE(uap->from, td);
+ADD_PROCBASE(uap->to, td);
 	return (kern_renameat(td, AT_FDCWD, uap->from, AT_FDCWD,
 	    uap->to, UIO_USERSPACE));
 }
@@ -3645,7 +3685,8 @@ struct renameat_args {
 int
 sys_renameat(struct thread *td, struct renameat_args *uap)
 {
-
+ADD_PROCBASE(uap->old, td);
+ADD_PROCBASE(uap->new, td);
 	return (kern_renameat(td, uap->oldfd, uap->old, uap->newfd, uap->new,
 	    UIO_USERSPACE));
 }
@@ -3811,7 +3852,7 @@ struct mkdir_args {
 int
 sys_mkdir(struct thread *td, struct mkdir_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_mkdirat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode));
 }
@@ -3826,7 +3867,7 @@ struct mkdirat_args {
 int
 sys_mkdirat(struct thread *td, struct mkdirat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_mkdirat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode));
 }
 
@@ -3887,7 +3928,7 @@ struct rmdir_args {
 int
 sys_rmdir(struct thread *td, struct rmdir_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
 	return (kern_frmdirat(td, AT_FDCWD, uap->path, FD_NONE, UIO_USERSPACE,
 	    0));
 }
@@ -4166,12 +4207,15 @@ sys_getdirentries(struct thread *td, struct getdirentries_args *uap)
 	off_t base;
 	int error;
 
+ADD_PROCBASE(uap->buf, td);
 	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base,
 	    NULL, UIO_USERSPACE);
 	if (error != 0)
 		return (error);
-	if (uap->basep != NULL)
+	if (uap->basep != NULL) {
+ADD_PROCBASE(uap->basep, td);
 		error = copyout(&base, uap->basep, sizeof(off_t));
+	}
 	return (error);
 }
 
@@ -4290,7 +4334,7 @@ sys_revoke(struct thread *td, struct revoke_args *uap)
 	struct vattr vattr;
 	struct nameidata nd;
 	int error;
-
+ADD_PROCBASE(uap->path, td);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path);
 	if ((error = namei(&nd)) != 0)
@@ -4398,7 +4442,8 @@ struct lgetfh_args {
 int
 sys_lgetfh(struct thread *td, struct lgetfh_args *uap)
 {
-
+ADD_PROCBASE(uap->fname, td);
+ADD_PROCBASE(uap->fhp, td);
 	return (kern_getfhat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, uap->fname,
 	    UIO_USERSPACE, uap->fhp, UIO_USERSPACE));
 }
@@ -4412,7 +4457,8 @@ struct getfh_args {
 int
 sys_getfh(struct thread *td, struct getfh_args *uap)
 {
-
+ADD_PROCBASE(uap->fname, td);
+ADD_PROCBASE(uap->fhp, td);
 	return (kern_getfhat(td, 0, AT_FDCWD, uap->fname, UIO_USERSPACE,
 	    uap->fhp, UIO_USERSPACE));
 }
@@ -4435,7 +4481,8 @@ struct getfhat_args {
 int
 sys_getfhat(struct thread *td, struct getfhat_args *uap)
 {
-
+ADD_PROCBASE(uap->path, td);
+ADD_PROCBASE(uap->fhp, td);
 	return (kern_getfhat(td, uap->flags, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->fhp, UIO_USERSPACE));
 }
@@ -4484,7 +4531,8 @@ struct fhlink_args {
 int
 sys_fhlink(struct thread *td, struct fhlink_args *uap)
 {
-
+ADD_PROCBASE(uap->fhp, td);
+ADD_PROCBASE(uap->to, td);
 	return (kern_fhlinkat(td, AT_FDCWD, uap->to, UIO_USERSPACE, uap->fhp));
 }
 
@@ -4498,7 +4546,8 @@ struct fhlinkat_args {
 int
 sys_fhlinkat(struct thread *td, struct fhlinkat_args *uap)
 {
-
+ADD_PROCBASE(uap->fhp, td);
+ADD_PROCBASE(uap->to, td);
 	return (kern_fhlinkat(td, uap->tofd, uap->to, UIO_USERSPACE, uap->fhp));
 }
 
@@ -4551,6 +4600,7 @@ sys_fhreadlink(struct thread *td, struct fhreadlink_args *uap)
 		return (error);
 	if (uap->bufsize > IOSIZE_MAX)
 		return (EINVAL);
+ADD_PROCBASE(uap->fhp, td);
 	error = copyin(uap->fhp, &fh, sizeof(fh));
 	if (error != 0)
 		return (error);
@@ -4560,6 +4610,7 @@ sys_fhreadlink(struct thread *td, struct fhreadlink_args *uap)
 	vfs_unbusy(mp);
 	if (error != 0)
 		return (error);
+ADD_PROCBASE(uap->buf, td);
 	error = kern_readlink_vp(vp, uap->buf, UIO_USERSPACE, uap->bufsize, td);
 	vput(vp);
 	return (error);
@@ -4581,6 +4632,7 @@ struct fhopen_args {
 int
 sys_fhopen(struct thread *td, struct fhopen_args *uap)
 {
+ADD_PROCBASE(uap->u_fhp, td);
 	return (kern_fhopen(td, uap->u_fhp, uap->flags));
 }
 
@@ -4719,13 +4771,16 @@ sys_fhstatfs(struct thread *td, struct fhstatfs_args *uap)
 	fhandle_t fh;
 	int error;
 
+ADD_PROCBASE(uap->u_fhp, td);
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error != 0)
 		return (error);
 	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 	error = kern_fhstatfs(td, fh, sfp);
-	if (error == 0)
+	if (error == 0) {
+ADD_PROCBASE(uap->buf, td);
 		error = copyout(sfp, uap->buf, sizeof(*sfp));
+	}
 	free(sfp, M_STATFS);
 	return (error);
 }
@@ -5028,12 +5083,14 @@ sys_copy_file_range(struct thread *td, struct copy_file_range_args *uap)
 
 	inoffp = outoffp = NULL;
 	if (uap->inoffp != NULL) {
+ADD_PROCBASE(uap->inoffp, td);
 		error = copyin(uap->inoffp, &inoff, sizeof(off_t));
 		if (error != 0)
 			return (error);
 		inoffp = &inoff;
 	}
 	if (uap->outoffp != NULL) {
+ADD_PROCBASE(uap->outoffp, td);
 		error = copyin(uap->outoffp, &outoff, sizeof(off_t));
 		if (error != 0)
 			return (error);
