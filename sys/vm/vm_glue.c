@@ -552,7 +552,6 @@ panic("%s: wyctest", __func__); // not reach here
 
 	if (flags & RFMEM) { //wyc for vfork
 //WYC_ASSERT(vm2 == NULL); // pass
-		// for vfork, p2's vm_base is the same as p1's vm_base
 		p2->p_vmspace = p1->p_vmspace;
 		refcount_acquire(&p1->p_vmspace->vm_refcnt);
 	}
@@ -563,9 +562,6 @@ panic("%s: wyctest", __func__); // not reach here
 
 	if ((flags & RFMEM) == 0) {
 //WYC_ASSERT(vm2 != NULL); // pass
-		// for fork, set p2's vm_base here
-		//vm2->vm_base = (vm_offset_t)p2->p_pid << 32; //wyc sa
-		vm2->vm_base = 0;//USER_MAX_ADDRESS; //wyc sa
 		p2->p_vmspace = vm2;
 		if (p1->p_vmspace->vm_shm)
 			shmfork(p1, p2);
