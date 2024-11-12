@@ -451,8 +451,9 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 
 #ifdef MAC
 	error = mac_execve_enter(imgp, mac_p);
-	if (error)
+	if (error) {
 		goto exec_fail;
+	}
 #endif
 
 	SDT_PROBE1(proc, , , exec, args->fname);
@@ -483,9 +484,9 @@ interpret:
 		    args->fname);
 
 		error = namei(&nd);
-		if (error)
+		if (error) {
 			goto exec_fail;
-
+		}
 		newtextvp = nd.ni_vp;
 		newtextdvp = nd.ni_dvp;
 		nd.ni_dvp = NULL;
@@ -535,9 +536,9 @@ interpret:
 		 */
 		error = fgetvp_exec(td, args->fd, &cap_fexecve_rights,
 		    &newtextvp);
-		if (error != 0)
+		if (error) {
 			goto exec_fail;
-
+		}
 		if (vn_fullpath(newtextvp, &imgp->execpath,
 		    &imgp->freepath) != 0)
 			imgp->execpath = args->fname;
@@ -551,17 +552,17 @@ interpret:
 	 * text mode.
 	 */
 	error = exec_check_permissions(imgp);
-	if (error)
+	if (error) {
 		goto exec_fail_dealloc;
-
+	}
 	imgp->object = imgp->vp->v_object;
 	if (imgp->object != NULL) // true
 		vm_object_reference(imgp->object);
 
 	error = exec_map_first_page(imgp);
-	if (error)
+	if (error) {
 		goto exec_fail_dealloc;
-
+	}
 	imgp->proc->p_osrel = 0;
 	imgp->proc->p_fctl0 = 0;
 	imgp->proc->p_elf_brandinfo = NULL;
@@ -862,8 +863,9 @@ interpret:
 		fdsetugidsafety(td);
 		error = fdcheckstd(td);
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
-		if (error != 0)
+		if (error != 0) {
 			goto exec_fail_dealloc;
+		}
 		PROC_LOCK(p);
 #ifdef MAC
 		if (will_transition) {
@@ -970,9 +972,9 @@ exec_fail_dealloc:
 			VOP_CLOSE(imgp->vp, FREAD, td->td_ucred, td);
 		if (imgp->textset)
 			VOP_UNSET_TEXT_CHECKED(imgp->vp);
-		if (error != 0)
+		if (error != 0) {
 			vput(imgp->vp);
-		else
+		} else
 			VOP_UNLOCK(imgp->vp);
 		if (args->fname != NULL)
 			NDFREE_PNBUF(&nd);

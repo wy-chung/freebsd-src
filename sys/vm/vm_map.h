@@ -114,6 +114,7 @@ struct vm_map_entry {
 	vm_prot_t max_protection;	/* maximum protection */
 	vm_inherit_t inheritance;	/* inheritance */
 	uint8_t read_ahead;		/* pages in the read-ahead window */
+
 	int wired_count;		/* can be paged if = 0 */
 	struct ucred *cred;		/* tmp storage for creator ref */
 	struct thread *wiring_thread;
