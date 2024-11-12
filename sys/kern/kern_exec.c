@@ -1249,10 +1249,10 @@ exec_map_stack(struct image_params *imgp)
 	if ((map->flags & MAP_ASLR_STACK) != 0) { // false, map->flags == 0
 WYC_PANIC();
 		stack_addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
-		    lim_max(curthread, RLIMIT_DATA)) + vm_base; //wyc sa
+		    lim_max(curthread, RLIMIT_DATA));
 		find_space = VMFS_ANY_SPACE;
 	} else {
-		stack_addr = (sv->sv_usrstack - ssiz) + vm_base; //wyc sa
+		stack_addr = vm_base + (sv->sv_usrstack - ssiz); //wyc sa
 		find_space = VMFS_NO_SPACE;
 	}
 	error = vm_map_find(map, NULL, 0, &stack_addr, (vm_size_t)ssiz,
@@ -1276,6 +1276,7 @@ WYC_PANIC();
 	/* Map a shared page */
 	obj = sv->sv_shared_page_obj;
 	if (obj == NULL) { // false
+WYC_PANIC();
 		sharedpage_addr = 0;
 		goto out;
 	}
