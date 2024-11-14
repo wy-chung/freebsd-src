@@ -2007,7 +2007,7 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		    prot, max, cow);
 	} else {
 		result = vm_map_insert(map, object, offset, start, end,
-		    prot, max, cow);
+		    prot, max, cow); //wyctest result == 3, KERN_NO_SPACE
 	}
 out:
 	vm_map_unlock(map);
@@ -4363,7 +4363,6 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-#define VM_BASE	0//USER_MAX_ADDRESS
 	vm_offset_t vm_base = VM_BASE; //wyc sa
 	vm_offset_t umin = vm_base + (vm_map_min(old_map) & (USER_MAX_ADDRESS - 1));
 	vm_offset_t umax = vm_base + ((vm_map_max(old_map) - 1) & (USER_MAX_ADDRESS - 1)) + 1;

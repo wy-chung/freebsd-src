@@ -522,16 +522,17 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 
 static int
 #if defined(WYC)
-elf64_map_partial(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+elf64_map_partial
 #else
-__elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+__elfN(map_partial)
 #endif
+    (vm_map_t map, vm_object_t object, vm_ooffset_t offset,
     vm_offset_t start, vm_offset_t end, vm_prot_t prot)
 {
 	struct sf_buf *sf;
 	int error;
 	vm_offset_t off;
-
+WYC_PANIC();
 	/*
 	 * Create the page if it doesn't exist yet. Ignore errors.
 	 */
@@ -556,7 +557,7 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	return (KERN_SUCCESS);
 }
 
-static int
+static int //__attribute__((optnone))
 #if defined(WYC)
 elf64_map_insert
 #else
@@ -571,15 +572,17 @@ __elfN(map_insert)
 	vm_size_t sz;
 	int error, locked, rv;
 
-//start += USER_MAX_ADDRESS;
-//end += USER_MAX_ADDRESS;
+start += VM_BASE;
+end += VM_BASE;
+
+#if !defined(WYC)
 	if (start != trunc_page(start)) {
 WYC_PANIC(); // never runs here
 		rv = __elfN(map_partial)(map, object, offset, start,
 		    round_page(start), prot);
-#if defined(WYC)
+	#if defined(WYC)
 		rv = elf64_map_partial();
-#endif
+	#endif
 		if (rv != KERN_SUCCESS)
 			return (rv);
 		offset += round_page(start) - start;
@@ -589,16 +592,18 @@ WYC_PANIC(); // never runs here
 WYC_PANIC(); // never runs here
 		rv = __elfN(map_partial)(map, object, offset +
 		    trunc_page(end) - start, trunc_page(end), end, prot);
-#if defined(WYC)
+	#if defined(WYC)
 		rv = elf64_map_partial();
-#endif
+	#endif
 		if (rv != KERN_SUCCESS)
 			return (rv);
 		end = trunc_page(end);
 	}
+#endif // !defined(WYC)
 	if (start >= end)
 		return (KERN_SUCCESS);
 	if ((offset & PAGE_MASK) != 0) {
+	#if !defined(WYC)
 WYC_PANIC(); // never runs here
 		/*
 		 * The mapping is not page aligned.  This means that we have
@@ -625,6 +630,7 @@ WYC_PANIC(); // never runs here
 				return (KERN_FAILURE);
 			offset += sz;
 		}
+	#endif
 	} else {
 		vm_object_reference(object);
 		rv = vm_map_fixed(map, object, offset, start, end - start,
@@ -644,7 +650,7 @@ WYC_PANIC(); // never runs here
 	return (KERN_SUCCESS);
 }
 
-static int
+static int //__attribute__((optnone))
 #if defined(WYC)
 elf64_load_section(
 #else
@@ -700,7 +706,7 @@ __elfN(load_section)(
 		cow = MAP_COPY_ON_WRITE | MAP_PREFAULT |
 		    (prot & VM_PROT_WRITE ? 0 : MAP_DISABLE_COREDUMP);
 
-		rv = __elfN(map_insert)(imgp, map, object, file_addr,
+		rv = __elfN(map_insert)(imgp, map, object, file_addr,	// #561
 		    map_addr, map_addr + map_len, prot, cow);
 #if defined(WYC)
 		rv = elf64_map_insert();
@@ -726,7 +732,7 @@ __elfN(load_section)(
 
 	/* This had damn well better be true! */
 	if (map_len != 0) {
-		rv = __elfN(map_insert)(imgp, map, NULL, 0, map_addr,
+		rv = __elfN(map_insert)(imgp, map, NULL, 0, map_addr,	// #561
 		    map_addr + map_len, prot, 0);
 #if defined(WYC)
 		rv = elf64_map_insert();
@@ -761,10 +767,11 @@ __elfN(load_section)(
 
 static int
 #if defined(WYC)
-elf64_load_sections(struct image_params *imgp, const Elf_Ehdr *hdr,
+elf64_load_sections
 #else
-__elfN(load_sections)(struct image_params *imgp, const Elf_Ehdr *hdr,
+__elfN(load_sections)
 #endif
+    (struct image_params *imgp, const Elf_Ehdr *hdr,
     const Elf_Phdr *phdr, u_long rbase, u_long *base_addrp)
 {
 	vm_prot_t prot;
@@ -783,12 +790,15 @@ __elfN(load_sections)(struct image_params *imgp, const Elf_Ehdr *hdr,
 
 		/* Loadable segment */
 		prot = __elfN(trans_prot)(phdr[i].p_flags);
+	#if defined(WYC)
+		prot = elf32_trans_prot();
+	#endif
 		error = __elfN(load_section)(imgp, phdr[i].p_offset,
-		    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,
+		    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,	//wyctest rbase == ??
 		    phdr[i].p_memsz, phdr[i].p_filesz, prot);
-#if defined(WYC)
+	#if defined(WYC)
 		error = elf64_load_section();
-#endif
+	#endif
 		if (error != 0)
 			return (error);
 
@@ -1294,9 +1304,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		case PT_GNU_STACK:
 			if (__elfN(nxstack)) {
 				imgp->stack_prot =
-			#if !defined(WYC)
 				    __elfN(trans_prot)(phdr[i].p_flags);
-			#else
+			#if defined(WYC)
 				    elf32_trans_prot();
 			#endif
 				if ((imgp->stack_prot & VM_PROT_RW) !=
@@ -1374,14 +1383,14 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		    P2_WXORX_DISABLE | P2_WXORX_ENABLE_EXEC);
 		PROC_UNLOCK(imgp->proc);
 	}
-	if ((sv->sv_flags & SV_ASLR) == 0 || // false
+	if ((sv->sv_flags & SV_ASLR) == 0 ||
 	    (imgp->proc->p_flag2 & P2_ASLR_DISABLE) != 0 ||
-	    (fctl0 & NT_FREEBSD_FCTL_ASLR_DISABLE) != 0) {
+	    (fctl0 & NT_FREEBSD_FCTL_ASLR_DISABLE) != 0) { // riscv false
 		KASSERT(imgp->et_dyn_addr != ET_DYN_ADDR_RAND,
 		    ("imgp->et_dyn_addr == RAND and !ASLR"));
-	} else if ((imgp->proc->p_flag2 & P2_ASLR_ENABLE) != 0 || // false
+	} else if ((imgp->proc->p_flag2 & P2_ASLR_ENABLE) != 0 ||
 	    (__elfN(aslr_enabled) && hdr->e_type == ET_EXEC) ||
-	    imgp->et_dyn_addr == ET_DYN_ADDR_RAND) {
+	    imgp->et_dyn_addr == ET_DYN_ADDR_RAND) { // riscv false
 		imgp->map_flags |= MAP_ASLR;
 		/*
 		 * If user does not care about sbrk, utilize the bss
@@ -1418,7 +1427,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		error = ENOEXEC;
 	}
 
-	if (error == 0 && imgp->et_dyn_addr == ET_DYN_ADDR_RAND) {
+	if (error == 0 && imgp->et_dyn_addr == ET_DYN_ADDR_RAND) { // false
 		KASSERT((map->flags & MAP_ASLR) != 0,
 		    ("ET_DYN_ADDR_RAND but !MAP_ASLR"));
 		error = __CONCAT(rnd_, __elfN(base))(map,

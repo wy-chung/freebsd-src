@@ -313,6 +313,7 @@ struct vmspace {
 };
 
 #define ADD_PROCBASE(uaddr, td) uaddr = (typeof(uaddr))(__DEQUALIFY(char *, uaddr) + td->td_proc->p_vmspace->vm_base)
+#define VM_BASE	0 //USER_MAX_ADDRESS //wyctest
 
 #ifdef	_KERNEL
 static __inline pmap_t
