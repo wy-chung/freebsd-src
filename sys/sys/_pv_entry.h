@@ -61,7 +61,7 @@ typedef struct pv_entry {
  * is the value of all the other entries in the pc_map[] array when a
  * chunk is completely free.
  */
-//#define WYC_PV_TEST 1 //wyctest failed
+//#define WYC_PV_TEST 1 //wyc test failed
 
 #if PAGE_SIZE == 4 * 1024
 #ifdef __LP64__

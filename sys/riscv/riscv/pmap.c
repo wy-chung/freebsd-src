@@ -2392,7 +2392,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva) // ref pmap_remove_pa
 				va_next = (sva + L0_SIZE) & ~L0_OFFSET;
 				if (va_next < sva)
 					//va_next = eva; // continue will cause it to break out of for loop
-					break; //wyctest
+					break; //wyc
 				continue;
 			}
 			l1 = pmap_l0_to_l1(l0, sva);
@@ -2404,7 +2404,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva) // ref pmap_remove_pa
 			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
 			if (va_next < sva)
 				//va_next = eva; // continue will cause it to break out of for loop
-				break; //wyctest
+				break; //wyc
 			continue;
 		}
 
@@ -2906,7 +2906,7 @@ pmap_promote_l2(pmap_t pmap, pd_entry_t *l2, vm_offset_t va, vm_page_t ml3, stru
 
 	atomic_add_long(&pmap_l2_promotions, 1);
 	CTR3(KTR_PMAP, "%s: success for va %#lx in pmap %p", __func__, va, pmap);
-printf("**** %s success\n", __func__); //wyctest
+printf("**** %s success\n", __func__); //wyc
 	return (true);
 }
 #endif
@@ -4679,7 +4679,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode __unused)
 		if (l1 == NULL || ((l1e = pmap_load(l1)) & PTE_V) == 0)
 			return (EINVAL);
 		if ((l1e & PTE_RWX) != 0) { // this should not be supported
-panic("%s: wyctest\n", __func__); // tested. not reach here
+WYC_PANIC(); // tested. not reach here
 			/*
 			 * TODO: Demote if attributes don't match and there
 			 * isn't an L1 page left in the range, and update the
@@ -5108,7 +5108,7 @@ sysctl_kmaps(SYSCTL_HANDLER_ARGS)
 			continue;
 		}
 		if ((l1e & PTE_RWX) != 0) { // a "huge page", it is bigger than superpage
-//panic("%s: wyctest\n", __func__); // tested. the program will run to here when running "sysctl vm.pmap.kernel_maps"
+//WYC_PANIC();	// failed. the program will run to here when running "sysctl vm.pmap.kernel_maps"
 			sysctl_kmaps_check(sb, &range, sva, l1e, 0, 0);
 			range.l1pages++;
 			sva += L1_SIZE;

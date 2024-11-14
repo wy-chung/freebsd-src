@@ -534,7 +534,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 	struct domainset *dset;
 
 	if ((flags & RFPROC) == 0) { //wyc false
-panic("%s: wyctest", __func__); // not reach here
+WYC_PANIC(); // not reach here
 		int error;
 		/*
 		 * Divorce the memory, if it is shared, essentially

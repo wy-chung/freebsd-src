@@ -794,7 +794,7 @@ __elfN(load_sections)
 		prot = elf32_trans_prot();
 	#endif
 		error = __elfN(load_section)(imgp, phdr[i].p_offset,
-		    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,	//wyctest rbase == ??
+		    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,	// rbase == ??
 		    phdr[i].p_memsz, phdr[i].p_filesz, prot);
 	#if defined(WYC)
 		error = elf64_load_section();
