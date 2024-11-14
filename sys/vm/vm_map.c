@@ -4350,6 +4350,8 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  *
  * The source map must not be locked.
  */
+#define VM_BASE	0//USER_MAX_ADDRESS //wyctest
+
 struct vmspace *
 vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /*OUT*/)
 {

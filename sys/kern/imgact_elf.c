@@ -572,8 +572,9 @@ __elfN(map_insert)
 	vm_size_t sz;
 	int error, locked, rv;
 
-start += VM_BASE;
-end += VM_BASE;
+vm_offset_t vm_base = imgp->proc->p_vmspace->vm_base;
+start += vm_base;
+end += vm_base;
 
 #if !defined(WYC)
 	if (start != trunc_page(start)) {
