@@ -449,7 +449,7 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 	orig_fctl0 = p->p_fctl0;
 	orig_brandinfo = p->p_elf_brandinfo;
 
-#ifdef MAC
+#ifdef MAC // true, defined
 	error = mac_execve_enter(imgp, mac_p);
 	if (error) {
 		goto exec_fail;
@@ -460,7 +460,7 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 
 interpret:
 	if (args->fname != NULL) { // 504 fname == "/sbin/init"
-#ifdef CAPABILITY_MODE
+#ifdef CAPABILITY_MODE // true, defined
 		if (CAP_TRACING(td))
 			ktrcapfail(CAPFAIL_NAMEI, args->fname);
 		/*

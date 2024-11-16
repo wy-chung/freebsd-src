@@ -2041,7 +2041,7 @@ pmap_pv_remove(struct md_page *pvl, pmap_t pmap, vm_offset_t va)
 
 	rw_assert(&pvh_global_lock, RA_LOCKED);
 	TAILQ_FOREACH(pv, &pvl->pv_list, pv_next) {
-//if (pmap != PV_PMAP(pv)) panic("%s: wyctest\n", __func__); // test failed
+//if (pmap != PV_PMAP(pv)) WYC_PANIC(); // test failed
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
 			TAILQ_REMOVE(&pvl->pv_list, pv, pv_next);
 			pvl->pv_gen++;

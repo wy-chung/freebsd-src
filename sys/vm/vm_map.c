@@ -2007,7 +2007,7 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		    prot, max, cow);
 	} else {
 		result = vm_map_insert(map, object, offset, start, end,
-		    prot, max, cow); //wyctest result == 3, KERN_NO_SPACE
+		    prot, max, cow);
 	}
 out:
 	vm_map_unlock(map);
@@ -4366,17 +4366,17 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
 	vm_offset_t vm_base = VM_BASE; //wyc sa
-	vm_offset_t umin = vm_base + (vm_map_min(old_map) & (USER_MAX_ADDRESS - 1));
-	vm_offset_t umax = vm_base + ((vm_map_max(old_map) - 1) & (USER_MAX_ADDRESS - 1)) + 1;
+	vm_offset_t umin = (vm_map_min(old_map) & (USER_MAX_ADDRESS - 1));
+	vm_offset_t umax = ((vm_map_max(old_map) - 1) & (USER_MAX_ADDRESS - 1)) + 1;
 	vm2 = vmspace_alloc(vm_base, umin, umax, pmap_pinit);
 	if (vm2 == NULL)
 		return (NULL);
 
 	vm2->vm_taddr = vm_base + (vm1->vm_taddr & (USER_MAX_ADDRESS - 1));
 	vm2->vm_daddr = vm_base + (vm1->vm_daddr & (USER_MAX_ADDRESS - 1));
-	vm2->vm_maxsaddr = vm_base + ((vm1->vm_maxsaddr - 1) & (USER_MAX_ADDRESS - 1)) + 1;
-	vm2->vm_stacktop = vm_base + (vm1->vm_stacktop & (USER_MAX_ADDRESS - 1));
 	vm2->vm_shp_base = vm_base + (vm1->vm_shp_base & (USER_MAX_ADDRESS - 1));
+	vm2->vm_stacktop = vm_base + (vm1->vm_stacktop & (USER_MAX_ADDRESS - 1));
+	vm2->vm_maxsaddr = vm_base + ((vm1->vm_maxsaddr - 1) & (USER_MAX_ADDRESS - 1)) + 1;
 
 	vm_map_lock(old_map);
 	if (old_map->busy)
@@ -4968,8 +4968,6 @@ vmspace_exec(struct proc *p, vm_offset_t umin, vm_offset_t umax)
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
 	vm_offset_t vm_base = VM_BASE; //wyc sa
-	umin += vm_base;
-	umax += vm_base;
 	newvmspace = vmspace_alloc(vm_base, umin, umax, pmap_pinit);
 	if (newvmspace == NULL)
 		return (ENOMEM);

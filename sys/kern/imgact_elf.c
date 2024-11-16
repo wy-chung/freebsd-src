@@ -89,7 +89,7 @@ static Elf_Brandinfo *__elfN(get_brandinfo)(struct image_params *imgp,
 static int __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
     u_long *entry);
 static int __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
-    caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot);
+    vm_offset_t uvmaddr, size_t memsz, size_t filsz, vm_prot_t prot);
 static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
 static bool __elfN(freebsd_trans_osrel)(const Elf_Note *note,
     int32_t *osrel);
@@ -520,19 +520,17 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 	return (0);
 }
 
+#if !defined(WYC)
 static int
-#if defined(WYC)
-elf64_map_partial
-#else
-__elfN(map_partial)
-#endif
+
+__elfN(map_partial) //elf64_map_partial
     (vm_map_t map, vm_object_t object, vm_ooffset_t offset,
     vm_offset_t start, vm_offset_t end, vm_prot_t prot)
 {
 	struct sf_buf *sf;
 	int error;
 	vm_offset_t off;
-WYC_PANIC();
+WYC_PANIC(); // never reach here
 	/*
 	 * Create the page if it doesn't exist yet. Ignore errors.
 	 */
@@ -556,8 +554,9 @@ WYC_PANIC();
 
 	return (KERN_SUCCESS);
 }
+#endif
 
-static int //__attribute__((optnone))
+static int
 #if defined(WYC)
 elf64_map_insert
 #else
@@ -571,10 +570,6 @@ __elfN(map_insert)
 	vm_offset_t off;
 	vm_size_t sz;
 	int error, locked, rv;
-
-vm_offset_t vm_base = imgp->proc->p_vmspace->vm_base;
-start += vm_base;
-end += vm_base;
 
 #if !defined(WYC)
 	if (start != trunc_page(start)) {
@@ -651,14 +646,14 @@ WYC_PANIC(); // never runs here
 	return (KERN_SUCCESS);
 }
 
-static int //__attribute__((optnone))
+static int
 #if defined(WYC)
 elf64_load_section(
 #else
 __elfN(load_section)(
 #endif
     struct image_params *imgp, vm_ooffset_t offset,
-    caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
+    vm_offset_t uvmaddr, size_t memsz, size_t filsz, vm_prot_t prot) // u means relative user address
 {
 	struct sf_buf *sf;
 	size_t map_len;
@@ -683,10 +678,10 @@ __elfN(load_section)(
 		uprintf("elf_load_section: truncated ELF file\n");
 		return (ENOEXEC);
 	}
-
+	vm_offset_t vmaddr = uvmaddr + imgp->proc->p_vmspace->vm_base; //wyc sa
 	object = imgp->object;
 	map = &imgp->proc->p_vmspace->vm_map;
-	map_addr = trunc_page((vm_offset_t)vmaddr);
+	map_addr = trunc_page(vmaddr);
 	file_addr = trunc_page(offset);
 
 	/*
@@ -795,7 +790,7 @@ __elfN(load_sections)
 		prot = elf32_trans_prot();
 	#endif
 		error = __elfN(load_section)(imgp, phdr[i].p_offset,
-		    (caddr_t)(uintptr_t)phdr[i].p_vaddr + rbase,	// rbase == ??
+		    phdr[i].p_vaddr + rbase,	// rbase == 0
 		    phdr[i].p_memsz, phdr[i].p_filesz, prot);
 	#if defined(WYC)
 		error = elf64_load_section();
@@ -832,11 +827,11 @@ __elfN(load_sections)
  */
 static int
 #if defined(WYC)
-elf64_load_file(struct proc *p, const char *file, u_long *addr,
+elf64_load_file
 #else
-__elfN(load_file)(struct proc *p, const char *file, u_long *addr,
+__elfN(load_file)
 #endif
-	u_long *entry)
+    (struct proc *p, const char *file, u_long *addr, u_long *entry)
 {
 	struct {
 		struct nameidata nd;
@@ -923,6 +918,9 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	}
 
 	error = __elfN(load_sections)(imgp, hdr, phdr, rbase, &base_addr);
+#if defined(WYC)
+	error = elf64_load_sections();
+#endif
 	if (error != 0)
 		goto fail;
 
@@ -1135,7 +1133,12 @@ __elfN(get_interp)(struct image_params *imgp, const Elf_Phdr *phdr,
 }
 
 static int
-__elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
+#if defined(WYC)
+elf64_load_interp
+#else
+__elfN(load_interp)
+#endif
+    (struct image_params *imgp, const Elf_Brandinfo *brand_info,
     const char *interp, u_long *addr, u_long *entry)
 {
 	int error;
@@ -1143,12 +1146,11 @@ __elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
 	if (brand_info->interp_newpath != NULL &&
 	    (brand_info->interp_path == NULL ||
 	    strcmp(interp, brand_info->interp_path) == 0)) {
-#if defined(WYC)
-		error = elf64_load_file(imgp->proc,
-#else
 		error = __elfN(load_file)(imgp->proc,
-#endif
 		    brand_info->interp_newpath, addr, entry);
+#if defined(WYC)
+		error = elf64_load_file();
+#endif
 		if (error == 0)
 			return (0);
 	}
@@ -1480,7 +1482,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	if (interp != NULL) {
 		VOP_UNLOCK(imgp->vp);
-		if ((map->flags & MAP_ASLR) != 0) {
+		if ((map->flags & MAP_ASLR) != 0) { // false
 			/* Assume that interpreter fits into 1/4 of AS */
 			maxv1 = maxv / 2 + addr / 2;
 			error = __CONCAT(rnd_, __elfN(base))(map, addr,
@@ -1489,6 +1491,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		if (error == 0) {
 			error = __elfN(load_interp)(imgp, brand_info, interp,
 			    &addr, &imgp->entry_addr);
+		#if defined(WYC)
+			error = elf64_load_interp();
+		#endif
 		}
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		if (error != 0)
