@@ -953,11 +953,13 @@ fail:
  */
 static int
 #if !defined(WYC)
-__CONCAT(rnd_, __elfN(base))(vm_map_t map, u_long minv, u_long maxv, u_int align, u_long *resp)
+__CONCAT(rnd_, __elfN(base))
 #else
-rnd_elf64_base(vm_map_t map, u_long minv, u_long maxv, u_int align, u_long *resp)
+rnd_elf64_base
 #endif
+    (vm_map_t map, u_long minv, u_long maxv, u_int align, u_long *resp)
 {
+WYC_PANIC();
 	u_long rbase, res;
 
 	MPASS(vm_map_min(map) <= minv);
@@ -994,11 +996,11 @@ __elfN(enforce_limits)
 {
 	struct vmspace *vmspace;
 	const char *err_str;
-	u_long text_size, data_size, total_size, text_addr, data_addr;
+	u_long text_size, data_size, total_size, text_uaddr, data_uaddr;
 	int i;
 
 	err_str = NULL;
-	text_size = data_size = total_size = text_addr = data_addr = 0;
+	text_size = data_size = total_size = text_uaddr = data_uaddr = 0;
 
 	for (i = 0; i < hdr->e_phnum; i++) {
 		u_long seg_size, seg_addr;
@@ -1014,7 +1016,7 @@ __elfN(enforce_limits)
 		 * Make the largest executable segment the official
 		 * text segment and all others data.
 		 *
-		 * Note that obreak() assumes that data_addr + data_size == end
+		 * Note that obreak() assumes that data_uaddr + data_size == end
 		 * of data load area, and the ELF file format expects segments
 		 * to be sorted by address.  If multiple data segments exist,
 		 * the last one will be used.
@@ -1022,16 +1024,16 @@ __elfN(enforce_limits)
 
 		if ((phdr[i].p_flags & PF_X) != 0 && text_size < seg_size) {
 			text_size = seg_size;
-			text_addr = seg_addr;
+			text_uaddr = seg_addr;
 		} else {
 			data_size = seg_size;
-			data_addr = seg_addr;
+			data_uaddr = seg_addr;
 		}
 		total_size += seg_size;
 	}
 
-	if (data_addr == 0 && data_size == 0) {
-		data_addr = text_addr;
+	if (data_uaddr == 0 && data_size == 0) {
+		data_uaddr = text_uaddr;
 		data_size = text_size;
 	}
 
@@ -1059,9 +1061,9 @@ __elfN(enforce_limits)
 
 	vmspace = imgp->proc->p_vmspace;
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
-	vmspace->vm_taddr = text_addr + vmspace->vm_base; //wyc sa
+	vmspace->vm_taddr = text_uaddr + vmspace->vm_base; //wyc sa
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;
-	vmspace->vm_daddr = data_addr + vmspace->vm_base; //wyc sa
+	vmspace->vm_daddr = data_uaddr + vmspace->vm_base; //wyc sa
 
 	return (0);
 }
@@ -1422,7 +1424,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	vmspace = imgp->proc->p_vmspace;
 	map = &vmspace->vm_map;
-	maxv = sv->sv_usrstack + imgp->proc->p_vmspace->vm_base; //wyc sa
+	maxv = sv->sv_usrstack + vmspace->vm_base; //wyc sa
 	if ((imgp->map_flags & MAP_ASLR_STACK) == 0) //true
 		maxv -= lim_max(td, RLIMIT_STACK);
 	if (error == 0 && mapsz >= maxv - vm_map_min(map)) {
@@ -1437,6 +1439,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		    vm_map_min(map) + mapsz + lim_max(td, RLIMIT_DATA),
 		    /* reserve half of the address space to interpreter */
 		    maxv / 2, maxalign, &imgp->et_dyn_addr);
+	#if defined(WYC)
+		error = rnd_elf64_base();
+	#endif
 	}
 
 	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
@@ -1470,6 +1475,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		error = __CONCAT(rnd_, __elfN(base))(map, addr, maxv1,
 		    (MAXPAGESIZES > 1 && pagesizes[1] != 0) ?
 		    pagesizes[1] : pagesizes[0], &anon_loc);
+	#if defined(WYC)
+		error = rnd_elf64_base();
+	#endif
 		if (error != 0)
 			goto ret;
 		map->anon_loc = anon_loc;
@@ -1487,6 +1495,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			maxv1 = maxv / 2 + addr / 2;
 			error = __CONCAT(rnd_, __elfN(base))(map, addr,
 			    maxv1, PAGE_SIZE, &addr);
+		#if defined(WYC)
+			error = rnd_elf64_base();
+		#endif
 		}
 		if (error == 0) {
 			error = __elfN(load_interp)(imgp, brand_info, interp,

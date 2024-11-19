@@ -615,6 +615,7 @@ proc0_init(void *dummy __unused) // the swapper
 	p->p_stats = pstats_alloc();
 
 	/* Allocate a prototype map so we have something to fork. */
+	vmspace0.vm_base = 0; //wyc sa
 	p->p_vmspace = &vmspace0;
 	refcount_init(&vmspace0.vm_refcnt, 1);
 	pmap_pinit0(vmspace_pmap(&vmspace0));

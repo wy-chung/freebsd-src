@@ -1171,10 +1171,11 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		sv_minuser = sv->sv_minuser;
 	else
 		sv_minuser = MAX(sv->sv_minuser, PAGE_SIZE);
+	vm_offset_t vm_base = vmspace->vm_base;
 	if (refcount_load(&vmspace->vm_refcnt) == 1 && // fork
 	    cpu_exec_vmspace_reuse(p, map) && // return false
-	    vm_map_min(map) == sv_minuser &&
-	    vm_map_max(map) == sv->sv_maxuser) {
+	    vm_map_min(map) == sv_minuser + vm_base &&
+	    vm_map_max(map) == sv->sv_maxuser + vm_base) {
 WYC_PANIC();
 		exec_free_abi_mappings(p);
 		shmexit(vmspace);
@@ -1189,8 +1190,7 @@ WYC_PANIC();
 		    MAP_ASLR_IGNSTART | MAP_ASLR_STACK | MAP_WXORX);
 		vm_map_unlock(map);
 	} else {
-		//wyc vm_base is set in vmspace_exec
-		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser);
+		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser); //wyc vm_base is set here
 		if (error)
 			return (error);
 		vmspace = p->p_vmspace;
@@ -1223,7 +1223,6 @@ exec_map_stack(struct image_params *imgp)
 
 	p = imgp->proc;
 	sv = p->p_sysent;
-	vm_offset_t vm_base = p->p_vmspace->vm_base;
 
 	// get ssiz
 	if (imgp->stack_sz != 0) {
@@ -1245,6 +1244,7 @@ exec_map_stack(struct image_params *imgp)
 
 	vmspace = p->p_vmspace;
 	map = &vmspace->vm_map;
+	vm_offset_t vm_base = vmspace->vm_base;
 
 	stack_prot = sv->sv_shared_page_obj != NULL && imgp->stack_prot != 0 ?
 	    imgp->stack_prot : sv->sv_stackprot;
@@ -1254,7 +1254,7 @@ WYC_PANIC();
 		    lim_max(curthread, RLIMIT_DATA));
 		find_space = VMFS_ANY_SPACE;
 	} else {
-		stack_addr = vm_base + (sv->sv_usrstack - ssiz); //wyc sa
+		stack_addr = (sv->sv_usrstack - ssiz) + vm_base ; //wyc sa
 		find_space = VMFS_NO_SPACE;
 	}
 	error = vm_map_find(map, NULL, 0, &stack_addr, (vm_size_t)ssiz,

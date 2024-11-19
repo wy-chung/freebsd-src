@@ -174,6 +174,7 @@ aout_fixup(uintptr_t *stack_base, struct image_params *imgp)
 static int
 exec_aout_imgact(struct image_params *imgp)
 {
+WYC_PANIC();
 	const struct exec *a_out;
 	struct vmspace *vmspace;
 	vm_map_t map;
