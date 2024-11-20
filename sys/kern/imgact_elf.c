@@ -808,7 +808,7 @@ __elfN(load_sections)
 	}
 
 	if (base_addrp != NULL)
-		*base_addrp = base_addr;
+		*base_addrp = base_addr + imgp->proc->p_vmspace->vm_base; //wycdebug
 
 	return (0);
 }
@@ -1510,7 +1510,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		if (error != 0)
 			goto ret;
 	} else
-		addr = imgp->et_dyn_addr;
+		addr = imgp->et_dyn_addr + vmspace->vm_base; //wycdebug
 
 	error = exec_map_stack(imgp);
 	if (error != 0)

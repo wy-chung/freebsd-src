@@ -1464,6 +1464,7 @@ ADD_PROCBASE(uap->data, td);
 	    uap->cmd != KLDSYM_LOOKUP)
 		return (EINVAL);
 	symstr = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+ADD_PROCBASE(lookup.symname, td);
 	if ((error = copyinstr(lookup.symname, symstr, MAXPATHLEN, NULL)) != 0)
 		goto out;
 	sx_xlock(&kld_sx);

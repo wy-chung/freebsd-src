@@ -128,7 +128,7 @@ SYSCTL_INT(_debug, OID_AUTO, boothowto, CTLFLAG_RD, &boothowto, 0,
 #ifndef BOOTVERBOSE
 #define	BOOTVERBOSE	0
 #endif
-int	bootverbose = BOOTVERBOSE;
+int	bootverbose = 1;//BOOTVERBOSE; //wycdebug
 SYSCTL_INT(_debug, OID_AUTO, bootverbose, CTLFLAG_RW, &bootverbose, 0,
 	"Control the output of verbose kernel messages");
 
@@ -798,7 +798,7 @@ start_init(void *dummy)
 		error = kern_execve(td, &args, NULL, oldvmspace);
 		KASSERT(error != 0,
 		    ("kern_execve returned success, not EJUSTRETURN"));
-		if (error == EJUSTRETURN) {
+		if (error == EJUSTRETURN) { // EJUSTRETURN == -2, must be true
 			exec_cleanup(td, oldvmspace);
 			free(free_init_path, M_TEMP);
 			TSEXIT();

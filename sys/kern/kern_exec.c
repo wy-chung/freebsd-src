@@ -1367,18 +1367,19 @@ exec_copyin_args(struct thread *td, struct image_args *args, const char *fname,
 	if (error != 0)
 		return (error);
 
-ADD_PROCBASE(argv, td);
 	/*
 	 * Copy the file name.
 	 */
+WYC_ASSERT(segflg == UIO_USERSPACE);
 if (fname != NULL) ADD_PROCBASE(fname, td);
-	error = exec_args_add_fname(args, fname, segflg);
+	error = exec_args_add_fname(args, fname, UIO_USERSPACE); //wyc pull
 	if (error != 0)
 		goto err_exit;
 
 	/*
 	 * extract arguments first
 	 */
+ADD_PROCBASE(argv, td);
 	for (;;) {
 		error = fueword(argv++, &arg);
 		if (error == -1) {
@@ -1387,6 +1388,7 @@ if (fname != NULL) ADD_PROCBASE(fname, td);
 		}
 		if (arg == 0)
 			break;
+ADD_PROCBASE(arg, td);
 		error = exec_args_add_arg(args, (char *)(uintptr_t)arg,
 		    UIO_USERSPACE);
 		if (error != 0)
@@ -1406,6 +1408,7 @@ ADD_PROCBASE(envv, td);
 			}
 			if (env == 0)
 				break;
+ADD_PROCBASE(env, td);
 			error = exec_args_add_env(args,
 			    (char *)(uintptr_t)env, UIO_USERSPACE);
 			if (error != 0)
