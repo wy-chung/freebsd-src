@@ -320,7 +320,6 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
 	ucontext_t uc;
 	int error;
-ADD_PROCBASE(uap->sigcntxp, td);
 	if (copyin(uap->sigcntxp, &uc, sizeof(uc)))
 		return (EFAULT);
 

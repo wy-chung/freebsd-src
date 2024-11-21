@@ -1628,7 +1628,6 @@ sys_rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
 	error = priv_check(td, PRIV_RCTL_GET_RACCT);
 	if (error != 0)
 		return (error);
-ADD_PROCBASE(uap->inbufp, td);
 	error = rctl_read_inbuf(&inputstr, uap->inbufp, uap->inbuflen);
 	if (error != 0)
 		return (error);
@@ -1682,7 +1681,6 @@ out:
 	sx_sunlock(&allproc_lock);
 	if (error != 0)
 		return (error);
-ADD_PROCBASE(uap->outbufp, td);
 	error = rctl_write_outbuf(outputsbuf, uap->outbufp, uap->outbuflen);
 
 	return (error);
@@ -1723,7 +1721,6 @@ sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 	error = priv_check(td, PRIV_RCTL_GET_RULES);
 	if (error != 0)
 		return (error);
-ADD_PROCBASE(uap->inbufp, td);
 	error = rctl_read_inbuf(&inputstr, uap->inbufp, uap->inbuflen);
 	if (error != 0)
 		return (error);
@@ -1783,7 +1780,6 @@ ADD_PROCBASE(uap->inbufp, td);
 	 */
 	if (sbuf_len(sb) > 0)
 		sbuf_setpos(sb, sbuf_len(sb) - 1);
-ADD_PROCBASE(uap->outbufp, td);
 	error = rctl_write_outbuf(sb, uap->outbufp, uap->outbuflen);
 out:
 	rctl_rule_release(filter);
@@ -1808,7 +1804,6 @@ sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 	error = priv_check(td, PRIV_RCTL_GET_LIMITS);
 	if (error != 0)
 		return (error);
-ADD_PROCBASE(uap->inbufp, td);
 	error = rctl_read_inbuf(&inputstr, uap->inbufp, uap->inbuflen);
 	if (error != 0)
 		return (error);
@@ -1866,7 +1861,6 @@ ADD_PROCBASE(uap->inbufp, td);
 	 */
 	if (sbuf_len(sb) > 0)
 		sbuf_setpos(sb, sbuf_len(sb) - 1);
-ADD_PROCBASE(uap->outbufp, td);
 	error = rctl_write_outbuf(sb, uap->outbufp, uap->outbuflen);
 out:
 	rctl_rule_release(filter);
@@ -1888,7 +1882,6 @@ sys_rctl_add_rule(struct thread *td, struct rctl_add_rule_args *uap)
 	error = priv_check(td, PRIV_RCTL_ADD_RULE);
 	if (error != 0)
 		return (error);
-ADD_PROCBASE(uap->inbufp, td);
 	error = rctl_read_inbuf(&inputstr, uap->inbufp, uap->inbuflen);
 	if (error != 0)
 		return (error);
@@ -1933,7 +1926,6 @@ sys_rctl_remove_rule(struct thread *td, struct rctl_remove_rule_args *uap)
 	error = priv_check(td, PRIV_RCTL_REMOVE_RULE);
 	if (error != 0)
 		return (error);
-ADD_PROCBASE(uap->inbufp, td);
 	error = rctl_read_inbuf(&inputstr, uap->inbufp, uap->inbuflen);
 	if (error != 0)
 		return (error);

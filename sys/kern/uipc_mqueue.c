@@ -2120,13 +2120,11 @@ sys_kmq_open(struct thread *td, struct kmq_open_args *uap)
 	if ((uap->flags & O_ACCMODE) == O_ACCMODE || uap->flags & O_EXEC)
 		return (EINVAL);
 	flags = FFLAGS(uap->flags);
-ADD_PROCBASE(uap->attr, td);
 	if ((flags & O_CREAT) != 0 && uap->attr != NULL) {
 		error = copyin(uap->attr, &attr, sizeof(attr));
 		if (error)
 			return (error);
 	}
-ADD_PROCBASE(uap->path, td);
 	return (kern_kmq_open(td, uap->path, flags, uap->mode,
 	    uap->attr != NULL ? &attr : NULL));
 }
@@ -2140,7 +2138,6 @@ sys_kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 	char path[MQFS_NAMELEN+1];
 	struct mqfs_node *pn;
 	int error, len;
-ADD_PROCBASE(uap->path, td);
 	error = copyinstr(uap->path, path, MQFS_NAMELEN + 1, NULL);
         if (error)
 		return (error);
@@ -2254,7 +2251,6 @@ sys_kmq_setattr(struct thread *td, struct kmq_setattr_args *uap)
 	int error;
 
 	if (uap->attr != NULL) {
-ADD_PROCBASE(uap->attr, td);
 		error = copyin(uap->attr, &attr, sizeof(attr));
 		if (error != 0)
 			return (error);
@@ -2263,7 +2259,6 @@ ADD_PROCBASE(uap->attr, td);
 	    &oattr);
 	if (error == 0 && uap->oattr != NULL) {
 		bzero(oattr.__reserved, sizeof(oattr.__reserved));
-ADD_PROCBASE(uap->oattr, td);
 		error = copyout(&oattr, uap->oattr, sizeof(oattr));
 	}
 	return (error);
@@ -2283,7 +2278,6 @@ sys_kmq_timedreceive(struct thread *td, struct kmq_timedreceive_args *uap)
 	if (error)
 		return (error);
 	if (uap->abs_timeout != NULL) {
-ADD_PROCBASE(uap->abs_timeout, td);
 		error = copyin(uap->abs_timeout, &ets, sizeof(ets));
 		if (error != 0)
 			goto out;
@@ -2291,8 +2285,6 @@ ADD_PROCBASE(uap->abs_timeout, td);
 	} else
 		abs_timeout = NULL;
 	waitok = !(fp->f_flag & O_NONBLOCK);
-ADD_PROCBASE(uap->msg_ptr, td);
-ADD_PROCBASE(uap->msg_prio, td);
 	error = mqueue_receive(mq, uap->msg_ptr, uap->msg_len,
 		uap->msg_prio, waitok, abs_timeout);
 out:
@@ -2313,7 +2305,6 @@ sys_kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
 	if (error)
 		return (error);
 	if (uap->abs_timeout != NULL) {
-ADD_PROCBASE(uap->abs_timeout, td);
 		error = copyin(uap->abs_timeout, &ets, sizeof(ets));
 		if (error != 0)
 			goto out;
@@ -2321,7 +2312,6 @@ ADD_PROCBASE(uap->abs_timeout, td);
 	} else
 		abs_timeout = NULL;
 	waitok = !(fp->f_flag & O_NONBLOCK);
-ADD_PROCBASE(uap->msg_ptr, td);
 	error = mqueue_send(mq, uap->msg_ptr, uap->msg_len,
 		uap->msg_prio, waitok, abs_timeout);
 out:
@@ -2441,7 +2431,6 @@ sys_kmq_notify(struct thread *td, struct kmq_notify_args *uap)
 	if (uap->sigev == NULL) {
 		evp = NULL;
 	} else {
-ADD_PROCBASE(uap->sigev, td);
 		error = copyin(uap->sigev, &ev, sizeof(ev));
 		if (error != 0)
 			return (error);

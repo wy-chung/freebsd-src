@@ -198,7 +198,6 @@ sys_read(struct thread *td, struct read_args *uap)
 
 	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
-ADD_PROCBASE(uap->buf, td);
 	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->nbyte;
 	auio.uio_iov = &aiov;
@@ -224,7 +223,6 @@ struct pread_args {
 int
 sys_pread(struct thread *td, struct pread_args *uap)
 {
-ADD_PROCBASE(uap->buf, td);
 	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
 
@@ -272,7 +270,6 @@ sys_readv(struct thread *td, struct readv_args *uap)
 	struct uio *auio;
 	int error;
 
-ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
@@ -311,7 +308,6 @@ sys_preadv(struct thread *td, struct preadv_args *uap)
 {
 	struct uio *auio;
 	int error;
-ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
@@ -401,7 +397,6 @@ sys_write(struct thread *td, struct write_args *uap)
 
 	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
-ADD_PROCBASE(uap->buf, td);
 	aiov.iov_base = (void *)(uintptr_t)uap->buf;
 	aiov.iov_len = uap->nbyte;
 	auio.uio_iov = &aiov;
@@ -427,7 +422,6 @@ struct pwrite_args {
 int
 sys_pwrite(struct thread *td, struct pwrite_args *uap)
 {
-ADD_PROCBASE(uap->buf, td);
 	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
 
@@ -476,7 +470,6 @@ sys_writev(struct thread *td, struct writev_args *uap)
 	struct uio *auio;
 	int error;
 
-ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
@@ -515,7 +508,6 @@ sys_pwritev(struct thread *td, struct pwritev_args *uap)
 {
 	struct uio *auio;
 	int error;
-ADD_PROCBASE(uap->iovp, td);
 	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
@@ -691,7 +683,6 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 #endif
 	    ((com & IOC_VOID) && size > 0 && size != sizeof(int)))
 		return (ENOTTY);
-ADD_PROCBASE(uap->data, td);
 	if (size > 0) {
 		if (com & IOC_VOID) {
 			/* Integer argument. */
@@ -877,7 +868,6 @@ sys_fspacectl(struct thread *td, struct fspacectl_args *uap)
 	struct spacectl_range rqsr, rmsr;
 	int error, cerror;
 
-ADD_PROCBASE(uap->rqsr, td);
 	error = copyin(uap->rqsr, &rqsr, sizeof(rqsr));
 	if (error != 0)
 		return (error);
@@ -885,7 +875,6 @@ ADD_PROCBASE(uap->rqsr, td);
 	error = kern_fspacectl(td, uap->fd, uap->cmd, &rqsr, uap->flags,
 	    &rmsr);
 	if (uap->rmsr != NULL) {
-ADD_PROCBASE(uap->rmsr, td);
 		cerror = copyout(&rmsr, uap->rmsr, sizeof(rmsr));
 		if (error == 0)
 			error = cerror;
@@ -987,7 +976,6 @@ sys___specialfd(struct thread *td, struct __specialfd_args *args)
 			error = EINVAL;
 			break;
 		}
-ADD_PROCBASE(args->req, td);
 		error = copyin(args->req, &ae, sizeof(ae));
 		if (error != 0)
 			break;
@@ -1030,7 +1018,6 @@ sys_pselect(struct thread *td, struct pselect_args *uap)
 	int error;
 
 	if (uap->ts != NULL) {
-ADD_PROCBASE(uap->ts, td);
 		error = copyin(uap->ts, &ts, sizeof(ts));
 		if (error != 0)
 		    return (error);
@@ -1039,16 +1026,12 @@ ADD_PROCBASE(uap->ts, td);
 	} else
 		tvp = NULL;
 	if (uap->sm != NULL) {
-ADD_PROCBASE(uap->sm, td);
 		error = copyin(uap->sm, &set, sizeof(set));
 		if (error != 0)
 			return (error);
 		uset = &set;
 	} else
 		uset = NULL;
-ADD_PROCBASE(uap->in, td);
-ADD_PROCBASE(uap->ou, td);
-ADD_PROCBASE(uap->ex, td);
 	return (kern_pselect(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
 	    uset, NFDBITS));
 }
@@ -1090,16 +1073,12 @@ sys_select(struct thread *td, struct select_args *uap)
 	int error;
 
 	if (uap->tv != NULL) {
-ADD_PROCBASE(uap->tv, td);
 		error = copyin(uap->tv, &tv, sizeof(tv));
 		if (error)
 			return (error);
 		tvp = &tv;
 	} else
 		tvp = NULL;
-ADD_PROCBASE(uap->in, td);
-ADD_PROCBASE(uap->ou, td);
-ADD_PROCBASE(uap->ex, td);
 	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
 	    NFDBITS));
 }
@@ -1503,7 +1482,6 @@ sys_poll(struct thread *td, struct poll_args *uap)
 	} else
 		tsp = NULL;
 
-ADD_PROCBASE(uap->fds, td);
 	return (kern_poll(td, uap->fds, uap->nfds, tsp, NULL));
 }
 
@@ -1587,7 +1565,6 @@ sys_ppoll(struct thread *td, struct ppoll_args *uap)
 	int error;
 
 	if (uap->ts != NULL) {
-ADD_PROCBASE(uap->ts, td);
 		error = copyin(uap->ts, &ts, sizeof(ts));
 		if (error)
 			return (error);
@@ -1595,14 +1572,12 @@ ADD_PROCBASE(uap->ts, td);
 	} else
 		tsp = NULL;
 	if (uap->set != NULL) {
-ADD_PROCBASE(uap->set, td);
 		error = copyin(uap->set, &set, sizeof(set));
 		if (error)
 			return (error);
 		ssp = &set;
 	} else
 		ssp = NULL;
-ADD_PROCBASE(uap->fds, td);
 	return (kern_poll(td, uap->fds, uap->nfds, tsp, ssp));
 }
 

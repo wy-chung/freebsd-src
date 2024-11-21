@@ -118,7 +118,6 @@ sys_sched_setparam(struct thread *td, struct sched_setparam_args *uap)
 	struct proc *targetp;
 	int e;
 	struct sched_param sched_param;
-ADD_PROCBASE(uap->param, td);
 	e = copyin(uap->param, &sched_param, sizeof(sched_param));
 	if (e)
 		return (e);
@@ -179,7 +178,6 @@ sys_sched_getparam(struct thread *td, struct sched_getparam_args *uap)
 	e = kern_sched_getparam(td, targettd, &sched_param);
 	PROC_UNLOCK(targetp);
 	if (e == 0) {
-ADD_PROCBASE(uap->param, td);
 		e = copyout(&sched_param, uap->param, sizeof(sched_param));
 	}
 	return (e);
@@ -208,7 +206,6 @@ sys_sched_setscheduler(struct thread *td, struct sched_setscheduler_args *uap)
 	struct sched_param sched_param;
 	struct thread *targettd;
 	struct proc *targetp;
-ADD_PROCBASE(uap->param, td);
 	e = copyin(uap->param, &sched_param, sizeof(sched_param));
 	if (e)
 		return (e);
@@ -333,7 +330,6 @@ sys_sched_rr_get_interval(struct thread *td,
 
 	error = kern_sched_rr_get_interval(td, uap->pid, &timespec);
 	if (error == 0) {
-ADD_PROCBASE(uap->interval, td);
 		error = copyout(&timespec, uap->interval, sizeof(timespec));
 	}
 	return (error);

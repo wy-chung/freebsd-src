@@ -1188,7 +1188,6 @@ sys_kldload(struct thread *td, struct kldload_args *uap)
 	td->td_retval[0] = -1;
 
 	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-ADD_PROCBASE(uap->file, td);
 	error = copyinstr(uap->file, pathname, MAXPATHLEN, NULL);
 	if (error == 0) {
 		error = kern_kldload(td, pathname, &fileid);
@@ -1278,7 +1277,6 @@ sys_kldfind(struct thread *td, struct kldfind_args *uap)
 	td->td_retval[0] = -1;
 
 	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-ADD_PROCBASE(uap->file, td);
 	if ((error = copyinstr(uap->file, pathname, MAXPATHLEN, NULL)) != 0)
 		goto out;
 
@@ -1337,7 +1335,6 @@ sys_kldstat(struct thread *td, struct kldstat_args *uap)
 {
 	struct kld_file_stat *stat;
 	int error, version;
-ADD_PROCBASE(uap->stat, td);
 	/*
 	 * Check the version of the user's structure.
 	 */
@@ -1457,14 +1454,12 @@ sys_kldsym(struct thread *td, struct kldsym_args *uap)
 	if (error)
 		return (error);
 #endif
-ADD_PROCBASE(uap->data, td);
 	if ((error = copyin(uap->data, &lookup, sizeof(lookup))) != 0)
 		return (error);
 	if (lookup.version != sizeof(lookup) ||
 	    uap->cmd != KLDSYM_LOOKUP)
 		return (EINVAL);
 	symstr = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-ADD_PROCBASE(lookup.symname, td);
 	if ((error = copyinstr(lookup.symname, symstr, MAXPATHLEN, NULL)) != 0)
 		goto out;
 	sx_xlock(&kld_sx);

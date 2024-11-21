@@ -74,7 +74,6 @@ sys_break(struct thread *td, struct break_args *uap)
 	uintptr_t addr;
 	int error;
 
-ADD_PROCBASE(uap->nsize, td);
 	addr = (uintptr_t)uap->nsize;
 	error = kern_break(td, &addr);
 	if (error == 0)

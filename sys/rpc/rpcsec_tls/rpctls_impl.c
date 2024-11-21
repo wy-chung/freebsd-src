@@ -162,7 +162,6 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error != 0)
 		return (error);
-ADD_PROCBASE(uap->path, td);
 	KRPC_CURVNET_SET(KRPC_TD_TO_VNET(td));
 	switch (uap->op) {
 	case RPCTLS_SYSC_SRVSTARTUP:

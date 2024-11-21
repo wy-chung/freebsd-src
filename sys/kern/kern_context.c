@@ -76,7 +76,6 @@ sys_getcontext(struct thread *td, struct getcontext_args *uap)
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
 		PROC_UNLOCK(td->td_proc);
-ADD_PROCBASE(uap->ucp, td);
 		ret = copyout(&uc, uap->ucp, UC_COPY_SIZE);
 	}
 	return (ret);
@@ -91,7 +90,6 @@ sys_setcontext(struct thread *td, struct setcontext_args *uap)
 	if (uap->ucp == NULL)
 		ret = EINVAL;
 	else {
-ADD_PROCBASE(uap->ucp, td);
 		ret = copyin(uap->ucp, &uc, UC_COPY_SIZE);
 		if (ret == 0) {
 			ret = set_mcontext(td, &uc.uc_mcontext);
@@ -118,10 +116,8 @@ sys_swapcontext(struct thread *td, struct swapcontext_args *uap)
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
 		PROC_UNLOCK(td->td_proc);
-ADD_PROCBASE(uap->oucp, td);
 		ret = copyout(&uc, uap->oucp, UC_COPY_SIZE);
 		if (ret == 0) {
-ADD_PROCBASE(uap->ucp, td);
 			ret = copyin(uap->ucp, &uc, UC_COPY_SIZE);
 			if (ret == 0) {
 				ret = set_mcontext(td, &uc.uc_mcontext);

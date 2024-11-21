@@ -2314,8 +2314,6 @@ sys___sysctl(struct thread *td, struct __sysctl_args *uap)
 	if (uap->namelen > CTL_MAXNAME || uap->namelen < 2)
 		return (EINVAL);
 
-ADD_PROCBASE(uap->name, td);
-if (uap->oldlenp) ADD_PROCBASE(uap->oldlenp, td);
  	error = copyin(uap->name, &name, uap->namelen * sizeof(int));
  	if (error)
 		return (error);
@@ -2387,10 +2385,6 @@ sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
 	size_t rv;
 	int error;
 
-ADD_PROCBASE(uap->name, td);
-ADD_PROCBASE(uap->old, td);
-if (uap->oldlenp != NULL ) ADD_PROCBASE(uap->oldlenp, td);
-ADD_PROCBASE(uap->new, td);
 	error = kern___sysctlbyname(td, uap->name, uap->namelen, uap->old,
 	    uap->oldlenp, uap->new, uap->newlen, &rv, 0, 0);
 	if (error != 0)
@@ -2428,11 +2422,9 @@ userland_sysctl(struct thread *td, int *name, u_int namelen,
 		}
 	}
 	req.validlen = req.oldlen;
-ADD_PROCBASE(uold, td);
 	req.oldptr = uold;
 
 	if (unew != NULL) {
-ADD_PROCBASE(unew, td);
 		req.newlen = newlen;
 		req.newptr = unew;
 	}

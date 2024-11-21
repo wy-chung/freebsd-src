@@ -393,7 +393,6 @@ sys_ffclock_getcounter(struct thread *td, struct ffclock_getcounter_args *uap)
 	ffclock_read_counter(&ffcount);
 	if (ffcount == 0)
 		return (EAGAIN);
-ADD_PROCBASE(uap->ffcount, td);
 	error = copyout(&ffcount, uap->ffcount, sizeof(ffcounter));
 
 	return (error);
@@ -422,7 +421,6 @@ sys_ffclock_setestimate(struct thread *td, struct ffclock_setestimate_args *uap)
 	/* Reuse of PRIV_CLOCK_SETTIME. */
 	if ((error = priv_check(td, PRIV_CLOCK_SETTIME)) != 0)
 		return (error);
-ADD_PROCBASE(uap->cest, td);
 	if ((error = copyin(uap->cest, &cest, sizeof(struct ffclock_estimate)))
 	    != 0)
 		return (error);
@@ -454,7 +452,6 @@ sys_ffclock_getestimate(struct thread *td, struct ffclock_getestimate_args *uap)
 	mtx_lock(&ffclock_mtx);
 	memcpy(&cest, &ffclock_estimate, sizeof(struct ffclock_estimate));
 	mtx_unlock(&ffclock_mtx);
-ADD_PROCBASE(uap->cest, td);
 	error = copyout(&cest, uap->cest, sizeof(struct ffclock_estimate));
 	return (error);
 }

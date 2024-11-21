@@ -1137,9 +1137,6 @@ sys_kevent(struct thread *td, struct kevent_args *uap)
 		.k_copyin = kevent_copyin,
 		.kevent_size = sizeof(struct kevent),
 	};
-ADD_PROCBASE(uap->changelist, td);
-ADD_PROCBASE(uap->eventlist, td);
-ADD_PROCBASE(uap->timeout, td);
 	struct g_kevent_args gk_args = {
 		.fd = uap->fd,
 		.changelist = uap->changelist,

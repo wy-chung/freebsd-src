@@ -750,7 +750,6 @@ sys_abort2(struct thread *td, struct abort2_args *uap)
 	uargsp = NULL;
 	if (nargs > 0) {
 		if (uap->args != NULL) {
-ADD_PROCBASE(uap->args, td);
 			error = copyin(uap->args, uargs,
 			    nargs * sizeof(void *));
 			if (error != 0)
@@ -760,7 +759,6 @@ ADD_PROCBASE(uap->args, td);
 		} else
 			nargs = -1;
 	}
-ADD_PROCBASE(uap->why, td);
 	return (kern_abort2(td, uap->why, nargs, uargsp));
 }
 
@@ -865,11 +863,9 @@ sys_wait4(struct thread *td, struct wait4_args *uap)
 		rup = NULL;
 	error = kern_wait(td, uap->pid, &status, uap->options, rup);
 	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0) {
-ADD_PROCBASE(uap->status, td);
 		error = copyout(&status, uap->status, sizeof(status));
 	}
 	if (uap->rusage != NULL && error == 0 && td->td_retval[0] != 0) {
-ADD_PROCBASE(uap->rusage, td);
 		error = copyout(&ru, uap->rusage, sizeof(struct rusage));
 	}
 	return (error);
@@ -888,13 +884,11 @@ sys_wait6(struct thread *td, struct wait6_args *uap)
 	id = uap->id;
 
 	if (uap->wrusage != NULL) {
-ADD_PROCBASE(uap->wrusage, td);
 		wrup = &wru;
 	} else
 		wrup = NULL;
 
 	if (uap->info != NULL) {
-ADD_PROCBASE(uap->info, td);
 		sip = &si;
 		bzero(sip, sizeof(*sip));
 	} else
@@ -907,7 +901,6 @@ ADD_PROCBASE(uap->info, td);
 	error = kern_wait6(td, idtype, id, &status, uap->options, wrup, sip);
 
 	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0) {
-ADD_PROCBASE(uap->status, td);
 		error = copyout(&status, uap->status, sizeof(status));
 	}
 	if (uap->wrusage != NULL && error == 0 && td->td_retval[0] != 0)

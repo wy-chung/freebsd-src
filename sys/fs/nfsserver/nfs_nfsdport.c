@@ -3781,7 +3781,6 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 	char *buf, *cp, *cp2, *cp3;
 	char fname[PNFS_FILENAME_LEN + 1];
 
-if (uap->argp != NULL) ADD_PROCBASE(uap->argp, td);
 	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(td));
 	if (uap->flag & NFSSVC_NFSDADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&sockarg, sizeof (sockarg));
@@ -3993,7 +3992,6 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	struct proc *procp;
 	gid_t *grps;
 
-ADD_PROCBASE(uap->argp, p);
 	if (uap->flag & NFSSVC_PUBLICFH) {
 		NFSBZERO((caddr_t)&nfs_pubfh.nfsrvfh_data,
 		    sizeof (fhandle_t));

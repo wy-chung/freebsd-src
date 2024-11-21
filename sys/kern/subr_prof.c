@@ -85,7 +85,6 @@ sys_profil(struct thread *td, struct profil_args *uap)
 	PROC_PROFLOCK(p);
 	upp->pr_off = uap->offset;
 	upp->pr_scale = uap->scale;
-ADD_PROCBASE(uap->samples, td);
 	upp->pr_base = uap->samples;
 	upp->pr_size = uap->size;
 	PROC_PROFUNLOCK(p);

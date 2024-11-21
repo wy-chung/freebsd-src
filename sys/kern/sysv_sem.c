@@ -642,7 +642,6 @@ sys___semctl(struct thread *td, struct __semctl_args *uap)
 	register_t rval;
 	int error;
 
-ADD_PROCBASE(uap->arg, td);
 	switch (uap->cmd) {
 	case SEM_STAT:
 	case IPC_STAT:
@@ -662,7 +661,6 @@ ADD_PROCBASE(uap->arg, td);
 		semun.buf = &dsbuf;
 		break;
 	case IPC_SET:
-ADD_PROCBASE(arg.buf, td);
 		error = copyin(arg.buf, &dsbuf, sizeof(dsbuf));
 		if (error)
 			return (error);
@@ -685,7 +683,6 @@ ADD_PROCBASE(arg.buf, td);
 	switch (uap->cmd) {
 	case SEM_STAT:
 	case IPC_STAT:
-ADD_PROCBASE(arg.buf, td);
 		error = copyout(&dsbuf, arg.buf, sizeof(dsbuf));
 		break;
 	}
@@ -1104,7 +1101,6 @@ struct semop_args {
 int
 sys_semop(struct thread *td, struct semop_args *uap)
 {
-ADD_PROCBASE(uap->sops, td);
 	return (kern_semop(td, uap->semid, uap->sops, uap->nsops, NULL));
 }
 

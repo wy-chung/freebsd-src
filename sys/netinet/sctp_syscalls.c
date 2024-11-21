@@ -224,7 +224,6 @@ sys_sctp_generic_sendmsg(struct thread *td, struct sctp_generic_sendmsg_args *ua
 	int error = 0, len;
 
 	if (uap->sinfo != NULL) {
-ADD_PROCBASE(uap->sinfo, td);
 		error = copyin(uap->sinfo, &sinfo, sizeof (sinfo));
 		if (error != 0)
 			return (error);
@@ -233,7 +232,6 @@ ADD_PROCBASE(uap->sinfo, td);
 
 	cap_rights_init_one(&rights, CAP_SEND);
 	if (uap->tolen != 0) {
-ADD_PROCBASE(uap->to, td);
 		error = getsockaddr(&to, uap->to, uap->tolen);
 		if (error != 0) {
 			to = NULL;
@@ -250,7 +248,6 @@ ADD_PROCBASE(uap->to, td);
 	if (to && (KTRPOINT(td, KTR_STRUCT)))
 		ktrsockaddr(to);
 #endif
-ADD_PROCBASE(uap->msg, td);
 	iov[0].iov_base = uap->msg;
 	iov[0].iov_len = uap->mlen;
 
@@ -327,7 +324,6 @@ sys_sctp_generic_sendmsg_iov(struct thread *td, struct sctp_generic_sendmsg_iov_
 	int error, i;
 
 	if (uap->sinfo != NULL) {
-ADD_PROCBASE(uap->sinfo, td);
 		error = copyin(uap->sinfo, &sinfo, sizeof (sinfo));
 		if (error != 0)
 			return (error);
@@ -335,7 +331,6 @@ ADD_PROCBASE(uap->sinfo, td);
 	}
 	cap_rights_init_one(&rights, CAP_SEND);
 	if (uap->tolen != 0) {
-ADD_PROCBASE(uap->to, td);
 		error = getsockaddr(&to, uap->to, uap->tolen);
 		if (error != 0) {
 			to = NULL;
@@ -348,7 +343,6 @@ ADD_PROCBASE(uap->to, td);
 	error = getsock(td, uap->sd, &rights, &fp);
 	if (error != 0)
 		goto sctp_bad1;
-ADD_PROCBASE(uap->iov, td);
 #ifdef COMPAT_FREEBSD32
 	if (SV_CURPROC_FLAG(SV_ILP32))
 		error = freebsd32_copyiniov((struct iovec32 *)uap->iov,
@@ -451,7 +445,6 @@ sys_sctp_generic_recvmsg(struct thread *td, struct sctp_generic_recvmsg_args *ua
 	    &fp);
 	if (error != 0)
 		return (error);
-ADD_PROCBASE(uap->iov, td);
 #ifdef COMPAT_FREEBSD32
 	if (SV_CURPROC_FLAG(SV_ILP32))
 		error = freebsd32_copyiniov((struct iovec32 *)uap->iov,
@@ -474,7 +467,6 @@ ADD_PROCBASE(uap->iov, td);
 #endif /* MAC */
 
 	if (uap->fromlenaddr != NULL) {
-ADD_PROCBASE(uap->fromlenaddr, td);
 		error = copyin(uap->fromlenaddr, &fromlen, sizeof (fromlen));
 		if (error != 0)
 			goto out;
@@ -521,7 +513,6 @@ ADD_PROCBASE(uap->fromlenaddr, td);
 			error = 0;
 	} else {
 		if (uap->sinfo) {
-ADD_PROCBASE(uap->sinfo, td);
 			error = copyout(&sinfo, uap->sinfo, sizeof (sinfo));
 		}
 	}
@@ -541,7 +532,6 @@ ADD_PROCBASE(uap->sinfo, td);
 			len = 0;
 		else {
 			len = MIN(len, fromsa->sa_len);
-ADD_PROCBASE(uap->from, td);
 			error = copyout(fromsa, uap->from, (size_t)len);
 			if (error != 0)
 				goto out;

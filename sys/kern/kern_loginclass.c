@@ -192,7 +192,6 @@ sys_getloginclass(struct thread *td, struct getloginclass_args *uap)
 	lcnamelen = strlen(lc->lc_name) + 1;
 	if (lcnamelen > uap->namelen)
 		return (ERANGE);
-ADD_PROCBASE(uap->namebuf, td);
 	return (copyout(lc->lc_name, uap->namebuf, lcnamelen));
 }
 
@@ -217,7 +216,6 @@ sys_setloginclass(struct thread *td, struct setloginclass_args *uap)
 	error = priv_check(td, PRIV_PROC_SETLOGINCLASS);
 	if (error != 0)
 		return (error);
-ADD_PROCBASE(uap->namebuf, td);
 	error = copyinstr(uap->namebuf, lcname, sizeof(lcname), NULL);
 	if (error != 0)
 		return (error);

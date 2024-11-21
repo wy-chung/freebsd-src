@@ -102,7 +102,6 @@ sys_gssd_syscall(struct thread *td, struct gssd_syscall_args *uap)
 	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error)
 		return (error);
-ADD_PROCBASE(uap->path, td);
 	error = copyinstr(uap->path, path, sizeof(path), NULL);
 	if (error)
 		return (error);

@@ -304,7 +304,6 @@ sys_rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 	struct rtprio rtp;
 	struct thread *td1;
 	int cierror, error;
-ADD_PROCBASE(uap->rtp, td);
 	/* Perform copyin before acquiring locks if needed. */
 	if (uap->function == RTP_SET)
 		cierror = copyin(uap->rtp, &rtp, sizeof(struct rtprio));
@@ -385,7 +384,6 @@ sys_rtprio(struct thread *td, struct rtprio_args *uap)
 	struct thread *tdp;
 	struct rtprio rtp;
 	int cierror, error;
-ADD_PROCBASE(uap->rtp, td);
 	/* Perform copyin before acquiring locks if needed. */
 	if (uap->function == RTP_SET)
 		cierror = copyin(uap->rtp, &rtp, sizeof(struct rtprio));
@@ -604,7 +602,6 @@ sys_setrlimit(struct thread *td, struct setrlimit_args *uap)
 	struct rlimit alim;
 	int error;
 
-ADD_PROCBASE(uap->rlp, td);
 	if ((error = copyin(uap->rlp, &alim, sizeof(struct rlimit))))
 		return (error);
 	error = kern_setrlimit(td, uap->which, &alim);
@@ -806,7 +803,6 @@ sys_getrlimit(struct thread *td, struct getrlimit_args *uap)
 	if (uap->which >= RLIM_NLIMITS)
 		return (EINVAL);
 	lim_rlimit(td, uap->which, &rlim);
-ADD_PROCBASE(uap->rlp, td);
 	error = copyout(&rlim, uap->rlp, sizeof(struct rlimit));
 	return (error);
 }
@@ -920,7 +916,6 @@ sys_getrlimitusage(struct thread *td, struct getrlimitusage_args *uap)
 		return (EINVAL);
 	error = getrlimitusage_one(curproc, uap->which, uap->flags, &res);
 	if (error == 0) {
-ADD_PROCBASE(uap->res, td);
 		error = copyout(&res, uap->res, sizeof(res));
 	}
 	return (error);
@@ -1176,7 +1171,6 @@ sys_getrusage(struct thread *td, struct getrusage_args *uap)
 
 	error = kern_getrusage(td, uap->who, &ru);
 	if (error == 0) {
-ADD_PROCBASE(uap->rusage, td);
 		error = copyout(&ru, uap->rusage, sizeof(struct rusage));
 	}
 	return (error);

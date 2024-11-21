@@ -400,7 +400,6 @@ sys_modstat(struct thread *td, struct modstat_args *uap)
 	name = mod->name;
 	data = mod->data;
 	MOD_SUNLOCK;
-ADD_PROCBASE(uap->stat, td);
 	stat = uap->stat;
 
 	/*
@@ -457,7 +456,6 @@ sys_modfind(struct thread *td, struct modfind_args *uap)
 	char name[MAXMODNAMEV3];
 	module_t mod;
 
-ADD_PROCBASE(uap->name, td);
 	if ((error = copyinstr(uap->name, name, sizeof name, 0)) != 0)
 		return (error);
 

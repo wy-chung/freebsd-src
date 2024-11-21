@@ -197,7 +197,6 @@ sys_uuidgen(struct thread *td, struct uuidgen_args *uap)
 	count = uap->count;
 	store = malloc(count * sizeof(struct uuid), M_TEMP, M_WAITOK);
 	kern_uuidgen(store, count);
-ADD_PROCBASE(uap->store, td);
 	error = copyout(store, uap->store, count * sizeof(struct uuid));
 	free(store, M_TEMP);
 	return (error);

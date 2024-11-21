@@ -3125,7 +3125,6 @@ sys___getcwd(struct thread *td, struct __getcwd_args *uap)
 	buf = uma_zalloc(namei_zone, M_WAITOK);
 	error = vn_getcwd(buf, &retbuf, &buflen);
 	if (error == 0) {
-ADD_PROCBASE(uap->buf, td);
 		error = copyout(retbuf, uap->buf, buflen);
 	}
 	uma_zfree(namei_zone, buf);
@@ -3221,8 +3220,6 @@ out:
 int
 sys___realpathat(struct thread *td, struct __realpathat_args *uap)
 {
-ADD_PROCBASE(uap->path, td);
-ADD_PROCBASE(uap->buf, td);
 	return (kern___realpathat(td, uap->fd, uap->path, uap->buf, uap->size,
 	    uap->flags, UIO_USERSPACE));
 }

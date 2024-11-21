@@ -172,7 +172,6 @@ struct mmap_args {
 int
 sys_mmap(struct thread *td, struct mmap_args *uap)
 {
-ADD_PROCBASE(uap->addr, td);
 	return (kern_mmap(td, &(struct mmap_req){
 		.mr_hint = (uintptr_t)uap->addr,
 		.mr_len = uap->len,
@@ -510,7 +509,6 @@ struct msync_args {
 int
 sys_msync(struct thread *td, struct msync_args *uap)
 {
-ADD_PROCBASE(uap->addr, td);
 	return (kern_msync(td, (uintptr_t)uap->addr, uap->len, uap->flags));
 }
 
@@ -563,7 +561,6 @@ struct munmap_args {
 int
 sys_munmap(struct thread *td, struct munmap_args *uap)
 {
-ADD_PROCBASE(uap->addr, td);
 	return (kern_munmap(td, (uintptr_t)uap->addr, uap->len));
 }
 
@@ -642,7 +639,6 @@ struct mprotect_args {
 int
 sys_mprotect(struct thread *td, struct mprotect_args *uap)
 {
-ADD_PROCBASE(uap->addr, td);
 	return (kern_mprotect(td, (uintptr_t)uap->addr, uap->len,
 	    uap->prot, 0));
 }
@@ -702,7 +698,6 @@ struct minherit_args {
 int
 sys_minherit(struct thread *td, struct minherit_args *uap)
 {
-ADD_PROCBASE(uap->addr, td);
 	return (kern_minherit(td, (uintptr_t)uap->addr, uap->len,
 	    uap->inherit));
 }
@@ -746,7 +741,6 @@ struct madvise_args {
 int
 sys_madvise(struct thread *td, struct madvise_args *uap)
 {
-ADD_PROCBASE(uap->addr, td);
 	return (kern_madvise(td, (uintptr_t)uap->addr, uap->len, uap->behav));
 }
 
@@ -800,8 +794,6 @@ struct mincore_args {
 int
 sys_mincore(struct thread *td, struct mincore_args *uap)
 {
-ADD_PROCBASE(uap->addr, td);
-ADD_PROCBASE(uap->vec, td);
 	return (kern_mincore(td, (uintptr_t)uap->addr, uap->len, uap->vec));
 }
 
@@ -1050,7 +1042,6 @@ struct mlock_args {
 int
 sys_mlock(struct thread *td, struct mlock_args *uap)
 {
-ADD_PROCBASE(uap->addr, td);
 	return (kern_mlock(td->td_proc, td->td_ucred,
 	    __DECONST(uintptr_t, uap->addr), uap->len));
 }
@@ -1232,7 +1223,6 @@ struct munlock_args {
 int
 sys_munlock(struct thread *td, struct munlock_args *uap)
 {
-ADD_PROCBASE(uap->addr, td);
 	return (kern_munlock(td, (uintptr_t)uap->addr, uap->len));
 }
 

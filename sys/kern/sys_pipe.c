@@ -549,7 +549,6 @@ sys_pipe2(struct thread *td, struct pipe2_args *uap)
 	error = kern_pipe(td, fildes, uap->flags, NULL, NULL);
 	if (error)
 		return (error);
-ADD_PROCBASE(uap->fildes, td);
 	error = copyout(fildes, uap->fildes, 2 * sizeof(int));
 	if (error) {
 		(void)kern_close(td, fildes[0]);

@@ -128,7 +128,6 @@ sys_cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 {
 	u_int i;
 
-ADD_PROCBASE(uap->modep, td);
 	i = IN_CAPABILITY_MODE(td) ? 1 : 0;
 	return (copyout(&i, uap->modep, sizeof(i)));
 }
@@ -275,7 +274,6 @@ sys_cap_rights_limit(struct thread *td, struct cap_rights_limit_args *uap)
 
 	cap_rights_init_zero(&rights);
 
-ADD_PROCBASE(uap->rightsp, td);
 	error = copyin(uap->rightsp, &rights, sizeof(rights.cr_rights[0]));
 	if (error != 0)
 		return (error);
@@ -345,7 +343,6 @@ sys___cap_rights_get(struct thread *td, struct __cap_rights_get_args *uap)
 				return (EINVAL);
 		}
 	}
-ADD_PROCBASE(uap->rightsp, td);
 	error = copyout(&rights, uap->rightsp, sizeof(rights.cr_rights[0]) * n);
 #ifdef KTRACE
 	if (error == 0 && KTRPOINT(td, KTR_STRUCT))
@@ -477,7 +474,6 @@ sys_cap_ioctls_limit(struct thread *td, struct cap_ioctls_limit_args *uap)
 		cmds = NULL;
 	} else {
 		cmds = malloc(sizeof(cmds[0]) * ncmds, M_FILECAPS, M_WAITOK);
-ADD_PROCBASE(uap->cmds, td);
 		error = copyin(uap->cmds, cmds, sizeof(cmds[0]) * ncmds);
 		if (error != 0) {
 			free(cmds, M_FILECAPS);
@@ -498,7 +494,6 @@ sys_cap_ioctls_get(struct thread *td, struct cap_ioctls_get_args *uap)
 	int16_t count;
 	int error, fd;
 
-ADD_PROCBASE(uap->cmds, td);
 	fd = uap->fd;
 	dstcmds = uap->cmds;
 	maxcmds = uap->maxcmds;
@@ -638,7 +633,6 @@ sys_cap_fcntls_get(struct thread *td, struct cap_fcntls_get_args *uap)
 	}
 	rights = fdep->fde_fcntls;
 	FILEDESC_SUNLOCK(fdp);
-ADD_PROCBASE(uap->fcntlrightsp, td);
 	return (copyout(&rights, uap->fcntlrightsp, sizeof(rights)));
 }
 

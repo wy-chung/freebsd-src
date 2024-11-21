@@ -129,6 +129,5 @@ struct getrandom_args {
 int
 sys_getrandom(struct thread *td, struct getrandom_args *uap)
 {
-ADD_PROCBASE(uap->buf, td);
 	return (kern_getrandom(td, uap->buf, uap->buflen, uap->flags));
 }

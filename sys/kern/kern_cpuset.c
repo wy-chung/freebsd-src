@@ -1857,7 +1857,6 @@ sys_cpuset(struct thread *td, struct cpuset_args *uap)
 	cpuset_rel(root);
 	if (error)
 		return (error);
-ADD_PROCBASE(uap->setid, td);
 	error = copyout(&set->cs_id, uap->setid, sizeof(set->cs_id));
 	if (error == 0)
 		error = cpuset_setproc(-1, set, NULL, NULL, false);
@@ -1910,7 +1909,6 @@ struct cpuset_getid_args {
 int
 sys_cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 {
-ADD_PROCBASE(uap->setid, td);
 	return (kern_cpuset_getid(td, uap->level, uap->which, uap->id,
 	    uap->setid));
 }
@@ -1978,7 +1976,6 @@ struct cpuset_getaffinity_args {
 int
 sys_cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 {
-ADD_PROCBASE(uap->mask, td);
 	return (user_cpuset_getaffinity(td, uap->level, uap->which,
 	    uap->id, uap->cpusetsize, uap->mask, &copy_set));
 }
@@ -2125,7 +2122,6 @@ struct cpuset_setaffinity_args {
 int
 sys_cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 {
-ADD_PROCBASE(uap->mask, td);
 	return (user_cpuset_setaffinity(td, uap->level, uap->which,
 	    uap->id, uap->cpusetsize, uap->mask, &copy_set));
 }
@@ -2277,8 +2273,6 @@ struct cpuset_getdomain_args {
 int
 sys_cpuset_getdomain(struct thread *td, struct cpuset_getdomain_args *uap)
 {
-ADD_PROCBASE(uap->mask, td);
-ADD_PROCBASE(uap->policy, td);
 	return (kern_cpuset_getdomain(td, uap->level, uap->which,
 	    uap->id, uap->domainsetsize, uap->mask, uap->policy, &copy_set));
 }
@@ -2406,7 +2400,6 @@ struct cpuset_setdomain_args {
 int
 sys_cpuset_setdomain(struct thread *td, struct cpuset_setdomain_args *uap)
 {
-ADD_PROCBASE(uap->mask, td);
 	return (kern_cpuset_setdomain(td, uap->level, uap->which,
 	    uap->id, uap->domainsetsize, uap->mask, uap->policy, &copy_set));
 }

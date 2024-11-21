@@ -367,7 +367,6 @@ sys_shmdt(struct thread *td, struct shmdt_args *uap)
 {
 	int error;
 
-ADD_PROCBASE(uap->shmaddr, td);
 	SYSVSHM_LOCK();
 	error = kern_shmdt_locked(td, uap->shmaddr);
 	SYSVSHM_UNLOCK();
@@ -485,7 +484,6 @@ struct shmat_args {
 int
 sys_shmat(struct thread *td, struct shmat_args *uap)
 {
-ADD_PROCBASE(uap->shmaddr, td);
 	return (kern_shmat(td, uap->shmid, uap->shmaddr, uap->shmflg));
 }
 
@@ -627,7 +625,6 @@ sys_shmctl(struct thread *td, struct shmctl_args *uap)
 	    uap->cmd == SHM_STAT)
 		return (EINVAL);
 
-ADD_PROCBASE(uap->buf, td);
 	/* IPC_SET needs to copyin the buffer before calling kern_shmctl */
 	if (uap->cmd == IPC_SET) {
 		if ((error = copyin(uap->buf, &buf, sizeof(struct shmid_ds))))

@@ -1297,7 +1297,6 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct mount *mp;
 	struct nfsmount *nmp;
 
-if (uap->argp != NULL) ADD_PROCBASE(uap->argp, td);
 	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(td));
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));

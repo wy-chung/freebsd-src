@@ -947,14 +947,12 @@ sys_sigaction(struct thread *td, struct sigaction_args *uap)
 	actp = (uap->act != NULL) ? &act : NULL;
 	oactp = (uap->oact != NULL) ? &oact : NULL;
 	if (actp) {
-ADD_PROCBASE(uap->act, td);
 		error = copyin(uap->act, actp, sizeof(act));
 		if (error)
 			return (error);
 	}
 	error = kern_sigaction(td, uap->sig, actp, oactp, 0);
 	if (oactp && !error) {
-ADD_PROCBASE(uap->oact, td);
 		error = copyout(oactp, uap->oact, sizeof(oact));
 	}
 	return (error);
@@ -1204,14 +1202,12 @@ sys_sigprocmask(struct thread *td, struct sigprocmask_args *uap)
 	setp = (uap->set != NULL) ? &set : NULL;
 	osetp = (uap->oset != NULL) ? &oset : NULL;
 	if (setp) {
-ADD_PROCBASE(uap->set, td);
 		error = copyin(uap->set, setp, sizeof(set));
 		if (error)
 			return (error);
 	}
 	error = kern_sigprocmask(td, uap->how, setp, osetp, 0);
 	if (osetp && !error) {
-ADD_PROCBASE(uap->oset, td);
 		error = copyout(osetp, uap->oset, sizeof(oset));
 	}
 	return (error);
@@ -1244,7 +1240,6 @@ sys_sigwait(struct thread *td, struct sigwait_args *uap)
 	sigset_t set;
 	int error;
 
-ADD_PROCBASE(uap->set, td);
 	error = copyin(uap->set, &set, sizeof(set));
 	if (error) {
 		td->td_retval[0] = error;
@@ -1265,7 +1260,6 @@ ADD_PROCBASE(uap->set, td);
 		td->td_retval[0] = error;
 		return (0);
 	}
-ADD_PROCBASE(uap->sig, td);
 	error = copyout(&ksi.ksi_signo, uap->sig, sizeof(ksi.ksi_signo));
 	td->td_retval[0] = error;
 	return (0);
@@ -1281,7 +1275,6 @@ sys_sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 	int error;
 
 	if (uap->timeout) {
-ADD_PROCBASE(uap->timeout, td);
 		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
 			return (error);
@@ -1289,7 +1282,6 @@ ADD_PROCBASE(uap->timeout, td);
 		timeout = &ts;
 	} else
 		timeout = NULL;
-ADD_PROCBASE(uap->set, td);
 	error = copyin(uap->set, &set, sizeof(set));
 	if (error)
 		return (error);
@@ -1299,7 +1291,6 @@ ADD_PROCBASE(uap->set, td);
 		return (error);
 
 	if (uap->info) {
-ADD_PROCBASE(uap->info, td);
 		error = copyout(&ksi.ksi_info, uap->info, sizeof(siginfo_t));
 	}
 
@@ -1315,7 +1306,6 @@ sys_sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 	sigset_t set;
 	int error;
 
-ADD_PROCBASE(uap->set, td);
 	error = copyin(uap->set, &set, sizeof(set));
 	if (error)
 		return (error);
@@ -1325,7 +1315,6 @@ ADD_PROCBASE(uap->set, td);
 		return (error);
 
 	if (uap->info) {
-ADD_PROCBASE(uap->info, td);
 		error = copyout(&ksi.ksi_info, uap->info, sizeof(siginfo_t));
 	}
 
@@ -1496,7 +1485,6 @@ sys_sigpending(struct thread *td, struct sigpending_args *uap)
 	pending = p->p_sigqueue.sq_signals;
 	SIGSETOR(pending, td->td_sigqueue.sq_signals);
 	PROC_UNLOCK(p);
-ADD_PROCBASE(uap->set, td);
 	return (copyout(&pending, uap->set, sizeof(sigset_t)));
 }
 
@@ -1615,7 +1603,6 @@ sys_sigsuspend(struct thread *td, struct sigsuspend_args *uap)
 	sigset_t mask;
 	int error;
 
-ADD_PROCBASE(uap->sigmask, td);
 	error = copyin(uap->sigmask, &mask, sizeof(mask));
 	if (error)
 		return (error);
@@ -1746,12 +1733,10 @@ sys_sigaltstack(struct thread *td, struct sigaltstack_args *uap)
 	int error;
 
 	if (uap->ss != NULL) {
-ADD_PROCBASE(uap->ss, td);
 		error = copyin(uap->ss, &ss, sizeof(ss));
 		if (error)
 			return (error);
 	}
-if (uap->oss != NULL) ADD_PROCBASE(uap->oss, td);
 	error = kern_sigaltstack(td, (uap->ss != NULL) ? &ss : NULL,
 	    (uap->oss != NULL) ? &oss : NULL);
 	if (error)
@@ -2027,7 +2012,6 @@ int
 sys_sigqueue(struct thread *td, struct sigqueue_args *uap)
 {
 	union sigval sv;
-ADD_PROCBASE(uap->value, td);
 	sv.sival_ptr = uap->value;
 
 	return (kern_sigqueue(td, uap->pid, uap->signum, &sv));
@@ -4493,7 +4477,6 @@ sys_sigfastblock(struct thread *td, struct sigfastblock_args *uap)
 			break;
 		}
 		td->td_pflags |= TDP_SIGFASTBLOCK;
-ADD_PROCBASE(uap->ptr, td);
 		td->td_sigblock_ptr = uap->ptr;
 		break;
 

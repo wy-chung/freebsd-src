@@ -123,10 +123,8 @@ sys_thr_create(struct thread *td, struct thr_create_args *uap)
 {
 	struct thr_create_initthr_args args;
 	int error;
-ADD_PROCBASE(uap->ctx, td);
 	if ((error = copyin(uap->ctx, &args.ctx, sizeof(args.ctx))))
 		return (error);
-ADD_PROCBASE(uap->id, td);
 	args.tid = uap->id;
 	return (thread_create(td, NULL, thr_create_initthr, &args));
 }
@@ -141,7 +139,6 @@ sys_thr_new(struct thread *td, struct thr_new_args *uap)
 	if (uap->param_size < 0 || uap->param_size > sizeof(param))
 		return (EINVAL);
 	bzero(&param, sizeof(param));
-ADD_PROCBASE(uap->param, td);
 	if ((error = copyin(uap->param, &param, uap->param_size)))
 		return (error);
 	return (kern_thr_new(td, &param));
@@ -305,7 +302,6 @@ sys_thr_self(struct thread *td, struct thr_self_args *uap)
     /* long *id */
 {
 	int error;
-ADD_PROCBASE(uap->id, td);
 	error = suword_lwpid(uap->id, (unsigned)td->td_tid);
 	if (error == -1)
 		return (EFAULT);
@@ -321,7 +317,6 @@ sys_thr_exit(struct thread *td, struct thr_exit_args *uap)
 
 	/* Signal userland that it can free the stack. */
 	if ((void *)uap->state != NULL) {
-ADD_PROCBASE(uap->state, td);
 		(void)suword_lwpid(uap->state, 1);
 		(void)kern_umtx_wake(td, uap->state, INT_MAX, 0);
 	}
@@ -505,7 +500,6 @@ sys_thr_suspend(struct thread *td, struct thr_suspend_args *uap)
 
 	tsp = NULL;
 	if (uap->timeout != NULL) {
-ADD_PROCBASE(uap->timeout, td);
 		error = umtx_copyin_timeout(uap->timeout, &ts);
 		if (error != 0)
 			return (error);
@@ -594,7 +588,6 @@ sys_thr_set_name(struct thread *td, struct thr_set_name_args *uap)
 	error = 0;
 	name[0] = '\0';
 	if (uap->name != NULL) {
-ADD_PROCBASE(uap->name, td);
 		error = copyinstr(uap->name, name, sizeof(name), NULL);
 		if (error == ENAMETOOLONG) {
 			error = copyin(uap->name, name, sizeof(name) - 1);

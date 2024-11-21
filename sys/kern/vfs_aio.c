@@ -1692,7 +1692,6 @@ no_kqueue:
 		/* Use the uio copied in by aio_copyin */
 		MPASS(job->uiop != &job->uio && job->uiop != NULL);
 	} else {
-ADD_PROCBASE(job->uaiocb.aio_buf, td);
 		/* Setup the inline uio */
 		job->iov[0].iov_base = (void *)(uintptr_t)job->uaiocb.aio_buf;
 		job->iov[0].iov_len = job->uaiocb.aio_nbytes;
@@ -1961,7 +1960,6 @@ kern_aio_return(struct thread *td, struct aiocb *ujob, struct aiocb_ops *ops)
 int
 sys_aio_return(struct thread *td, struct aio_return_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (kern_aio_return(td, uap->aiocbp, &aiocb_ops));
 }
 
@@ -2038,7 +2036,6 @@ sys_aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 		return (EINVAL);
 
 	if (uap->timeout) {
-ADD_PROCBASE(uap->timeout, td);
 		/* Get timespec struct. */
 		if ((error = copyin(uap->timeout, &ts, sizeof(ts))) != 0)
 			return (error);
@@ -2047,7 +2044,6 @@ ADD_PROCBASE(uap->timeout, td);
 		tsp = NULL;
 
 	ujoblist = malloc(uap->nent * sizeof(ujoblist[0]), M_AIO, M_WAITOK);
-ADD_PROCBASE(uap->aiocbp, td);
 	error = copyin(uap->aiocbp, ujoblist, uap->nent * sizeof(ujoblist[0]));
 	if (error == 0)
 		error = kern_aio_suspend(td, uap->nent, ujoblist, tsp);
@@ -2087,7 +2083,6 @@ sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 			return (0);
 		}
 	}
-if (uap->aiocbp != NULL) ADD_PROCBASE(uap->aiocbp, td);
 	AIO_LOCK(ki);
 	TAILQ_FOREACH_SAFE(job, &ki->kaio_jobqueue, plist, jobn) {
 		if ((uap->fd == job->uaiocb.aio_fildes) &&
@@ -2178,7 +2173,6 @@ kern_aio_error(struct thread *td, struct aiocb *ujob, struct aiocb_ops *ops)
 int
 sys_aio_error(struct thread *td, struct aio_error_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (kern_aio_error(td, uap->aiocbp, &aiocb_ops));
 }
 
@@ -2187,7 +2181,6 @@ ADD_PROCBASE(uap->aiocbp, td);
 int
 freebsd6_aio_read(struct thread *td, struct freebsd6_aio_read_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_READ,
 	    &aiocb_ops_osigevent));
 }
@@ -2196,14 +2189,12 @@ ADD_PROCBASE(uap->aiocbp, td);
 int
 sys_aio_read(struct thread *td, struct aio_read_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_READ, &aiocb_ops));
 }
 
 int
 sys_aio_readv(struct thread *td, struct aio_readv_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_READV, &aiocb_ops));
 }
 
@@ -2212,7 +2203,6 @@ ADD_PROCBASE(uap->aiocbp, td);
 int
 freebsd6_aio_write(struct thread *td, struct freebsd6_aio_write_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_WRITE,
 	    &aiocb_ops_osigevent));
 }
@@ -2221,21 +2211,18 @@ ADD_PROCBASE(uap->aiocbp, td);
 int
 sys_aio_write(struct thread *td, struct aio_write_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_WRITE, &aiocb_ops));
 }
 
 int
 sys_aio_writev(struct thread *td, struct aio_writev_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_WRITEV, &aiocb_ops));
 }
 
 int
 sys_aio_mlock(struct thread *td, struct aio_mlock_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_MLOCK, &aiocb_ops));
 }
 
@@ -2400,7 +2387,6 @@ freebsd6_lio_listio(struct thread *td, struct freebsd6_lio_listio_args *uap)
 		return (EINVAL);
 
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {
-ADD_PROCBASE(uap->sig, td);
 		error = copyin(uap->sig, &osig, sizeof(osig));
 		if (error)
 			return (error);
@@ -2412,7 +2398,6 @@ ADD_PROCBASE(uap->sig, td);
 		sigp = NULL;
 
 	acb_list = malloc(sizeof(struct aiocb *) * nent, M_LIO, M_WAITOK);
-ADD_PROCBASE(uap->acb_list, td);
 	error = copyin(uap->acb_list, acb_list, nent * sizeof(acb_list[0]));
 	if (error == 0)
 		error = kern_lio_listio(td, uap->mode, (uintptr_t)uap->acb_list/*ident*/,
@@ -2438,7 +2423,6 @@ sys_lio_listio(struct thread *td, struct lio_listio_args *uap)
 		return (EINVAL);
 
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {
-ADD_PROCBASE(uap->sig, td);
 		error = copyin(uap->sig, &sig, sizeof(sig));
 		if (error)
 			return (error);
@@ -2447,7 +2431,6 @@ ADD_PROCBASE(uap->sig, td);
 		sigp = NULL;
 
 	acb_list = malloc(sizeof(struct aiocb *) * nent, M_LIO, M_WAITOK);
-ADD_PROCBASE(uap->acb_list, td);
 	error = copyin(uap->acb_list, acb_list, nent * sizeof(acb_list[0]));
 	if (error == 0)
 		error = kern_lio_listio(td, uap->mode, (uintptr_t)uap->acb_list/*ident*/,
@@ -2600,7 +2583,6 @@ sys_aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 	int error;
 
 	if (uap->timeout) {
-ADD_PROCBASE(uap->timeout, td);
 		/* Get timespec struct. */
 		error = copyin(uap->timeout, &ts, sizeof(ts));
 		if (error)
@@ -2608,7 +2590,6 @@ ADD_PROCBASE(uap->timeout, td);
 		tsp = &ts;
 	} else
 		tsp = NULL;
-ADD_PROCBASE(uap->aiocbp, td);
 	return (kern_aio_waitcomplete(td, uap->aiocbp, tsp, &aiocb_ops));
 }
 
@@ -2635,7 +2616,6 @@ kern_aio_fsync(struct thread *td, int op, struct aiocb *ujob,
 int
 sys_aio_fsync(struct thread *td, struct aio_fsync_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (kern_aio_fsync(td, uap->op, uap->aiocbp, &aiocb_ops));
 }
 
@@ -2999,7 +2979,6 @@ int
 freebsd6_freebsd32_aio_read(struct thread *td,
     struct freebsd6_freebsd32_aio_read_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_READ,
 	    &aiocb32_ops_osigevent));
 }
@@ -3008,7 +2987,6 @@ ADD_PROCBASE(uap->aiocbp, td);
 int
 freebsd32_aio_read(struct thread *td, struct freebsd32_aio_read_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_READ,
 	    &aiocb32_ops));
 }
@@ -3016,7 +2994,6 @@ ADD_PROCBASE(uap->aiocbp, td);
 int
 freebsd32_aio_readv(struct thread *td, struct freebsd32_aio_readv_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_READV,
 	    &aiocb32_ops));
 }
@@ -3026,7 +3003,6 @@ int
 freebsd6_freebsd32_aio_write(struct thread *td,
     struct freebsd6_freebsd32_aio_write_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_WRITE,
 	    &aiocb32_ops_osigevent));
 }
@@ -3035,7 +3011,6 @@ ADD_PROCBASE(uap->aiocbp, td);
 int
 freebsd32_aio_write(struct thread *td, struct freebsd32_aio_write_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_WRITE,
 	    &aiocb32_ops));
 }
@@ -3043,7 +3018,6 @@ ADD_PROCBASE(uap->aiocbp, td);
 int
 freebsd32_aio_writev(struct thread *td, struct freebsd32_aio_writev_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_WRITEV,
 	    &aiocb32_ops));
 }
@@ -3051,7 +3025,6 @@ ADD_PROCBASE(uap->aiocbp, td);
 int
 freebsd32_aio_mlock(struct thread *td, struct freebsd32_aio_mlock_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_MLOCK,
 	    &aiocb32_ops));
 }
@@ -3082,7 +3055,6 @@ freebsd32_aio_waitcomplete(struct thread *td,
 int
 freebsd32_aio_fsync(struct thread *td, struct freebsd32_aio_fsync_args *uap)
 {
-ADD_PROCBASE(uap->aiocbp, td);
 	return (kern_aio_fsync(td, uap->op, (struct aiocb *)uap->aiocbp,
 	    &aiocb32_ops));
 }
@@ -3106,7 +3078,6 @@ freebsd6_freebsd32_lio_listio(struct thread *td,
 		return (EINVAL);
 
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {
-ADD_PROCBASE(uap->sig, td);
 		error = copyin(uap->sig, &osig, sizeof(osig));
 		if (error)
 			return (error);
@@ -3118,7 +3089,6 @@ ADD_PROCBASE(uap->sig, td);
 		sigp = NULL;
 
 	acb_list32 = malloc(sizeof(uint32_t) * nent, M_LIO, M_WAITOK);
-ADD_PROCBASE(uap->acb_list, td);
 	error = copyin(uap->acb_list, acb_list32, nent * sizeof(uint32_t));
 	if (error) {
 		free(acb_list32, M_LIO);
@@ -3153,7 +3123,6 @@ freebsd32_lio_listio(struct thread *td, struct freebsd32_lio_listio_args *uap)
 		return (EINVAL);
 
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {
-ADD_PROCBASE(uap->sig, td);
 		error = copyin(uap->sig, &sig32, sizeof(sig32));
 		if (error)
 			return (error);
@@ -3165,7 +3134,6 @@ ADD_PROCBASE(uap->sig, td);
 		sigp = NULL;
 
 	acb_list32 = malloc(sizeof(uint32_t) * nent, M_LIO, M_WAITOK);
-ADD_PROCBASE(uap->acb_list, td);
 	error = copyin(uap->acb_list, acb_list32, nent * sizeof(uint32_t));
 	if (error) {
 		free(acb_list32, M_LIO);

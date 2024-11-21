@@ -1289,7 +1289,6 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	hdr_uio = trl_uio = NULL;
 
 	if (uap->hdtr != NULL) {
-ADD_PROCBASE(uap->hdtr, td);
 		error = copyin(uap->hdtr, &hdtr, sizeof(hdtr));
 		if (error != 0)
 			goto out;
@@ -1334,7 +1333,6 @@ ADD_PROCBASE(uap->hdtr, td);
 	fdrop(fp, td);
 
 	if (uap->sbytes != NULL) {
-ADD_PROCBASE(uap->sbytes, td);
 		(void)copyout(&sbytes, uap->sbytes, sizeof(off_t));
 	}
 

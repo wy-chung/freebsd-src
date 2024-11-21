@@ -449,7 +449,6 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		int vers;	/* Just the first field of nfsstats. */
 	} nfsstatver;
 
-ADD_PROCBASE(uap->argp, p);
 	if (uap->flag & NFSSVC_IDNAME) {
 		if ((uap->flag & NFSSVC_NEWSTRUCT) != 0)
 			error = copyin(uap->argp, &nid, sizeof(nid));

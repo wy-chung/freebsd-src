@@ -1053,7 +1053,6 @@ sys_ktrace(struct thread *td, struct ktrace_args *uap)
 		/*
 		 * an operation which requires a file argument.
 		 */
-ADD_PROCBASE(uap->fname, td);
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname);
 		flags = FREAD | FWRITE | O_NOFOLLOW;
 		error = vn_open(&nd, &flags, 0, NULL);
@@ -1177,7 +1176,6 @@ sys_utrace(struct thread *td, struct utrace_args *uap)
 	if (uap->len > KTR_USER_MAXLEN)
 		return (EINVAL);
 	cp = malloc(uap->len, M_KTRACE, M_WAITOK);
-ADD_PROCBASE(uap->addr, td);
 	error = copyin(uap->addr, cp, uap->len);
 	if (error) {
 		free(cp, M_KTRACE);
