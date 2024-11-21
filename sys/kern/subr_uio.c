@@ -67,26 +67,75 @@
 SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, UIO_MAXIOV,
 	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
 
+int _copyinstr(const void * __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len,
+	    size_t * __restrict lencopied);
+int _copyin(const void * __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len);
+int _copyout(const void * _Nonnull __restrict kaddr,
+	    void * __restrict udaddr, size_t len);
+
+static int _copyin_nofault(const void * __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len);
+static int _copyout_nofault(const void * _Nonnull __restrict kaddr,
+	    void * __restrict udaddr, size_t len);
+
+int
+copyinstr(const void * __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len,
+	    size_t * __restrict lencopied)
+{
+	return _copyinstr(udaddr, kaddr, len, lencopied);
+}
+
+int
+copyin(const void * __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len)
+{
+	return _copyin(udaddr, kaddr, len);
+}
+
+int
+copyout(const void * _Nonnull __restrict kaddr,
+	    void * __restrict udaddr, size_t len)
+{
+	return _copyout(kaddr, udaddr, len);
+}
+
+int
+copyin_nofault(const void * __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len)
+{
+	return _copyin_nofault(udaddr, kaddr, len);
+}
+
+int
+copyout_nofault(const void * _Nonnull __restrict kaddr,
+	    void * __restrict udaddr, size_t len)
+{
+	return _copyout_nofault(kaddr, udaddr, len);
+}
+
 static int uiomove_faultflag(void *cp, int n, struct uio *uio, bool nofault);
 
 int
-copyin_nofault(const void *udaddr, void *kaddr, size_t len)
+_copyin_nofault(const void *udaddr, void *kaddr, size_t len)
 {
 	int error, save;
 
 	save = vm_fault_disable_pagefaults();
-	error = copyin(udaddr, kaddr, len);
+	error = _copyin(udaddr, kaddr, len);
 	vm_fault_enable_pagefaults(save);
 	return (error);
 }
 
 int
-copyout_nofault(const void *kaddr, void *udaddr, size_t len)
+_copyout_nofault(const void *kaddr, void *udaddr, size_t len)
 {
 	int error, save;
 
 	save = vm_fault_disable_pagefaults();
-	error = copyout(kaddr, udaddr, len);
+	error = _copyout(kaddr, udaddr, len);
 	vm_fault_enable_pagefaults(save);
 	return (error);
 }

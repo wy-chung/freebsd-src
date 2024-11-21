@@ -110,9 +110,9 @@ END(copyio_fault)
 /*
  * Copies from a kernel to user address
  *
- * int copyout(const void *kaddr|a0, void *udaddr|a1, size_t len|a2)
+ * int _copyout(const void *kaddr|a0, void *udaddr|a1, size_t len|a2)
  */
-ENTRY(copyout)
+ENTRY(_copyout)
 	beqz	a2, copyout_end	/* If len == 0 then skip loop */
 	add	a3, a1, a2
 	li	a4, VM_MAX_USER_ADDRESS
@@ -123,14 +123,14 @@ ENTRY(copyout)
 copyout_end:
 	li	a0, 0		/* return 0 */
 	ret
-END(copyout)
+END(_copyout)
 
 /*
  * Copies from a user to kernel address
  *
- * int copyin(const void *uaddr, void *kaddr, size_t len)
+ * int _copyin(const void *uaddr, void *kaddr, size_t len)
  */
-ENTRY(copyin)
+ENTRY(_copyin)
 	beqz	a2, copyin_end	/* If len == 0 then skip loop */
 	add	a3, a0, a2
 	li	a4, VM_MAX_USER_ADDRESS
@@ -141,14 +141,14 @@ ENTRY(copyin)
 copyin_end:
 	li	a0, 0		/* return 0 */
 	ret
-END(copyin)
+END(_copyin)
 
 /*
  * Copies a string from a user to kernel address
  *
- * int copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
+ * int _copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
  */
-ENTRY(copyinstr)
+ENTRY(_copyinstr)
 	mv	a5, x0		/* count = 0 */
 	beqz	a2, 3f		/* If len == 0 then skip loop */
 
@@ -179,4 +179,4 @@ ENTRY(copyinstr)
 	li	a0, ENAMETOOLONG
 5:
 	ret
-END(copyinstr)
+END(_copyinstr)
