@@ -81,39 +81,52 @@ static int _copyout_nofault(const void * _Nonnull __restrict kaddr,
 	    void * __restrict udaddr, size_t len);
 
 int
-copyinstr(const void * __restrict udaddr,
-	    void * _Nonnull __restrict kaddr, size_t len,
-	    size_t * __restrict lencopied)
+copyinstr(const void * __restrict udaddr, void * _Nonnull __restrict kaddr,
+    size_t len, size_t * __restrict lencopied)
 {
-	return _copyinstr(udaddr, kaddr, len, lencopied);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+
+	return _copyinstr(vm_base + (const char *)udaddr, kaddr, len, lencopied);
 }
 
 int
-copyin(const void * __restrict udaddr,
-	    void * _Nonnull __restrict kaddr, size_t len)
+copyin(const void * __restrict udaddr, void * _Nonnull __restrict kaddr, size_t len)
 {
-	return _copyin(udaddr, kaddr, len);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+
+	return _copyin(vm_base + (const char *)udaddr, kaddr, len);
 }
 
 int
-copyout(const void * _Nonnull __restrict kaddr,
-	    void * __restrict udaddr, size_t len)
+copyout(const void * _Nonnull __restrict kaddr, void * __restrict udaddr, size_t len)
 {
-	return _copyout(kaddr, udaddr, len);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+
+	return _copyout(kaddr, vm_base + (char *)udaddr, len);
+
 }
 
 int
-copyin_nofault(const void * __restrict udaddr,
-	    void * _Nonnull __restrict kaddr, size_t len)
+copyin_nofault(const void * __restrict udaddr, void * _Nonnull __restrict kaddr, size_t len)
 {
-	return _copyin_nofault(udaddr, kaddr, len);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+
+	return _copyin_nofault(vm_base + (const char *)udaddr, kaddr, len);
+
 }
 
 int
-copyout_nofault(const void * _Nonnull __restrict kaddr,
-	    void * __restrict udaddr, size_t len)
+copyout_nofault(const void * _Nonnull __restrict kaddr, void * __restrict udaddr, size_t len)
 {
-	return _copyout_nofault(kaddr, udaddr, len);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+
+	return _copyout_nofault(kaddr, vm_base + (char *)udaddr, len);
+
 }
 
 static int uiomove_faultflag(void *cp, int n, struct uio *uio, bool nofault);
