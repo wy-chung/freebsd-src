@@ -50,10 +50,10 @@ fsu_fault_nopcb:
 END(fsu_fault)
 
 /*
- * int casueword32(volatile uint32_t *a0, uint32_t a1, uint32_t *a2, uint32_t a3)
+ * int _casueword32(volatile uint32_t *a0, uint32_t a1, uint32_t *a2, uint32_t a3)
  */
 // fetch, compare and store data from user-space
-ENTRY(casueword32)
+ENTRY(_casueword32)
 	li	a4, (VM_MAX_USER_ADDRESS-3)
 	bgeu	a0, a4, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
@@ -69,12 +69,12 @@ ENTRY(casueword32)
 	sw	a4, 0(a2)		/* Store the read data */
 	mv	a0, a5			/* Success indicator */
 	ret				/* Return */
-END(casueword32)
+END(_casueword32)
 
 /*
- * int casueword(volatile u_long a0*, u_long a1, u_long *a2, u_long a3)
+ * int _casueword(volatile u_long a0*, u_long a1, u_long *a2, u_long a3)
  */
-ENTRY(casueword)
+ENTRY(_casueword)
 	li	a4, (VM_MAX_USER_ADDRESS-7)
 	bgeu	a0, a4, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
@@ -90,7 +90,7 @@ ENTRY(casueword)
 	sd	a4, 0(a2)		/* Store the read data */
 	mv	a0, a5			/* Success indicator */
 	ret				/* Return */
-END(casueword)
+END(_casueword)
 
 /*
  * int fubyte(volatile const void *a0) // fetch a byte from user

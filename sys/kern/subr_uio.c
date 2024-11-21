@@ -129,6 +129,26 @@ copyout_nofault(const void * _Nonnull __restrict kaddr, void * __restrict udaddr
 
 }
 
+int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval);
+int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
+int
+casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _casueword32((typeof(uaddr))(vm_base + (volatile char *)uaddr), oldval, oldvalp, newval);
+
+}
+
+int
+casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _casueword((typeof(uaddr))(vm_base + (volatile char *)uaddr), oldval, oldvalp, newval);
+
+}
+
 static int uiomove_faultflag(void *cp, int n, struct uio *uio, bool nofault);
 
 int
@@ -507,6 +527,7 @@ cloneuio(struct uio *uiop)
 int
 copyout_map(struct thread *td, vm_offset_t *addr, size_t sz)
 {
+WYC_PANIC();
 	struct vmspace *vms;
 	int error;
 	vm_size_t size;
@@ -535,6 +556,7 @@ copyout_map(struct thread *td, vm_offset_t *addr, size_t sz)
 int
 copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
 {
+WYC_PANIC();
 	vm_map_t map;
 	vm_size_t size;
 
@@ -583,21 +605,25 @@ fuword(volatile const void *addr)
 }
 
 uint32_t
-casuword32(volatile uint32_t *addr, uint32_t old, uint32_t new)
+casuword32(volatile uint32_t *uaddr, uint32_t old, uint32_t new)
 {
 	int rv;
 	uint32_t val;
 
-	rv = casueword32(addr, old, &val, new);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	rv = _casueword32((typeof(uaddr))((volatile char *)uaddr + vm_base), old, &val, new);
 	return (rv == -1 ? -1 : val);
 }
 
 u_long
-casuword(volatile u_long *addr, u_long old, u_long new)
+casuword(volatile u_long *uaddr, u_long old, u_long new)
 {
 	int rv;
 	u_long val;
 
-	rv = casueword(addr, old, &val, new);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	rv = _casueword((typeof(uaddr))((volatile char *)uaddr + vm_base), old, &val, new);
 	return (rv == -1 ? -1 : val);
 }
