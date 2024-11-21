@@ -129,26 +129,6 @@ copyout_nofault(const void * _Nonnull __restrict kaddr, void * __restrict udaddr
 
 }
 
-int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval);
-int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
-int
-casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _casueword32((typeof(uaddr))(vm_base + (volatile char *)uaddr), oldval, oldvalp, newval);
-
-}
-
-int
-casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _casueword((typeof(uaddr))(vm_base + (volatile char *)uaddr), oldval, oldvalp, newval);
-
-}
-
 static int uiomove_faultflag(void *cp, int n, struct uio *uio, bool nofault);
 
 int
@@ -572,37 +552,138 @@ WYC_PANIC();
 	return (0);
 }
 
+int	_fubyte(volatile const void *base);
+int	_fuword16(volatile const void *base);
+int	_fueword32(volatile const void *base, int32_t *val);
+int	_fueword(volatile const void *base, long *val);
+int	_fueword64(volatile const void *base, int64_t *val);
+
+int
+fubyte(volatile const void *uaddr)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _fubyte((typeof(uaddr))((volatile const char *)uaddr + vm_base));
+}
+
+int
+fuword16(volatile const void *uaddr)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _fuword16((typeof(uaddr))((volatile const char *)uaddr + vm_base));
+}
+
+int
+fueword32(volatile const void *uaddr, int32_t *val)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _fueword32((typeof(uaddr))((volatile const char *)uaddr + vm_base), val);
+}
+
+int
+fueword(volatile const void *uaddr, long *val)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _fueword((typeof(uaddr))((volatile const char *)uaddr + vm_base), val);
+}
+
+int
+fueword64(volatile const void *uaddr, int64_t *val)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _fueword64((typeof(uaddr))((volatile const char *)uaddr + vm_base), val);
+}
+
 int32_t
-fuword32(volatile const void *addr)
+fuword32(volatile const void *uaddr)
 {
 	int rv;
 	int32_t val;
 
-	rv = fueword32(addr, &val);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	rv = _fueword32((typeof(uaddr))((volatile const char *)uaddr + vm_base), &val);
 	return (rv == -1 ? -1 : val);
 }
 
 #ifdef _LP64
 int64_t
-fuword64(volatile const void *addr)
+fuword64(volatile const void *uaddr)
 {
 	int rv;
 	int64_t val;
 
-	rv = fueword64(addr, &val);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	rv = _fueword64((typeof(uaddr))((volatile const char *)uaddr + vm_base), &val);
 	return (rv == -1 ? -1 : val);
 }
 #endif /* _LP64 */
 
 long
-fuword(volatile const void *addr)
+fuword(volatile const void *uaddr)
 {
 	long val;
 	int rv;
 
-	rv = fueword(addr, &val);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	rv = _fueword((typeof(uaddr))((volatile const char *)uaddr + vm_base), &val);
 	return (rv == -1 ? -1 : val);
 }
+
+int	_subyte(volatile void *base, int byte);
+int	_suword16(volatile void *base, int word);
+int	_suword32(volatile void *base, int32_t word);
+int	_suword(volatile void *base, long word);
+int	_suword64(volatile void *base, int64_t word);
+
+int
+subyte(volatile void *uaddr, int byte)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _subyte((typeof(uaddr))((volatile char *)uaddr + vm_base), byte);
+}
+
+int
+suword16(volatile void *uaddr, int word)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _suword16((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
+}
+
+int
+suword32(volatile void *uaddr, int32_t word)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _suword32((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
+}
+
+int
+suword(volatile void *uaddr, long word)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _suword((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
+}
+
+int
+suword64(volatile void *uaddr, int64_t word)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _suword64((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
+}
+
+int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval);
+int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
 
 uint32_t
 casuword32(volatile uint32_t *uaddr, uint32_t old, uint32_t new)
@@ -626,4 +707,22 @@ casuword(volatile u_long *uaddr, u_long old, u_long new)
 	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
 	rv = _casueword((typeof(uaddr))((volatile char *)uaddr + vm_base), old, &val, new);
 	return (rv == -1 ? -1 : val);
+}
+
+int
+casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _casueword32((typeof(uaddr))((volatile char *)uaddr + vm_base), oldval, oldvalp, newval);
+
+}
+
+int
+casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval)
+{
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _casueword((typeof(uaddr))((volatile char *)uaddr + vm_base), oldval, oldvalp, newval);
+
 }

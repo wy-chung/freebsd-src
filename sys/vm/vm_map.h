@@ -312,7 +312,8 @@ struct vmspace {
 	struct pmap vm_pmap;	/* private physical map */
 };
 
-#define ADD_PROCBASE(uaddr, td) uaddr = (typeof(uaddr))(__DEQUALIFY(char *, uaddr) + td->td_proc->p_vmspace->vm_base)
+//#define ADD_PROCBASE(uaddr, td) uaddr = (typeof(uaddr))(__DEQUALIFY(char *, uaddr) + td->td_proc->p_vmspace->vm_base)
+#define ADD_PROCBASE(uaddr, td)
 
 #ifdef	_KERNEL
 static __inline pmap_t

@@ -93,9 +93,9 @@ ENTRY(_casueword)
 END(_casueword)
 
 /*
- * int fubyte(volatile const void *a0) // fetch a byte from user
+ * int _fubyte(volatile const void *a0) // fetch a byte from user
  */
-ENTRY(fubyte)
+ENTRY(_fubyte)
 	li	a1, VM_MAX_USER_ADDRESS
 	bgeu	a0, a1, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
@@ -105,12 +105,12 @@ ENTRY(fubyte)
 	EXIT_USER_ACCESS(a1)
 	SET_FAULT_HANDLER(x0, a1)	/* Reset the fault handler */
 	ret				/* Return */
-END(fubyte)
+END(_fubyte)
 
 /*
- * int fuword(volatile const void *a0) // fetch a word from user
+ * int _fuword16(volatile const void *a0) // fetch a word from user
  */
-ENTRY(fuword16)
+ENTRY(_fuword16)
 	li	a1, (VM_MAX_USER_ADDRESS-1)
 	bgeu	a0, a1, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
@@ -120,12 +120,12 @@ ENTRY(fuword16)
 	EXIT_USER_ACCESS(a1)
 	SET_FAULT_HANDLER(x0, a1)	/* Reset the fault handler */
 	ret				/* Return */
-END(fuword16)
+END(_fuword16)
 
 /*
- * int32_t fueword32(volatile const void *a0, int32_t *a1) // fetch a word32 from user and store the result to *a1
+ * int32_t _fueword32(volatile const void *a0, int32_t *a1) // fetch a word32 from user and store the result to *a1
  */
-ENTRY(fueword32)
+ENTRY(_fueword32)
 	li	a2, (VM_MAX_USER_ADDRESS-3)
 	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
@@ -137,14 +137,14 @@ ENTRY(fueword32)
 	sw	a0, 0(a1)		/* Save the data in kernel space */
 	li	a0, 0			/* Success */
 	ret				/* Return */
-END(fueword32)
+END(_fueword32)
 
 /*
- * long    fueword(volatile const void *a0, int64_t *a1) // fetch a word from user and store it to *a1
- * int64_t fueword64(volatile const void *a0, int64_t *a1)
+ * long    _fueword(volatile const void *a0, int64_t *a1) // fetch a word from user and store it to *a1
+ * int64_t _fueword64(volatile const void *a0, int64_t *a1)
  */
-ENTRY(fueword)
-EENTRY(fueword64)
+ENTRY(_fueword)
+EENTRY(_fueword64)
 	li	a2, (VM_MAX_USER_ADDRESS-7)
 	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
@@ -156,13 +156,13 @@ EENTRY(fueword64)
 	sd	a0, 0(a1)		/* Save the data in kernel space */
 	li	a0, 0			/* Success */
 	ret				/* Return */
-EEND(fueword64)
-END(fueword)
+EEND(_fueword64)
+END(_fueword)
 
 /*
- * int subyte(volatile void *a0, int a1)
+ * int _subyte(volatile void *a0, int a1)
  */
-ENTRY(subyte)
+ENTRY(_subyte)
 	li	a2, VM_MAX_USER_ADDRESS
 	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
@@ -173,12 +173,12 @@ ENTRY(subyte)
 	SET_FAULT_HANDLER(x0, a2)	/* Reset the fault handler */
 	li	a0, 0			/* Success */
 	ret				/* Return */
-END(subyte)
+END(_subyte)
 
 /*
- * int suword16(volatile void *a0, int a1)
+ * int _suword16(volatile void *a0, int a1)
  */
-ENTRY(suword16)
+ENTRY(_suword16)
 	li	a2, (VM_MAX_USER_ADDRESS-1)
 	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
@@ -189,12 +189,12 @@ ENTRY(suword16)
 	SET_FAULT_HANDLER(x0, a2)	/* Reset the fault handler */
 	li	a0, 0			/* Success */
 	ret				/* Return */
-END(suword16)
+END(_suword16)
 
 /*
- * int suword32(volatile void *a0, int a1)
+ * int _suword32(volatile void *a0, int a1)
  */
-ENTRY(suword32)
+ENTRY(_suword32)
 	li	a2, (VM_MAX_USER_ADDRESS-3)
 	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
@@ -205,13 +205,13 @@ ENTRY(suword32)
 	SET_FAULT_HANDLER(x0, a2)	/* Reset the fault handler */
 	li	a0, 0			/* Success */
 	ret				/* Return */
-END(suword32)
+END(_suword32)
 
 /*
- * int suword(volatile void *a0, long a1)
+ * int _suword(volatile void *a0, long a1)
  */
-ENTRY(suword)
-EENTRY(suword64)
+ENTRY(_suword)
+EENTRY(_suword64)
 	li	a2, (VM_MAX_USER_ADDRESS-7)
 	bgeu	a0, a2, fsu_fault_nopcb
 	la	a6, fsu_fault		/* Load the fault handler */
@@ -222,8 +222,8 @@ EENTRY(suword64)
 	SET_FAULT_HANDLER(x0, a2)	/* Reset the fault handler */
 	li	a0, 0			/* Success */
 	ret				/* Return */
-EEND(suword64)
-END(suword)
+EEND(_suword64)
+END(_suword)
 
 ENTRY(setjmp)
 	/* Store the stack pointer */
