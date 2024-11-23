@@ -227,7 +227,6 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 
 	if (td->td_critnest != 0 || td->td_intr_nesting_level != 0 ||
 	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL, "Kernel page fault") != 0) {
-//uprintf("ch 0\n"); //wycdebug
 		goto fatal;
 	}
 	if (usermode) {
@@ -248,7 +247,6 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 			map = kernel_map;
 		} else {
 			if (pcb->pcb_onfault == 0) {
-//uprintf("ch 1\n"); //wycdebug
 				goto fatal;
 			}
 			map = &p->p_vmspace->vm_map;
@@ -279,7 +277,6 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 				frame->tf_sepc = pcb->pcb_onfault;
 				return;
 			}
-//uprintf("ch 2\n"); //wycdebug
 			goto fatal;
 		}
 	}

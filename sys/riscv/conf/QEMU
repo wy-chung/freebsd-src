@@ -1,13 +1,15 @@
-
 #NO_UNIVERSE
 
 include "GENERIC"
 
 ident QEMU
 
+#makeoptions	DEBUG="-g -O1"	# debug symbols and optimization
+
 options 	HZ=100
 options 	ROOTDEVNAME=\"ufs:/dev/vtbd0\"
 
+options KDB
 options DDB
 options	GDB			# compile in support for the remote debugger
 options	INVARIANT_SUPPORT   # A prerequisite for INVARIANTS

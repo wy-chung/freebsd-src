@@ -381,7 +381,7 @@ execve_nosetid(struct image_params *imgp)
  * In-kernel implementation of execve().  All arguments are assumed to be
  * userspace pointers from the passed thread.
  */
-static int
+static int __attribute__((optnone)) //wycdebug
 do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
     struct vmspace *oldvmspace)
 {
@@ -753,7 +753,7 @@ interpret:
 	 */
 	error = (*p->p_sysent->sv_fixup)(&stack_base, imgp);
 #if defined(WYC)
-	error = elf32_freebsd_fixup();
+	error = elf64_freebsd_fixup();
 #endif
 	if (error != 0) {
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
@@ -1680,13 +1680,14 @@ exec_args_get_begin_envv(struct image_args *args)
  * and env vector tables. Return a pointer to the base so that it can be used
  * as the initial stack pointer.
  */
-int
+int __attribute__((optnone)) //wycdebug
 exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base)
 {
 	int argc, envc;
 	char **vectp;
-	char *stringp;
-	uintptr_t destp, ustringp;
+	char *astringp;		// string from the argument
+	uintptr_t dstringp;	// string to the destination process
+	uintptr_t destp;
 	struct ps_strings *arginfo;
 	struct proc *p;
 	struct sysentvec *sysent;
@@ -1721,7 +1722,7 @@ WYC_PANIC();
 		destp -= execpath_len;
 		destp = rounddown2(destp, sizeof(void *));
 		imgp->execpathp = (void *)destp;
-		error = copyout(imgp->execpath, imgp->execpathp, execpath_len);
+		error = _copyout(imgp->execpath, imgp->execpathp, execpath_len);
 		if (error != 0)
 			return (error);
 	}
@@ -1732,7 +1733,7 @@ WYC_PANIC();
 	arc4rand(canary, sizeof(canary), 0);
 	destp -= sizeof(canary);
 	imgp->canary = (void *)destp;
-	error = copyout(canary, imgp->canary, sizeof(canary));
+	error = _copyout(canary, imgp->canary, sizeof(canary));
 	if (error != 0)
 		return (error);
 	imgp->canarylen = sizeof(canary);
@@ -1744,7 +1745,7 @@ WYC_PANIC();
 	destp -= imgp->pagesizeslen;
 	destp = rounddown2(destp, sizeof(void *));
 	imgp->pagesizes = (void *)destp;
-	error = copyout(pagesizes, imgp->pagesizes, imgp->pagesizeslen);
+	error = _copyout(pagesizes, imgp->pagesizes, imgp->pagesizeslen);
 	if (error != 0)
 		return (error);
 
@@ -1753,7 +1754,7 @@ WYC_PANIC();
 	 */
 	destp -= ARG_MAX - imgp->args->stringspace;
 	destp = rounddown2(destp, sizeof(void *));
-	ustringp = destp;
+	dstringp = destp;
 
 	if (imgp->auxargs) {
 		/*
@@ -1777,14 +1778,14 @@ WYC_PANIC();
 	 */
 	*stack_base = (uintptr_t)vectp;
 
-	stringp = imgp->args->begin_argv;
+	astringp = imgp->args->begin_argv;
 	argc = imgp->args->argc;
 	envc = imgp->args->envc;
 
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	error = copyout(stringp, (void *)ustringp,
+	error = _copyout(astringp, (void *)dstringp,
 	    ARG_MAX - imgp->args->stringspace);
 	if (error != 0)
 		return (error);
@@ -1793,49 +1794,52 @@ WYC_PANIC();
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
 	imgp->argv = vectp;
-	if (suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
-	    suword32(&arginfo->ps_nargvstr, argc) != 0)
+	if (_suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
+	    _suword32(&arginfo->ps_nargvstr, argc) != 0)
 		return (EFAULT);
 
 	/*
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		if (suword(vectp++, ustringp) != 0)
+		if (_suword(vectp++, dstringp) != 0)
 			return (EFAULT);
-		while (*stringp++ != 0)
-			ustringp++;
-		ustringp++;
+		while (*astringp++ != 0)
+			dstringp++;
+		dstringp++;
 	}
 
 	/* a null vector table pointer separates the argp's from the envp's */
-	if (suword(vectp++, 0) != 0)
+	if (_suword(vectp++, 0) != 0)
 		return (EFAULT);
 
 	imgp->envv = vectp;
-	if (suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
-	    suword32(&arginfo->ps_nenvstr, envc) != 0)
-		return (EFAULT);
+	if (_suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
+	    _suword32(&arginfo->ps_nenvstr, envc) != 0)
+		return (EFAULT); // 14
 
 	/*
 	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		if (suword(vectp++, ustringp) != 0)
+		if (suword(vectp++, dstringp) != 0)
 			return (EFAULT);
-		while (*stringp++ != 0)
-			ustringp++;
-		ustringp++;
+		while (*astringp++ != 0)
+			dstringp++;
+		dstringp++;
 	}
 
 	/* end of vector table is a null pointer */
-	if (suword(vectp, 0) != 0)
+	if (_suword(vectp, 0) != 0)
 		return (EFAULT);
 
 	if (imgp->auxargs) {
 		vectp++;
 		error = imgp->sysent->sv_copyout_auxargs(imgp,
 		    (uintptr_t)vectp);
+	#if defined(WYC)
+		error = elf64_freebsd_copyout_auxargs();
+	#endif
 		if (error != 0)
 			return (error);
 	}

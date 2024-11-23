@@ -646,7 +646,7 @@ WYC_PANIC(); // never runs here
 	return (KERN_SUCCESS);
 }
 
-static int
+static int __attribute__((optnone)) //wycdebug
 #if defined(WYC)
 elf64_load_section(
 #else
@@ -743,7 +743,7 @@ __elfN(load_section)(
 			return (EIO);
 
 		/* send the page fragment to user space */
-		error = copyout((caddr_t)sf_buf_kva(sf), (caddr_t)map_addr,
+		error = _copyout((caddr_t)sf_buf_kva(sf), (caddr_t)map_addr,
 		    copy_len);
 		vm_imgact_unmap_page(sf);
 		if (error != 0)
@@ -761,7 +761,7 @@ __elfN(load_section)(
 	return (0);
 }
 
-static int
+static int __attribute__((optnone)) //wycdebug
 #if defined(WYC)
 elf64_load_sections
 #else
@@ -1174,7 +1174,7 @@ __elfN(load_interp)
  */
 #define	ET_DYN_ADDR_RAND	1
 
-static int
+static int __attribute__((optnone)) //wycdebug
 #if defined(WYC)
 exec_elf64_imgact(struct image_params *imgp)
 #else
@@ -1552,7 +1552,12 @@ ret:
 #define	elf_suword __CONCAT(suword, __ELF_WORD_SIZE)
 
 int
-__elfN(freebsd_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
+#if defined(WYC)
+elf64_freebsd_copyout_auxargs
+#else
+__elfN(freebsd_copyout_auxargs)
+#endif
+(struct image_params *imgp, uintptr_t base)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
 	Elf_Auxinfo *argarray, *pos;
@@ -1630,12 +1635,12 @@ __elfN(freebsd_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 	imgp->auxargs = NULL;
 	KASSERT(pos - argarray <= AT_COUNT, ("Too many auxargs"));
 
-	error = copyout(argarray, (void *)base, sizeof(*argarray) * AT_COUNT);
+	error = _copyout(argarray, (void *)base, sizeof(*argarray) * AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
 }
 
-int
+int __attribute__((optnone))
 #if defined(WYC)
 elf64_freebsd_fixup
 #else
@@ -1651,10 +1656,7 @@ __elfN(freebsd_fixup)
 	base = (Elf_Addr *)*stack_base;
 	base--;
 
-#if defined(WYC)
-	    suword64();
-#endif
-	if (elf_suword(base, imgp->args->argc) == -1)
+	if (_suword64(base, imgp->args->argc) == -1) //ori elf_suword
 		return (EFAULT);
 	*stack_base = (uintptr_t)base;
 	return (0);

@@ -434,7 +434,7 @@ ENTRY(fork_trampoline)
 	/* Load user stack */
 	ld	sp, (TF_SP - TF_SIZE)(sp)
 
-	sret
+	sret //wycdebug
 END(fork_trampoline)
 
 ENTRY(savectx)

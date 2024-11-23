@@ -306,6 +306,38 @@ void	*memmove_early(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 	((__r >= __len) ? ENAMETOOLONG : 0);			\
 })
 
+int _copyinstr(const void * __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len,
+	    size_t * __restrict lencopied);
+int _copyin(const void * __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len);
+int _copyout(const void * _Nonnull __restrict kaddr,
+	    void * __restrict udaddr, size_t len);
+
+int _copyin_nofault(const void * __restrict udaddr,
+	    void * _Nonnull __restrict kaddr, size_t len);
+int _copyout_nofault(const void * _Nonnull __restrict kaddr,
+	    void * __restrict udaddr, size_t len);
+int _fubyte(volatile const void *base);
+int _fuword16(volatile const void *base);
+int _fueword32(volatile const void *base, int32_t *val);
+int _fueword(volatile const void *base, long *val);
+int _fueword64(volatile const void *base, int64_t *val);
+int32_t	_fuword32(volatile const void *base);
+int64_t	_fuword64(volatile const void *base);
+long	_fuword(volatile const void *base);
+
+int _subyte(volatile void *base, int byte);
+int _suword16(volatile void *base, int word);
+int _suword32(volatile void *base, int32_t word);
+int _suword(volatile void *base, long word);
+int _suword64(volatile void *base, int64_t word);
+
+int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval);
+int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
+uint32_t _casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval);
+u_long	_casuword(volatile u_long *base, u_long oldval, u_long newval);
+
 int	copyinstr(const void * __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len,
 	    size_t * __restrict lencopied);
@@ -317,17 +349,6 @@ int	copyin_nofault(const void * __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len);
 int	copyout_nofault(const void * _Nonnull __restrict kaddr,
 	    void * __restrict udaddr, size_t len);
-
-#ifdef SAN_NEEDS_INTERCEPTORS
-int	SAN_INTERCEPTOR(copyin)(const void *, void *, size_t);
-int	SAN_INTERCEPTOR(copyinstr)(const void *, void *, size_t, size_t *);
-int	SAN_INTERCEPTOR(copyout)(const void *, void *, size_t);
-#ifndef SAN_RUNTIME
-#define	copyin(u, k, l)		SAN_INTERCEPTOR(copyin)((u), (k), (l))
-#define	copyinstr(u, k, l, lc)	SAN_INTERCEPTOR(copyinstr)((u), (k), (l), (lc))
-#define	copyout(k, u, l)	SAN_INTERCEPTOR(copyout)((k), (u), (l))
-#endif /* !SAN_RUNTIME */
-#endif /* SAN_NEEDS_INTERCEPTORS */
 
 // fetch data from base (user-space)
 // return it / store to val (kernel-space)
@@ -351,11 +372,21 @@ int	suword64(volatile void *base, int64_t word);
 // the old value is stored to oldvalp(kernel-space)
 int	casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
 	    uint32_t newval);
+uint32_t casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval);
 int	casueword(volatile u_long *base, u_long oldval, u_long *oldvalp,
 	    u_long newval);
-
-uint32_t casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval);
 u_long	casuword(volatile u_long *base, u_long oldval, u_long newval);
+
+#ifdef SAN_NEEDS_INTERCEPTORS
+int	SAN_INTERCEPTOR(copyin)(const void *, void *, size_t);
+int	SAN_INTERCEPTOR(copyinstr)(const void *, void *, size_t, size_t *);
+int	SAN_INTERCEPTOR(copyout)(const void *, void *, size_t);
+#ifndef SAN_RUNTIME
+#define	copyin(u, k, l)		SAN_INTERCEPTOR(copyin)((u), (k), (l))
+#define	copyinstr(u, k, l, lc)	SAN_INTERCEPTOR(copyinstr)((u), (k), (l), (lc))
+#define	copyout(k, u, l)	SAN_INTERCEPTOR(copyout)((k), (u), (l))
+#endif /* !SAN_RUNTIME */
+#endif /* SAN_NEEDS_INTERCEPTORS */
 
 #if defined(SAN_NEEDS_INTERCEPTORS) && !defined(KCSAN)
 int	SAN_INTERCEPTOR(fubyte)(volatile const void *base);

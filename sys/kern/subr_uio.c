@@ -67,90 +67,336 @@
 SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, UIO_MAXIOV,
 	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
 
-int _copyinstr(const void * __restrict udaddr,
-	    void * _Nonnull __restrict kaddr, size_t len,
-	    size_t * __restrict lencopied);
-int _copyin(const void * __restrict udaddr,
-	    void * _Nonnull __restrict kaddr, size_t len);
-int _copyout(const void * _Nonnull __restrict kaddr,
-	    void * __restrict udaddr, size_t len);
-
-static int _copyin_nofault(const void * __restrict udaddr,
-	    void * _Nonnull __restrict kaddr, size_t len);
-static int _copyout_nofault(const void * _Nonnull __restrict kaddr,
-	    void * __restrict udaddr, size_t len);
-
-int
-copyinstr(const void * __restrict udaddr, void * _Nonnull __restrict kaddr,
-    size_t len, size_t * __restrict lencopied)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-
-	return _copyinstr(vm_base + (const char *)udaddr, kaddr, len, lencopied);
-}
-
-int
-copyin(const void * __restrict udaddr, void * _Nonnull __restrict kaddr, size_t len)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-
-	return _copyin(vm_base + (const char *)udaddr, kaddr, len);
-}
-
-int
-copyout(const void * _Nonnull __restrict kaddr, void * __restrict udaddr, size_t len)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-
-	return _copyout(kaddr, vm_base + (char *)udaddr, len);
-
-}
-
-int
-copyin_nofault(const void * __restrict udaddr, void * _Nonnull __restrict kaddr, size_t len)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-
-	return _copyin_nofault(vm_base + (const char *)udaddr, kaddr, len);
-
-}
-
-int
-copyout_nofault(const void * _Nonnull __restrict kaddr, void * __restrict udaddr, size_t len)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-
-	return _copyout_nofault(kaddr, vm_base + (char *)udaddr, len);
-
-}
-
 static int uiomove_faultflag(void *cp, int n, struct uio *uio, bool nofault);
 
+#define UMAX ((void *)0x100000000)
+
+int __attribute__((optnone))
+copyinstr(const void * __restrict uaddr, void * _Nonnull __restrict kaddr,
+    size_t len, size_t * __restrict lencopied)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+
+	return _copyinstr((const char *)uaddr + vm_base, kaddr, len, lencopied);
+}
+
+int __attribute__((optnone))
+copyin(const void * __restrict uaddr, void * _Nonnull __restrict kaddr, size_t len)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+
+	return _copyin((const char *)uaddr + vm_base, kaddr, len);
+}
+
+int __attribute__((optnone))
+copyout(const void * _Nonnull __restrict kaddr, void * __restrict uaddr, size_t len)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+
+	return _copyout(kaddr, (char *)uaddr + vm_base, len);
+
+}
+
+int __attribute__((optnone))
+copyin_nofault(const void * __restrict uaddr, void * _Nonnull __restrict kaddr, size_t len)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+
+	return _copyin_nofault((const char *)uaddr + vm_base, kaddr, len);
+
+}
+
+int __attribute__((optnone))
+copyout_nofault(const void * _Nonnull __restrict kaddr, void * __restrict uaddr, size_t len)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+
+	return _copyout_nofault(kaddr, (char *)uaddr + vm_base, len);
+
+}
+
 int
-_copyin_nofault(const void *udaddr, void *kaddr, size_t len)
+_copyin_nofault(const void *uaddr, void *kaddr, size_t len)
 {
 	int error, save;
 
 	save = vm_fault_disable_pagefaults();
-	error = _copyin(udaddr, kaddr, len);
+	error = _copyin(uaddr, kaddr, len);
 	vm_fault_enable_pagefaults(save);
 	return (error);
 }
 
 int
-_copyout_nofault(const void *kaddr, void *udaddr, size_t len)
+_copyout_nofault(const void *kaddr, void *uaddr, size_t len)
 {
 	int error, save;
 
 	save = vm_fault_disable_pagefaults();
-	error = _copyout(kaddr, udaddr, len);
+	error = _copyout(kaddr, uaddr, len);
 	vm_fault_enable_pagefaults(save);
 	return (error);
+}
+
+// fetch user data
+int __attribute__((optnone))
+fubyte(volatile const void *uaddr)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _fubyte((typeof(uaddr))((volatile const char *)uaddr + vm_base));
+}
+
+int __attribute__((optnone))
+fuword16(volatile const void *uaddr)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _fuword16((typeof(uaddr))((volatile const char *)uaddr + vm_base));
+}
+
+int __attribute__((optnone))
+fueword32(volatile const void *uaddr, int32_t *val)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _fueword32((typeof(uaddr))((volatile const char *)uaddr + vm_base), val);
+}
+
+int32_t __attribute__((optnone))
+fuword32(volatile const void *uaddr)
+{
+	int rv;
+	int32_t val;
+
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	rv = _fueword32((typeof(uaddr))((volatile const char *)uaddr + vm_base), &val);
+	return (rv == -1 ? -1 : val);
+}
+
+int32_t
+_fuword32(volatile const void *addr)
+{
+	int rv;
+	int32_t val;
+
+	rv = _fueword32(addr, &val);
+	return (rv == -1 ? -1 : val);
+}
+
+int __attribute__((optnone))
+fueword64(volatile const void *uaddr, int64_t *val)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _fueword64((typeof(uaddr))((volatile const char *)uaddr + vm_base), val);
+}
+
+#ifdef _LP64
+int64_t __attribute__((optnone))
+fuword64(volatile const void *uaddr)
+{
+	int rv;
+	int64_t val;
+
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	rv = _fueword64((typeof(uaddr))((volatile const char *)uaddr + vm_base), &val);
+	return (rv == -1 ? -1 : val);
+}
+
+int64_t
+_fuword64(volatile const void *addr)
+{
+	int rv;
+	int64_t val;
+
+	rv = _fueword64(addr, &val);
+	return (rv == -1 ? -1 : val);
+}
+#endif /* _LP64 */
+
+int __attribute__((optnone))
+fueword(volatile const void *uaddr, long *val)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _fueword((typeof(uaddr))((volatile const char *)uaddr + vm_base), val);
+}
+
+long __attribute__((optnone))
+fuword(volatile const void *uaddr)
+{
+	long val;
+	int rv;
+
+if (uaddr >= UMAX)
+  printf("%s %d\n", __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	rv = _fueword((typeof(uaddr))((volatile const char *)uaddr + vm_base), &val);
+	return (rv == -1 ? -1 : val);
+}
+
+long
+_fuword(volatile const void *addr)
+{
+	long val;
+	int rv;
+
+	rv = _fueword(addr, &val);
+	return (rv == -1 ? -1 : val);
+}
+
+// store user data
+int __attribute__((optnone))
+subyte(volatile void *uaddr, int byte)
+{
+if (uaddr >= UMAX)
+  printf("%s %d\n", __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _subyte((typeof(uaddr))((volatile char *)uaddr + vm_base), byte);
+}
+
+int __attribute__((optnone))
+suword16(volatile void *uaddr, int word)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _suword16((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
+}
+
+int __attribute__((optnone))
+suword32(volatile void *uaddr, int32_t word)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _suword32((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
+}
+
+int __attribute__((optnone))
+suword(volatile void *uaddr, long word)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _suword((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
+}
+
+int __attribute__((optnone))
+suword64(volatile void *uaddr, int64_t word)
+{
+if (uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _suword64((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
+}
+
+// compare and swap
+int __attribute__((optnone))
+casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval)
+{
+if ((volatile void *)uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _casueword32((typeof(uaddr))((volatile char *)uaddr + vm_base), oldval, oldvalp, newval);
+
+}
+
+uint32_t __attribute__((optnone))
+casuword32(volatile uint32_t *uaddr, uint32_t old, uint32_t new)
+{
+	int rv;
+	uint32_t val;
+
+if ((volatile void *)uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	rv = _casueword32((typeof(uaddr))((volatile char *)uaddr + vm_base), old, &val, new);
+	return (rv == -1 ? -1 : val);
+}
+
+uint32_t
+_casuword32(volatile uint32_t *addr, uint32_t old, uint32_t new)
+{
+	int rv;
+	uint32_t val;
+
+	rv = _casueword32(addr, old, &val, new);
+	return (rv == -1 ? -1 : val);
+}
+
+int __attribute__((optnone))
+casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval)
+{
+if ((volatile void *)uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	return _casueword((typeof(uaddr))((volatile char *)uaddr + vm_base), oldval, oldvalp, newval);
+
+}
+
+u_long __attribute__((optnone))
+casuword(volatile u_long *uaddr, u_long old, u_long new)
+{
+	int rv;
+	u_long val;
+
+if ((volatile void *)uaddr >= UMAX)
+  printf("%s %s %d\n", __func__, __FILE__, __LINE__);
+	struct thread *td = curthread;
+	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
+	rv = _casueword((typeof(uaddr))((volatile char *)uaddr + vm_base), old, &val, new);
+	return (rv == -1 ? -1 : val);
+}
+
+u_long
+_casuword(volatile u_long *addr, u_long old, u_long new)
+{
+	int rv;
+	u_long val;
+
+	rv = _casueword(addr, old, &val, new);
+	return (rv == -1 ? -1 : val);
 }
 
 #define	PHYS_PAGE_COUNT(len)	(howmany(len, PAGE_SIZE) + 1)
@@ -550,179 +796,4 @@ WYC_PANIC();
 		return (EINVAL);
 
 	return (0);
-}
-
-int	_fubyte(volatile const void *base);
-int	_fuword16(volatile const void *base);
-int	_fueword32(volatile const void *base, int32_t *val);
-int	_fueword(volatile const void *base, long *val);
-int	_fueword64(volatile const void *base, int64_t *val);
-
-int
-fubyte(volatile const void *uaddr)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _fubyte((typeof(uaddr))((volatile const char *)uaddr + vm_base));
-}
-
-int
-fuword16(volatile const void *uaddr)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _fuword16((typeof(uaddr))((volatile const char *)uaddr + vm_base));
-}
-
-int
-fueword32(volatile const void *uaddr, int32_t *val)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _fueword32((typeof(uaddr))((volatile const char *)uaddr + vm_base), val);
-}
-
-int
-fueword(volatile const void *uaddr, long *val)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _fueword((typeof(uaddr))((volatile const char *)uaddr + vm_base), val);
-}
-
-int
-fueword64(volatile const void *uaddr, int64_t *val)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _fueword64((typeof(uaddr))((volatile const char *)uaddr + vm_base), val);
-}
-
-int32_t
-fuword32(volatile const void *uaddr)
-{
-	int rv;
-	int32_t val;
-
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	rv = _fueword32((typeof(uaddr))((volatile const char *)uaddr + vm_base), &val);
-	return (rv == -1 ? -1 : val);
-}
-
-#ifdef _LP64
-int64_t
-fuword64(volatile const void *uaddr)
-{
-	int rv;
-	int64_t val;
-
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	rv = _fueword64((typeof(uaddr))((volatile const char *)uaddr + vm_base), &val);
-	return (rv == -1 ? -1 : val);
-}
-#endif /* _LP64 */
-
-long
-fuword(volatile const void *uaddr)
-{
-	long val;
-	int rv;
-
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	rv = _fueword((typeof(uaddr))((volatile const char *)uaddr + vm_base), &val);
-	return (rv == -1 ? -1 : val);
-}
-
-int	_subyte(volatile void *base, int byte);
-int	_suword16(volatile void *base, int word);
-int	_suword32(volatile void *base, int32_t word);
-int	_suword(volatile void *base, long word);
-int	_suword64(volatile void *base, int64_t word);
-
-int
-subyte(volatile void *uaddr, int byte)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _subyte((typeof(uaddr))((volatile char *)uaddr + vm_base), byte);
-}
-
-int
-suword16(volatile void *uaddr, int word)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _suword16((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
-}
-
-int
-suword32(volatile void *uaddr, int32_t word)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _suword32((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
-}
-
-int
-suword(volatile void *uaddr, long word)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _suword((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
-}
-
-int
-suword64(volatile void *uaddr, int64_t word)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _suword64((typeof(uaddr))((volatile char *)uaddr + vm_base), word);
-}
-
-int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval);
-int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
-
-uint32_t
-casuword32(volatile uint32_t *uaddr, uint32_t old, uint32_t new)
-{
-	int rv;
-	uint32_t val;
-
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	rv = _casueword32((typeof(uaddr))((volatile char *)uaddr + vm_base), old, &val, new);
-	return (rv == -1 ? -1 : val);
-}
-
-u_long
-casuword(volatile u_long *uaddr, u_long old, u_long new)
-{
-	int rv;
-	u_long val;
-
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	rv = _casueword((typeof(uaddr))((volatile char *)uaddr + vm_base), old, &val, new);
-	return (rv == -1 ? -1 : val);
-}
-
-int
-casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _casueword32((typeof(uaddr))((volatile char *)uaddr + vm_base), oldval, oldvalp, newval);
-
-}
-
-int
-casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval)
-{
-	struct thread *td = curthread;
-	vm_offset_t vm_base = td->td_proc->p_vmspace->vm_base;
-	return _casueword((typeof(uaddr))((volatile char *)uaddr + vm_base), oldval, oldvalp, newval);
-
 }
