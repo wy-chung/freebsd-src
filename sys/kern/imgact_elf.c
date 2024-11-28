@@ -675,7 +675,7 @@ __elfN(load_section)(
 	 */
 	if ((filsz != 0 && (off_t)filsz + offset > imgp->attr->va_size) ||
 	    filsz > memsz) {
-		uprintf("elf_load_section: truncated ELF file\n");
+		uprintf("%s: truncated ELF file\n", __func__);
 		return (ENOEXEC);
 	}
 	vm_offset_t vmaddr = uvmaddr + imgp->proc->p_vmspace->vm_base; //wyc sa
@@ -743,7 +743,7 @@ __elfN(load_section)(
 			return (EIO);
 
 		/* send the page fragment to user space */
-		error = _copyout((caddr_t)sf_buf_kva(sf), (caddr_t)map_addr,
+		error = copyout((caddr_t)sf_buf_kva(sf), (caddr_t)map_addr,
 		    copy_len);
 		vm_imgact_unmap_page(sf);
 		if (error != 0)
@@ -1635,7 +1635,7 @@ __elfN(freebsd_copyout_auxargs)
 	imgp->auxargs = NULL;
 	KASSERT(pos - argarray <= AT_COUNT, ("Too many auxargs"));
 
-	error = _copyout(argarray, (void *)base, sizeof(*argarray) * AT_COUNT);
+	error = copyout(argarray, (void *)base, sizeof(*argarray) * AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
 }
@@ -1656,7 +1656,7 @@ __elfN(freebsd_fixup)
 	base = (Elf_Addr *)*stack_base;
 	base--;
 
-	if (_suword64(base, imgp->args->argc) == -1) //ori elf_suword
+	if (suword64(base, imgp->args->argc) == -1) //ori elf_suword
 		return (EFAULT);
 	*stack_base = (uintptr_t)base;
 	return (0);

@@ -254,7 +254,7 @@ extern bitstr_t proc_id_reapmap;
  * If RFHIGHPID is set (used during system boot), do not allocate
  * low-numbered pids.
  */
-static int
+static int __attribute__((optnone)) //wycdebug
 fork_findpid(int flags)
 {
 	pid_t result;
@@ -854,7 +854,7 @@ again:
 	}
 }
 
-int
+int __attribute__((optnone)) //wycdebug
 fork1(struct thread *td, struct fork_req *fr)
 {
 	struct proc *p1, *p2; //wyc newproc -> p2

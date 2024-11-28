@@ -78,7 +78,7 @@ kproc_start(const void *udata)
  * flags are flags to fork1 (in unistd.h)
  * fmt and following will be *printf'd into (*newpp)->p_comm (for ps, etc.).
  */
-static int
+static int __attribute__((optnone)) //wycdebug
 kproc_create1(void (*func)(void *), void *arg,
     struct proc **newpp, int flags, int pages, const char *tdname)
 {
@@ -91,7 +91,8 @@ kproc_create1(void (*func)(void *), void *arg,
 		panic("kproc_create called too soon");
 
 	bzero(&fr, sizeof(fr));
-	fr.fr_flags = RFMEM | RFFDG | RFPROC | RFSTOPPED | flags;
+		     // RFMEM | RFFDG | RFPROC | RFPPWAIT /* vfork */
+	fr.fr_flags =   RFMEM | RFFDG | RFPROC | RFSTOPPED | flags;
 	fr.fr_flags2 = FR2_KPROC;
 	fr.fr_pages = pages;
 	fr.fr_procp = &p2;

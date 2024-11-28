@@ -325,7 +325,7 @@ vmspace_zdtor(void *mem, int size, void *arg)
 //         is arm_vmm_pinit when called from vmmops_vmspace_alloc()
 //         is npt_pinit     when called from in svm_npt_alloc()
 struct vmspace *
-vmspace_alloc(vm_offset_t base, vm_offset_t umin, vm_offset_t umax, pmap_pinit_t pinit)
+vmspace_alloc(vm_offset_t base, vm_offset_t umin, vm_offset_t umax, pmap_pinit_t pinit) __attribute__((optnone)) //wycdebug
 {
 	struct vmspace *vm;
 	int ret;
@@ -4350,10 +4350,8 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  *
  * The source map must not be locked.
  */
-#define VM_BASE	USER_MAX_ADDRESS //wyctest
-
 struct vmspace *
-vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /*OUT*/)
+vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /*OUT*/) __attribute__((optnone)) //wycdebug
 {
 	struct vmspace *vm1 = p1->p_vmspace;
 	struct vmspace *vm2;
@@ -4365,7 +4363,7 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm_offset_t vm_base = VM_BASE; //wyc sa
+	vm_offset_t vm_base = PROC_BASE; //wyc sa
 	vm_offset_t umin = (vm_map_min(old_map) & (USER_MAX_ADDRESS - 1));
 	vm_offset_t umax = ((vm_map_max(old_map) - 1) & (USER_MAX_ADDRESS - 1)) + 1;
 	vm2 = vmspace_alloc(vm_base, umin, umax, pmap_pinit);
@@ -4967,7 +4965,7 @@ vmspace_exec(struct proc *p, vm_offset_t umin, vm_offset_t umax)
 
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
-	vm_offset_t vm_base = VM_BASE; //wyc sa
+	vm_offset_t vm_base = PROC_BASE; //wyc sa
 	newvmspace = vmspace_alloc(vm_base, umin, umax, pmap_pinit);
 	if (newvmspace == NULL)
 		return (ENOMEM);

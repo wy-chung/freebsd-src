@@ -348,7 +348,7 @@ post_execve(struct thread *td, int error, struct vmspace *oldvmspace)
  * avoid doing anything which they might need to undo (e.g., allocating
  * memory).
  */
-int
+int __attribute__((optnone)) //wycdebug
 kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
     struct vmspace *oldvmspace)
 {
@@ -1722,7 +1722,7 @@ WYC_PANIC();
 		destp -= execpath_len;
 		destp = rounddown2(destp, sizeof(void *));
 		imgp->execpathp = (void *)destp;
-		error = _copyout(imgp->execpath, imgp->execpathp, execpath_len);
+		error = copyout(imgp->execpath, imgp->execpathp, execpath_len);
 		if (error != 0)
 			return (error);
 	}
@@ -1733,7 +1733,7 @@ WYC_PANIC();
 	arc4rand(canary, sizeof(canary), 0);
 	destp -= sizeof(canary);
 	imgp->canary = (void *)destp;
-	error = _copyout(canary, imgp->canary, sizeof(canary));
+	error = copyout(canary, imgp->canary, sizeof(canary));
 	if (error != 0)
 		return (error);
 	imgp->canarylen = sizeof(canary);
@@ -1745,7 +1745,7 @@ WYC_PANIC();
 	destp -= imgp->pagesizeslen;
 	destp = rounddown2(destp, sizeof(void *));
 	imgp->pagesizes = (void *)destp;
-	error = _copyout(pagesizes, imgp->pagesizes, imgp->pagesizeslen);
+	error = copyout(pagesizes, imgp->pagesizes, imgp->pagesizeslen);
 	if (error != 0)
 		return (error);
 
@@ -1785,7 +1785,7 @@ WYC_PANIC();
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	error = _copyout(astringp, (void *)dstringp,
+	error = copyout(astringp, (void *)dstringp,
 	    ARG_MAX - imgp->args->stringspace);
 	if (error != 0)
 		return (error);
@@ -1794,15 +1794,15 @@ WYC_PANIC();
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
 	imgp->argv = vectp;
-	if (_suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
-	    _suword32(&arginfo->ps_nargvstr, argc) != 0)
+	if (suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
+	    suword32(&arginfo->ps_nargvstr, argc) != 0)
 		return (EFAULT);
 
 	/*
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		if (_suword(vectp++, dstringp) != 0)
+		if (suword(vectp++, dstringp) != 0)
 			return (EFAULT);
 		while (*astringp++ != 0)
 			dstringp++;
@@ -1810,12 +1810,12 @@ WYC_PANIC();
 	}
 
 	/* a null vector table pointer separates the argp's from the envp's */
-	if (_suword(vectp++, 0) != 0)
+	if (suword(vectp++, 0) != 0)
 		return (EFAULT);
 
 	imgp->envv = vectp;
-	if (_suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
-	    _suword32(&arginfo->ps_nenvstr, envc) != 0)
+	if (suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
+	    suword32(&arginfo->ps_nenvstr, envc) != 0)
 		return (EFAULT); // 14
 
 	/*
@@ -1830,7 +1830,7 @@ WYC_PANIC();
 	}
 
 	/* end of vector table is a null pointer */
-	if (_suword(vectp, 0) != 0)
+	if (suword(vectp, 0) != 0)
 		return (EFAULT);
 
 	if (imgp->auxargs) {

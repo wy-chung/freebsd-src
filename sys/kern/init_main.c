@@ -305,7 +305,7 @@ mi_startup(void) // < _start(locore.S)
 			printf("subsystem %x\n", last);
 		}
 		if (verbose) {
-#if defined(DDB)
+  #if defined(DDB)
 			const char *func, *data;
 
 			func = symbol_name((vm_offset_t)sip->func,
@@ -317,11 +317,11 @@ mi_startup(void) // < _start(locore.S)
 			else if (func != NULL)
 				printf("   %s(%p)... ", func, sip->udata);
 			else
-#endif
+  #endif // defined(DDB)
 				printf("   %p(%p)... ", sip->func,
 				    sip->udata);
 		}
-#endif
+#endif // defined(VERBOSE_SYSINIT)
 
 		/* Call function */
 		(*(sip->func))(sip->udata);
@@ -615,7 +615,6 @@ proc0_init(void *dummy __unused) // the swapper
 	p->p_stats = pstats_alloc();
 
 	/* Allocate a prototype map so we have something to fork. */
-	vmspace0.vm_base = 0; //wyc sa
 	p->p_vmspace = &vmspace0;
 	refcount_init(&vmspace0.vm_refcnt, 1);
 	pmap_pinit0(vmspace_pmap(&vmspace0));
@@ -728,7 +727,7 @@ SYSCTL_INT(_kern, OID_AUTO, init_shutdown_timeout,
  * Start the initial user process; try exec'ing each pathname in init_path.
  * The program is invoked with one argument containing the boot flags.
  */
-static void
+static void __attribute__((optnone)) //wycdebug
 start_init(void *dummy)
 {
 	struct image_args args;
@@ -817,7 +816,7 @@ start_init(void *dummy)
  * early to reserve pid 1.  Note special case - do not make it
  * runnable yet, init execution is started when userspace can be served.
  */
-static void
+static void __attribute__((optnone)) //wycdebug
 create_init(const void *udata __unused) // init process has pid 1
 {
 	struct fork_req fr;
@@ -826,6 +825,7 @@ create_init(const void *udata __unused) // init process has pid 1
 	int error;
 
 	bzero(&fr, sizeof(fr));
+		   // RFFDG | RFPROC /*fork*/
 	fr.fr_flags = RFFDG | RFPROC | RFSTOPPED;
 	fr.fr_procp = &initproc;
 	error = fork1(&thread0, &fr);

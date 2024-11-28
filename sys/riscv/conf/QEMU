@@ -19,3 +19,22 @@ options	INVARIANT_SUPPORT   # A prerequisite for INVARIANTS
 #options	WITNESS_SKIPSPIN
 
 nooptions	NUMA
+#nooptions	KTRACE
+nooptions	MAC
+
+nodevice	spibus
+nodevice	spigen
+nodevice	iicbus
+nodevice	iicoc
+
+nooptions 	USB_DEBUG		# enable debug msgs
+nodevice	ohci			# OHCI USB interface
+nodevice	uhci			# UHCI USB interface
+nodevice	ehci			# EHCI USB interface (USB 2.0)
+nodevice	xhci			# XHCI USB interface (USB 3.0)
+nodevice	usb			# USB Bus (required)
+nodevice	usbhid			# USB HID Transport
+nodevice	hkbd			# Keyboard
+nodevice	ukbd			# Keyboard
+nodevice	umass			# Disks/Mass storage - Requires scbus and da
+nodevice	uart_lowrisc
