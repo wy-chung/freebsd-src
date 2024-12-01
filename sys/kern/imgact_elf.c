@@ -646,14 +646,24 @@ WYC_PANIC(); // never runs here
 	return (KERN_SUCCESS);
 }
 
+static inline vm_offset_t get_abs_addr(vm_offset_t addr, vm_offset_t proc_base)
+{
+	addr |= proc_base; //wyc sa, should use '|' instead of '+'
+	if ((addr & ~(USER_MAX_ADDRESS-1)) != proc_base)
+		WYC_PANIC();
+
+	return addr;
+}
+
 static int __attribute__((optnone)) //wycdebug
 #if defined(WYC)
-elf64_load_section(
+elf64_load_section
 #else
-__elfN(load_section)(
+__elfN(load_section)
 #endif
-    struct image_params *imgp, vm_ooffset_t offset,
-    vm_offset_t uvmaddr, size_t memsz, size_t filsz, vm_prot_t prot) // u means relative user address
+    (struct image_params *imgp, vm_ooffset_t offset,
+    vm_offset_t uvmaddr,  // uvmaddr will sometimes be absolute virtual address
+    size_t memsz, size_t filsz, vm_prot_t prot)
 {
 	struct sf_buf *sf;
 	size_t map_len;
@@ -678,7 +688,7 @@ __elfN(load_section)(
 		uprintf("%s: truncated ELF file\n", __func__);
 		return (ENOEXEC);
 	}
-	vm_offset_t vmaddr = uvmaddr + imgp->proc->p_vmspace->vm_base; //wyc sa
+	vm_offset_t vmaddr = get_abs_addr(uvmaddr, imgp->proc->p_vmspace->vm_base);
 	object = imgp->object;
 	map = &imgp->proc->p_vmspace->vm_map;
 	map_addr = trunc_page(vmaddr);
@@ -807,8 +817,9 @@ __elfN(load_sections)
 		}
 	}
 
-	if (base_addrp != NULL)
-		*base_addrp = base_addr + imgp->proc->p_vmspace->vm_base; //wycdebug
+	if (base_addrp != NULL) {
+		*base_addrp = get_abs_addr(base_addr, imgp->proc->p_vmspace->vm_base);
+	}
 
 	return (0);
 }
@@ -825,7 +836,7 @@ __elfN(load_sections)
  * The "entry" reference parameter is out only.  On exit, it specifies
  * the entry point for the loaded file.
  */
-static int
+static int __attribute__((optnone)) //wycdebug
 #if defined(WYC)
 elf64_load_file
 #else
@@ -1061,9 +1072,9 @@ __elfN(enforce_limits)
 
 	vmspace = imgp->proc->p_vmspace;
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
-	vmspace->vm_taddr = text_uaddr + vmspace->vm_base; //wyc sa
+	vmspace->vm_taddr = get_abs_addr(text_uaddr, vmspace->vm_base);
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;
-	vmspace->vm_daddr = data_uaddr + vmspace->vm_base; //wyc sa
+	vmspace->vm_daddr = get_abs_addr(data_uaddr, vmspace->vm_base);
 
 	return (0);
 }
@@ -1134,7 +1145,7 @@ __elfN(get_interp)(struct image_params *imgp, const Elf_Phdr *phdr,
 	return (0);
 }
 
-static int
+static int __attribute__((optnone)) //wycdebug
 #if defined(WYC)
 elf64_load_interp
 #else
@@ -1145,9 +1156,9 @@ __elfN(load_interp)
 {
 	int error;
 
-	if (brand_info->interp_newpath != NULL &&
-	    (brand_info->interp_path == NULL ||
-	    strcmp(interp, brand_info->interp_path) == 0)) {
+	if (brand_info->interp_newpath != NULL && // false, interp_netpath == NULL
+	    (brand_info->interp_path == NULL || // interp_path == "/libexec/ld-elf.so.1"
+	    strcmp(interp, brand_info->interp_path) == 0)) { // false
 		error = __elfN(load_file)(imgp->proc,
 		    brand_info->interp_newpath, addr, entry);
 #if defined(WYC)
@@ -1156,10 +1167,9 @@ __elfN(load_interp)
 		if (error == 0)
 			return (0);
 	}
-#if defined(WYC)
-	error = elf64_load_file(imgp->proc, interp, addr, entry);
-#else
 	error = __elfN(load_file)(imgp->proc, interp, addr, entry);
+#if defined(WYC)
+	error = elf64_load_file();
 #endif
 	if (error == 0)
 		return (0);
@@ -1424,7 +1434,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	vmspace = imgp->proc->p_vmspace;
 	map = &vmspace->vm_map;
-	maxv = sv->sv_usrstack + vmspace->vm_base; //wyc sa
+	maxv = get_abs_addr(sv->sv_usrstack, vmspace->vm_base);
 	if ((imgp->map_flags & MAP_ASLR_STACK) == 0) //true
 		maxv -= lim_max(td, RLIMIT_STACK);
 	if (error == 0 && mapsz >= maxv - vm_map_min(map)) {
@@ -1470,7 +1480,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 */
 	addr = round_page((vm_offset_t)vmspace->vm_daddr + lim_max(td,
 	    RLIMIT_DATA));
-	if ((map->flags & MAP_ASLR) != 0) {
+	if ((map->flags & MAP_ASLR) != 0) { // false
 		maxv1 = maxv / 2 + addr / 2;
 		error = __CONCAT(rnd_, __elfN(base))(map, addr, maxv1,
 		    (MAXPAGESIZES > 1 && pagesizes[1] != 0) ?
@@ -1509,8 +1519,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		if (error != 0)
 			goto ret;
-	} else
-		addr = imgp->et_dyn_addr + vmspace->vm_base; //wycdebug
+	} else {
+		addr = get_abs_addr(imgp->et_dyn_addr, vmspace->vm_base);
+	}
 
 	error = exec_map_stack(imgp);
 	if (error != 0)

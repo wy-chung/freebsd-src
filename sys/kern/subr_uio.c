@@ -88,12 +88,11 @@ int _suword64(volatile void *base, int64_t word);
 int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval);
 int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
 
-#define UMAX USER_MAX_ADDRESS
-
-static inline void addr_check(vm_offset_t addr, vm_offset_t proc_base)
+static inline void __attribute__((optnone)) //wycdebug
+procbase_check(vm_offset_t addr, vm_offset_t proc_base)
 {
-	if ((addr & ~(UMAX-1)) != proc_base)
-		WYC_PANIC();
+	if ((addr & ~(USER_MAX_ADDRESS-1)) != proc_base)
+		panic("%s: %s %d\n", __func__, __FILE__, __LINE__);
 }
 
 int __attribute__((optnone))
@@ -103,7 +102,7 @@ copyinstr(const void * __restrict uaddr, void * _Nonnull __restrict kaddr,
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 
 	return _copyinstr(addr, kaddr, len, lencopied);
 }
@@ -114,7 +113,7 @@ copyin(const void * __restrict uaddr, void * _Nonnull __restrict kaddr, size_t l
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 
 	return _copyin(addr, kaddr, len);
 }
@@ -125,7 +124,7 @@ copyout(const void * _Nonnull __restrict kaddr, void * __restrict uaddr, size_t 
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 
 	return _copyout(kaddr, addr, len);
 
@@ -140,7 +139,7 @@ copyin_nofault(const void * __restrict uaddr, void * _Nonnull __restrict kaddr, 
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 
 	return _copyin_nofault(addr, kaddr, len);
 
@@ -152,7 +151,7 @@ copyout_nofault(const void * _Nonnull __restrict kaddr, void * __restrict uaddr,
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 
 	return _copyout_nofault(kaddr, addr, len);
 
@@ -187,7 +186,7 @@ fubyte(volatile const void *uaddr)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _fubyte((typeof(uaddr))addr);
 }
 
@@ -197,7 +196,7 @@ fuword16(volatile const void *uaddr)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _fuword16((typeof(uaddr))addr);
 }
 
@@ -207,7 +206,7 @@ fueword32(volatile const void *uaddr, int32_t *val)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _fueword32((typeof(uaddr))addr, val);
 }
 
@@ -220,7 +219,7 @@ fuword32(volatile const void *uaddr)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	rv = _fueword32((typeof(uaddr))addr, &val);
 	return (rv == -1 ? -1 : val);
 }
@@ -231,7 +230,7 @@ fueword64(volatile const void *uaddr, int64_t *val)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _fueword64((typeof(uaddr))addr, val);
 }
 
@@ -245,7 +244,7 @@ fuword64(volatile const void *uaddr)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	rv = _fueword64((typeof(uaddr))addr, &val);
 	return (rv == -1 ? -1 : val);
 }
@@ -257,7 +256,7 @@ fueword(volatile const void *uaddr, long *val)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _fueword((typeof(uaddr))addr, val);
 }
 
@@ -270,7 +269,7 @@ fuword(volatile const void *uaddr)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	rv = _fueword((typeof(uaddr))addr, &val);
 	return (rv == -1 ? -1 : val);
 }
@@ -282,7 +281,7 @@ subyte(volatile void *uaddr, int byte)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _subyte((typeof(uaddr))addr, byte);
 }
 
@@ -292,7 +291,7 @@ suword16(volatile void *uaddr, int word)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _suword16((typeof(uaddr))addr, word);
 }
 
@@ -302,7 +301,7 @@ suword32(volatile void *uaddr, int32_t word)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _suword32((typeof(uaddr))addr, word);
 }
 
@@ -312,7 +311,7 @@ suword(volatile void *uaddr, long word)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _suword((typeof(uaddr))addr, word);
 }
 
@@ -322,7 +321,7 @@ suword64(volatile void *uaddr, int64_t word)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _suword64((typeof(uaddr))addr, word);
 }
 
@@ -333,7 +332,7 @@ casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _casueword32((typeof(uaddr))addr, oldval, oldvalp, newval);
 }
 
@@ -346,7 +345,7 @@ casuword32(volatile uint32_t *uaddr, uint32_t old, uint32_t new)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	rv = _casueword32((typeof(uaddr))addr, old, &val, new);
 	return (rv == -1 ? -1 : val);
 }
@@ -357,7 +356,7 @@ casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	return _casueword((typeof(uaddr))uaddr, oldval, oldvalp, newval);
 }
 
@@ -370,7 +369,7 @@ casuword(volatile u_long *uaddr, u_long old, u_long new)
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
-	addr_check(addr, proc_base);
+	procbase_check(addr, proc_base);
 	rv = _casueword((typeof(uaddr))addr, old, &val, new);
 	return (rv == -1 ? -1 : val);
 }

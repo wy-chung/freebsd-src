@@ -696,7 +696,7 @@ _Static_assert(UCODE_PAGEFLT == T_PAGEFLT, "T_PAGEFLT");
  *	The map in question must be referenced, and remains so.
  *	Caller may hold no locks.
  */
-int
+int __attribute__((optnone)) //wycdebug
 vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, int *signo, int *ucode)
 {
@@ -742,7 +742,7 @@ vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 				 */
 				if (SV_CURPROC_ABI() == SV_ABI_FREEBSD &&
 				    curproc->p_osrel >= P_OSREL_SIGSEGV) {
-					*signo = SIGSEGV;	//wyc failed here. pid 17 (sh), jid 0, uid 0: exited on signal 11 (no core dump - other error)
+					*signo = SIGSEGV;
 					*ucode = SEGV_ACCERR;
 				} else {
 					*signo = SIGBUS;

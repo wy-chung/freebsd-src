@@ -14,6 +14,7 @@ options DDB
 options	GDB			# compile in support for the remote debugger
 options	INVARIANT_SUPPORT   # A prerequisite for INVARIANTS
 #options	INVARIANTS
+#options 	DIAGNOSTIC
 #options	KDB_UNATTENDED
 #options	WITNESS
 #options	WITNESS_SKIPSPIN

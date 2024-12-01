@@ -202,7 +202,7 @@ ecall_handler(void)
 	syscallret(td);
 }
 
-static void
+static void __attribute__((optnone)) //wycdebug
 page_fault_handler(struct trapframe *frame, bool usermode)
 {
 	struct _vm_map *map;
@@ -300,7 +300,7 @@ fatal:
 	panic("Fatal page fault at %#lx: %#lx", frame->tf_sepc, stval);
 }
 
-void
+void __attribute__((optnone)) //wycdebug
 do_trap_supervisor(struct trapframe *frame)
 {
 	uint64_t exception;
@@ -373,7 +373,7 @@ do_trap_supervisor(struct trapframe *frame)
 	}
 }
 
-void
+void __attribute__((optnone)) //wycdebug
 do_trap_user(struct trapframe *frame)
 {
 	uint64_t exception;
