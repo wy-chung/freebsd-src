@@ -333,7 +333,7 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 	return (EJUSTRETURN);
 }
 
-void
+void __attribute__((optnone)) //wycdebug
 sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct sigframe *fp, frame;
@@ -388,7 +388,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		/* Process has trashed its stack. Kill it. */
 		CTR2(KTR_SIG, "sendsig: sigexit td=%p fp=%p", td, fp);
 		PROC_LOCK(p);
-		sigexit(td, SIGILL);
+		sigexit(td, SIGILL); //wycdebug
 	}
 
 	tf->tf_a[0] = sig;

@@ -2653,7 +2653,7 @@ retryl3:
 	PMAP_UNLOCK(pmap);
 }
 
-bool
+bool __attribute__((optnone)) //wycdebug
 pmap_fault(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 {
 	pd_entry_t *l2, l2e;

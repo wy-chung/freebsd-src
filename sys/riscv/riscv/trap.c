@@ -82,7 +82,7 @@ int (*dtrace_invop_jump_addr)(struct trapframe *);
 void do_trap_supervisor(struct trapframe *);
 void do_trap_user(struct trapframe *);
 
-static __inline void
+static __inline void __attribute__((optnone)) //wycdebug
 call_trapsignal(struct thread *td, int sig, int code, void *addr, int trapno)
 {
 	ksiginfo_t ksi;
@@ -269,7 +269,7 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 	error = vm_fault_trap(map, va, ftype, VM_FAULT_NORMAL, &sig, &ucode);
 	if (error != KERN_SUCCESS) {
 		if (usermode) {
-			call_trapsignal(td, sig, ucode, (void *)stval,
+			call_trapsignal(td, sig, ucode, (void *)stval, //wycdebug
 			    frame->tf_scause & SCAUSE_CODE);
 		} else {
 			if (pcb->pcb_onfault != 0) {
@@ -421,7 +421,7 @@ do_trap_user(struct trapframe *frame)
 		break;
 	case SCAUSE_STORE_PAGE_FAULT:
 	case SCAUSE_LOAD_PAGE_FAULT:
-	case SCAUSE_INST_PAGE_FAULT:
+	case SCAUSE_INST_PAGE_FAULT: //wycdebug
 		page_fault_handler(frame, true);
 		break;
 	case SCAUSE_ECALL_USER:

@@ -2111,7 +2111,7 @@ postsig_done(int sig, struct thread *td, struct sigacts *ps)
  * caught immediately, deliver it with correct code.  Otherwise, post it
  * normally.
  */
-void
+void __attribute__((optnone)) //wycdebug
 trapsignal(struct thread *td, ksiginfo_t *ksi)
 {
 	struct sigacts *ps;
@@ -2139,6 +2139,9 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 #endif
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)],
 		    ksi, &td->td_sigmask);
+#if defined(WYC)
+		sendsig();
+#endif
 		postsig_done(sig, td, ps);
 		mtx_unlock(&ps->ps_mtx);
 	} else {
