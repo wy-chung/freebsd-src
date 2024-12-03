@@ -1170,11 +1170,11 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		sv_minuser = sv->sv_minuser;
 	else
 		sv_minuser = MAX(sv->sv_minuser, PAGE_SIZE);
-	vm_offset_t vm_base = vmspace->vm_base;
+	vm_offset_t proc_base = vmspace->vm_base;
 	if (refcount_load(&vmspace->vm_refcnt) == 1 && // fork
 	    cpu_exec_vmspace_reuse(p, map) && // return false
-	    vm_map_min(map) == sv_minuser + vm_base &&
-	    vm_map_max(map) == sv->sv_maxuser + vm_base) {
+	    vm_map_min(map) == sv_minuser + proc_base &&
+	    vm_map_max(map) == sv->sv_maxuser + proc_base) {
 WYC_PANIC();
 		exec_free_abi_mappings(p);
 		shmexit(vmspace);
@@ -1189,7 +1189,7 @@ WYC_PANIC();
 		    MAP_ASLR_IGNSTART | MAP_ASLR_STACK | MAP_WXORX);
 		vm_map_unlock(map);
 	} else {
-		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser); //wyc vm_base is set here
+		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser); //wyc proc_base is set here
 		if (error)
 			return (error);
 		vmspace = p->p_vmspace;
@@ -1243,7 +1243,7 @@ exec_map_stack(struct image_params *imgp)
 
 	vmspace = p->p_vmspace;
 	map = &vmspace->vm_map;
-	vm_offset_t vm_base = vmspace->vm_base;
+	vm_offset_t proc_base = vmspace->vm_base;
 
 	stack_prot = sv->sv_shared_page_obj != NULL && imgp->stack_prot != 0 ?
 	    imgp->stack_prot : sv->sv_stackprot;
@@ -1253,11 +1253,11 @@ WYC_PANIC();
 		    lim_max(curthread, RLIMIT_DATA));
 		find_space = VMFS_ANY_SPACE;
 	} else {
-		stack_addr = (sv->sv_usrstack - ssiz) + vm_base ; //wyc sa
+		stack_addr = (sv->sv_usrstack - ssiz) + proc_base ; //wyc sa
 		find_space = VMFS_NO_SPACE;
 	}
 	error = vm_map_find(map, NULL, 0, &stack_addr, (vm_size_t)ssiz,
-	    sv->sv_usrstack + vm_base, find_space, stack_prot, VM_PROT_ALL,
+	    sv->sv_usrstack + proc_base, find_space, stack_prot, VM_PROT_ALL,
 	    MAP_STACK_GROWS_DOWN);
 	if (error != KERN_SUCCESS) {
 		uprintf("exec_new_vmspace: mapping stack size %#jx prot %#x "
@@ -1297,7 +1297,7 @@ WYC_PANIC();
 		    lim_max(curthread, RLIMIT_DATA));
 
 		error = vm_map_fixed(map, NULL, 0,
-		    sv->sv_maxuser + vm_base - PAGE_SIZE, PAGE_SIZE,
+		    sv->sv_maxuser + proc_base - PAGE_SIZE, PAGE_SIZE,
 		    VM_PROT_NONE, VM_PROT_NONE, MAP_CREATE_GUARD);
 		if (error != KERN_SUCCESS) {
 			/*
@@ -1311,12 +1311,12 @@ WYC_PANIC();
 
 		error = vm_map_find(map, obj, 0,
 		    &sharedpage_addr, sv->sv_shared_page_len,
-		    sv->sv_maxuser + vm_base, VMFS_ANY_SPACE,
+		    sv->sv_maxuser + proc_base, VMFS_ANY_SPACE,
 		    VM_PROT_READ | VM_PROT_EXECUTE,
 		    VM_PROT_READ | VM_PROT_EXECUTE,
 		    MAP_INHERIT_SHARE | MAP_ACC_NO_CHARGE);
 	} else {
-		sharedpage_addr = sv->sv_shared_page_base + vm_base;
+		sharedpage_addr = sv->sv_shared_page_base + proc_base;
 		vm_map_fixed(map, obj, 0,
 		    sharedpage_addr, sv->sv_shared_page_len,
 		    VM_PROT_READ | VM_PROT_EXECUTE,
