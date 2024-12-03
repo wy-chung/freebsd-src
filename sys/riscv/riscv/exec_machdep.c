@@ -170,7 +170,7 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 	panic("set_dbregs");
 }
 
-void
+void __attribute__((optnone)) //wycdebug
 exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 {
 	struct trapframe *tf;

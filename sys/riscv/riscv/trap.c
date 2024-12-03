@@ -209,6 +209,8 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 	vm_prot_t ftype;
 	vm_offset_t va;
 	int error, sig, ucode;
+	uint64_t sepc;
+	uint64_t proc_base;
 #ifdef KDB
 	bool handled;
 #endif
@@ -255,12 +257,15 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 
 	va = trunc_page(stval);
 
-	if (frame->tf_scause == SCAUSE_STORE_PAGE_FAULT) {
+	if (frame->tf_scause == SCAUSE_STORE_PAGE_FAULT) { // 15
 		ftype = VM_PROT_WRITE;
-	} else if (frame->tf_scause == SCAUSE_INST_PAGE_FAULT) {
+	} else if (frame->tf_scause == SCAUSE_INST_PAGE_FAULT) { // 12
 		if (usermode) { //wyc sa
-			uint64_t sepc = frame->tf_sepc;
-			uint64_t proc_base = p->p_vmspace->vm_base;
+			sepc = frame->tf_sepc;
+			proc_base = p->p_vmspace->vm_base;
+			if ((sepc & ~(USER_MAX_ADDRESS-1)) != 0) {
+				printf("%s: sepc not zero\n", __func__);
+			}
 			if ((sepc | proc_base) != stval) {
 				printf("sepc %lx stval %lx\n", sepc, stval);
 				WYC_PANIC();
@@ -429,7 +434,7 @@ do_trap_user(struct trapframe *frame)
 		break;
 	case SCAUSE_STORE_PAGE_FAULT:
 	case SCAUSE_LOAD_PAGE_FAULT:
-	case SCAUSE_INST_PAGE_FAULT: //wycdebug
+	case SCAUSE_INST_PAGE_FAULT:
 		page_fault_handler(frame, true);
 		break;
 	case SCAUSE_ECALL_USER:

@@ -65,7 +65,12 @@ typedef struct {
 	Elf_Size	flags;
 	Elf_Size	entry;
 	Elf_Word	hdr_eflags;		/* e_flags field from ehdr */
-} __ElfN(Auxargs);
+}
+#if !defined(WYC)
+__ElfN(Auxargs);
+#else
+Elf64_Auxargs;
+#endif
 
 typedef struct {
 	Elf_Note	hdr;
@@ -93,10 +98,11 @@ typedef struct {
 	bool		(*header_supported)(struct image_params *,
 	    int32_t *, uint32_t *);
 		/* High 8 bits of flags is private to the ABI */
+}
 #if !defined(WYC)
-} __ElfN(Brandinfo);
+__ElfN(Brandinfo);
 #else
-} Elf_Brandinfo;
+Elf_Brandinfo;
 #endif
 
 __ElfType(Auxargs);

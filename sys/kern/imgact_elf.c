@@ -1195,11 +1195,12 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 #if defined(WYC)
 	const Elf64_Ehdr *hdr;
 	const Elf64_Phdr *phdr;
+	Elf64_Auxargs *elf_auxargs;
 #else
 	const Elf_Ehdr *hdr;
 	const Elf_Phdr *phdr;
-#endif
 	Elf_Auxargs *elf_auxargs;
+#endif
 	struct vmspace *vmspace;
 	vm_map_t map;
 	char *interp;
@@ -1546,7 +1547,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	elf_auxargs->entry = entry;
 	elf_auxargs->hdr_eflags = hdr->e_flags;
 
-	imgp->auxargs = elf_auxargs;
+	imgp->auxargs = elf_auxargs; // pass information from the loader to the stack fixup routine
 	imgp->interpreted = 0;
 	imgp->reloc_base = addr;
 	imgp->proc->p_osrel = osrel;

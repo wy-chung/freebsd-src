@@ -728,7 +728,7 @@ SYSCTL_INT(_kern, OID_AUTO, init_shutdown_timeout,
  * The program is invoked with one argument containing the boot flags.
  */
 static void __attribute__((optnone)) //wycdebug
-start_init(void *dummy)
+start_init(void *dummy) // < create_init
 {
 	struct image_args args;
 	int error;

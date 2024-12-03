@@ -88,7 +88,7 @@ int _suword64(volatile void *base, int64_t word);
 int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval);
 int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
 
-static inline vm_offset_t __attribute__((optnone)) //wycdebug
+static vm_offset_t __attribute__((optnone)) //wycdebug
 to_abs_addr(void *uaddr)
 {
 	struct thread *td = curthread;

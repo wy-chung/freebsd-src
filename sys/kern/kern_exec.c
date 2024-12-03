@@ -215,7 +215,7 @@ struct execve_args {
 };
 #endif
 
-int
+int __attribute__((optnone)) //wycdebug
 sys_execve(struct thread *td, struct execve_args *uap)
 {
 	struct image_args args;
