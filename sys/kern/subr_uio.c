@@ -89,7 +89,7 @@ int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, u
 int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
 
 static inline vm_offset_t __attribute__((optnone)) //wycdebug
-get_abs_addr_cur_proc(void *uaddr)
+to_abs_addr(void *uaddr)
 {
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
@@ -106,7 +106,7 @@ int __attribute__((optnone))
 copyinstr(const void * __restrict uaddr, void * _Nonnull __restrict kaddr,
     size_t len, size_t * __restrict lencopied)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 
 	return _copyinstr(addr, kaddr, len, lencopied);
 }
@@ -114,7 +114,7 @@ copyinstr(const void * __restrict uaddr, void * _Nonnull __restrict kaddr,
 int __attribute__((optnone))
 copyin(const void * __restrict uaddr, void * _Nonnull __restrict kaddr, size_t len)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 
 	return _copyin(addr, kaddr, len);
 }
@@ -122,7 +122,7 @@ copyin(const void * __restrict uaddr, void * _Nonnull __restrict kaddr, size_t l
 int __attribute__((optnone))
 copyout(const void * _Nonnull __restrict kaddr, void * __restrict uaddr, size_t len)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 
 	return _copyout(kaddr, addr, len);
 
@@ -134,7 +134,7 @@ int _copyout_nofault(const void *kaddr, vm_offset_t uaddr, size_t len);
 int __attribute__((optnone))
 copyin_nofault(const void * __restrict uaddr, void * _Nonnull __restrict kaddr, size_t len)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 
 	return _copyin_nofault(addr, kaddr, len);
 
@@ -143,7 +143,7 @@ copyin_nofault(const void * __restrict uaddr, void * _Nonnull __restrict kaddr, 
 int __attribute__((optnone))
 copyout_nofault(const void * _Nonnull __restrict kaddr, void * __restrict uaddr, size_t len)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 
 	return _copyout_nofault(kaddr, addr, len);
 
@@ -175,21 +175,21 @@ _copyout_nofault(const void *kaddr, vm_offset_t uaddr, size_t len)
 int __attribute__((optnone))
 fubyte(volatile const void *uaddr)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _fubyte((typeof(uaddr))addr);
 }
 
 int __attribute__((optnone))
 fuword16(volatile const void *uaddr)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _fuword16((typeof(uaddr))addr);
 }
 
 int __attribute__((optnone))
 fueword32(volatile const void *uaddr, int32_t *val)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _fueword32((typeof(uaddr))addr, val);
 }
 
@@ -199,7 +199,7 @@ fuword32(volatile const void *uaddr)
 	int rv;
 	int32_t val;
 
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	rv = _fueword32((typeof(uaddr))addr, &val);
 	return (rv == -1 ? -1 : val);
 }
@@ -207,7 +207,7 @@ fuword32(volatile const void *uaddr)
 int __attribute__((optnone))
 fueword64(volatile const void *uaddr, int64_t *val)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _fueword64((typeof(uaddr))addr, val);
 }
 
@@ -218,7 +218,7 @@ fuword64(volatile const void *uaddr)
 	int rv;
 	int64_t val;
 
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	rv = _fueword64((typeof(uaddr))addr, &val);
 	return (rv == -1 ? -1 : val);
 }
@@ -227,7 +227,7 @@ fuword64(volatile const void *uaddr)
 int __attribute__((optnone))
 fueword(volatile const void *uaddr, long *val)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _fueword((typeof(uaddr))addr, val);
 }
 
@@ -237,7 +237,7 @@ fuword(volatile const void *uaddr)
 	long val;
 	int rv;
 
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	rv = _fueword((typeof(uaddr))addr, &val);
 	return (rv == -1 ? -1 : val);
 }
@@ -246,35 +246,35 @@ fuword(volatile const void *uaddr)
 int __attribute__((optnone))
 subyte(volatile void *uaddr, int byte)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _subyte((typeof(uaddr))addr, byte);
 }
 
 int __attribute__((optnone))
 suword16(volatile void *uaddr, int word)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _suword16((typeof(uaddr))addr, word);
 }
 
 int __attribute__((optnone))
 suword32(volatile void *uaddr, int32_t word)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _suword32((typeof(uaddr))addr, word);
 }
 
 int __attribute__((optnone))
 suword(volatile void *uaddr, long word)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _suword((typeof(uaddr))addr, word);
 }
 
 int __attribute__((optnone))
 suword64(volatile void *uaddr, int64_t word)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _suword64((typeof(uaddr))addr, word);
 }
 
@@ -282,7 +282,7 @@ suword64(volatile void *uaddr, int64_t word)
 int __attribute__((optnone))
 casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _casueword32((typeof(uaddr))addr, oldval, oldvalp, newval);
 }
 
@@ -292,7 +292,7 @@ casuword32(volatile uint32_t *uaddr, uint32_t old, uint32_t new)
 	int rv;
 	uint32_t val;
 
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	rv = _casueword32((typeof(uaddr))addr, old, &val, new);
 	return (rv == -1 ? -1 : val);
 }
@@ -300,7 +300,7 @@ casuword32(volatile uint32_t *uaddr, uint32_t old, uint32_t new)
 int __attribute__((optnone))
 casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval)
 {
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	return _casueword((typeof(uaddr))addr/*bug uaddr*/, oldval, oldvalp, newval);
 }
 
@@ -310,7 +310,7 @@ casuword(volatile u_long *uaddr, u_long old, u_long new)
 	int rv;
 	u_long val;
 
-	vm_offset_t addr = get_abs_addr_cur_proc(__DEQUALIFY(void *, uaddr));
+	vm_offset_t addr = to_abs_addr(__DEQUALIFY(void *, uaddr));
 	rv = _casueword((typeof(uaddr))addr, old, &val, new);
 	return (rv == -1 ? -1 : val);
 }

@@ -258,6 +258,14 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 	if (frame->tf_scause == SCAUSE_STORE_PAGE_FAULT) {
 		ftype = VM_PROT_WRITE;
 	} else if (frame->tf_scause == SCAUSE_INST_PAGE_FAULT) {
+		if (usermode) { //wyc sa
+			uint64_t sepc = frame->tf_sepc;
+			uint64_t proc_base = p->p_vmspace->vm_base;
+			if ((sepc | proc_base) != stval) {
+				printf("sepc %lx stval %lx\n", sepc, stval);
+				WYC_PANIC();
+			}
+		}
 		ftype = VM_PROT_EXECUTE;
 	} else {
 		ftype = VM_PROT_READ;
