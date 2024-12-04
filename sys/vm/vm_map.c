@@ -2131,7 +2131,7 @@ vm_map_find_aligned(vm_map_t map, vm_offset_t *addr, vm_size_t length,
  */
 int
 vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-    vm_offset_t *addr,	/* IN/OUT */
+    vm_offset_t *addr/* IN/OUT */, // an absolute address
     vm_size_t length, vm_offset_t max_addr, int find_space,
     vm_prot_t prot, vm_prot_t max, int cow)
 {
@@ -2146,7 +2146,7 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 
 int
 vm_map_find_locked(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-    vm_offset_t *addr,	/* IN/OUT */
+    vm_offset_t *addr/* IN/OUT */, // an absolute address
     vm_size_t length, vm_offset_t max_addr, int find_space,
     vm_prot_t prot, vm_prot_t max, int cow)
 {
@@ -4363,18 +4363,18 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm_offset_t proc_base = USER_MAX_ADDRESS * p2_pid; //wyc sa
-	vm_offset_t umin = (vm_map_min(old_map) & (USER_MAX_ADDRESS - 1));
-	vm_offset_t umax = ((vm_map_max(old_map) - 1) & (USER_MAX_ADDRESS - 1)) + 1;
+	vm_offset_t proc_base = USER_MAX_ADDRESS * 5;//p2_pid; //wyc sa
+	vm_offset_t umin = to_user_addr(vm_map_min(old_map));
+	vm_offset_t umax = to_user_addr(vm_map_max(old_map) - 1) + 1;
 	vm2 = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (vm2 == NULL)
 		return (NULL);
 
-	vm2->vm_taddr = proc_base + (vm1->vm_taddr & (USER_MAX_ADDRESS - 1));
-	vm2->vm_daddr = proc_base + (vm1->vm_daddr & (USER_MAX_ADDRESS - 1));
-	vm2->vm_shp_base = proc_base + (vm1->vm_shp_base & (USER_MAX_ADDRESS - 1));
-	vm2->vm_stacktop = proc_base + (vm1->vm_stacktop & (USER_MAX_ADDRESS - 1));
-	vm2->vm_maxsaddr = proc_base + ((vm1->vm_maxsaddr - 1) & (USER_MAX_ADDRESS - 1)) + 1;
+	vm2->vm_taddr = proc_base + to_user_addr(vm1->vm_taddr);
+	vm2->vm_daddr = proc_base + to_user_addr(vm1->vm_daddr);
+	vm2->vm_shp_base = proc_base + to_user_addr(vm1->vm_shp_base);
+	vm2->vm_stacktop = proc_base + to_user_addr(vm1->vm_stacktop);
+	vm2->vm_maxsaddr = proc_base + to_user_addr(vm1->vm_maxsaddr - 1) + 1;
 
 	vm_map_lock(old_map);
 	if (old_map->busy)
@@ -4965,7 +4965,7 @@ vmspace_exec(struct proc *p, vm_offset_t umin, vm_offset_t umax)
 
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
-	vm_offset_t proc_base = USER_MAX_ADDRESS * p->p_pid; //wyc sa
+	vm_offset_t proc_base = USER_MAX_ADDRESS * 5;//p->p_pid; //wyc sa
 	newvmspace = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (newvmspace == NULL)
 		return (ENOMEM);

@@ -221,6 +221,11 @@
 
 #define	VM_EARLY_DTB_ADDRESS	(VM_MAX_KERNEL_ADDRESS - (2 * L2_SIZE))
 
+static inline vm_offset_t to_user_addr(vm_offset_t addr)
+{
+	return addr & (USER_MAX_ADDRESS-1);
+}
+
 /*
  * How many physical pages per kmem arena virtual page.
  */
