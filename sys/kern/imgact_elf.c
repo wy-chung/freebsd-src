@@ -818,7 +818,7 @@ __elfN(load_sections)
 	}
 
 	if (base_addrp != NULL) {
-		*base_addrp = get_abs_addr(base_addr, imgp->proc->p_vmspace->vm_base);
+		*base_addrp = base_addr;
 	}
 
 	return (0);
@@ -1434,7 +1434,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	vmspace = imgp->proc->p_vmspace;
 	map = &vmspace->vm_map;
-	maxv = get_abs_addr(sv->sv_usrstack, vmspace->vm_base);
+	maxv = sv->sv_usrstack;
 	if ((imgp->map_flags & MAP_ASLR_STACK) == 0) //true
 		maxv -= lim_max(td, RLIMIT_STACK);
 	if (error == 0 && mapsz >= maxv - vm_map_min(map)) {
@@ -1520,7 +1520,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		if (error != 0)
 			goto ret;
 	} else {
-		addr = get_abs_addr(imgp->et_dyn_addr, vmspace->vm_base);
+		addr = imgp->et_dyn_addr;
 	}
 
 	error = exec_map_stack(imgp);
