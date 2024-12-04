@@ -261,14 +261,16 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 		ftype = VM_PROT_WRITE;
 	} else if (frame->tf_scause == SCAUSE_INST_PAGE_FAULT) { // 12
 		if (usermode) { //wyc sa
+			bool cont = true;
 			sepc = frame->tf_sepc;
 			proc_base = p->p_vmspace->vm_base;
 			if ((sepc & ~(USER_MAX_ADDRESS-1)) != 0) {
-				printf("%s: sepc not zero\n", __func__);
+				printf("%s: sepc %lx not zero. proc_base %lx\n", __func__, sepc, proc_base);
+				WYC_ASSERT(cont);
 			}
 			if ((sepc | proc_base) != stval) {
 				printf("sepc %lx stval %lx\n", sepc, stval);
-				WYC_PANIC();
+				WYC_ASSERT(cont);
 			}
 		}
 		ftype = VM_PROT_EXECUTE;

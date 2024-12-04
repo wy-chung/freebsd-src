@@ -1195,12 +1195,11 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 #if defined(WYC)
 	const Elf64_Ehdr *hdr;
 	const Elf64_Phdr *phdr;
-	Elf64_Auxargs *elf_auxargs;
 #else
 	const Elf_Ehdr *hdr;
 	const Elf_Phdr *phdr;
-	Elf_Auxargs *elf_auxargs;
 #endif
+	Elf_Auxargs *elf_auxargs;
 	struct vmspace *vmspace;
 	vm_map_t map;
 	char *interp;
@@ -1547,7 +1546,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	elf_auxargs->entry = entry;
 	elf_auxargs->hdr_eflags = hdr->e_flags;
 
-	imgp->auxargs = elf_auxargs; // pass information from the loader to the stack fixup routine
+	imgp->auxargs = elf_auxargs; // information from the loader to the stack fixup routine
 	imgp->interpreted = 0;
 	imgp->reloc_base = addr;
 	imgp->proc->p_osrel = osrel;
@@ -1572,7 +1571,7 @@ __elfN(freebsd_copyout_auxargs)
 (struct image_params *imgp, uintptr_t base)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
-	Elf_Auxinfo *argarray, *pos;
+	Elf64_Auxinfo *argarray, *pos; //ori Elf_Auxinfo
 	struct vmspace *vmspace;
 	rlim_t stacksz;
 	int error, oc;
@@ -2836,7 +2835,7 @@ __elfN(note_procstat_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 	p = arg;
 	if (sb == NULL) {
 		size = 0;
-		sb = sbuf_new(NULL, NULL, AT_COUNT * sizeof(Elf_Auxinfo),
+		sb = sbuf_new(NULL, NULL, AT_COUNT * sizeof(Elf64_Auxinfo), //ori Elf_Auxinfo
 		    SBUF_FIXEDLEN);
 		sbuf_set_drain(sb, sbuf_count_drain, &size);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
@@ -2847,7 +2846,7 @@ __elfN(note_procstat_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 		sbuf_delete(sb);
 		*sizep = size;
 	} else {
-		structsize = sizeof(Elf_Auxinfo);
+		structsize = sizeof(Elf64_Auxinfo); //ori Elf_Auxinfo
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
 		PHOLD(p);
 		proc_getauxv(curthread, p, sb);

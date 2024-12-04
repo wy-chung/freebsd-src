@@ -69,7 +69,7 @@ typedef struct {
 #if !defined(WYC)
 __ElfN(Auxargs);
 #else
-Elf64_Auxargs;
+Elf_Auxargs;
 #endif
 
 typedef struct {

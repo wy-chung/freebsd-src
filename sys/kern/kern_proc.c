@@ -1934,7 +1934,7 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
     size_t *vsizep, enum proc_vector_type type)
 {
 	struct ps_strings pss;
-	Elf_Auxinfo aux;
+	Elf64_Auxinfo aux; //ori Elf_Auxinfo
 	vm_offset_t vptr, ptr;
 	char **proc_vector;
 	size_t vsize, size;
@@ -2094,7 +2094,7 @@ proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb)
 			size = vsize * sizeof(Elf32_Auxinfo);
 		else
 #endif
-			size = vsize * sizeof(Elf_Auxinfo);
+			size = vsize * sizeof(Elf64_Auxinfo); //ori Elf_Auxinfo
 		if (sbuf_bcat(sb, auxv, size) != 0)
 			error = ENOMEM;
 		free(auxv, M_TEMP);

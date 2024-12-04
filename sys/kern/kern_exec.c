@@ -1761,7 +1761,7 @@ WYC_PANIC();
 		 * Allocate room on the stack for the ELF auxargs
 		 * array.  It has up to AT_COUNT entries.
 		 */
-		destp -= AT_COUNT * sizeof(Elf_Auxinfo);
+		destp -= AT_COUNT * sizeof(Elf64_Auxinfo); //ori Elf_Auxinfo
 		destp = rounddown2(destp, sizeof(void *));
 	}
 
