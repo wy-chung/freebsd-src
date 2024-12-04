@@ -1173,8 +1173,8 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	vm_offset_t proc_base = vmspace->vm_base;
 	if (refcount_load(&vmspace->vm_refcnt) == 1 && // fork
 	    cpu_exec_vmspace_reuse(p, map) && // return false
-	    vm_map_min(map) == sv_minuser + proc_base &&
-	    vm_map_max(map) == sv->sv_maxuser + proc_base) {
+	    vm_map_min(map) == proc_base + sv_minuser &&
+	    vm_map_max(map) == proc_base + sv->sv_maxuser) {
 WYC_PANIC();
 		exec_free_abi_mappings(p);
 		shmexit(vmspace);
