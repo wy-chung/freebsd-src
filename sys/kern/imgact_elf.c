@@ -648,6 +648,7 @@ WYC_PANIC(); // never runs here
 
 static inline vm_offset_t get_abs_addr(vm_offset_t addr, vm_offset_t proc_base)
 {
+	// addr might be an absolute address when called from elf64_load_file
 	addr |= proc_base; //wyc sa, should use '|' instead of '+'
 	if ((addr & ~(USER_MAX_ADDRESS-1)) != proc_base)
 		WYC_PANIC();
@@ -753,7 +754,7 @@ __elfN(load_section)
 			return (EIO);
 
 		/* send the page fragment to user space */
-		error = copyout((caddr_t)sf_buf_kva(sf), (caddr_t)map_addr,
+		error = copyout((caddr_t)sf_buf_kva(sf), (caddr_t)map_addr, // absolute addr
 		    copy_len);
 		vm_imgact_unmap_page(sf);
 		if (error != 0)
@@ -907,9 +908,9 @@ __elfN(load_file)
 	if ((error = __elfN(check_header)(hdr)) != 0)
 #endif
 		goto fail;
-	if (hdr->e_type == ET_DYN)
+	if (hdr->e_type == ET_DYN) // 3
 		rbase = *addr;
-	else if (hdr->e_type == ET_EXEC)
+	else if (hdr->e_type == ET_EXEC) // 2
 		rbase = 0;
 	else {
 		error = ENOEXEC;

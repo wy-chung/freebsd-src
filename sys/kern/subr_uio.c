@@ -91,9 +91,10 @@ int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long ne
 static vm_offset_t __attribute__((optnone)) //wycdebug
 to_abs_addr(void *uaddr)
 {
+	// uaddr might be an absolute address when called from elf64_load_section() or exec_copyout_strings()
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
-	vm_offset_t addr = (vm_offset_t)uaddr | proc_base;
+	vm_offset_t addr = (vm_offset_t)uaddr | proc_base; // should use '|' instead of '+'
 	if ((addr & ~(USER_MAX_ADDRESS-1)) != proc_base) {
 		//addr = (vm_offset_t)uaddr;
 		panic("%s: %s %d\n", __func__, __FILE__, __LINE__);

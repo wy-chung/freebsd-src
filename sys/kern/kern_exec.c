@@ -1721,7 +1721,7 @@ WYC_PANIC();
 		execpath_len = strlen(imgp->execpath) + 1;
 		destp -= execpath_len;
 		destp = rounddown2(destp, sizeof(void *));
-		imgp->execpathp = (void *)destp;
+		imgp->execpathp = (void *)destp; // absolute addr
 		error = copyout(imgp->execpath, imgp->execpathp, execpath_len);
 		if (error != 0)
 			return (error);
@@ -1732,7 +1732,7 @@ WYC_PANIC();
 	 */
 	arc4rand(canary, sizeof(canary), 0);
 	destp -= sizeof(canary);
-	imgp->canary = (void *)destp;
+	imgp->canary = (void *)destp; // absolute addr
 	error = copyout(canary, imgp->canary, sizeof(canary));
 	if (error != 0)
 		return (error);
@@ -1744,7 +1744,7 @@ WYC_PANIC();
 	imgp->pagesizeslen = sizeof(pagesizes[0]) * MAXPAGESIZES;
 	destp -= imgp->pagesizeslen;
 	destp = rounddown2(destp, sizeof(void *));
-	imgp->pagesizes = (void *)destp;
+	imgp->pagesizes = (void *)destp; // absolute addr
 	error = copyout(pagesizes, imgp->pagesizes, imgp->pagesizeslen);
 	if (error != 0)
 		return (error);
@@ -1785,7 +1785,7 @@ WYC_PANIC();
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	error = copyout(astringp, (void *)dstringp,
+	error = copyout(astringp, (void *)dstringp, // absolute addr
 	    ARG_MAX - imgp->args->stringspace);
 	if (error != 0)
 		return (error);
