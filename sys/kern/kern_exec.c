@@ -387,7 +387,6 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
 {
 	struct nameidata nd;
 	struct ucred *oldcred;
-	uintptr_t stack_base;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
 #ifdef KTRACE
@@ -739,6 +738,7 @@ interpret:
 	/*
 	 * Copy out strings (args and env) and initialize stack base.
 	 */
+	uintptr_t stack_base;
 	error = (*p->p_sysent->sv_copyout_strings)(imgp, &stack_base);
 #if defined(WYC)
 	error = exec_copyout_strings();
@@ -1172,9 +1172,9 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		sv_minuser = MAX(sv->sv_minuser, PAGE_SIZE);
 	vm_offset_t proc_base = vmspace->vm_base;
 	if (refcount_load(&vmspace->vm_refcnt) == 1 && // fork
-	    cpu_exec_vmspace_reuse(p, map) && // return false
 	    vm_map_min(map) == proc_base + sv_minuser &&
-	    vm_map_max(map) == proc_base + sv->sv_maxuser) {
+	    vm_map_max(map) == proc_base + sv->sv_maxuser &&
+	    cpu_exec_vmspace_reuse(p, map)) { // currently return false
 WYC_PANIC();
 		exec_free_abi_mappings(p);
 		shmexit(vmspace);

@@ -887,7 +887,7 @@ vm_fault_readahead(struct faultstate *fs)
 	return (nera);
 }
 
-static int
+static int __attribute__((optnone)) //wycdebug
 vm_fault_lookup(struct faultstate *fs)
 {
 	int result;
@@ -1528,7 +1528,7 @@ vm_fault_object(struct faultstate *fs, int *behindp, int *aheadp)
 	return (res);
 }
 
-int
+int __attribute__((optnone)) //wycdebug
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold)
 {

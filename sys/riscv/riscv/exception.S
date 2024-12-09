@@ -99,6 +99,10 @@
 	li	t0, 0
 	csrw	sscratch, t0
 	csrr	t0, sepc
+.if \mode == 0	//wyc sa, came from userspace
+	li	t1, 0xffffffff
+	and	t0, t0, t1
+.endif
 	sd	t0, (TF_SEPC)(sp)
 	csrr	t0, sstatus
 	sd	t0, (TF_SSTATUS)(sp)
@@ -111,7 +115,7 @@
 	sd	t0, (TF_STVAL)(sp)
 	csrr	t0, scause
 	sd	t0, (TF_SCAUSE)(sp)
-.endm
+.endm // save_registers
 
 .macro load_registers mode
 	ld	t0, (TF_SSTATUS)(sp)
@@ -179,7 +183,7 @@
 	ld	a7, (TF_A + 7 * 8)(sp)
 
 	addi	sp, sp, (TF_SIZE)
-.endm
+.endm // load_registers
 
 .macro	do_ast
 	/* Disable interrupts */
