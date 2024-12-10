@@ -1496,7 +1496,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		map->anon_loc = addr;
 	}
 
-	entry = (u_long)hdr->e_entry + imgp->et_dyn_addr;
+	entry = to_user_addr((u_long)hdr->e_entry + imgp->et_dyn_addr);
 	imgp->entry_addr = entry;
 
 	if (interp != NULL) {
@@ -1521,7 +1521,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		if (error != 0)
 			goto ret;
 	} else {
-		addr = imgp->et_dyn_addr;
+		addr = to_user_addr(imgp->et_dyn_addr);
 	}
 
 	error = exec_map_stack(imgp);

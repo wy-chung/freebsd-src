@@ -97,7 +97,8 @@ to_abs_addr(void *uaddr)
 	vm_offset_t addr = (vm_offset_t)uaddr | proc_base; // should use '|' instead of '+'
 	if ((addr & ~(USER_MAX_ADDRESS-1)) != proc_base) {
 		//addr = (vm_offset_t)uaddr;
-		panic("%s: %s %d\n", __func__, __FILE__, __LINE__);
+		printf("addr %lx uaddr %lx proc_base %lx\n", addr, (vm_offset_t)uaddr, proc_base);
+		WYC_PANIC();
 	}
 
 	return addr;

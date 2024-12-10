@@ -1401,9 +1401,9 @@ vm_map_splay(vm_map_t map, vm_offset_t addr)
  *	entries already mapped.
  */
 static void
-vm_map_entry_link(vm_map_t map, vm_map_entry_t entry)
+vm_map_entry_link(vm_map_t map, struct vm_map_entry *entry)
 {
-	vm_map_entry_t header, llist, rlist, root;
+	struct vm_map_entry *header, *llist, *rlist, *root;
 	vm_size_t max_free_left, max_free_right;
 
 	CTR3(KTR_VM,
@@ -4356,14 +4356,14 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 	struct vmspace *vm1 = p1->p_vmspace;
 	struct vmspace *vm2;
 	vm_map_t new_map, old_map;
-	vm_map_entry_t new_entry, old_entry;
+	struct vm_map_entry *new_entry, *old_entry;
 	vm_object_t object;
 	int error, locked __diagused;
 	vm_inherit_t inh;
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm_offset_t proc_base = USER_MAX_ADDRESS * 5;//p2_pid; //wyc sa
+	vm_offset_t proc_base = USER_MAX_ADDRESS * p2_pid; //wyc sa
 	vm_offset_t umin = to_user_addr(vm_map_min(old_map));
 	vm_offset_t umax = to_user_addr(vm_map_max(old_map) - 1) + 1;
 	vm2 = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
@@ -4479,6 +4479,8 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
+			new_entry->start = proc_base + to_user_addr(old_entry->start);	//wyc sa
+			new_entry->end = proc_base + to_user_addr(old_entry->end-1)+1;	//wyc sa
 			new_entry->eflags &= ~(MAP_ENTRY_USER_WIRED |
 			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wiring_thread = NULL;
@@ -4511,6 +4513,8 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
+			new_entry->start = proc_base + to_user_addr(old_entry->start);	//wyc sa
+			new_entry->end = proc_base + to_user_addr(old_entry->end-1)+1;	//wyc sa
 			/*
 			 * Copied entry is COW over the old object.
 			 */
@@ -4535,8 +4539,8 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 			new_entry = vm_map_entry_create(new_map);
 			memset(new_entry, 0, sizeof(*new_entry));
 
-			new_entry->start = old_entry->start;
-			new_entry->end = old_entry->end;
+			new_entry->start = proc_base + to_user_addr(old_entry->start);	//wyc sa
+			new_entry->end = proc_base + to_user_addr(old_entry->end-1)+1;	//wyc sa
 			new_entry->eflags = old_entry->eflags &
 			    ~(MAP_ENTRY_USER_WIRED | MAP_ENTRY_IN_TRANSITION |
 			    MAP_ENTRY_WRITECNT | MAP_ENTRY_VN_EXEC |
@@ -4965,7 +4969,7 @@ vmspace_exec(struct proc *p, vm_offset_t umin, vm_offset_t umax)
 
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
-	vm_offset_t proc_base = USER_MAX_ADDRESS * 5;//p->p_pid; //wyc sa
+	vm_offset_t proc_base = USER_MAX_ADDRESS * p->p_pid; //wyc sa
 	newvmspace = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (newvmspace == NULL)
 		return (ENOMEM);
@@ -5044,7 +5048,7 @@ vmspace_unshare(struct proc *p)
  *	copying operations, although the data referenced will
  *	remain the same.
  */
-int
+int __attribute__((optnone)) //wycdebug
 vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	      vm_offset_t vaddr,
 	      vm_prot_t fault_typea,
