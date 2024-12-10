@@ -4363,7 +4363,7 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm_offset_t proc_base = USER_MAX_ADDRESS * p2_pid; //wyc sa
+	vm_offset_t proc_base = USER_MAX_ADDRESS * 5;//p2_pid; //wyc sa
 	vm_offset_t umin = to_user_addr(vm_map_min(old_map));
 	vm_offset_t umax = to_user_addr(vm_map_max(old_map) - 1) + 1;
 	vm2 = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
@@ -4969,7 +4969,7 @@ vmspace_exec(struct proc *p, vm_offset_t umin, vm_offset_t umax)
 
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
-	vm_offset_t proc_base = USER_MAX_ADDRESS * p->p_pid; //wyc sa
+	vm_offset_t proc_base = USER_MAX_ADDRESS * 5;//p->p_pid; //wyc sa
 	newvmspace = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (newvmspace == NULL)
 		return (ENOMEM);

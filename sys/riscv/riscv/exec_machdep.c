@@ -181,10 +181,10 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 
 	memset(tf, 0, sizeof(struct trapframe));
 
-	tf->tf_a[0] = to_user_addr(stack);
-	tf->tf_sp = to_user_addr(STACKALIGN(stack));
-	tf->tf_ra = to_user_addr(imgp->entry_addr);
-	tf->tf_sepc = to_user_addr(imgp->entry_addr);
+	tf->tf_a[0] = stack;
+	tf->tf_sp = STACKALIGN(stack);
+	tf->tf_ra = imgp->entry_addr;
+	tf->tf_sepc = imgp->entry_addr;
 
 	pcb->pcb_fpflags &= ~PCB_FP_STARTED;
 }

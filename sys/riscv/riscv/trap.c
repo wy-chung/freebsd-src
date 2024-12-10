@@ -257,15 +257,11 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 		ftype = VM_PROT_WRITE;
 	} else if (frame->tf_scause == SCAUSE_INST_PAGE_FAULT) { // 12
 		if (usermode) { //wyc sa
-			static int cont = 0;
+			static int cont = false;
 			sepc = frame->tf_sepc;
 			proc_base = p->p_vmspace->vm_base;
-			if ((sepc & (USER_MAX_ADDRESS-1)) != (stval & (USER_MAX_ADDRESS-1))) {
+			if ((sepc | proc_base) != stval) {
 				printf("sepc %lx stval %lx\n", sepc, stval);
-				WYC_ASSERT(cont);
-			}
-			if ((stval & ~(USER_MAX_ADDRESS-1)) != (proc_base & ~(USER_MAX_ADDRESS-1))) {
-				printf("stval %lx proc_base %lx\n", stval, proc_base);
 				WYC_ASSERT(cont);
 			}
 		}
@@ -279,7 +275,7 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 		goto done;
 
 	error = vm_fault_trap(map, va, ftype, VM_FAULT_NORMAL, &sig, &ucode);
-	if (error != KERN_SUCCESS) { // 1, KERN_INVALID_ADDRESS
+	if (error != KERN_SUCCESS) {
 		if (usermode) {
 			call_trapsignal(td, sig, ucode, (void *)stval, //wycdebug
 			    frame->tf_scause & SCAUSE_CODE);

@@ -99,10 +99,6 @@
 	li	t0, 0
 	csrw	sscratch, t0
 	csrr	t0, sepc
-.if \mode == 0	//wyc sa, came from userspace
-	li	t1, 0xffffffff
-	and	t0, t0, t1
-.endif
 	sd	t0, (TF_SEPC)(sp)
 	csrr	t0, sstatus
 	sd	t0, (TF_SSTATUS)(sp)
@@ -135,6 +131,10 @@
 	csrw	sstatus, t0
 
 	ld	t0, (TF_SEPC)(sp)
+.if \mode == 0	/* We came from userspace. */
+//	slli	t0, t0, 32
+//	srli	t0, t0, 32
+.endif
 	csrw	sepc, t0
 
 .if \mode == 0
