@@ -4373,8 +4373,8 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 	vm2->vm_taddr = proc_base + to_user_addr(vm1->vm_taddr);
 	vm2->vm_daddr = proc_base + to_user_addr(vm1->vm_daddr);
 	vm2->vm_shp_base = proc_base + to_user_addr(vm1->vm_shp_base);
-	vm2->vm_stacktop = proc_base + to_user_addr(vm1->vm_stacktop);
-	vm2->vm_maxsaddr = proc_base + to_user_addr(vm1->vm_maxsaddr - 1) + 1;
+	vm2->vm_stacktop = proc_base + to_user_addr(vm1->vm_stacktop - 1) + 1;
+	vm2->vm_maxsaddr = proc_base + to_user_addr(vm1->vm_maxsaddr);
 
 	vm_map_lock(old_map);
 	if (old_map->busy)

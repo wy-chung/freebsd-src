@@ -369,9 +369,9 @@ END(cpu_switch)
  */
 
 ENTRY(fork_trampoline)
-	mv	a0, s0
-	mv	a1, s1
-	mv	a2, sp
+	mv	a0, s0 // fork_return
+	mv	a1, s1 // td2
+	mv	a2, sp // td2->td_frame
 	call	_C_LABEL(fork_exit) // fork_exit(fork_return, td2, frame)
 
 	/* Restore sstatus */
@@ -418,14 +418,14 @@ ENTRY(fork_trampoline)
 
 	/* Load user ra and gp */
 	ld	ra, (TF_RA)(sp)
-	ld	gp, (TF_GP)(sp)
+	ld	gp, (TF_GP)(sp) // global pointer
 
 	/*
 	 * Store our pcpup on stack, we will load it back
 	 * on kernel mode trap.
 	 */
 	sd	tp, (TF_SIZE)(sp)
-	ld	tp, (TF_TP)(sp)
+	ld	tp, (TF_TP)(sp) // thread local storage pointer
 
 	/* Save kernel stack so we can use it doing a user trap */
 	addi	sp, sp, TF_SIZE

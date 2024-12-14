@@ -89,19 +89,21 @@ int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, u
 int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
 
 static vm_offset_t __attribute__((optnone)) //wycdebug
-to_abs_addr(void *uaddr)
+to_abs_addr(void *uaddr) // uaddr might be an absolute address when called from elf64_load_section() or exec_copyout_strings()
 {
-	// uaddr might be an absolute address when called from elf64_load_section() or exec_copyout_strings()
 	struct thread *td = curthread;
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
-	vm_offset_t addr = (vm_offset_t)uaddr | proc_base; // should use '|' instead of '+'
-	if ((addr & ~(USER_MAX_ADDRESS-1)) != proc_base) {
-		//addr = (vm_offset_t)uaddr;
-		printf("addr %lx uaddr %lx proc_base %lx\n", addr, (vm_offset_t)uaddr, proc_base);
-		WYC_PANIC();
+	vm_offset_t addr;
+	if (((vm_offset_t)uaddr & ~(USER_MAX_ADDRESS-1)) == 0)
+		return (vm_offset_t)uaddr | proc_base;
+	if (((vm_offset_t)uaddr & ~(USER_MAX_ADDRESS-1)) != proc_base) {
+		addr = ((vm_offset_t)uaddr & (USER_MAX_ADDRESS-1)) | proc_base;
+		printf("%s: addr %lx uaddr %lx proc_base %lx\n",
+		    __func__, addr, (vm_offset_t)uaddr, proc_base);
+		static int conti = true;
+		WYC_ASSERT(conti);
 	}
-
-	return addr;
+	return (vm_offset_t)uaddr;
 }
 
 int __attribute__((optnone))

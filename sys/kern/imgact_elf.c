@@ -646,7 +646,8 @@ WYC_PANIC(); // never runs here
 	return (KERN_SUCCESS);
 }
 
-static inline vm_offset_t get_abs_addr(vm_offset_t addr, vm_offset_t proc_base)
+static inline __attribute__((optnone)) //wycdebug
+vm_offset_t get_abs_addr(vm_offset_t addr, vm_offset_t proc_base)
 {
 	// addr might be an absolute address when called from elf64_load_file
 	addr |= proc_base; //wyc sa, should use '|' instead of '+'

@@ -228,7 +228,7 @@ sys_execve(struct thread *td, struct execve_args *uap)
 // uap->fname, uap->argv and uap->envv are adjusted in exec_copyin_args
 	error = exec_copyin_args(td, &args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
-	if (error == 0)
+	if (error == 0) //wycdebug	EFAULT 14 /* Bad address */
 		error = kern_execve(td, &args, NULL, oldvmspace);
 	post_execve(td, error, oldvmspace);
 	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
@@ -1205,14 +1205,10 @@ WYC_PANIC();
  * Compute the stack size limit and map the main process stack.
  * Map the shared page.
  */
-int
+int __attribute__((optnone)) //wycdebug
 exec_map_stack(struct image_params *imgp)
 {
 	struct rlimit rlim_stack;
-	struct sysentvec *sv;
-	struct proc *p;
-	vm_map_t map;
-	struct vmspace *vmspace;
 	vm_offset_t stack_addr, stack_top;
 	vm_offset_t sharedpage_addr;
 	u_long ssiz;
@@ -1220,8 +1216,11 @@ exec_map_stack(struct image_params *imgp)
 	vm_prot_t stack_prot;
 	vm_object_t obj;
 
-	p = imgp->proc;
-	sv = p->p_sysent;
+	struct proc *p = imgp->proc;
+	struct sysentvec *sv = p->p_sysent;
+	struct vmspace *vmspace = p->p_vmspace;
+	vm_map_t map = &vmspace->vm_map;
+	vm_offset_t proc_base = vmspace->vm_base;
 
 	// get ssiz
 	if (imgp->stack_sz != 0) {
@@ -1240,10 +1239,6 @@ exec_map_stack(struct image_params *imgp)
 	} else {
 		ssiz = maxssiz;
 	}
-
-	vmspace = p->p_vmspace;
-	map = &vmspace->vm_map;
-	vm_offset_t proc_base = vmspace->vm_base;
 
 	stack_prot = sv->sv_shared_page_obj != NULL && imgp->stack_prot != 0 ?
 	    imgp->stack_prot : sv->sv_stackprot;
@@ -1347,7 +1342,7 @@ out:
  * Copy out argument and environment strings from the old process address
  * space into the temporary string buffer.
  */
-int
+int __attribute__((optnone)) //wycdebug
 exec_copyin_args(struct thread *td, struct image_args *args, const char *fname,
     enum uio_seg segflg, char **argv, char **envv)
 {
@@ -1396,7 +1391,7 @@ WYC_ASSERT(segflg == UIO_USERSPACE);
 	 */
 	if (envv) {
 		for (;;) {
-			error = fueword(envv++, &env);
+			error = fueword(envv++, &env); //wycdebug
 			if (error == -1) {
 				error = EFAULT;
 				goto err_exit;
@@ -1569,7 +1564,7 @@ exec_free_args(struct image_args *args)
  * exec_args_adjust_args() - adjust location of the argument list to
  *                           allow new arguments to be prepended
  */
-int
+int __attribute__((optnone))
 exec_args_add_fname(struct image_args *args, const char *fname,
     enum uio_seg segflg)
 {

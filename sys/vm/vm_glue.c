@@ -550,7 +550,7 @@ WYC_PANIC(); // not reach here
 		return (0);
 	}
 
-	if (flags & RFMEM) { //wyc for vfork
+	if (flags & RFMEM) { //wyc vfork
 //WYC_ASSERT(vm2 == NULL); // pass
 		p2->p_vmspace = p1->p_vmspace;
 		refcount_acquire(&p1->p_vmspace->vm_refcnt);
@@ -560,7 +560,7 @@ WYC_PANIC(); // not reach here
 		vm_wait_doms(&dset->ds_mask, 0);
 	}
 
-	if ((flags & RFMEM) == 0) {
+	if ((flags & RFMEM) == 0) { //wyc fork
 //WYC_ASSERT(vm2 != NULL); // pass
 		p2->p_vmspace = vm2;
 		if (p1->p_vmspace->vm_shm)

@@ -257,7 +257,7 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 		ftype = VM_PROT_WRITE;
 	} else if (frame->tf_scause == SCAUSE_INST_PAGE_FAULT) { // 12
 		if (usermode) { //wyc sa
-			static int cont = false;
+			static int cont = true;
 			sepc = frame->tf_sepc;
 			proc_base = p->p_vmspace->vm_base;
 			if ((sepc | proc_base) != stval) {
@@ -413,7 +413,7 @@ do_trap_user(struct trapframe *frame)
 	    exception, frame->tf_sepc, frame->tf_stval);
 
 	switch (exception) {
-	case SCAUSE_LOAD_ACCESS_FAULT:
+	case SCAUSE_LOAD_ACCESS_FAULT: // 5
 	case SCAUSE_STORE_ACCESS_FAULT:
 	case SCAUSE_INST_ACCESS_FAULT:
 		call_trapsignal(td, SIGBUS, BUS_ADRERR, (void *)frame->tf_sepc,

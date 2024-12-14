@@ -630,7 +630,7 @@ get_shell(void)
 	if (kenv(KENV_GET, "init_shell", kenv_value, sizeof(kenv_value)) > 0)
 		return kenv_value;
 	else
-		return _PATH_BSHELL;
+		return _PATH_BSHELL; // "/bin/sh"
 }
 
 static void
@@ -1088,7 +1088,7 @@ execute_script(char *argv[])
 	for (i = 0; i != SCRIPT_ARGV_SIZE; ++i)
 		sh_argv[i + sh_argv_len] = argv[i];
 	execv(shell, sh_argv);
-	stall("can't exec %s for %s: %m", shell, script);
+	stall("can't exec %s for %s: %m", shell, script); //wycdebug
 }
 
 /*
@@ -1122,7 +1122,7 @@ run_script(const char *script)
 
 	shell = get_shell();
 
-	if ((pid = fork()) == 0) {
+	if ((pid = fork()) == 0) { // child
 
 		char _autoboot[] = "autoboot";
 

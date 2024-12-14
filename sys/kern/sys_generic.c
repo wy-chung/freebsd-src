@@ -189,7 +189,7 @@ struct read_args {
 	size_t	nbyte;
 };
 #endif
-int
+int __attribute__((optnone))
 sys_read(struct thread *td, struct read_args *uap)
 {
 	struct uio auio;

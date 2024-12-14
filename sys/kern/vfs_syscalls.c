@@ -1093,7 +1093,7 @@ struct open_args {
 	int	mode;
 };
 #endif
-int
+int __attribute__((optnone))
 sys_open(struct thread *td, struct open_args *uap)
 {
 
