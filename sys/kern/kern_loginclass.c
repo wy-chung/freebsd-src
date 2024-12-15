@@ -204,7 +204,7 @@ struct setloginclass_args {
 };
 #endif
 /* ARGSUSED */
-int
+int __attribute__((optnone))
 sys_setloginclass(struct thread *td, struct setloginclass_args *uap)
 {
 	struct proc *p = td->td_proc;

@@ -4771,9 +4771,12 @@ pmap_activate_sw(struct thread *td) // < cpu_switch(swtch.S) < sched_switch < mi
 	u_int hart;
 
 	oldpmap = PCPU_GET(pc_curpmap);
+WYC_ASSERT(oldpmap != kernel_pmap);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	if (pmap == oldpmap)
 		return;
+	if (pmap->pm_satp != oldpmap->pm_satp) //wyc pull
+		csr_write(satp, pmap->pm_satp);
 
 	hart = PCPU_GET(pc_hart);
 #ifdef SMP
@@ -4785,10 +4788,7 @@ pmap_activate_sw(struct thread *td) // < cpu_switch(swtch.S) < sched_switch < mi
 #endif
 	PCPU_SET(pc_curpmap, pmap);
 
-	if (pmap->pm_satp != oldpmap->pm_satp) { //wyc pull
-		csr_write(satp, pmap->pm_satp);
-		sfence_vma();
-	}
+	sfence_vma();
 }
 
 void

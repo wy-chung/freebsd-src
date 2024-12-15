@@ -329,7 +329,6 @@ ENTRY(cpu_switch)
 	ld	x13, P_VMSPACE(x13)	// src x13 == proc
 	ld	x13, VM_BASE(x13)	// src x13 == vmspace
 	csrw	0x081, x13	// src x13 == vm_base, 0x081 == CSR_SPROCBASE
-
 	ld	x13, TD_PCB(a1)
 
 	/* Restore the registers */

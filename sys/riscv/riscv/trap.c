@@ -208,8 +208,6 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 	struct _vm_map *map;
 	vm_prot_t ftype;
 	int error, sig, ucode;
-	uint64_t sepc;
-	uint64_t proc_base;
 #ifdef KDB
 	bool handled;
 #endif
@@ -225,6 +223,7 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 	struct proc *p = td->td_proc;
 	struct pcb *pcb = td->td_pcb;
 	uint64_t stval = frame->tf_stval;
+	uint64_t proc_base = p->p_vmspace->vm_base;
 
 	if (td->td_critnest != 0 || td->td_intr_nesting_level != 0 ||
 	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL, "Kernel page fault") != 0) {
@@ -256,20 +255,18 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 	if (frame->tf_scause == SCAUSE_STORE_PAGE_FAULT) { // 15
 		ftype = VM_PROT_WRITE;
 	} else if (frame->tf_scause == SCAUSE_INST_PAGE_FAULT) { // 12
-		if (usermode) { //wyc sa
-			static int cont = true;
-			sepc = frame->tf_sepc;
-			proc_base = p->p_vmspace->vm_base;
-			if ((sepc | proc_base) != stval) {
-				printf("sepc %lx stval %lx\n", sepc, stval);
-				WYC_ASSERT(cont);
-			}
-		}
+		//uint64_t sepc = frame->tf_sepc;
 		ftype = VM_PROT_EXECUTE;
 	} else {
 		ftype = VM_PROT_READ;
 	}
-
+	if (usermode) {
+		uint64_t upper = stval & ~(USER_MAX_ADDRESS-1);
+		if (upper != proc_base) {
+			printf("%s: stval %lx procbase %lx\n", __func__, stval, proc_base);
+			stval = proc_base | (stval & (USER_MAX_ADDRESS-1));
+		}
+	}
 	vm_offset_t va = trunc_page(stval);
 	if (VIRT_IS_VALID(va) && pmap_fault(map->pmap, va, ftype))
 		goto done;
@@ -429,7 +426,7 @@ do_trap_user(struct trapframe *frame)
 		break;
 	case SCAUSE_STORE_PAGE_FAULT:
 	case SCAUSE_LOAD_PAGE_FAULT:
-	case SCAUSE_INST_PAGE_FAULT:
+	case SCAUSE_INST_PAGE_FAULT: // 12
 		page_fault_handler(frame, true);
 		break;
 	case SCAUSE_ECALL_USER:
