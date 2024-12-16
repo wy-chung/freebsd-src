@@ -4282,7 +4282,7 @@ vm_map_copy_entry(
 				curthread->td_map_def_user = fake_entry;
 			}
 
-			pmap_copy(dst_map->pmap, src_map->pmap,
+			pmap_copy(dst_map->pmap, src_map->pmap, // this function is empty
 			    dst_entry->start, dst_entry->end - dst_entry->start,
 			    src_entry->start);
 		} else {
@@ -4350,8 +4350,8 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  *
  * The source map must not be locked.
  */
-struct vmspace *
-vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /*OUT*/) __attribute__((optnone)) //wycdebug
+struct vmspace * __attribute__((optnone)) //wycdebug
+vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /*OUT*/)
 {
 	struct vmspace *vm1 = p1->p_vmspace;
 	struct vmspace *vm2;
@@ -4406,10 +4406,10 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 			inh = VM_INHERIT_COPY;
 
 		switch (inh) {
-		case VM_INHERIT_NONE:
+		case VM_INHERIT_NONE: // 2
 			break;
 
-		case VM_INHERIT_SHARE:
+		case VM_INHERIT_SHARE: // 0
 			/*
 			 * Clone the entry, creating the shared object if
 			 * necessary.
@@ -4501,13 +4501,13 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 			/*
 			 * Update the physical map
 			 */
-			pmap_copy(new_map->pmap, old_map->pmap,
+			pmap_copy(new_map->pmap, old_map->pmap, // this function is empty
 			    new_entry->start,
 			    (old_entry->end - old_entry->start),
 			    old_entry->start);
 			break;
 
-		case VM_INHERIT_COPY:
+		case VM_INHERIT_COPY: // 1
 			/*
 			 * Clone the entry and link into the map.
 			 */
@@ -4531,7 +4531,7 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 			vm_map_entry_set_vnode_text(new_entry, true);
 			break;
 
-		case VM_INHERIT_ZERO:
+		case VM_INHERIT_ZERO: // 3
 			/*
 			 * Create a new anonymous mapping entry modelled from
 			 * the old one.
@@ -4961,7 +4961,7 @@ out:
  * Unshare the specified VM space for exec.  If other processes are
  * mapped to it, then create a new one.  The new vmspace is null.
  */
-int
+int __attribute__((optnone)) //wycdebug
 vmspace_exec(struct proc *p, vm_offset_t umin, vm_offset_t umax)
 {
 	struct vmspace *oldvmspace = p->p_vmspace;

@@ -697,7 +697,7 @@ _Static_assert(UCODE_PAGEFLT == T_PAGEFLT, "T_PAGEFLT");
  *	Caller may hold no locks.
  */
 int __attribute__((optnone)) //wycdebug
-vm_fault_trap(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
+vm_fault_trap(struct _vm_map *map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, int *signo, int *ucode)
 {
 	int result;

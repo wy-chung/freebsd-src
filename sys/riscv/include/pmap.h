@@ -176,7 +176,7 @@ static inline int
 pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)
 {
 
-	return (0);
+	return (ESUCCESS);
 }
 
 #endif	/* _KERNEL */
