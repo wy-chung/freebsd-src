@@ -1752,8 +1752,10 @@ found:
 	 * back on the active queue until later so that the pageout daemon
 	 * won't find it (yet).
 	 */
-	pmap_enter(fs.map->pmap, vaddr, fs.m, fs.prot,
+	rv = pmap_enter(fs.map->pmap, vaddr, fs.m, fs.prot,
 	    fs.fault_type | (fs.wired ? PMAP_ENTER_WIRED : 0), 0);
+if (rv != KERN_SUCCESS)
+  printf("%s: rv of pmap_enter %d\n", __func__, rv);
 	if (faultcount != 1 && (fs.fault_flags & VM_FAULT_WIRE) == 0 &&
 	    fs.wired == 0)
 		vm_fault_prefault(&fs, vaddr,

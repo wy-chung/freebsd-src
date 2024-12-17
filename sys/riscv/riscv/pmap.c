@@ -2923,7 +2923,7 @@ printf("**** %s success\n", __func__); //wyc
  *	or lose information.  That is, this routine must actually
  *	insert this page into the given map NOW.
  */
-int
+int __attribute__((optnone))
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     u_int flags, int8_t psind)
 {
