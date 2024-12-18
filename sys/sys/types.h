@@ -48,8 +48,6 @@
 #include <sys/_pthreadtypes.h>
 
 //wyc
-#define IN_
-#define OUT_
 #define FAR
 
 #if __BSD_VISIBLE

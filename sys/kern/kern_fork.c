@@ -371,7 +371,7 @@ static int fork_debug = 0; //wyc
 SYSCTL_INT(_debug, OID_AUTO, fork, CTLFLAG_RW, &fork_debug, 0, "for PRS_CHILD testing");
 
 static void
-do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, pid_t p2_pid, struct thread *td2,
+do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *td2,
     struct vmspace *vm2, struct file *fp_procdesc)
 {
 	struct proc *p1, *pptr;
@@ -395,7 +395,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, pid_t p2_pid, s
 	prison_proc_hold(p2->p_ucred->cr_prison);
 
 	p2->p_state = PRS_NEW;		/* protect against others */
-	p2->p_pid = p2_pid;
 	AUDIT_ARG_PID(p2->p_pid);
 	TSFORK(p2->p_pid, p1->p_pid);
 
@@ -1051,7 +1050,7 @@ fork1(struct thread *td, struct fork_req *fr)
 			    ptoa(td2->td_kstack_pages), 0);
 		}
 	}
-	pid_t p2_pid = fork_findpid(fr->fr_flags);
+	pid_t p2_pid = p2->p_pid = fork_findpid(fr->fr_flags);
 	if ((flags & RFMEM) == 0) { // not share address space
 		vm_ooffset_t mem_charged;
 
@@ -1106,7 +1105,7 @@ fork1(struct thread *td, struct fork_req *fr)
 		chgproccnt(cred->cr_ruidinfo, 1, 0);
 	}
 
-	do_fork(td, fr, p2, p2_pid, td2, vm2, fp_procdesc);
+	do_fork(td, fr, p2, td2, vm2, fp_procdesc);
 	error = 0;
 	goto cleanup;
 fail0:

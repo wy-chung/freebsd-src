@@ -333,7 +333,7 @@ vmspace_alloc(vm_offset_t base, vm_offset_t umin, vm_offset_t umax, pmap_pinit_t
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
 	KASSERT(vm->vm_map.pmap == NULL, ("vm_map.pmap must be NULL"));
 //WYC_ASSERT(pinit == pmap_pinit); // tested
-#if 1 //wyc
+#if 1 // ori
 	ret = pinit(vmspace_pmap(vm));
  #if defined(WYC)
 	ret = pmap_pinit(vmspace_pmap(vm)); // riscv: always returns 1
@@ -343,7 +343,7 @@ vmspace_alloc(vm_offset_t base, vm_offset_t umin, vm_offset_t umax, pmap_pinit_t
 		uma_zfree(vmspace_zone, vm);
 		return (NULL);
 	}
-#else
+#else //wyc test
 	struct pmap *pmap = malloc(sizeof(*pmap), M_PMAP, M_WAITOK);
 	ret = pinit(pmap);
 	vm->vm_pmap = pmap;
@@ -4350,12 +4350,14 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  *
  * The source map must not be locked.
  */
+#define PROC_BASE 2
+//#define PROC_BASE pid
 struct vmspace * __attribute__((optnone)) //wycdebug
-vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /*OUT*/)
+vmspace_fork(struct proc *p1, pid_t p2_pid, vm_ooffset_t *fork_charge /*OUT*/)
 {
 	struct vmspace *vm1 = p1->p_vmspace;
 	struct vmspace *vm2;
-	vm_map_t new_map, old_map;
+	struct _vm_map *new_map, *old_map;
 	struct vm_map_entry *new_entry, *old_entry;
 	vm_object_t object;
 	int error, locked __diagused;
@@ -4365,7 +4367,8 @@ vmspace_fork(struct proc *p1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /
 	/* Copy immutable fields of vm1 to vm2. */
 	vm_offset_t umin = to_user_addr(vm_map_min(old_map));
 	vm_offset_t umax = to_user_addr(vm_map_max(old_map) - 1) + 1;
-	vm_offset_t proc_base = USER_MAX_ADDRESS * p2_pid; //wyc sa
+	pid_t pid __unused = p2_pid;
+	vm_offset_t proc_base = USER_MAX_ADDRESS * PROC_BASE; //wyc sa
 	vm2 = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (vm2 == NULL)
 		return (NULL);
@@ -4969,7 +4972,8 @@ vmspace_exec(struct proc *p, vm_offset_t umin, vm_offset_t umax)
 
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
-	vm_offset_t proc_base = USER_MAX_ADDRESS * p->p_pid; //wyc sa
+	pid_t pid __unused = p->p_pid;
+	vm_offset_t proc_base = USER_MAX_ADDRESS * PROC_BASE; //wyc sa
 	newvmspace = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (newvmspace == NULL)
 		return (ENOMEM);
