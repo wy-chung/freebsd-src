@@ -4350,8 +4350,8 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  *
  * The source map must not be locked.
  */
-#define PROC_BASE 2
-//#define PROC_BASE pid
+//#define PROC_BASE 2
+
 struct vmspace * __attribute__((optnone)) //wycdebug
 vmspace_fork(struct proc *p1, pid_t p2_pid, vm_ooffset_t *fork_charge /*OUT*/)
 {
@@ -4368,7 +4368,12 @@ vmspace_fork(struct proc *p1, pid_t p2_pid, vm_ooffset_t *fork_charge /*OUT*/)
 	vm_offset_t umin = to_user_addr(vm_map_min(old_map));
 	vm_offset_t umax = to_user_addr(vm_map_max(old_map) - 1) + 1;
 	pid_t pid __unused = p2_pid;
-	vm_offset_t proc_base = USER_MAX_ADDRESS * PROC_BASE; //wyc sa
+#if defined(PROC_BASE)
+	unsigned slot = PROC_BASE;
+#else
+	unsigned slot = p2_pid;
+#endif
+	vm_offset_t proc_base = USER_MAX_ADDRESS * slot; //wyc sa
 	vm2 = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (vm2 == NULL)
 		return (NULL);
@@ -4972,8 +4977,12 @@ vmspace_exec(struct proc *p, vm_offset_t umin, vm_offset_t umax)
 
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
-	pid_t pid __unused = p->p_pid;
-	vm_offset_t proc_base = USER_MAX_ADDRESS * PROC_BASE; //wyc sa
+#if defined(PROC_BASE)
+	unsigned slot = PROC_BASE;
+#else
+	unsigned slot = p->p_pid;
+#endif
+	vm_offset_t proc_base = USER_MAX_ADDRESS * slot; //wyc sa
 	newvmspace = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (newvmspace == NULL)
 		return (ENOMEM);
