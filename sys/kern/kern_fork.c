@@ -260,6 +260,8 @@ fork_findpid(int flags)
 	pid_t result;
 	int trypid, random;
 
+	if (flags & RFPID0)
+		return 0;
 	/*
 	 * Avoid calling arc4random with procid_lock held.
 	 */

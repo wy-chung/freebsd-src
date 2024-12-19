@@ -215,7 +215,7 @@ struct _vm_map {
 	u_char system_map;		/* (c) Am I a system map? */
 	vm_flags_t flags;		/* flags for this vm_map */
 	struct vm_map_entry *root;	/* Root of a binary search tree */
-	struct pmap *pmap;		/* (c) Physical map */
+	struct pmap *pmap; // point back to vmspace.pmap /* (c) Physical map */
 	vm_offset_t anon_loc;	// absolute address
 	int busy;
 #ifdef DIAGNOSTIC

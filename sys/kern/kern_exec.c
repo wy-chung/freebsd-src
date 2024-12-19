@@ -1312,7 +1312,7 @@ WYC_PANIC();
 		    MAP_INHERIT_SHARE | MAP_ACC_NO_CHARGE);
 	} else {
 		sharedpage_addr = sv->sv_shared_page_base + proc_base;
-		vm_map_fixed(map, obj, 0,
+		error = vm_map_fixed(map, obj, 0, //wyc test, store return value to error
 		    sharedpage_addr, sv->sv_shared_page_len,
 		    VM_PROT_READ | VM_PROT_EXECUTE,
 		    VM_PROT_READ | VM_PROT_EXECUTE,

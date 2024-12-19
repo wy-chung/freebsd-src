@@ -92,7 +92,7 @@ kproc_create1(void (*func)(void *), void *arg,
 
 	bzero(&fr, sizeof(fr));
 		     // RFMEM | RFFDG | RFPROC | RFPPWAIT /* vfork */
-	fr.fr_flags =   RFMEM | RFFDG | RFPROC | RFSTOPPED | flags;
+	fr.fr_flags =   RFMEM | RFFDG | RFPROC | RFSTOPPED | RFPID0 | flags;
 	fr.fr_flags2 = FR2_KPROC;
 	fr.fr_pages = pages;
 	fr.fr_procp = &p2;

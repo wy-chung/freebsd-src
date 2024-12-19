@@ -191,13 +191,14 @@
 #define	RFTSIGFLAGS(signum)	((signum) << RFTSIGSHIFT)
 #define	RFPROCDESC	(1<<28)	/* return a process descriptor */
 //wyc bits 29..30 of rfork flags are not used
+#define RFPID0		(1<<29) // set the pid to 0
 /* kernel: parent sleeps until child exits (vfork) */
 #define	RFPPWAIT /*vfork*/ (1<<31)
 /* user: vfork(2) semantics, clear signals */
 #define	RFSPAWN		(1U<<31)
 #define	RFFLAGS		(RFFDG | RFPROC | RFMEM | RFNOWAIT | RFCFDG | \
     RFTHREAD | RFSIGSHARE | RFLINUXTHPN | RFSTOPPED | RFHIGHPID | RFTSIGZMB | \
-    RFPROCDESC | RFSPAWN | RFPPWAIT)
+    RFPROCDESC | RFPID0 | RFSPAWN | RFPPWAIT)
 #define	RFKERNELONLY	(RFSTOPPED | RFHIGHPID | RFPROCDESC)
 
 /* kcmp() options. */

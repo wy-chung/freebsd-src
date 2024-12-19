@@ -462,7 +462,7 @@ static void proc0_init(void *dummy __unused);
 /* ARGSUSED*/
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL);
 static void
-proc0_init(void *dummy __unused) // the swapper
+proc0_init(void *dummy __unused) // proc.name = "kernel", td.name = "swapper"
 {
 	struct proc *p;
 	struct thread *td;
