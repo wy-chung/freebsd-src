@@ -4350,12 +4350,9 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  *
  * The source map must not be locked.
  */
-//#define PROC_BASE 2
-
 struct vmspace * __attribute__((optnone)) //wycdebug
-vmspace_fork(struct proc *p1, pid_t p2_pid, vm_ooffset_t *fork_charge /*OUT*/)
+vmspace_fork(struct vmspace *vm1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /*OUT*/)
 {
-	struct vmspace *vm1 = p1->p_vmspace;
 	struct vmspace *vm2;
 	struct _vm_map *new_map, *old_map;
 	struct vm_map_entry *new_entry, *old_entry;
@@ -4367,9 +4364,9 @@ vmspace_fork(struct proc *p1, pid_t p2_pid, vm_ooffset_t *fork_charge /*OUT*/)
 	/* Copy immutable fields of vm1 to vm2. */
 	vm_offset_t umin = to_user_addr(vm_map_min(old_map));
 	vm_offset_t umax = to_user_addr(vm_map_max(old_map) - 1) + 1;
-	pid_t pid __unused = p2_pid;
-#if defined(PROC_BASE)
-	unsigned slot = PROC_BASE;
+#define PROC_SLOT 2
+#if defined(PROC_SLOT)
+	unsigned slot = PROC_SLOT;
 #else
 	unsigned slot = p2_pid;
 #endif
@@ -4977,8 +4974,8 @@ vmspace_exec(struct proc *p, vm_offset_t umin, vm_offset_t umax)
 
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
-#if defined(PROC_BASE)
-	unsigned slot = PROC_BASE;
+#if defined(PROC_SLOT)
+	unsigned slot = PROC_SLOT;
 #else
 	unsigned slot = p->p_pid;
 #endif
@@ -5022,7 +5019,7 @@ vmspace_unshare(struct proc *p)
 	if (refcount_load(&oldvmspace->vm_refcnt) == 1)
 		return (0);
 	fork_charge = 0;
-	newvmspace = vmspace_fork(p, &fork_charge);
+	newvmspace = vmspace_fork(p->p_vmspace, &fork_charge);
 	if (newvmspace == NULL)
 		return (ENOMEM);
 	if (!swap_reserve_by_cred(fork_charge, p->p_ucred)) {
