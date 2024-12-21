@@ -1677,7 +1677,10 @@ exec_args_get_begin_envv(struct image_args *args)
  */
 static inline void *to_abs_addr(vm_offset_t x, struct image_params *imgp)
 {
-	return (void *)((vm_offset_t)x | imgp->proc->p_vmspace->vm_base);
+	if (imgp == NULL)
+		return (void *)x;
+	else
+		return (void *)((vm_offset_t)x | imgp->proc->p_vmspace->vm_base);
 }
 
 int __attribute__((optnone)) //wycdebug
