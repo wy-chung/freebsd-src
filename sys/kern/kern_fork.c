@@ -1108,7 +1108,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	}
 
 	do_fork(td, fr, p2, td2, vm2, fp_procdesc);
-	error = 0;
+	error = ESUCCESS;
 	goto cleanup;
 fail0:
 	error = EAGAIN;
@@ -1146,10 +1146,10 @@ cleanup:
 /*
  * Handle the return of a child process from fork1().  This function
  * is called from the MD fork_trampoline() entry point.
- */	    // called by fork_trampoline(exception.S)
+ */
 void
 fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
-    struct trapframe *frame)
+    struct trapframe *frame) // < fork_trampoline(exception.S)
 {
 	struct proc *p;
 	struct thread *td;
@@ -1210,7 +1210,7 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
  * userland process.
  */
 void
-fork_return(struct thread *td, struct trapframe *frame)
+fork_return(struct thread *td, struct trapframe *frame) // < fork_exit
 {
 	struct proc *p;
 

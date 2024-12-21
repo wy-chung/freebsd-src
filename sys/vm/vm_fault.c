@@ -2067,7 +2067,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map __unused,
 
 	upgrade = src_entry == dst_entry;
 	KASSERT(upgrade || dst_entry->object.vm_object == NULL,
-	    ("vm_fault_copy_entry: vm_object not NULL"));
+	    ("%s: vm_object not NULL", __func__));
 
 	/*
 	 * If not an upgrade, then enter the mappings in the pmap as

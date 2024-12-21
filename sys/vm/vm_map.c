@@ -4403,7 +4403,7 @@ vmspace_fork(struct vmspace *vm1, pid_t p2_pid __unused, vm_ooffset_t *fork_char
 
 	VM_MAP_ENTRY_FOREACH(old_entry, old_map) {
 		if ((old_entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0)
-			panic("vm_map_fork: encountered a submap");
+			panic("%s: encountered a submap", __func__);
 
 		inh = old_entry->inheritance;
 		if ((old_entry->eflags & MAP_ENTRY_GUARD) != 0 &&

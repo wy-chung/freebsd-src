@@ -382,7 +382,9 @@ ENTRY(fork_trampoline)
 
 	/* Restore exception program counter */
 	ld	t0, (TF_SEPC)(sp)
-	csrw	sepc, t0	//wycdebug
+	slli	t0, t0, 32	//wycdebug
+	srli	t0, t0, 32
+	csrw	sepc, t0
 
 	/* Restore the registers */
 	ld	t0, (TF_T + 0 * 8)(sp)
@@ -425,6 +427,8 @@ ENTRY(fork_trampoline)
 	 */
 	sd	tp, (TF_SIZE)(sp)
 	ld	tp, (TF_TP)(sp) // thread local storage pointer
+	slli	tp, tp, 32 //wycdebug
+	srli	tp, tp, 32
 
 	/* Save kernel stack so we can use it doing a user trap */
 	addi	sp, sp, TF_SIZE
@@ -432,6 +436,8 @@ ENTRY(fork_trampoline)
 
 	/* Load user stack */
 	ld	sp, (TF_SP - TF_SIZE)(sp)
+	slli	sp, sp, 32 //wycdebug
+	srli	sp, sp, 32
 
 	sret //wycdebug
 END(fork_trampoline)

@@ -102,12 +102,12 @@ to_abs_addr(void *addr) // uaddr might be an absolute address when called from e
 	vm_offset_t uaddr = (vm_offset_t)addr;
 
 	if ((uaddr & UPPER) != 0 && d_info)
-		printf("%s:uaddr %lx\n", __func__, uaddr);
+		printf("%s: uaddr     %lx\n", __func__, uaddr);
 
 	if ((uaddr & UPPER) != 0 && (uaddr & UPPER) != proc_base) {
 		if (d_info)
-			printf("%s: uaddr %lx proc_base %lx\n",
-				__func__, uaddr, proc_base);
+			printf("%s: proc_base %lx\n",
+				__func__, proc_base);
 		WYC_ASSERT(c_une);
 	}
 	return proc_base | (uaddr & LOWER);

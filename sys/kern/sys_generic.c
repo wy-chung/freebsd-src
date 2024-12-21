@@ -220,7 +220,7 @@ struct pread_args {
 	off_t	offset;
 };
 #endif
-int
+int __attribute__((optnone))
 sys_pread(struct thread *td, struct pread_args *uap)
 {
 	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset));

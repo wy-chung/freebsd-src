@@ -48,9 +48,9 @@ struct trapframe {
 	uint64_t tf_sp;
 	uint64_t tf_gp;
 	uint64_t tf_tp;
-	uint64_t tf_t[7];
-	uint64_t tf_s[12];
-	uint64_t tf_a[8];
+	uint64_t tf_t[7];	// temporary registers, must be saved by the caller
+	uint64_t tf_s[12];	// saved registers, must be saved by the callee
+	uint64_t tf_a[8];	// function arguments/return values
 	uint64_t tf_sepc;	// the pc of the instruction that caused the trap
 	uint64_t tf_sstatus;
 	uint64_t tf_stval;	// exception-specific information for handling the trap
