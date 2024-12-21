@@ -1497,7 +1497,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		map->anon_loc = addr;
 	}
 
-	entry = (u_long)hdr->e_entry + imgp->et_dyn_addr;
+	entry = (u_long)hdr->e_entry + imgp->et_dyn_addr; //user address
 	imgp->entry_addr = entry;
 
 	if (interp != NULL) {
@@ -1570,7 +1570,7 @@ elf64_freebsd_copyout_auxargs
 #else
 __elfN(freebsd_copyout_auxargs)
 #endif
-(struct image_params *imgp, uintptr_t base)
+(struct image_params *imgp, uintptr_t base/*FAR*/)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
 	Elf64_Auxinfo *argarray, *pos; //ori Elf_Auxinfo
@@ -1659,7 +1659,7 @@ elf64_freebsd_fixup
 #else
 __elfN(freebsd_fixup)
 #endif
-(uintptr_t *stack_base, struct image_params *imgp)
+(uintptr_t *stack_base/*FAR*/, struct image_params *imgp)
 {
 	Elf_Addr *base;
 #if defined(WYC)

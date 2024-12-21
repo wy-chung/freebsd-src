@@ -47,9 +47,6 @@
 
 #include <sys/_pthreadtypes.h>
 
-//wyc
-#define FAR
-
 #if __BSD_VISIBLE
 typedef	unsigned char	u_char;
 typedef	unsigned short	u_short;
