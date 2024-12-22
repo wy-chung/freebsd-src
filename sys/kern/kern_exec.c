@@ -1675,23 +1675,15 @@ exec_args_get_begin_envv(struct image_args *args)
  * and env vector tables. Return a pointer to the base so that it can be used
  * as the initial stack pointer.
  */
-static inline void *to_abs_addr(vm_offset_t x, struct image_params *imgp)
-{
-	if (imgp == NULL)
-		return (void *)x;
-	else
-		return (void *)((vm_offset_t)x | imgp->proc->p_vmspace->vm_base);
-}
-
 int __attribute__((optnone)) //wycdebug
 exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base /*FAR OUT*/)
 {
 	int argc, envc;
-	char **vectp;		// user address
-	char *astringp;		// string from the argument
-	uintptr_t dstringp;	// user address, string to the destination process
-	uintptr_t destp;	// user address
-	struct ps_strings *arginfo; // user address
+	char *astringp; // ori stringp, string from the argument
+	char **vectp;		// user address of the destination process
+	uintptr_t dstringp; // ori ustringp, user address of the destination process
+	uintptr_t destp;	// user address of the destination process
+	struct ps_strings *arginfo; // user address of the destination process
 	struct proc *p;
 	struct sysentvec *sysent;
 	size_t execpath_len;
@@ -1702,9 +1694,7 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base /*FAR OUT*
 	sysent = p->p_sysent;
 
 	destp =	PROC_PS_STRINGS(p);
-	//destp =	to_user_addr(destp);
-	arginfo = (void *)destp; // user address
-	imgp->ps_strings = to_abs_addr((vm_offset_t)arginfo, imgp);
+	arginfo = imgp->ps_strings = (void *)destp;
 
 	/*
 	 * Install sigcode.
@@ -1726,7 +1716,7 @@ WYC_PANIC();
 		execpath_len = strlen(imgp->execpath) + 1;
 		destp -= execpath_len;
 		destp = rounddown2(destp, sizeof(void *));
-		imgp->execpathp = to_abs_addr(destp, imgp);
+		imgp->execpathp = (void *)destp;
 		error = copyout(imgp->execpath, imgp->execpathp, execpath_len);
 		if (error != 0)
 			return (error);
@@ -1737,7 +1727,7 @@ WYC_PANIC();
 	 */
 	arc4rand(canary, sizeof(canary), 0);
 	destp -= sizeof(canary);
-	imgp->canary = to_abs_addr(destp, imgp);
+	imgp->canary = (void *)destp;
 	error = copyout(canary, imgp->canary, sizeof(canary));
 	if (error != 0)
 		return (error);
@@ -1749,7 +1739,7 @@ WYC_PANIC();
 	imgp->pagesizeslen = sizeof(pagesizes[0]) * MAXPAGESIZES;
 	destp -= imgp->pagesizeslen;
 	destp = rounddown2(destp, sizeof(void *));
-	imgp->pagesizes = to_abs_addr(destp, imgp);
+	imgp->pagesizes = (void *)destp;
 	error = copyout(pagesizes, imgp->pagesizes, imgp->pagesizeslen);
 	if (error != 0)
 		return (error);
@@ -1798,7 +1788,7 @@ WYC_PANIC();
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	imgp->argv = to_abs_addr((vm_offset_t)vectp, imgp);
+	imgp->argv = vectp;
 	if (suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
 	    suword32(&arginfo->ps_nargvstr, argc) != 0)
 		return (EFAULT);
@@ -1818,7 +1808,7 @@ WYC_PANIC();
 	if (suword(vectp++, 0) != 0)
 		return (EFAULT);
 
-	imgp->envv = to_abs_addr((vm_offset_t)vectp, imgp);
+	imgp->envv = vectp;
 	if (suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
 	    suword32(&arginfo->ps_nenvstr, envc) != 0)
 		return (EFAULT); // 14

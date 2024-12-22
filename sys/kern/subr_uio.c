@@ -91,26 +91,19 @@ int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long ne
 #define LOWER (USER_MAX_ADDRESS-1)
 #define UPPER ~(USER_MAX_ADDRESS-1)
 
-int d_info = false; // info for debug
-int c_une = true;  // continue upper not equal
-
 static vm_offset_t __attribute__((optnone)) //wycdebug
 to_abs_addr(void *addr) // uaddr might be an absolute address when called from elf64_load_section() or exec_copyout_strings()
 {
-	struct thread *td = curthread;
-	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 	vm_offset_t uaddr = (vm_offset_t)addr;
 
-	if ((uaddr & UPPER) != 0 && d_info)
-		printf("%s: uaddr     %lx\n", __func__, uaddr);
-
-	if ((uaddr & UPPER) != 0 && (uaddr & UPPER) != proc_base) {
-		if (d_info)
-			printf("%s: proc_base %lx\n",
-				__func__, proc_base);
-		WYC_ASSERT(c_une);
+	if ((uaddr & UPPER) == 0) {
+		struct thread *td = curthread;
+		vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
+		if (proc_base == 0)
+			printf("%s: proc_base should not be zero\n", __func__);
+		uaddr |= proc_base;
 	}
-	return proc_base | (uaddr & LOWER);
+	return uaddr;
 }
 #undef LOWER
 #undef UPPER
