@@ -170,8 +170,8 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 	panic("set_dbregs");
 }
 
-void __attribute__((optnone)) //wycdebug
-exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
+void __attribute__((optnone)) //wycdebug // < do_execve
+exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t fstack/*FAR*/)
 {
 	struct trapframe *tf;
 	struct pcb *pcb;
@@ -181,8 +181,9 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 
 	memset(tf, 0, sizeof(struct trapframe));
 
-	tf->tf_a[0] = stack;
-	tf->tf_sp = STACKALIGN(stack);
+	uintptr_t nstack = to_user_addr(fstack); //wyc sa convert to near pointer
+	tf->tf_a[0] = nstack;
+	tf->tf_sp = STACKALIGN(nstack);
 	tf->tf_ra = imgp->entry_addr;
 	tf->tf_sepc = imgp->entry_addr;
 

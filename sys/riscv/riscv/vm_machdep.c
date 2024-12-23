@@ -91,7 +91,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	tf->tf_a[1] = 0;
 	tf->tf_sstatus |= (SSTATUS_SPIE); /* Enable interrupts. */
 	tf->tf_sstatus &= ~(SSTATUS_SPP); /* User mode. */
-	tf->tf_sp = to_user_addr(tf->tf_sp);// + p2->p_vmspace->vm_base;
 
 	td2->td_frame = tf;
 

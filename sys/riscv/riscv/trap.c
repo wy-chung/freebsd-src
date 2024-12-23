@@ -223,7 +223,6 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 	struct proc *p = td->td_proc;
 	struct pcb *pcb = td->td_pcb;
 	uint64_t stval = frame->tf_stval;
-	uint64_t proc_base = p->p_vmspace->vm_base;
 
 	if (td->td_critnest != 0 || td->td_intr_nesting_level != 0 ||
 	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL, "Kernel page fault") != 0) {
@@ -255,16 +254,17 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 	if (frame->tf_scause == SCAUSE_STORE_PAGE_FAULT) { // 15
 		ftype = VM_PROT_WRITE;
 	} else if (frame->tf_scause == SCAUSE_INST_PAGE_FAULT) { // 12
-		//uint64_t sepc = frame->tf_sepc;
 		ftype = VM_PROT_EXECUTE;
-	} else {
+	} else { // SCAUSE_LOAD_PAGE_FAULT 13,
 		ftype = VM_PROT_READ;
 	}
 	if (usermode) {
+		uint64_t proc_base = p->p_vmspace->vm_base;
 		uint64_t upper = stval & ~(USER_MAX_ADDRESS-1);
 		if (upper != proc_base) {
-			printf("%s: stval %lx procbase %lx\n", __func__, stval, proc_base);
-			stval = proc_base | (stval & (USER_MAX_ADDRESS-1));
+			uint64_t sepc __unused = frame->tf_sepc;
+			printf("%s#%d: cause %lu stval %lx\n",
+			    __func__, __LINE__, frame->tf_scause, stval);
 		}
 	}
 	vm_offset_t va = trunc_page(stval);

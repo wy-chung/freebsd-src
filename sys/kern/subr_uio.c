@@ -96,7 +96,7 @@ to_abs_addr(void *addr) // uaddr might be an absolute address when called from e
 {
 	vm_offset_t uaddr = (vm_offset_t)addr;
 
-	if ((uaddr & UPPER) == 0) {
+	if ((uaddr & UPPER) == 0) { // near address
 		struct thread *td = curthread;
 		vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 		if (proc_base == 0)
