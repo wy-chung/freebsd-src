@@ -218,7 +218,7 @@ WYC_PANIC();
 		file_offset = 0;
 		/* Pass USER_PS_STRINGS for BSD/OS binaries only. */
 		if (N_GETMID(*a_out) == MID_ZERO)
-			imgp->ps_strings = (void *)aout_sysvec.sv_psstrings;
+			imgp->fps_strings = (void *)aout_sysvec.sv_psstrings;
 		break;
 	default:
 		/* NetBSD compatibility */

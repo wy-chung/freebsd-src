@@ -359,10 +359,10 @@ struct thread {
 	enum td_states	td_state;			/* (t) thread state */
 	/* Note: td_state must be accessed using TD_{GET,SET}_STATE(). */
 	union {
-		syscallarg_t	tdu_retval[2];
-		off_t		tdu_off;
-	} td_uretoff;			/* (k) Syscall aux returns. */
-#define td_retval	td_uretoff.tdu_retval
+		syscallarg_t	td_retval[2];
+		off_t		td_off;
+	};			/* (k) Syscall aux returns. */
+//#define td_retval	td_uretoff.tdu_retval
 	u_int		td_cowgen;	/* (k) Generation of COW pointers. */
 	/* LP64 hole */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */

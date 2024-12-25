@@ -101,7 +101,7 @@ struct fork_args {
 #endif
 
 /* ARGSUSED */
-int
+int __attribute__((optnone))
 sys_fork(struct thread *td, struct fork_args *uap)
 {
 	struct fork_req fr;

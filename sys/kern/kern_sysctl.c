@@ -165,7 +165,7 @@ sysctl_wunlock(void)
 	SYSCTL_WUNLOCK();
 }
 
-static int
+static int __attribute__((optnone))
 sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intmax_t arg2,
     struct sysctl_req *req, struct rm_priotracker *tracker)
 {
@@ -1352,7 +1352,7 @@ name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 	return (ENOENT);
 }
 
-static int
+static int __attribute__((optnone))
 sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 {
 	char *p;
@@ -1401,14 +1401,14 @@ SYSCTL_PROC(_sysctl, CTL_SYSCTL_NAME2OID, name2oid, CTLTYPE_INT | CTLFLAG_RW |
     CTLFLAG_ANYBODY | CTLFLAG_MPSAFE | CTLFLAG_CAPRW, 0, 0,
     sysctl_sysctl_name2oid, "I", "");
 
-static int
+static int __attribute__((optnone))
 sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 {
 	struct sysctl_oid *oid;
 	struct rm_priotracker tracker;
 	int error;
 
-	error = sysctl_wire_old_buffer(req, 0);
+	error = sysctl_wire_old_buffer(req, 0); //wycdebug 14
 	if (error)
 		return (error);
 
@@ -1425,6 +1425,8 @@ sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto out;
 	error = SYSCTL_OUT(req, oid->oid_fmt, strlen(oid->oid_fmt) + 1);
+	if (error)
+		goto out;
  out:
 	SYSCTL_RUNLOCK(&tracker);
 	return (error);
@@ -2119,7 +2121,7 @@ sysctl_new_user(struct sysctl_req *req, void *p, size_t l)
  * Wire the user space destination buffer.  If set to a value greater than
  * zero, the len parameter limits the maximum amount of wired memory.
  */
-int
+int __attribute__((optnone))
 sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 {
 	int ret;
@@ -2130,7 +2132,7 @@ sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 	if (req->lock != REQ_WIRED && req->oldptr &&
 	    req->oldfunc == sysctl_old_user) {
 		if (wiredlen != 0) {
-			ret = vslock(req->oldptr, wiredlen);
+			ret = vslock(req->oldptr, wiredlen); //wycdebug 14
 			if (ret != 0) {
 				if (ret != ENOMEM)
 					return (ret);
@@ -2193,7 +2195,7 @@ sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
  * to, and return the resulting error code.
  */
 
-static int
+static int __attribute__((optnone))
 sysctl_root(SYSCTL_HANDLER_ARGS)
 {
 	struct sysctl_oid *oid;
@@ -2288,7 +2290,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	if ((oid->oid_kind & CTLFLAG_VNET) && arg1 != NULL)
 		arg1 = (void *)(curvnet->vnet_data_base + (uintptr_t)arg1);
 #endif
-	error = sysctl_root_handler_locked(oid, arg1, arg2, req, &tracker);
+	error = sysctl_root_handler_locked(oid, arg1, arg2, req, &tracker); //wycdebug
 
 out:
 	SYSCTL_RUNLOCK(&tracker);
@@ -2305,7 +2307,7 @@ struct __sysctl_args {
 	size_t	newlen;
 };
 #endif
-int
+int __attribute__((optnone))
 sys___sysctl(struct thread *td, struct __sysctl_args *uap)
 {
 	int error, i, name[CTL_MAXNAME];
@@ -2322,7 +2324,7 @@ sys___sysctl(struct thread *td, struct __sysctl_args *uap)
 		uap->old, uap->oldlenp, false,
 		uap->new, uap->newlen, &j, 0);
 	if (error && error != ENOMEM)
-		return (error);
+		return (error); //wycdebug 14 EFAULT
 	if (uap->oldlenp) {
 		i = copyout(&j, uap->oldlenp, sizeof(j));
 		if (i)
@@ -2331,7 +2333,7 @@ sys___sysctl(struct thread *td, struct __sysctl_args *uap)
 	return (error);
 }
 
-int
+int __attribute__((optnone))
 kern___sysctlbyname(struct thread *td, const char *oname, size_t namelen,
     void *uold, size_t *oldlenp, void *unew, size_t newlen, size_t *retval,
     int flags, bool inkernel)
@@ -2379,7 +2381,7 @@ struct __sysctlbyname_args {
 	size_t	newlen;
 };
 #endif
-int
+int __attribute__((optnone))
 sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
 {
 	size_t rv;
@@ -2389,9 +2391,11 @@ sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
 	    uap->oldlenp, uap->new, uap->newlen, &rv, 0, 0);
 	if (error != 0)
 		return (error);
-	if (uap->oldlenp != NULL)
+	if (uap->oldlenp != NULL) {
 		error = copyout(&rv, uap->oldlenp, sizeof(rv));
-
+		if (error)
+			return error;
+	}
 	return (error);
 }
 
@@ -2399,7 +2403,7 @@ sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
  * This is used from various compatibility syscalls too.  That's why name
  * must be in kernel space.
  */
-int
+int __attribute__((optnone))
 userland_sysctl(struct thread *td, int *name, u_int namelen,
     void *uold, size_t *oldlenp, bool inkernel,
     const void *unew, size_t newlen, size_t *retval, int flags) // u means user

@@ -3974,7 +3974,7 @@ pmap_remove_pages_pv(pmap_t pmap, vm_page_t m, pv_entry_t pv,
  * particular, a page table entry's dirty bit won't change state once
  * this function starts.
  */
-void
+void __attribute__((optnone))
 pmap_remove_pages(pmap_t pmap) // ref pmap_remove()
 {
 	struct pv_chunk *pc, *npc;
@@ -4079,7 +4079,7 @@ pmap_remove_pages(pmap_t pmap) // ref pmap_remove()
 				 * process' mapping at this time.
 				 */
 				if (lne & PTE_SW_WIRED) {
-WYC_PANIC(); // tested. never runs here
+//WYC_PANIC(); // tested. will run to here
 					allfree = false;
 					continue;
 				}

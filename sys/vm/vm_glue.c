@@ -169,12 +169,13 @@ useracc(void *addr, int len, int rw)
 	return (rv == TRUE);
 }
 
-int
-vslock(void *addr, size_t len)
+int __attribute__((optnone))
+vslock(void *uaddr, size_t len)
 {
 	vm_offset_t end, last, start;
 	vm_size_t npages;
 	int error;
+	vm_offset_t addr = to_far_addr((vm_offset_t)uaddr); //wyc sa
 
 	last = (vm_offset_t)addr + len;
 	start = trunc_page((vm_offset_t)addr);

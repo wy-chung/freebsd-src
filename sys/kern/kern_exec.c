@@ -228,7 +228,7 @@ sys_execve(struct thread *td, struct execve_args *uap)
 // uap->fname, uap->argv and uap->envv are adjusted in exec_copyin_args
 	error = exec_copyin_args(td, &args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
-	if (error == 0) //wycdebug	EFAULT 14 /* Bad address */
+	if (error == 0)
 		error = kern_execve(td, &args, NULL, oldvmspace);
 	post_execve(td, error, oldvmspace);
 	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
@@ -332,7 +332,7 @@ post_execve(struct thread *td, int error, struct vmspace *oldvmspace)
 		 * If success, we upgrade to SINGLE_EXIT state to
 		 * force other threads to suicide.
 		 */
-		if (error == EJUSTRETURN)
+		if (error == EJUSTRETURN) // -2
 			thread_single(p, SINGLE_EXIT);
 		else
 			thread_single_end(p, SINGLE_BOUNDARY);
@@ -1693,9 +1693,9 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *fstack_base /*FAR OUT
 	p = imgp->proc;
 	sysent = p->p_sysent;
 
-	fdestp =	PROC_PS_STRINGS(p);
+	fdestp = PROC_PS_STRINGS(p);
 	farginfo = (void *)fdestp;
-	imgp->ps_strings = (void *)fdestp;
+	imgp->fps_strings = (void *)fdestp;
 	/*
 	 * Install sigcode.
 	 */
@@ -1716,7 +1716,7 @@ WYC_PANIC();
 		execpath_len = strlen(imgp->execpath) + 1;
 		fdestp -= execpath_len;
 		fdestp = rounddown2(fdestp, sizeof(void *));
-		imgp->execpathp = (void *)fdestp;
+		imgp->fexecpathp = (void *)fdestp;
 		error = copyout(imgp->execpath, (void *)fdestp, execpath_len);
 		if (error != 0)
 			return (error);
@@ -1727,7 +1727,7 @@ WYC_PANIC();
 	 */
 	arc4rand(canary, sizeof(canary), 0);
 	fdestp -= sizeof(canary);
-	imgp->canary = (void *)fdestp;
+	imgp->fcanary = (void *)fdestp;
 	error = copyout(canary, (void *)fdestp, sizeof(canary));
 	if (error != 0)
 		return (error);
@@ -1739,7 +1739,7 @@ WYC_PANIC();
 	imgp->pagesizeslen = sizeof(pagesizes[0]) * MAXPAGESIZES;
 	fdestp -= imgp->pagesizeslen;
 	fdestp = rounddown2(fdestp, sizeof(void *));
-	imgp->pagesizes = (void *)fdestp;
+	imgp->fpagesizes = (void *)fdestp;
 	error = copyout(pagesizes, (void *)fdestp, imgp->pagesizeslen);
 	if (error != 0)
 		return (error);
@@ -1788,8 +1788,8 @@ WYC_PANIC();
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	imgp->argv = fvectp;
-	if (suword(&farginfo->ps_argvstr, (long)(intptr_t)fvectp) != 0 ||
+	imgp->fargv = fvectp;
+	if (suword(&farginfo->ps_argvstr, to_near_addr((long)(intptr_t)fvectp)) != 0 ||
 	    suword32(&farginfo->ps_nargvstr, argc) != 0)
 		return (EFAULT);
 
@@ -1797,7 +1797,7 @@ WYC_PANIC();
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		if (suword(fvectp++, fstringp) != 0)
+		if (suword(fvectp++, to_near_addr(fstringp)) != 0)
 			return (EFAULT);
 		while (*astringp++ != 0)
 			fstringp++;
@@ -1808,8 +1808,8 @@ WYC_PANIC();
 	if (suword(fvectp++, 0) != 0)
 		return (EFAULT);
 
-	imgp->envv = fvectp;
-	if (suword(&farginfo->ps_envstr, (long)(intptr_t)fvectp) != 0 ||
+	imgp->fenvv = fvectp;
+	if (suword(&farginfo->ps_envstr, to_near_addr((long)(intptr_t)fvectp)) != 0 ||
 	    suword32(&farginfo->ps_nenvstr, envc) != 0)
 		return (EFAULT); // 14
 
@@ -1817,7 +1817,7 @@ WYC_PANIC();
 	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		if (suword(fvectp++, fstringp) != 0)
+		if (suword(fvectp++, to_near_addr(fstringp)) != 0)
 			return (EFAULT);
 		while (*astringp++ != 0)
 			fstringp++;
@@ -1828,10 +1828,9 @@ WYC_PANIC();
 	if (suword(fvectp, 0) != 0)
 		return (EFAULT);
 
-	if (imgp->auxargs) {
+	if (imgp->auxargs) { // true
 		fvectp++;
-		error = imgp->sysent->sv_copyout_auxargs(imgp,
-		    (uintptr_t)fvectp);
+		error = imgp->sysent->sv_copyout_auxargs(imgp, (uintptr_t)fvectp);
 	#if defined(WYC)
 		error = elf64_freebsd_copyout_auxargs();
 	#endif

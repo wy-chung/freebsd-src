@@ -1564,13 +1564,13 @@ ret:
 
 #define	elf_suword __CONCAT(suword, __ELF_WORD_SIZE)
 
-int
+int __attribute__((optnone))
 #if defined(WYC)
 elf64_freebsd_copyout_auxargs
 #else
 __elfN(freebsd_copyout_auxargs)
 #endif
-(struct image_params *imgp, uintptr_t base/*FAR*/)
+(struct image_params *imgp, uintptr_t fbase/*FAR*/)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
 	Elf64_Auxinfo *argarray, *pos; //ori Elf_Auxinfo
@@ -1594,22 +1594,22 @@ __elfN(freebsd_copyout_auxargs)
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
 	AUXARGS_ENTRY(pos, AT_EHDRFLAGS, args->hdr_eflags);
-	if (imgp->execpathp != 0)
-		AUXARGS_ENTRY_PTR(pos, AT_EXECPATH, imgp->execpathp);
+	if (imgp->fexecpathp != 0)
+		AUXARGS_ENTRY_PTR(pos, AT_EXECPATH, imgp->fexecpathp);
 	AUXARGS_ENTRY(pos, AT_OSRELDATE,
 	    imgp->proc->p_ucred->cr_prison->pr_osreldate);
-	if (imgp->canary != 0) {
-		AUXARGS_ENTRY_PTR(pos, AT_CANARY, imgp->canary);
+	if (imgp->fcanary != 0) {
+		AUXARGS_ENTRY_PTR(pos, AT_CANARY, imgp->fcanary);
 		AUXARGS_ENTRY(pos, AT_CANARYLEN, imgp->canarylen);
 	}
 	AUXARGS_ENTRY(pos, AT_NCPUS, mp_ncpus);
-	if (imgp->pagesizes != 0) {
-		AUXARGS_ENTRY_PTR(pos, AT_PAGESIZES, imgp->pagesizes);
+	if (imgp->fpagesizes != 0) {
+		AUXARGS_ENTRY_PTR(pos, AT_PAGESIZES, imgp->fpagesizes);
 		AUXARGS_ENTRY(pos, AT_PAGESIZESLEN, imgp->pagesizeslen);
 	}
 	if ((imgp->sysent->sv_flags & SV_TIMEKEEP) != 0) {
 		AUXARGS_ENTRY(pos, AT_TIMEKEEP,
-		    vmspace->vm_shp_base + imgp->sysent->sv_timekeep_offset);
+		    to_near_addr(vmspace->vm_shp_base) + imgp->sysent->sv_timekeep_offset);
 	}
 	AUXARGS_ENTRY(pos, AT_STACKPROT, imgp->sysent->sv_shared_page_obj
 	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
@@ -1625,21 +1625,21 @@ __elfN(freebsd_copyout_auxargs)
 	    0 ? ELF_BSDF_VMNOOVERCOMMIT : 0;
 	AUXARGS_ENTRY(pos, AT_BSDFLAGS, bsdflags);
 	AUXARGS_ENTRY(pos, AT_ARGC, imgp->args->argc);
-	AUXARGS_ENTRY_PTR(pos, AT_ARGV, imgp->argv);
+	AUXARGS_ENTRY_PTR(pos, AT_ARGV, imgp->fargv);
 	AUXARGS_ENTRY(pos, AT_ENVC, imgp->args->envc);
-	AUXARGS_ENTRY_PTR(pos, AT_ENVV, imgp->envv);
-	AUXARGS_ENTRY_PTR(pos, AT_PS_STRINGS, imgp->ps_strings);
+	AUXARGS_ENTRY_PTR(pos, AT_ENVV, imgp->fenvv);
+	AUXARGS_ENTRY_PTR(pos, AT_PS_STRINGS, imgp->fps_strings);
 #ifdef RANDOM_FENESTRASX
 	if ((imgp->sysent->sv_flags & SV_RNG_SEED_VER) != 0) {
 		AUXARGS_ENTRY(pos, AT_FXRNG,
-		    vmspace->vm_shp_base + imgp->sysent->sv_fxrng_gen_offset);
+		    to_near_addr(vmspace->vm_shp_base) + imgp->sysent->sv_fxrng_gen_offset);
 	}
 #endif
 	if ((imgp->sysent->sv_flags & SV_DSO_SIG) != 0 && __elfN(vdso) != 0) {
 		AUXARGS_ENTRY(pos, AT_KPRELOAD,
-		    vmspace->vm_shp_base + imgp->sysent->sv_vdso_offset);
+		    to_near_addr(vmspace->vm_shp_base) + imgp->sysent->sv_vdso_offset);
 	}
-	AUXARGS_ENTRY(pos, AT_USRSTACKBASE, round_page(vmspace->vm_stacktop));
+	AUXARGS_ENTRY(pos, AT_USRSTACKBASE, to_near_addr(round_page(vmspace->vm_stacktop)));
 	stacksz = imgp->proc->p_limit->pl_rlimit[RLIMIT_STACK].rlim_cur;
 	AUXARGS_ENTRY(pos, AT_USRSTACKLIM, stacksz);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
@@ -1648,7 +1648,7 @@ __elfN(freebsd_copyout_auxargs)
 	imgp->auxargs = NULL;
 	KASSERT(pos - argarray <= AT_COUNT, ("Too many auxargs"));
 
-	error = copyout(argarray, (void *)base, sizeof(*argarray) * AT_COUNT);
+	error = copyout(argarray, (void *)fbase, sizeof(*argarray) * AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
 }

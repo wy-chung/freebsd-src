@@ -204,7 +204,7 @@ END(fpe_state_clear)
 /*
  * void cpu_throw(struct thread *old __unused, struct thread *new)
  */
-ENTRY(cpu_throw)
+ENTRY(cpu_throw) // < sched_ap_entry < init_secondary
 	/* Activate the new thread`s pmap. */
 	mv	s0, a1
 	mv	a0, a1

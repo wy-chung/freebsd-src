@@ -181,7 +181,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t fstack/*FAR
 
 	memset(tf, 0, sizeof(struct trapframe));
 
-	uintptr_t nstack = to_user_addr(fstack); //wyc sa convert to near pointer
+	uintptr_t nstack = to_near_addr(fstack); //wyc sa convert to near pointer
 	tf->tf_a[0] = nstack;
 	tf->tf_sp = STACKALIGN(nstack);
 	tf->tf_ra = imgp->entry_addr;

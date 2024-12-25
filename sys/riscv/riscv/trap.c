@@ -263,8 +263,8 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 		uint64_t upper = stval & ~(USER_MAX_ADDRESS-1);
 		if (upper != proc_base) {
 			uint64_t sepc __unused = frame->tf_sepc;
-			printf("%s#%d: cause %lu stval %lx\n",
-			    __func__, __LINE__, frame->tf_scause, stval);
+			printf("%s: cause %lu stval %lx proc_base %lx\n",
+			    __func__, frame->tf_scause, stval, proc_base);
 		}
 	}
 	vm_offset_t va = trunc_page(stval);
