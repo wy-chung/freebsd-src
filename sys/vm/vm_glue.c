@@ -169,7 +169,7 @@ useracc(void *addr, int len, int rw)
 	return (rv == TRUE);
 }
 
-int
+int __attribute__((optnone))
 vslock(void *addr, size_t len)
 {
 	vm_offset_t end, last, start;

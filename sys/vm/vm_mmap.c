@@ -169,17 +169,20 @@ struct mmap_args {
 };
 #endif
 
-int
+int __attribute__((optnone))
 sys_mmap(struct thread *td, struct mmap_args *uap)
 {
-	return (kern_mmap(td, &(struct mmap_req){
+	int error;
+
+	error = kern_mmap(td, &(struct mmap_req){
 		.mr_hint = (uintptr_t)uap->addr,
 		.mr_len = uap->len,
 		.mr_prot = uap->prot,
 		.mr_flags = uap->flags,
 		.mr_fd = uap->fd,
 		.mr_pos = uap->pos,
-	    }));
+		});
+	return (error); // td->td_retval[0]
 }
 
 int
@@ -195,7 +198,7 @@ kern_mmap_maxprot(struct proc *p, int prot)
 	return (_PROT_ALL);
 }
 
-int
+int __attribute__((optnone))
 kern_mmap(struct thread *td, const struct mmap_req *mrp)
 {
 	struct vmspace *vms;
@@ -209,13 +212,16 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 	cap_rights_t rights;
 	mmap_check_fp_fn check_fp_fn;
 
-	orig_addr = addr = mrp->mr_hint;
+//WYC_ASSERT(mrp->mr_hint < USER_MAX_ADDRESS);
+	p = td->td_proc;
+	vms = p->p_vmspace;
+	orig_addr = addr = mrp->mr_hint; //wyc sa
 	len = mrp->mr_len;
 	prot = mrp->mr_prot;
 	flags = mrp->mr_flags;
 	fd = mrp->mr_fd;
 	pos = mrp->mr_pos;
-	check_fp_fn = mrp->mr_check_fp_fn;
+	check_fp_fn = mrp->mr_check_fp_fn; // NULL
 
 	if ((prot & ~(_PROT_ALL | PROT_MAX(_PROT_ALL))) != 0)
 		return (EINVAL);
@@ -224,8 +230,6 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 	if (max_prot != 0 && (max_prot & prot) != prot)
 		return (ENOTSUP);
 
-	p = td->td_proc;
-
 	/*
 	 * Always honor PROT_MAX if set.  If not, default to all
 	 * permissions unless we're implying maximum permissions.
@@ -233,7 +237,6 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 	if (max_prot == 0)
 		max_prot = kern_mmap_maxprot(p, prot);
 
-	vms = p->p_vmspace;
 	fp = NULL;
 	AUDIT_ARG_FD(fd);
 
@@ -324,6 +327,7 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 		if (flags & MAP_32BIT && addr + size > MAP_32BIT_MAX_ADDR)
 			return (EINVAL);
 	} else if (flags & MAP_32BIT) {
+WYC_PANIC();
 		/*
 		 * For MAP_32BIT, override the hint if it is too high and
 		 * do not bother moving the mapping past the heap (since
@@ -1527,7 +1531,7 @@ kern_mmap_racct_check(struct thread *td, vm_map_t map, vm_size_t size)
  * map.  Called by mmap for MAP_ANON, vm_mmap, shm_mmap, and vn_mmap.
  */
 int
-vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
+vm_mmap_object(struct _vm_map *map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
     vm_prot_t maxprot, int flags, vm_object_t object, vm_ooffset_t foff,
     boolean_t writecounted, struct thread *td)
 {
