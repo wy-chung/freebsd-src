@@ -216,7 +216,7 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 	p = td->td_proc;
 	vms = p->p_vmspace;
 	//wyc conver to far address in fixed slot mode will cause an error
-	//orig_addr = addr = vms->vm_base + mrp->mr_hint;
+	//orig_addr = addr = vms->vm_base + mrp->mr_hint; // to_far_addr
 	orig_addr = addr = mrp->mr_hint;
 	len = mrp->mr_len;
 	prot = mrp->mr_prot;
@@ -414,7 +414,7 @@ WYC_PANIC();
 	if (error == 0) {
 		// convert to near address will cause an error in fixed slot mode
 		//addr = to_near_addr(addr);
-		td->td_retval[0] = addr + pageoff;
+		td->td_retval[0] = addr + pageoff; // to_near_addr
 	}
 done:
 	if (fp)

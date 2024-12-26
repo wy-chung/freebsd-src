@@ -42,7 +42,7 @@
     {(pos)->a_type = (id); (pos)->a_un.a_val = (uintptr_t)(ptr); (pos)++;}
 #else
 #define	AUXARGS_ENTRY_PTR(pos, id, ptr) \
-    {(pos)->a_type = (id); (pos)->a_un.a_ptr = (ptr); (pos)++;}
+    {(pos)->a_type = (id); (pos)->a_un.a_ptr = (ptr); (pos)++;} // to_near_addr
 #endif
 
 struct image_params;
