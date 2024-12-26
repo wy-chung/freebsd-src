@@ -1769,7 +1769,7 @@ WYC_PANIC();
 	fvectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
 
 	/*
-	 * vectp also becomes our initial stack base
+	 * fvectp also becomes our initial stack base
 	 */
 	*fstack_base = (uintptr_t)fvectp;
 

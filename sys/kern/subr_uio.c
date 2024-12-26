@@ -88,25 +88,21 @@ int _suword64(volatile void *base, int64_t word);
 int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval);
 int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
 
-#define LOWER (USER_MAX_ADDRESS-1)
-#define UPPER ~(USER_MAX_ADDRESS-1)
-
 vm_offset_t __attribute__((optnone)) //wycdebug
-to_far_addr(void *addr) // uaddr might be an absolute address when called from elf64_load_section() or exec_copyout_strings()
+to_far_addr(void *uaddr) // uaddr might be an absolute address when called from elf64_load_section() or exec_copyout_strings()
 {
-	vm_offset_t uaddr = (vm_offset_t)addr;
-
-	if ((uaddr & UPPER) == 0) {
+#define UPPER ~(USER_MAX_ADDRESS-1)
+	vm_offset_t addr = (vm_offset_t)uaddr;
+	if ((addr & UPPER) == 0) { // near address
 		struct thread *td = curthread;
 		vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
 		if (proc_base == 0)
 			printf("%s: proc_base should not be zero\n", __func__);
-		uaddr |= proc_base;
+		return proc_base | addr;
 	}
-	return uaddr;
-}
-#undef LOWER
+	return addr;
 #undef UPPER
+}
 
 int __attribute__((optnone))
 copyinstr(const void * __restrict uaddr, void * _Nonnull __restrict kaddr,
