@@ -228,7 +228,7 @@ sys_execve(struct thread *td, struct execve_args *uap)
 // uap->fname, uap->argv and uap->envv are adjusted in exec_copyin_args
 	error = exec_copyin_args(td, &args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
-	if (error == 0) //wycdebug	EFAULT 14 /* Bad address */
+	if (error == 0)
 		error = kern_execve(td, &args, NULL, oldvmspace);
 	post_execve(td, error, oldvmspace);
 	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
