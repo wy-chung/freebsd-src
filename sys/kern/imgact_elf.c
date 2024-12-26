@@ -1570,7 +1570,7 @@ elf64_freebsd_copyout_auxargs
 #else
 __elfN(freebsd_copyout_auxargs)
 #endif
-(struct image_params *imgp, uintptr_t base/*FAR*/)
+(struct image_params *imgp, uintptr_t fbase/*OUT*/)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
 	Elf64_Auxinfo *argarray, *pos; //ori Elf_Auxinfo
@@ -1648,7 +1648,7 @@ __elfN(freebsd_copyout_auxargs)
 	imgp->auxargs = NULL;
 	KASSERT(pos - argarray <= AT_COUNT, ("Too many auxargs"));
 
-	error = copyout(argarray, (void *)base, sizeof(*argarray) * AT_COUNT);
+	error = copyout(argarray, (void *)fbase, sizeof(*argarray) * AT_COUNT);
 	free(argarray, M_TEMP);
 	return (error);
 }

@@ -3522,7 +3522,7 @@ vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry, vm_offset_t failed
 	entry->wired_count = -1;
 }
 
-int
+int __attribute__((optnone))
 vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 {
 	int rv;
@@ -3539,7 +3539,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
  *	Implements both kernel and user wiring.  Returns with the map locked,
  *	the map lock may be dropped.
  */
-int
+int __attribute__((optnone))
 vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 {
 	vm_map_entry_t entry, first_entry, next_entry;

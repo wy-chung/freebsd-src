@@ -3096,7 +3096,7 @@ sched_throw_grab(struct tdq *tdq)
  * A CPU is entering for the first time.
  */
 void
-sched_ap_entry(void)
+sched_ap_entry(void) // < init_secondary
 {
 	struct thread *newtd;
 	struct tdq *tdq;

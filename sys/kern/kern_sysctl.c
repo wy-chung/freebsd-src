@@ -165,7 +165,7 @@ sysctl_wunlock(void)
 	SYSCTL_WUNLOCK();
 }
 
-static int
+static int __attribute__((optnone))
 sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intmax_t arg2,
     struct sysctl_req *req, struct rm_priotracker *tracker)
 {
@@ -1352,7 +1352,7 @@ name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 	return (ENOENT);
 }
 
-static int
+static int __attribute__((optnone))
 sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 {
 	char *p;
@@ -1401,7 +1401,7 @@ SYSCTL_PROC(_sysctl, CTL_SYSCTL_NAME2OID, name2oid, CTLTYPE_INT | CTLFLAG_RW |
     CTLFLAG_ANYBODY | CTLFLAG_MPSAFE | CTLFLAG_CAPRW, 0, 0,
     sysctl_sysctl_name2oid, "I", "");
 
-static int
+static int __attribute__((optnone))
 sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 {
 	struct sysctl_oid *oid;
@@ -2119,7 +2119,7 @@ sysctl_new_user(struct sysctl_req *req, void *p, size_t l)
  * Wire the user space destination buffer.  If set to a value greater than
  * zero, the len parameter limits the maximum amount of wired memory.
  */
-int
+int __attribute__((optnone))
 sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 {
 	int ret;
@@ -2193,7 +2193,7 @@ sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
  * to, and return the resulting error code.
  */
 
-static int
+static int __attribute__((optnone))
 sysctl_root(SYSCTL_HANDLER_ARGS)
 {
 	struct sysctl_oid *oid;
@@ -2305,7 +2305,7 @@ struct __sysctl_args {
 	size_t	newlen;
 };
 #endif
-int
+int __attribute__((optnone))
 sys___sysctl(struct thread *td, struct __sysctl_args *uap)
 {
 	int error, i, name[CTL_MAXNAME];
@@ -2331,7 +2331,7 @@ sys___sysctl(struct thread *td, struct __sysctl_args *uap)
 	return (error);
 }
 
-int
+int __attribute__((optnone))
 kern___sysctlbyname(struct thread *td, const char *oname, size_t namelen,
     void *uold, size_t *oldlenp, void *unew, size_t newlen, size_t *retval,
     int flags, bool inkernel)
@@ -2379,7 +2379,7 @@ struct __sysctlbyname_args {
 	size_t	newlen;
 };
 #endif
-int
+int __attribute__((optnone))
 sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
 {
 	size_t rv;
@@ -2399,7 +2399,7 @@ sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
  * This is used from various compatibility syscalls too.  That's why name
  * must be in kernel space.
  */
-int
+int __attribute__((optnone))
 userland_sysctl(struct thread *td, int *name, u_int namelen,
     void *uold, size_t *oldlenp, bool inkernel,
     const void *unew, size_t newlen, size_t *retval, int flags) // u means user
