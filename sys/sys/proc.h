@@ -361,8 +361,7 @@ struct thread {
 	union {
 		syscallarg_t	td_retval[2];
 		off_t		td_off;
-	};			/* (k) Syscall aux returns. */
-//#define td_retval	td_uretoff.tdu_retval
+	};				/* (k) Syscall aux returns. */
 	u_int		td_cowgen;	/* (k) Generation of COW pointers. */
 	/* LP64 hole */
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */

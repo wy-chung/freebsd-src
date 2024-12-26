@@ -182,8 +182,8 @@ sys_mmap(struct thread *td, struct mmap_args *uap)
 		.mr_fd = uap->fd,
 		.mr_pos = uap->pos,
 		});
-	return (error);
-} // td->td_retval[0]
+	return (error); // td->td_retval[0]
+}
 
 int
 kern_mmap_maxprot(struct proc *p, int prot)

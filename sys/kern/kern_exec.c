@@ -1676,7 +1676,7 @@ exec_args_get_begin_envv(struct image_args *args)
  * as the initial stack pointer.
  */
 int __attribute__((optnone)) //wycdebug // < do_execve
-exec_copyout_strings(struct image_params *imgp, uintptr_t *fstack_base /*FAR OUT*/)
+exec_copyout_strings(struct image_params *imgp, uintptr_t *fstack_base /*OUT*/)
 {
 	int argc, envc;
 	char *astringp; // ori stringp, string from the argument
@@ -1717,7 +1717,7 @@ WYC_PANIC();
 		fdestp -= execpath_len;
 		fdestp = rounddown2(fdestp, sizeof(void *));
 		imgp->fexecpathp = (void *)fdestp;
-		error = copyout(imgp->execpath, (void *)fdestp, execpath_len);
+		error = copyout(imgp->execpath, imgp->fexecpathp, execpath_len);
 		if (error != 0)
 			return (error);
 	}
@@ -1728,7 +1728,7 @@ WYC_PANIC();
 	arc4rand(canary, sizeof(canary), 0);
 	fdestp -= sizeof(canary);
 	imgp->fcanary = (void *)fdestp;
-	error = copyout(canary, (void *)fdestp, sizeof(canary));
+	error = copyout(canary, imgp->fcanary, sizeof(canary));
 	if (error != 0)
 		return (error);
 	imgp->canarylen = sizeof(canary);
@@ -1740,7 +1740,7 @@ WYC_PANIC();
 	fdestp -= imgp->pagesizeslen;
 	fdestp = rounddown2(fdestp, sizeof(void *));
 	imgp->fpagesizes = (void *)fdestp;
-	error = copyout(pagesizes, (void *)fdestp, imgp->pagesizeslen);
+	error = copyout(pagesizes, imgp->fpagesizes, imgp->pagesizeslen);
 	if (error != 0)
 		return (error);
 

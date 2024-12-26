@@ -259,10 +259,10 @@ page_fault_handler(struct trapframe *frame, bool usermode)
 		ftype = VM_PROT_READ;
 	}
 	if (usermode) {
+		//uint64_t sepc = frame->tf_sepc;
 		uint64_t proc_base = p->p_vmspace->vm_base;
 		uint64_t upper = stval & ~(USER_MAX_ADDRESS-1);
 		if (upper != proc_base) {
-			uint64_t sepc __unused = frame->tf_sepc;
 			printf("%s: cause %lu stval %lx proc_base %lx\n",
 			    __func__, frame->tf_scause, stval, proc_base);
 		}

@@ -306,7 +306,7 @@ void	*memmove_early(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 	((__r >= __len) ? ENAMETOOLONG : 0);			\
 })
 
-vm_offset_t to_far_addr(vm_offset_t addr);
+vm_offset_t to_far_addr(void *uaddr);
 int	copyinstr(const void * __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len,
 	    size_t * __restrict lencopied);

@@ -1570,7 +1570,7 @@ elf64_freebsd_copyout_auxargs
 #else
 __elfN(freebsd_copyout_auxargs)
 #endif
-(struct image_params *imgp, uintptr_t fbase/*FAR*/)
+(struct image_params *imgp, uintptr_t fbase/*OUT*/)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
 	Elf64_Auxinfo *argarray, *pos; //ori Elf_Auxinfo

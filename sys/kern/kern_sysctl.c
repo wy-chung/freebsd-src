@@ -1408,7 +1408,7 @@ sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 	struct rm_priotracker tracker;
 	int error;
 
-	error = sysctl_wire_old_buffer(req, 0); //wycdebug 14
+	error = sysctl_wire_old_buffer(req, 0);
 	if (error)
 		return (error);
 
@@ -1425,8 +1425,6 @@ sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 	if (error)
 		goto out;
 	error = SYSCTL_OUT(req, oid->oid_fmt, strlen(oid->oid_fmt) + 1);
-	if (error)
-		goto out;
  out:
 	SYSCTL_RUNLOCK(&tracker);
 	return (error);
@@ -2132,7 +2130,7 @@ sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 	if (req->lock != REQ_WIRED && req->oldptr &&
 	    req->oldfunc == sysctl_old_user) {
 		if (wiredlen != 0) {
-			ret = vslock(req->oldptr, wiredlen); //wycdebug 14
+			ret = vslock(req->oldptr, wiredlen);
 			if (ret != 0) {
 				if (ret != ENOMEM)
 					return (ret);
@@ -2290,7 +2288,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 	if ((oid->oid_kind & CTLFLAG_VNET) && arg1 != NULL)
 		arg1 = (void *)(curvnet->vnet_data_base + (uintptr_t)arg1);
 #endif
-	error = sysctl_root_handler_locked(oid, arg1, arg2, req, &tracker); //wycdebug
+	error = sysctl_root_handler_locked(oid, arg1, arg2, req, &tracker);
 
 out:
 	SYSCTL_RUNLOCK(&tracker);
@@ -2324,7 +2322,7 @@ sys___sysctl(struct thread *td, struct __sysctl_args *uap)
 		uap->old, uap->oldlenp, false,
 		uap->new, uap->newlen, &j, 0);
 	if (error && error != ENOMEM)
-		return (error); //wycdebug 14 EFAULT
+		return (error);
 	if (uap->oldlenp) {
 		i = copyout(&j, uap->oldlenp, sizeof(j));
 		if (i)
@@ -2391,11 +2389,9 @@ sys___sysctlbyname(struct thread *td, struct __sysctlbyname_args *uap)
 	    uap->oldlenp, uap->new, uap->newlen, &rv, 0, 0);
 	if (error != 0)
 		return (error);
-	if (uap->oldlenp != NULL) {
+	if (uap->oldlenp != NULL)
 		error = copyout(&rv, uap->oldlenp, sizeof(rv));
-		if (error)
-			return error;
-	}
+
 	return (error);
 }
 
