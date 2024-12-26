@@ -1676,14 +1676,14 @@ exec_args_get_begin_envv(struct image_args *args)
  * as the initial stack pointer.
  */
 int __attribute__((optnone)) //wycdebug // < do_execve
-exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base /*FAR OUT*/)
+exec_copyout_strings(struct image_params *imgp, uintptr_t *fstack_base /*OUT*/)
 {
 	int argc, envc;
 	char *astringp; // ori stringp, string from the argument
-	char **vectp;		// user address of the destination process
-	uintptr_t dstringp; // ori ustringp, user address of the destination process
-	uintptr_t destp;	// user address of the destination process
-	struct ps_strings *arginfo; // user address of the destination process
+	char **fvectp;		// FAR vectp
+	uintptr_t fstringp;	// FAR stringp. ori ustringp
+	uintptr_t fdestp;	// FAR
+	struct ps_strings *farginfo; // FAR arginfo
 	struct proc *p;
 	struct sysentvec *sysent;
 	size_t execpath_len;
@@ -1693,18 +1693,18 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base /*FAR OUT*
 	p = imgp->proc;
 	sysent = p->p_sysent;
 
-	destp =	PROC_PS_STRINGS(p);
-	arginfo = imgp->fps_strings = (void *)destp;
-
+	fdestp = PROC_PS_STRINGS(p);
+	farginfo = (void *)fdestp;
+	imgp->fps_strings = (void *)fdestp;
 	/*
 	 * Install sigcode.
 	 */
 	if (sysent->sv_shared_page_base == 0 && sysent->sv_szsigcode != NULL) {
 WYC_PANIC();
 		szsigcode = *(sysent->sv_szsigcode);
-		destp -= szsigcode;
-		destp = rounddown2(destp, sizeof(void *));
-		error = copyout(sysent->sv_sigcode, (void *)destp, szsigcode);
+		fdestp -= szsigcode;
+		fdestp = rounddown2(fdestp, sizeof(void *));
+		error = copyout(sysent->sv_sigcode, (void *)fdestp, szsigcode);
 		if (error != 0)
 			return (error);
 	}
@@ -1714,9 +1714,9 @@ WYC_PANIC();
 	 */
 	if (imgp->execpath != NULL && imgp->auxargs != NULL) {
 		execpath_len = strlen(imgp->execpath) + 1;
-		destp -= execpath_len;
-		destp = rounddown2(destp, sizeof(void *));
-		imgp->fexecpathp = (void *)destp;
+		fdestp -= execpath_len;
+		fdestp = rounddown2(fdestp, sizeof(void *));
+		imgp->fexecpathp = (void *)fdestp;
 		error = copyout(imgp->execpath, imgp->fexecpathp, execpath_len);
 		if (error != 0)
 			return (error);
@@ -1726,8 +1726,8 @@ WYC_PANIC();
 	 * Prepare the canary for SSP.
 	 */
 	arc4rand(canary, sizeof(canary), 0);
-	destp -= sizeof(canary);
-	imgp->fcanary = (void *)destp;
+	fdestp -= sizeof(canary);
+	imgp->fcanary = (void *)fdestp;
 	error = copyout(canary, imgp->fcanary, sizeof(canary));
 	if (error != 0)
 		return (error);
@@ -1737,9 +1737,9 @@ WYC_PANIC();
 	 * Prepare the pagesizes array.
 	 */
 	imgp->pagesizeslen = sizeof(pagesizes[0]) * MAXPAGESIZES;
-	destp -= imgp->pagesizeslen;
-	destp = rounddown2(destp, sizeof(void *));
-	imgp->fpagesizes = (void *)destp;
+	fdestp -= imgp->pagesizeslen;
+	fdestp = rounddown2(fdestp, sizeof(void *));
+	imgp->fpagesizes = (void *)fdestp;
 	error = copyout(pagesizes, imgp->fpagesizes, imgp->pagesizeslen);
 	if (error != 0)
 		return (error);
@@ -1747,31 +1747,31 @@ WYC_PANIC();
 	/*
 	 * Allocate room for the argument and environment strings.
 	 */
-	destp -= ARG_MAX - imgp->args->stringspace;
-	destp = rounddown2(destp, sizeof(void *));
-	dstringp = destp; // user space
+	fdestp -= ARG_MAX - imgp->args->stringspace;
+	fdestp = rounddown2(fdestp, sizeof(void *));
+	fstringp = fdestp; // user space
 
 	if (imgp->auxargs) {
 		/*
 		 * Allocate room on the stack for the ELF auxargs
 		 * array.  It has up to AT_COUNT entries.
 		 */
-		destp -= AT_COUNT * sizeof(Elf64_Auxinfo); //ori Elf_Auxinfo
-		destp = rounddown2(destp, sizeof(void *));
+		fdestp -= AT_COUNT * sizeof(Elf64_Auxinfo); //ori Elf_Auxinfo
+		fdestp = rounddown2(fdestp, sizeof(void *));
 	}
 
-	vectp = (char **)destp;
+	fvectp = (char **)fdestp;
 
 	/*
 	 * Allocate room for the argv[] and env vectors including the
 	 * terminating NULL pointers.
 	 */
-	vectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
+	fvectp -= imgp->args->argc + 1 + imgp->args->envc + 1;
 
 	/*
 	 * vectp also becomes our initial stack base
 	 */
-	*stack_base = (uintptr_t)vectp;
+	*fstack_base = (uintptr_t)fvectp;
 
 	astringp = imgp->args->begin_argv;
 	argc = imgp->args->argc;
@@ -1780,7 +1780,7 @@ WYC_PANIC();
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	error = copyout(astringp, (void *)dstringp,
+	error = copyout(astringp, (void *)fstringp,
 	    ARG_MAX - imgp->args->stringspace);
 	if (error != 0)
 		return (error);
@@ -1788,50 +1788,49 @@ WYC_PANIC();
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	imgp->fargv = vectp;
-	if (suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
-	    suword32(&arginfo->ps_nargvstr, argc) != 0)
+	imgp->fargv = fvectp;
+	if (suword(&farginfo->ps_argvstr, (long)(intptr_t)fvectp) != 0 ||
+	    suword32(&farginfo->ps_nargvstr, argc) != 0)
 		return (EFAULT);
 
 	/*
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		if (suword(vectp++, dstringp) != 0)
+		if (suword(fvectp++, fstringp) != 0)
 			return (EFAULT);
 		while (*astringp++ != 0)
-			dstringp++;
-		dstringp++;
+			fstringp++;
+		fstringp++;
 	}
 
 	/* a null vector table pointer separates the argp's from the envp's */
-	if (suword(vectp++, 0) != 0)
+	if (suword(fvectp++, 0) != 0)
 		return (EFAULT);
 
-	imgp->fenvv = vectp;
-	if (suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
-	    suword32(&arginfo->ps_nenvstr, envc) != 0)
+	imgp->fenvv = fvectp;
+	if (suword(&farginfo->ps_envstr, (long)(intptr_t)fvectp) != 0 ||
+	    suword32(&farginfo->ps_nenvstr, envc) != 0)
 		return (EFAULT); // 14
 
 	/*
 	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		if (suword(vectp++, dstringp) != 0)
+		if (suword(fvectp++, fstringp) != 0)
 			return (EFAULT);
 		while (*astringp++ != 0)
-			dstringp++;
-		dstringp++;
+			fstringp++;
+		fstringp++;
 	}
 
 	/* end of vector table is a null pointer */
-	if (suword(vectp, 0) != 0)
+	if (suword(fvectp, 0) != 0)
 		return (EFAULT);
 
-	if (imgp->auxargs) {
-		vectp++;
-		error = imgp->sysent->sv_copyout_auxargs(imgp,
-		    (uintptr_t)vectp);
+	if (imgp->auxargs) { // true
+		fvectp++;
+		error = imgp->sysent->sv_copyout_auxargs(imgp, (uintptr_t)fvectp);
 	#if defined(WYC)
 		error = elf64_freebsd_copyout_auxargs();
 	#endif
