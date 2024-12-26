@@ -76,18 +76,18 @@ struct image_params {
 	char *interpreter_name;		/* name of the interpreter */
 	void *auxargs;			/* ELF Auxinfo structure pointer */
 	struct sf_buf *firstpage;	/* first page that we mapped */
-	void *ps_strings;		/* pointer to ps_string (user space) */
 	struct image_args *args;	/* system call arguments */
 	struct sysentvec *sysent;	/* system entry vector */
-	void *argv;			/* pointer to argv (user space) */
-	void *envv;			/* pointer to envv (user space) */
+	void *fps_strings;		/* far pointer to ps_string (user space) */
+	void *fargv;			/* far pointer to argv (user space) */
+	void *fenvv;			/* far pointer to envv (user space) */
+	void *fexecpathp;	// far pointer
+	void *fcanary;		// far pointer
+	void *fpagesizes;	// far pointer
 	char *execpath;
-	void *execpathp;
-	char *freepath;
-	void *canary;
 	int canarylen;
-	void *pagesizes;
 	int pagesizeslen;
+	char *freepath;
 	vm_prot_t stack_prot;
 	u_long stack_sz;
 	struct ucred *newcred;		/* new credentials if changing */

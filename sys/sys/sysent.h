@@ -105,7 +105,7 @@ struct sysentvec { // elf64_freebsd_sysvec_la48(amd64), elf64_freebsd_sysvec(ris
 					/* stack fixup function */
 	void		(*sv_sendsig)(void (*)(int), struct ksiginfo *, struct __sigset *);
 					/* send signal */ // sendsig
-	const char 	*sv_sigcode;	/* start of sigtramp code */
+	const char 	*sv_sigcode;	/* start of sigtramp code */ // sigcode(riscv)
 	int 		*sv_szsigcode;	/* size of sigtramp code */
 	int		sv_sigcodeoff; // VDSO_SIGCODE_OFFSET
 	char		*sv_name;	/* name of binary type */ // "FreeBSD ELF64"
@@ -144,8 +144,8 @@ struct sysentvec { // elf64_freebsd_sysvec_la48(amd64), elf64_freebsd_sysvec(ris
 	void		(*sv_schedtail)(struct thread *); // NULL
 	void		(*sv_thread_detach)(struct thread *); // NULL
 	int		(*sv_trap)(struct thread *); // NULL
-	u_long		*sv_hwcap;	/* Value passed in AT_HWCAP. */
-	u_long		*sv_hwcap2;	/* Value passed in AT_HWCAP2. */
+	u_long		*sv_hwcap;	/* Value passed in AT_HWCAP. */  // &elf_hwcap(riscv)
+	u_long		*sv_hwcap2;	/* Value passed in AT_HWCAP2. */ // NULL(riscv)
 	const char	*(*sv_machine_arch)(struct proc *);
 	void		(*sv_onexec_old)(struct thread *td); // exec_onexec_old
 	int		(*sv_onexec)(struct proc *, struct image_params *); // NULL

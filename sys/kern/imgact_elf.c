@@ -1564,7 +1564,7 @@ ret:
 
 #define	elf_suword __CONCAT(suword, __ELF_WORD_SIZE)
 
-int
+int __attribute__((optnone))
 #if defined(WYC)
 elf64_freebsd_copyout_auxargs
 #else
@@ -1594,17 +1594,17 @@ __elfN(freebsd_copyout_auxargs)
 	AUXARGS_ENTRY(pos, AT_ENTRY, args->entry);
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
 	AUXARGS_ENTRY(pos, AT_EHDRFLAGS, args->hdr_eflags);
-	if (imgp->execpathp != 0)
-		AUXARGS_ENTRY_PTR(pos, AT_EXECPATH, imgp->execpathp);
+	if (imgp->fexecpathp != 0)
+		AUXARGS_ENTRY_PTR(pos, AT_EXECPATH, imgp->fexecpathp);
 	AUXARGS_ENTRY(pos, AT_OSRELDATE,
 	    imgp->proc->p_ucred->cr_prison->pr_osreldate);
-	if (imgp->canary != 0) {
-		AUXARGS_ENTRY_PTR(pos, AT_CANARY, imgp->canary);
+	if (imgp->fcanary != 0) {
+		AUXARGS_ENTRY_PTR(pos, AT_CANARY, imgp->fcanary);
 		AUXARGS_ENTRY(pos, AT_CANARYLEN, imgp->canarylen);
 	}
 	AUXARGS_ENTRY(pos, AT_NCPUS, mp_ncpus);
-	if (imgp->pagesizes != 0) {
-		AUXARGS_ENTRY_PTR(pos, AT_PAGESIZES, imgp->pagesizes);
+	if (imgp->fpagesizes != 0) {
+		AUXARGS_ENTRY_PTR(pos, AT_PAGESIZES, imgp->fpagesizes);
 		AUXARGS_ENTRY(pos, AT_PAGESIZESLEN, imgp->pagesizeslen);
 	}
 	if ((imgp->sysent->sv_flags & SV_TIMEKEEP) != 0) {
@@ -1625,10 +1625,10 @@ __elfN(freebsd_copyout_auxargs)
 	    0 ? ELF_BSDF_VMNOOVERCOMMIT : 0;
 	AUXARGS_ENTRY(pos, AT_BSDFLAGS, bsdflags);
 	AUXARGS_ENTRY(pos, AT_ARGC, imgp->args->argc);
-	AUXARGS_ENTRY_PTR(pos, AT_ARGV, imgp->argv);
+	AUXARGS_ENTRY_PTR(pos, AT_ARGV, imgp->fargv);
 	AUXARGS_ENTRY(pos, AT_ENVC, imgp->args->envc);
-	AUXARGS_ENTRY_PTR(pos, AT_ENVV, imgp->envv);
-	AUXARGS_ENTRY_PTR(pos, AT_PS_STRINGS, imgp->ps_strings);
+	AUXARGS_ENTRY_PTR(pos, AT_ENVV, imgp->fenvv);
+	AUXARGS_ENTRY_PTR(pos, AT_PS_STRINGS, imgp->fps_strings);
 #ifdef RANDOM_FENESTRASX
 	if ((imgp->sysent->sv_flags & SV_RNG_SEED_VER) != 0) {
 		AUXARGS_ENTRY(pos, AT_FXRNG,

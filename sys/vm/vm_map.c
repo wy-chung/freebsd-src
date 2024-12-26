@@ -4362,8 +4362,8 @@ vmspace_fork(struct vmspace *vm1, pid_t p2_pid __unused, vm_ooffset_t *fork_char
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm_offset_t umin = to_user_addr(vm_map_min(old_map));
-	vm_offset_t umax = to_user_addr(vm_map_max(old_map) - 1) + 1;
+	vm_offset_t umin = to_near_addr(vm_map_min(old_map));
+	vm_offset_t umax = to_near_addr(vm_map_max(old_map) - 1) + 1;
 #define PROC_SLOT 2
 #if defined(PROC_SLOT)
 	unsigned slot = PROC_SLOT;
@@ -4375,11 +4375,11 @@ vmspace_fork(struct vmspace *vm1, pid_t p2_pid __unused, vm_ooffset_t *fork_char
 	if (vm2 == NULL)
 		return (NULL);
 
-	vm2->vm_taddr = proc_base + to_user_addr(vm1->vm_taddr);
-	vm2->vm_daddr = proc_base + to_user_addr(vm1->vm_daddr);
-	vm2->vm_shp_base = proc_base + to_user_addr(vm1->vm_shp_base);
-	vm2->vm_stacktop = proc_base + to_user_addr(vm1->vm_stacktop - 1) + 1;
-	vm2->vm_maxsaddr = proc_base + to_user_addr(vm1->vm_maxsaddr);
+	vm2->vm_taddr = proc_base + to_near_addr(vm1->vm_taddr);
+	vm2->vm_daddr = proc_base + to_near_addr(vm1->vm_daddr);
+	vm2->vm_shp_base = proc_base + to_near_addr(vm1->vm_shp_base);
+	vm2->vm_stacktop = proc_base + to_near_addr(vm1->vm_stacktop - 1) + 1;
+	vm2->vm_maxsaddr = proc_base + to_near_addr(vm1->vm_maxsaddr);
 
 	vm_map_lock(old_map);
 	if (old_map->busy)
@@ -4484,8 +4484,8 @@ vmspace_fork(struct vmspace *vm1, pid_t p2_pid __unused, vm_ooffset_t *fork_char
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
-			new_entry->start = proc_base + to_user_addr(old_entry->start);	//wyc sa
-			new_entry->end = proc_base + to_user_addr(old_entry->end-1)+1;	//wyc sa
+			new_entry->start = proc_base + to_near_addr(old_entry->start);	//wyc sa
+			new_entry->end = proc_base + to_near_addr(old_entry->end-1)+1;	//wyc sa
 			new_entry->eflags &= ~(MAP_ENTRY_USER_WIRED |
 			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wiring_thread = NULL;
@@ -4518,8 +4518,8 @@ vmspace_fork(struct vmspace *vm1, pid_t p2_pid __unused, vm_ooffset_t *fork_char
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
-			new_entry->start = proc_base + to_user_addr(old_entry->start);	//wyc sa
-			new_entry->end = proc_base + to_user_addr(old_entry->end-1)+1;	//wyc sa
+			new_entry->start = proc_base + to_near_addr(old_entry->start);	//wyc sa
+			new_entry->end = proc_base + to_near_addr(old_entry->end-1)+1;	//wyc sa
 			/*
 			 * Copied entry is COW over the old object.
 			 */
@@ -4544,8 +4544,8 @@ vmspace_fork(struct vmspace *vm1, pid_t p2_pid __unused, vm_ooffset_t *fork_char
 			new_entry = vm_map_entry_create(new_map);
 			memset(new_entry, 0, sizeof(*new_entry));
 
-			new_entry->start = proc_base + to_user_addr(old_entry->start);	//wyc sa
-			new_entry->end = proc_base + to_user_addr(old_entry->end-1)+1;	//wyc sa
+			new_entry->start = proc_base + to_near_addr(old_entry->start);	//wyc sa
+			new_entry->end = proc_base + to_near_addr(old_entry->end-1)+1;	//wyc sa
 			new_entry->eflags = old_entry->eflags &
 			    ~(MAP_ENTRY_USER_WIRED | MAP_ENTRY_IN_TRANSITION |
 			    MAP_ENTRY_WRITECNT | MAP_ENTRY_VN_EXEC |

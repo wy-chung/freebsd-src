@@ -332,7 +332,7 @@ post_execve(struct thread *td, int error, struct vmspace *oldvmspace)
 		 * If success, we upgrade to SINGLE_EXIT state to
 		 * force other threads to suicide.
 		 */
-		if (error == EJUSTRETURN)
+		if (error == EJUSTRETURN) // -2
 			thread_single(p, SINGLE_EXIT);
 		else
 			thread_single_end(p, SINGLE_BOUNDARY);
@@ -738,8 +738,8 @@ interpret:
 	/*
 	 * Copy out strings (args and env) and initialize stack base.
 	 */
-	uintptr_t stack_base/*FAR*/;
-	error = (*p->p_sysent->sv_copyout_strings)(imgp, &stack_base);
+	uintptr_t fstack_base; // FAR address of the dest process
+	error = (*p->p_sysent->sv_copyout_strings)(imgp, &fstack_base);
 #if defined(WYC)
 	error = exec_copyout_strings();
 #endif
@@ -751,7 +751,7 @@ interpret:
 	/*
 	 * Stack setup.
 	 */
-	error = (*p->p_sysent->sv_fixup)(&stack_base, imgp);
+	error = (*p->p_sysent->sv_fixup)(&fstack_base, imgp);
 #if defined(WYC)
 	error = elf64_freebsd_fixup();
 #endif
@@ -947,7 +947,7 @@ interpret:
 #endif
 
 	/* Set values passed into the program in registers. */
-	(*p->p_sysent->sv_setregs)(td, imgp, stack_base);
+	(*p->p_sysent->sv_setregs)(td, imgp, fstack_base);
 #if defined(WYC)
 	exec_setregs();
 #endif
@@ -1675,7 +1675,7 @@ exec_args_get_begin_envv(struct image_args *args)
  * and env vector tables. Return a pointer to the base so that it can be used
  * as the initial stack pointer.
  */
-int __attribute__((optnone)) //wycdebug
+int __attribute__((optnone)) //wycdebug // < do_execve
 exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base /*FAR OUT*/)
 {
 	int argc, envc;
@@ -1694,7 +1694,7 @@ exec_copyout_strings(struct image_params *imgp, uintptr_t *stack_base /*FAR OUT*
 	sysent = p->p_sysent;
 
 	destp =	PROC_PS_STRINGS(p);
-	arginfo = imgp->ps_strings = (void *)destp;
+	arginfo = imgp->fps_strings = (void *)destp;
 
 	/*
 	 * Install sigcode.
@@ -1716,8 +1716,8 @@ WYC_PANIC();
 		execpath_len = strlen(imgp->execpath) + 1;
 		destp -= execpath_len;
 		destp = rounddown2(destp, sizeof(void *));
-		imgp->execpathp = (void *)destp;
-		error = copyout(imgp->execpath, imgp->execpathp, execpath_len);
+		imgp->fexecpathp = (void *)destp;
+		error = copyout(imgp->execpath, imgp->fexecpathp, execpath_len);
 		if (error != 0)
 			return (error);
 	}
@@ -1727,8 +1727,8 @@ WYC_PANIC();
 	 */
 	arc4rand(canary, sizeof(canary), 0);
 	destp -= sizeof(canary);
-	imgp->canary = (void *)destp;
-	error = copyout(canary, imgp->canary, sizeof(canary));
+	imgp->fcanary = (void *)destp;
+	error = copyout(canary, imgp->fcanary, sizeof(canary));
 	if (error != 0)
 		return (error);
 	imgp->canarylen = sizeof(canary);
@@ -1739,8 +1739,8 @@ WYC_PANIC();
 	imgp->pagesizeslen = sizeof(pagesizes[0]) * MAXPAGESIZES;
 	destp -= imgp->pagesizeslen;
 	destp = rounddown2(destp, sizeof(void *));
-	imgp->pagesizes = (void *)destp;
-	error = copyout(pagesizes, imgp->pagesizes, imgp->pagesizeslen);
+	imgp->fpagesizes = (void *)destp;
+	error = copyout(pagesizes, imgp->fpagesizes, imgp->pagesizeslen);
 	if (error != 0)
 		return (error);
 
@@ -1788,7 +1788,7 @@ WYC_PANIC();
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
-	imgp->argv = vectp;
+	imgp->fargv = vectp;
 	if (suword(&arginfo->ps_argvstr, (long)(intptr_t)vectp) != 0 ||
 	    suword32(&arginfo->ps_nargvstr, argc) != 0)
 		return (EFAULT);
@@ -1808,7 +1808,7 @@ WYC_PANIC();
 	if (suword(vectp++, 0) != 0)
 		return (EFAULT);
 
-	imgp->envv = vectp;
+	imgp->fenvv = vectp;
 	if (suword(&arginfo->ps_envstr, (long)(intptr_t)vectp) != 0 ||
 	    suword32(&arginfo->ps_nenvstr, envc) != 0)
 		return (EFAULT); // 14
