@@ -233,7 +233,7 @@ zfs_file_seek(zfs_file_t *fp, loff_t *offp, int whence)
 		return (SET_ERROR(ESPIPE));
 	rc = fo_seek(fp, *offp, whence, td);
 	if (rc == 0)
-		*offp = td->td_uretoff.tdu_off;
+		*offp = td->td_off;
 	return (SET_ERROR(rc));
 }
 

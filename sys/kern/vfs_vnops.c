@@ -2666,7 +2666,7 @@ vn_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 		if (__predict_false(foffset < 0 && noneg)) {
 			return (EOVERFLOW);
 		}
-		td->td_uretoff.tdu_off = foffset;
+		td->td_off = foffset;
 		return (0);
 	}
 	foffset = foffset_lock(fp, 0);
@@ -2720,7 +2720,7 @@ vn_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 	if (error != 0)
 		goto drop;
 	VFS_KNOTE_UNLOCKED(vp, 0);
-	td->td_uretoff.tdu_off = offset;
+	td->td_off = offset;
 drop:
 	foffset_unlock(fp, offset, error != 0 ? FOF_NOUPDATE : 0);
 	return (error);
