@@ -1789,7 +1789,7 @@ WYC_PANIC();
 	 * Fill in "ps_strings" struct for ps, w, etc.
 	 */
 	imgp->fargv = fvectp;
-	if (suword(&farginfo->ps_argvstr, (long)(intptr_t)fvectp) != 0 || // to_near_addr
+	if (suword(&farginfo->ps_argvstr, to_near_addr((long)(intptr_t)fvectp)) != 0 ||
 	    suword32(&farginfo->ps_nargvstr, argc) != 0)
 		return (EFAULT);
 
@@ -1797,7 +1797,7 @@ WYC_PANIC();
 	 * Fill in argument portion of vector table.
 	 */
 	for (; argc > 0; --argc) {
-		if (suword(fvectp++, fstringp) != 0) // to_near_addr
+		if (suword(fvectp++, to_near_addr(fstringp)) != 0)
 			return (EFAULT);
 		while (*astringp++ != 0)
 			fstringp++;
@@ -1809,7 +1809,7 @@ WYC_PANIC();
 		return (EFAULT);
 
 	imgp->fenvv = fvectp;
-	if (suword(&farginfo->ps_envstr, (long)(intptr_t)fvectp) != 0 || // to_near_addr
+	if (suword(&farginfo->ps_envstr, to_near_addr((long)(intptr_t)fvectp)) != 0 ||
 	    suword32(&farginfo->ps_nenvstr, envc) != 0)
 		return (EFAULT); // 14
 
@@ -1817,7 +1817,7 @@ WYC_PANIC();
 	 * Fill in environment portion of vector table.
 	 */
 	for (; envc > 0; --envc) {
-		if (suword(fvectp++, fstringp) != 0) // to_near_addr
+		if (suword(fvectp++, to_near_addr(fstringp)) != 0)
 			return (EFAULT);
 		while (*astringp++ != 0)
 			fstringp++;
