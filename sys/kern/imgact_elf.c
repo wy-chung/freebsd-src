@@ -1609,7 +1609,7 @@ __elfN(freebsd_copyout_auxargs)
 	}
 	if ((imgp->sysent->sv_flags & SV_TIMEKEEP) != 0) {
 		AUXARGS_ENTRY(pos, AT_TIMEKEEP,
-		    vmspace->vm_shp_base + imgp->sysent->sv_timekeep_offset); // to_near_addr
+		    to_near_addr(vmspace->vm_shp_base) + imgp->sysent->sv_timekeep_offset);
 	}
 	AUXARGS_ENTRY(pos, AT_STACKPROT, imgp->sysent->sv_shared_page_obj
 	    != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
@@ -1632,14 +1632,14 @@ __elfN(freebsd_copyout_auxargs)
 #ifdef RANDOM_FENESTRASX
 	if ((imgp->sysent->sv_flags & SV_RNG_SEED_VER) != 0) {
 		AUXARGS_ENTRY(pos, AT_FXRNG,
-		    vmspace->vm_shp_base + imgp->sysent->sv_fxrng_gen_offset); // to_near_addr
+		    to_near_addr(vmspace->vm_shp_base) + imgp->sysent->sv_fxrng_gen_offset);
 	}
 #endif
 	if ((imgp->sysent->sv_flags & SV_DSO_SIG) != 0 && __elfN(vdso) != 0) {
 		AUXARGS_ENTRY(pos, AT_KPRELOAD,
-		    vmspace->vm_shp_base + imgp->sysent->sv_vdso_offset); // to_near_addr
+		    to_near_addr(vmspace->vm_shp_base) + imgp->sysent->sv_vdso_offset);
 	}
-	AUXARGS_ENTRY(pos, AT_USRSTACKBASE, round_page(vmspace->vm_stacktop)); // to_near_addr
+	AUXARGS_ENTRY(pos, AT_USRSTACKBASE, to_near_addr(round_page(vmspace->vm_stacktop)));
 	stacksz = imgp->proc->p_limit->pl_rlimit[RLIMIT_STACK].rlim_cur;
 	AUXARGS_ENTRY(pos, AT_USRSTACKLIM, stacksz);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
