@@ -52,7 +52,7 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 	long	a_type;			/* Entry type. */
 	union {
 		long	a_val;		/* Integer value. */
-		void	*a_ptr/*FAR*/;		/* Address. */
+		void	*a_ptr;	// Near	/* Address. */
 		void	(*a_fcn)(void);	/* Function pointer (not used). */
 	} a_un;
 } Elf64_Auxinfo;
