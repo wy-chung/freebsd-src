@@ -4365,7 +4365,7 @@ vmspace_fork(struct vmspace *vm1, pid_t p2_pid __unused, vm_ooffset_t *fork_char
 	/* Copy immutable fields of vm1 to vm2. */
 	vm_offset_t umin = to_near_addr(vm_map_min(old_map));
 	vm_offset_t umax = to_near_addr(vm_map_max(old_map) - 1) + 1;
-#define PROC_SLOT 2
+#define PROC_SLOT 2 // fixed slot
 #if defined(PROC_SLOT)
 	unsigned slot = PROC_SLOT;
 #else
