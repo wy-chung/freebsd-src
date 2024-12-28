@@ -212,10 +212,9 @@ kern_mmap(struct thread *td, const struct mmap_req *mrp)
 	cap_rights_t rights;
 	mmap_check_fp_fn check_fp_fn;
 
-//WYC_ASSERT(mrp->mr_hint < USER_MAX_ADDRESS);
 	p = td->td_proc;
 	vms = p->p_vmspace;
-	//wyc conver to far address in fixed slot mode will cause an error
+	//wyc NOTICE convert to far address in fixed slot mode will cause an error
 	//orig_addr = addr = vms->vm_base + mrp->mr_hint; // to_far_addr
 	orig_addr = addr = mrp->mr_hint;
 	len = mrp->mr_len;
@@ -414,7 +413,7 @@ WYC_PANIC();
 	if (error == 0) {
 		// convert to near address will cause an error in fixed slot mode
 		//addr = to_near_addr(addr);
-		td->td_retval[0] = addr + pageoff; // to_near_addr
+		td->td_retval[0] = addr + pageoff;
 	}
 done:
 	if (fp)
@@ -1535,7 +1534,7 @@ kern_mmap_racct_check(struct thread *td, vm_map_t map, vm_size_t size)
  * Internal version of mmap that maps a specific VM object into an
  * map.  Called by mmap for MAP_ANON, vm_mmap, shm_mmap, and vn_mmap.
  */
-int
+int __attribute__((optnone))
 vm_mmap_object(struct _vm_map *map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
     vm_prot_t maxprot, int flags, vm_object_t object, vm_ooffset_t foff,
     boolean_t writecounted, struct thread *td)
@@ -1618,9 +1617,8 @@ vm_mmap_object(struct _vm_map *map, vm_offset_t *addr, vm_size_t size, vm_prot_t
 			    vm_daddr + lim_max(td, RLIMIT_DATA));
 			if ((flags & MAP_32BIT) != 0)
 				default_addr = 0;
-			rv = vm_map_find_min(map, object, foff, addr, size,
-			    default_addr, max_addr, findspace, prot, maxprot,
-			    docow);
+			rv = vm_map_find_min(map, object, foff, addr, size, default_addr,
+			    max_addr, findspace, prot, maxprot, docow);
 		} else {
 			rv = vm_map_find(map, object, foff, addr, size,
 			    max_addr, findspace, prot, maxprot, docow);

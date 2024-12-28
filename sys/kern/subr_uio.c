@@ -88,6 +88,13 @@ int _suword64(volatile void *base, int64_t word);
 int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval);
 int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
 
+vm_offset_t td_far_addr(struct thread *td, vm_offset_t naddr)
+{
+WYC_ASSERT(naddr < USER_MAX_ADDRESS);
+	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
+	return proc_base | naddr;
+}
+
 vm_offset_t __attribute__((optnone)) //wycdebug
 to_far_addr(void *uaddr) // uaddr might be an absolute address when called from elf64_load_section() or exec_copyout_strings()
 {

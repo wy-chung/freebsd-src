@@ -425,7 +425,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 	return (0);
 }
 
-static int
+static int __attribute__((optnone))
 namei_getpath(struct nameidata *ndp)
 {
 	struct componentname *cnp;
@@ -580,7 +580,7 @@ out:
  *		if symbolic link, massage name in buffer and continue
  *	}
  */
-int
+int __attribute__((optnone))
 namei(struct nameidata *ndp)
 {
 	struct vnode *dp;	/* the directory we are searching */

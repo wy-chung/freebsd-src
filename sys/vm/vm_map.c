@@ -1891,7 +1891,7 @@ vm_map_insert(struct _vm_map *map, struct vm_object *object, vm_ooffset_t offset
  *	Returns: starting address if sufficient space,
  *		 vm_map_max(map)-length+1 if insufficient space.
  */
-vm_offset_t
+vm_offset_t __attribute__((optnone))
 vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length)
 {
 	vm_map_entry_t header, llist, rlist, root, y;
@@ -2129,7 +2129,7 @@ vm_map_find_aligned(vm_map_t map, vm_offset_t *addr, vm_size_t length,
  *	If object is non-NULL, ref count must be bumped by caller
  *	prior to making call to account for the new entry.
  */
-int
+int __attribute__((optnone))
 vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr/* IN/OUT */, // an absolute address
     vm_size_t length, vm_offset_t max_addr, int find_space,
@@ -2144,7 +2144,7 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	return (rv);
 }
 
-int
+int __attribute__((optnone))
 vm_map_find_locked(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr/* IN/OUT */, // an absolute address
     vm_size_t length, vm_offset_t max_addr, int find_space,
@@ -2184,7 +2184,7 @@ vm_map_find_locked(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		if (curr_min_addr == 0)
 			cluster = false;
 	}
-	if (find_space != VMFS_NO_SPACE) { // false
+	if (find_space != VMFS_NO_SPACE) {
 		KASSERT(find_space == VMFS_ANY_SPACE ||
 		    find_space == VMFS_OPTIMAL_SPACE ||
 		    find_space == VMFS_SUPER_SPACE ||
@@ -2272,7 +2272,7 @@ again:
 		if (rv != KERN_SUCCESS)
 			return (rv);
 	}
-	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) { // true
+	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) {
 		rv = vm_map_stack_locked(map, *addr, length, sgrowsiz, prot,
 		    max, cow);
 	} else {
@@ -2303,7 +2303,7 @@ again:
  *	the hint with "default_addr" as the minimum address for the
  *	allocation.
  */
-int
+int __attribute__((optnone))
 vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t length, vm_offset_t default_addr,
     vm_offset_t max_addr, int find_space, vm_prot_t prot, vm_prot_t max,
@@ -2312,11 +2312,12 @@ vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_offset_t hint;
 	int rv;
 
-	hint = *addr;
-	if (hint == 0) {
+	//hint = *addr;
+	if (to_near_addr(*addr) == 0) { //wycdebug
 		cow |= MAP_NO_HINT;
 		*addr = hint = default_addr;
-	}
+	} else
+		hint = *addr;
 	for (;;) {
 		rv = vm_map_find(map, object, offset, addr, length, max_addr,
 		    find_space, prot, max, cow);

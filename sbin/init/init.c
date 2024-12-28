@@ -892,6 +892,7 @@ single_user(void)
 	shell = get_shell();
 
 	if ((pid = fork()) == 0) {
+warning("init: %s#%d\n", __func__, __LINE__);
 		/*
 		 * Start the single user session.
 		 */
@@ -1067,14 +1068,16 @@ execute_script(char *argv[])
 	 * the missing execute bit.
 	 */
 	script = argv[0];
+warning("%s: script %s\n", __func__, script);
 	error = access(script, X_OK);
 	if (error == 0) {
+warning("%s: execv argv[1] %s\n", __func__, argv[1]);
 		execv(script, argv);
 		warning("can't directly exec %s: %m", script);
-	} else if (errno != EACCES) {
+	} else if (errno != EACCES) { // 13
 		warning("can't access %s: %m", script);
 	}
-
+warning("%s: error %d\n", __func__, error);
 	shell = get_shell();
 	sh_argv[0] = __DECONST(char*, shell);
 	sh_argv_len = 1;
@@ -1087,6 +1090,7 @@ execute_script(char *argv[])
 #endif
 	for (i = 0; i != SCRIPT_ARGV_SIZE; ++i)
 		sh_argv[i + sh_argv_len] = argv[i];
+warning("%s: shell %s %s\n",__func__, shell, argv[1]);
 	execv(shell, sh_argv);
 	stall("can't exec %s for %s: %m", shell, script); //wycdebug
 }
@@ -1123,7 +1127,7 @@ run_script(const char *script)
 	shell = get_shell();
 
 	if ((pid = fork()) == 0) { // child
-
+warning("child: %s#%d\n", __func__, __LINE__);
 		char _autoboot[] = "autoboot";
 
 		argv[0] = __DECONST(char *, script);
@@ -1448,7 +1452,7 @@ start_window_system(session_t *sp)
 		waitpid(-1, &status, 0);
 		return;
 	}
-
+warning("init: %s#%d\n", __func__, __LINE__);
 	/* reparent window process to the init to not make a zombie on exit */
 	if ((pid = fork()) == -1) {
 		emergency("can't fork for window system on port %s: %m",
@@ -1457,7 +1461,7 @@ start_window_system(session_t *sp)
 	}
 	if (pid)
 		_exit(0);
-
+warning("init: %s#%d\n", __func__, __LINE__);
 	sigemptyset(&mask);
 	sigprocmask(SIG_SETMASK, &mask, NULL);
 
@@ -1513,7 +1517,7 @@ start_getty(session_t *sp)
 
 	if (pid)
 		return pid;
-
+warning("init: %s#%d\n", __func__, __LINE__);
 	if (too_quick) {
 		warning("getty repeating too quickly on port %s, sleeping %d secs",
 		    sp->se_device, GETTY_SLEEP);
@@ -1979,6 +1983,7 @@ runshutdown(void)
 		return 0;
 
 	if ((pid = fork()) == 0) {
+warning("init: %s#%d\n", __func__, __LINE__);
 		char _reboot[]	= "reboot";
 		char _single[]	= "single";
 		char _path_rundown[] = _PATH_RUNDOWN;
@@ -2142,6 +2147,7 @@ runfinal(void)
 
 	pid = fork();
 	if (pid == 0) {
+warning("init: %s#%d\n", __func__, __LINE__);
 		/*
 		 * Reopen stdin/stdout/stderr so that scripts can write to
 		 * console.

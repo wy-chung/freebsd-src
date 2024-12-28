@@ -181,7 +181,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t fstack/*FAR
 
 	memset(tf, 0, sizeof(struct trapframe));
 
-	//wyc NOTICE conver to near pointer will cause the program to hang in fixed PROC_SLOT moe
+	//wyc NOTICE convert to near pointer will cause the program to hang in fixed PROC_SLOT moe
 	//uintptr_t nstack = to_near_addr(fstack); //wyc sa convert to near pointer
 	tf->tf_a[0] = fstack;
 	tf->tf_sp = STACKALIGN(fstack);
