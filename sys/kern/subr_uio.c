@@ -88,11 +88,11 @@ int _suword64(volatile void *base, int64_t word);
 int _casueword32(volatile uint32_t *uaddr, uint32_t oldval, uint32_t *oldvalp, uint32_t newval);
 int _casueword(volatile u_long *uaddr, u_long oldval, u_long *oldvalp, u_long newval);
 
-vm_offset_t td_far_addr(struct thread *td, vm_offset_t naddr)
+// the segment might not be 0
+vm_offset_t td_far_addr(struct thread *td, vm_offset_t addr)
 {
-WYC_ASSERT(naddr < USER_MAX_ADDRESS);
 	vm_offset_t proc_base = td->td_proc->p_vmspace->vm_base;
-	return proc_base | naddr;
+	return proc_base | (addr & (USER_MAX_ADDRESS-1));
 }
 
 vm_offset_t __attribute__((optnone)) //wycdebug

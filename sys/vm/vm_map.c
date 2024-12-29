@@ -349,7 +349,7 @@ vmspace_alloc(vm_offset_t base, vm_offset_t umin, vm_offset_t umax, pmap_pinit_t
 	vm->vm_pmap = pmap;
 #endif
 	CTR2(KTR_VM, "%s: %p", __func__, vm);
-	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), umin + base, umax + base);
+	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), base + umin, base +umax);
 	refcount_init(&vm->vm_refcnt, 1);
 	vm->vm_shm = NULL;
 	vm->vm_swrss = 0;
@@ -4210,7 +4210,7 @@ vm_map_copy_swap_object(vm_map_entry_t src_entry, vm_map_entry_t dst_entry,
  *	Copies the contents of the source entry to the destination
  *	entry.  The entries *must* be aligned properly.
  */
-static void
+static void __attribute__((optnone))
 vm_map_copy_entry(
 	vm_map_t src_map,
 	vm_map_t dst_map,
@@ -4365,13 +4365,13 @@ vmspace_fork(struct vmspace *vm1, pid_t p2_pid __unused, vm_ooffset_t *fork_char
 	/* Copy immutable fields of vm1 to vm2. */
 	vm_offset_t umin = to_near_addr(vm_map_min(old_map));
 	vm_offset_t umax = to_near_addr(vm_map_max(old_map) - 1) + 1;
-#define PROC_SLOT 2 // fixed slot
-#if defined(PROC_SLOT)
-	unsigned slot = PROC_SLOT;
+#define MEM_BLOCK 2 // fixed block
+#if defined(MEM_BLOCK)
+	unsigned block = MEM_BLOCK;
 #else
-	unsigned slot = p2_pid;
+	unsigned block = p2_pid;
 #endif
-	vm_offset_t proc_base = USER_MAX_ADDRESS * slot; //wyc sa
+	vm_offset_t proc_base = USER_MAX_ADDRESS * block; //wyc sa
 	vm2 = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (vm2 == NULL)
 		return (NULL);
@@ -4398,7 +4398,7 @@ vmspace_fork(struct vmspace *vm1, pid_t p2_pid __unused, vm_ooffset_t *fork_char
 		return (NULL);
 	}
 
-	new_map->anon_loc = old_map->anon_loc;
+	new_map->anon_loc = proc_base + to_near_addr(old_map->anon_loc); //wyc sa
 	new_map->flags |= old_map->flags & (MAP_ASLR | MAP_ASLR_IGNSTART |
 	    MAP_ASLR_STACK | MAP_WXORX);
 
@@ -4975,12 +4975,12 @@ vmspace_exec(struct proc *p, vm_offset_t umin, vm_offset_t umax)
 
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
-#if defined(PROC_SLOT)
-	unsigned slot = PROC_SLOT;
+#if defined(MEM_BLOCK)
+	unsigned block = MEM_BLOCK;
 #else
-	unsigned slot = p->p_pid;
+	unsigned block = p->p_pid;
 #endif
-	vm_offset_t proc_base = USER_MAX_ADDRESS * slot; //wyc sa
+	vm_offset_t proc_base = USER_MAX_ADDRESS * block; //wyc sa
 	newvmspace = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (newvmspace == NULL)
 		return (ENOMEM);
