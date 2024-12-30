@@ -589,6 +589,7 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 		return (EINVAL);
 
 	addr = addr0;
+	//addr = td_far_addr(td, addr0);
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
 	size += pageoff;
