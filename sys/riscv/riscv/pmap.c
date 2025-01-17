@@ -1307,7 +1307,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde,
 {
 	vm_page_t mpte;
 
-	if (va >= VM_MAXUSER_ADDRESS)
+	if (va >= VM_MAX_USER_ADDRESS)
 		return (0);
 	KASSERT(ptepde != 0, ("pmap_unuse_pt: ptepde != 0"));
 	mpte = PHYS_TO_VM_PAGE(PTE_TO_PHYS(ptepde));
@@ -2694,7 +2694,7 @@ pmap_demote_l2_locked(pmap_t pmap, pd_entry_t *l2, vm_offset_t va,
 			return (false);
 		}
 		mpte->pindex = pmap_l2_pindex(va);
-		if (va < VM_MAXUSER_ADDRESS) {
+		if (va < VM_MAX_USER_ADDRESS) {
 			mpte->ref_count = Ln_ENTRIES;
 			pmap_resident_count_inc(pmap, 1);
 		}
@@ -2950,11 +2950,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	    ((l2e & PTE_RWX) == 0 || pmap_demote_l2_locked(pmap, l2,
 	    va, &lock))) {
 		l3 = pmap_l2_to_l3(l2, va);
-		if (va < VM_MAXUSER_ADDRESS) {
+		if (va < VM_MAX_USER_ADDRESS) {
 			mpte = PHYS_TO_VM_PAGE(PTE_TO_PHYS(pmap_load(l2)));
 			mpte->ref_count++;
 		}
-	} else if (va < VM_MAXUSER_ADDRESS) {
+	} else if (va < VM_MAX_USER_ADDRESS) {
 		nosleep = (flags & PMAP_ENTER_NOSLEEP) != 0;
 		mpte = pmap_alloc_l3(pmap, va, nosleep ? NULL : &lock);
 		if (mpte == NULL && nosleep) {
@@ -3168,7 +3168,7 @@ pmap_enter_2mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l2 |= PTE_SW_MANAGED;
 	if ((prot & VM_PROT_EXECUTE) != 0)
 		new_l2 |= PTE_X;
-	if (va < VM_MAXUSER_ADDRESS)
+	if (va < VM_MAX_USER_ADDRESS)
 		new_l2 |= PTE_U;
 	return (pmap_enter_l2(pmap, va, new_l2, PMAP_ENTER_NOSLEEP |
 	    PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM, NULL, lockp));
@@ -3237,7 +3237,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 				    "pmap_enter_l2: no space for va %#lx"
 				    " in pmap %p", va, pmap);
 				return (KERN_NO_SPACE);
-			} else if (va < VM_MAXUSER_ADDRESS ||
+			} else if (va < VM_MAX_USER_ADDRESS ||
 			    !pmap_every_pte_zero(L2PTE_TO_PHYS(oldl2))) {
 				l2pg->ref_count--;
 				CTR2(KTR_PMAP, "pmap_enter_l2:"
@@ -3259,7 +3259,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 					break;
 			}
 		vm_page_free_pages_toq(&free, true);
-		if (va >= VM_MAXUSER_ADDRESS) {
+		if (va >= VM_MAX_USER_ADDRESS) {
 			/*
 			 * Both pmap_remove_l2() and pmap_remove_l3() will
 			 * leave the kernel page table page zero filled.
@@ -3438,7 +3438,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 * In the case that a page table page is not
 	 * resident, we are creating it here.
 	 */
-	if (va < VM_MAXUSER_ADDRESS) {
+	if (va < VM_MAX_USER_ADDRESS) {
 		vm_pindex_t l2pindex;
 
 		/*

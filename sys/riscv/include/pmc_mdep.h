@@ -48,7 +48,7 @@ union pmc_md_pmc {
 
 #define	PMC_IN_KERNEL_STACK(va)	kstack_contains(curthread, (va), sizeof(va))
 #define	PMC_IN_KERNEL(va)	INKERNEL((va))
-#define	PMC_IN_USERSPACE(va)	((va) <= VM_MAXUSER_ADDRESS)
+#define	PMC_IN_USERSPACE(va)	((va) <= VM_MAX_USER_ADDRESS)
 #define	PMC_TRAPFRAME_TO_PC(TF)	((TF)->tf_ra)
 #define	PMC_TRAPFRAME_TO_FP(TF)	(0)	/* stub */
 

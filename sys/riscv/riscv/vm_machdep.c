@@ -197,7 +197,7 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-	if ((uintptr_t)tls_base >= VM_MAXUSER_ADDRESS)
+	if ((uintptr_t)tls_base >= VM_MAX_USER_ADDRESS)
 		return (EINVAL);
 
 	/*

@@ -119,7 +119,7 @@ struct sysentvec {
 			    uintptr_t);
 	int		sv_minsigstksz;	/* minimum signal stack size */
 	vm_offset_t	sv_minuser;	/* VM_MIN_ADDRESS */
-	vm_offset_t	sv_maxuser;	/* VM_MAXUSER_ADDRESS */
+	vm_offset_t	sv_maxuser;	/* VM_MAX_USER_ADDRESS */
 	vm_offset_t	sv_usrstack;	/* USRSTACK */
 	vm_offset_t	sv_psstrings;	/* PS_STRINGS */
 	size_t		sv_psstringssz;	/* PS_STRINGS size */

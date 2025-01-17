@@ -115,7 +115,7 @@ END(copyio_fault)
 ENTRY(copyout)
 	beqz	a2, copyout_end	/* If len == 0 then skip loop */
 	add	a3, a1, a2
-	li	a4, VM_MAXUSER_ADDRESS
+	li	a4, VM_MAX_USER_ADDRESS
 	bgeu	a3, a4, copyio_fault_nopcb
 
 	copycommon
@@ -133,7 +133,7 @@ END(copyout)
 ENTRY(copyin)
 	beqz	a2, copyin_end	/* If len == 0 then skip loop */
 	add	a3, a0, a2
-	li	a4, VM_MAXUSER_ADDRESS
+	li	a4, VM_MAX_USER_ADDRESS
 	bgeu	a3, a4, copyio_fault_nopcb
 
 	copycommon
@@ -156,7 +156,7 @@ ENTRY(copyinstr)
 	SET_FAULT_HANDLER(a6, a7) /* Set the handler */
 	ENTER_USER_ACCESS(a7)
 
-	li	a7, VM_MAXUSER_ADDRESS
+	li	a7, VM_MAX_USER_ADDRESS
 1:	bgeu	a0, a7, copyio_fault
 	lb	a4, 0(a0)	/* Load from uaddr */
 	addi	a0, a0, 1
