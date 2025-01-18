@@ -294,9 +294,10 @@ struct vmspace {
 	segsz_t vm_tsize;	/* text size (pages) XXX */
 	segsz_t vm_dsize;	/* data size (pages) XXX */
 	segsz_t vm_ssize;	/* stack size (pages) */
-	caddr_t vm_taddr;	/* (c) user virtual address of text */
-	caddr_t vm_daddr;	/* (c) user virtual address of data */
-	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
+	vm_offset_t vm_base; //wyc base address of this vmspace
+	vm_offset_t vm_taddr;	/* (c) user virtual address of text */
+	vm_offset_t vm_daddr;	/* (c) user virtual address of data */
+	vm_offset_t vm_maxsaddr;	/* user VA at max stack growth */
 	vm_offset_t vm_stacktop; /* top of the stack, may not be page-aligned */
 	vm_offset_t vm_shp_base; /* shared page address */
 	u_int vm_refcnt;	/* number of references */

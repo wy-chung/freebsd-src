@@ -532,16 +532,16 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 {
 	struct proc *p1 = td->td_proc;
 	struct domainset *dset;
-	int error;
 
 	if ((flags & RFPROC) == 0) {
+WYC_PANIC();
 		/*
 		 * Divorce the memory, if it is shared, essentially
 		 * this changes shared memory amongst threads, into
 		 * COW locally.
 		 */
 		if ((flags & RFMEM) == 0) {
-			error = vmspace_unshare(p1);
+			int error = vmspace_unshare(p1);
 			if (error)
 				return (error);
 		}

@@ -194,9 +194,6 @@
 	((va) - DMAP_MIN_ADDRESS) + dmap_phys_base;			\
 })
 
-#define	USER_MIN_ADDRESS	0
-#define	USER_MAX_ADDRESS	(0x0000000100000000UL)
-
 #define	VM_MIN_USER_ADDRESS		(0x0000000000000000UL)
 #define	VM_MAX_USER_ADDRESS_SV39	(0x0000004000000000UL)
 #define	VM_MAX_USER_ADDRESS_SV48	(0x0000800000000000UL)
@@ -212,6 +209,30 @@
 #define	PS_STRINGS_SV48		(USRSTACK_SV48 - sizeof(struct ps_strings))
 
 #define	VM_EARLY_DTB_ADDRESS	(VM_MAX_KERNEL_ADDRESS - (2 * L2_SIZE))
+
+#define	USER_MIN_ADDRESS	0
+#define	USER_MAX_ADDRESS	(0x0000000100000000UL)
+
+static inline vm_offset_t
+to_near_addr(vm_offset_t addr) //wyc
+{
+#define _LOWER (USER_MAX_ADDRESS-1)
+	return addr & _LOWER;
+#undef _LOWER
+}
+
+static inline vm_offset_t __attribute__((optnone)) //wycdebug
+to_far_addr(vm_offset_t addr, vm_offset_t proc_base)
+{
+#define _UPPER ~(USER_MAX_ADDRESS-1)
+	// addr might be an far address when called from elf64_load_file
+	addr |= proc_base; //wyc sa, should use '|' instead of '+'
+	if ((addr & _UPPER) != proc_base)
+		WYC_PANIC();
+
+	return addr;
+#undef _UPPER
+}
 
 /*
  * How many physical pages per kmem arena virtual page.

@@ -278,7 +278,7 @@ retry:
 	if (trypid >= pid_max)
 		trypid = 2;
 
-	bit_ffc_at(&proc_id_pidmap, trypid, pid_max, &result);
+	bit_ffc_at(&proc_id_pidmap, trypid, pid_max, &result); // find first clear
 	if (result == -1) {
 		KASSERT(trypid != 2, ("unexpectedly ran out of IDs"));
 		trypid = 2;
@@ -390,7 +390,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	prison_proc_hold(p2->p_ucred->cr_prison);
 
 	p2->p_state = PRS_NEW;		/* protect against others */
-	p2->p_pid = fork_findpid(fr->fr_flags);
+	//p2->p_pid = fork_findpid(fr->fr_flags);
 	AUDIT_ARG_PID(p2->p_pid);
 	TSFORK(p2->p_pid, p1->p_pid);
 
@@ -1035,12 +1035,12 @@ fork1(struct thread *td, struct fork_req *fr)
 			    ptoa(td2->td_kstack_pages), 0);
 		}
 	}
-
+	pid_t p2_pid = newproc->p_pid = fork_findpid(fr->fr_flags);
 	if ((flags & RFMEM) == 0) {
-		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
+		vm2 = vmspace_fork(p1->p_vmspace, p2_pid, &mem_charged);
 		if (vm2 == NULL) {
 			error = ENOMEM;
-			goto fail2;
+			goto fail1a;
 		}
 		if (!swap_reserve(mem_charged)) {
 			/*
@@ -1051,7 +1051,7 @@ fork1(struct thread *td, struct fork_req *fr)
 			 */
 			swap_reserve_force(mem_charged);
 			error = ENOMEM;
-			goto fail2;
+			goto fail1a;
 		}
 	} else
 		vm2 = NULL;
@@ -1099,6 +1099,8 @@ fail0:
 	racct_proc_exit(newproc);
 fail1:
 	proc_unset_cred(newproc, false);
+fail1a:
+	proc_id_clear(PROC_ID_PID, p2_pid); //wyc sa
 fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);

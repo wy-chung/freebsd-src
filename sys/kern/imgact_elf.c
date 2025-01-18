@@ -618,7 +618,8 @@ __elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
 
 static int
 __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
-    caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot)
+    caddr_t addr, // addr will sometimes be absolute virtual address
+    size_t memsz, size_t filsz, vm_prot_t prot)
 {
 	struct sf_buf *sf;
 	size_t map_len;
@@ -643,7 +644,7 @@ __elfN(load_section)(struct image_params *imgp, vm_ooffset_t offset,
 		uprintf("elf_load_section: truncated ELF file\n");
 		return (ENOEXEC);
 	}
-
+	vm_offset_t vmaddr = to_far_addr((vm_offset_t)addr, imgp->proc->p_vmspace->vm_base);
 	object = imgp->object;
 	map = &imgp->proc->p_vmspace->vm_map;
 	map_addr = trunc_page((vm_offset_t)vmaddr);
@@ -988,9 +989,9 @@ __elfN(enforce_limits)(struct image_params *imgp, const Elf_Ehdr *hdr,
 
 	vmspace = imgp->proc->p_vmspace;
 	vmspace->vm_tsize = text_size >> PAGE_SHIFT;
-	vmspace->vm_taddr = (caddr_t)(uintptr_t)text_addr;
+	vmspace->vm_taddr = to_far_addr(text_addr, vmspace->vm_base); //ori (caddr_t)(uintptr_t)text_addr;
 	vmspace->vm_dsize = data_size >> PAGE_SHIFT;
-	vmspace->vm_daddr = (caddr_t)(uintptr_t)data_addr;
+	vmspace->vm_daddr = to_far_addr(data_addr, vmspace->vm_base); //ori (caddr_t)(uintptr_t)data_addr;
 
 	return (0);
 }

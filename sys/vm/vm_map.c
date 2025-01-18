@@ -322,7 +322,7 @@ vmspace_zdtor(void *mem, int size, void *arg)
  * and initialize those structures.  The refcnt is set to 1.
  */
 struct vmspace *
-vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
+vmspace_alloc(vm_offset_t base, vm_offset_t umin, vm_offset_t umax, pmap_pinit_t pinit)
 {
 	struct vmspace *vm;
 
@@ -332,14 +332,15 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 		uma_zfree(vmspace_zone, vm);
 		return (NULL);
 	}
-	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
-	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), min, max);
+	CTR2(KTR_VM, "%s: %p", __func__, vm);
+	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), base + umin, base + umax);
 	refcount_init(&vm->vm_refcnt, 1);
 	vm->vm_shm = NULL;
 	vm->vm_swrss = 0;
 	vm->vm_tsize = 0;
 	vm->vm_dsize = 0;
 	vm->vm_ssize = 0;
+	vm->vm_base = base; //wyc
 	vm->vm_taddr = 0;
 	vm->vm_daddr = 0;
 	vm->vm_maxsaddr = 0;
@@ -4334,7 +4335,7 @@ vmspace_map_entry_forked(const struct vmspace *vm1, struct vmspace *vm2,
  * The source map must not be locked.
  */
 struct vmspace *
-vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
+vmspace_fork(struct vmspace *vm1, pid_t p2_pid __unused, vm_ooffset_t *fork_charge /*OUT*/)
 {
 	struct vmspace *vm2;
 	vm_map_t new_map, old_map;
@@ -4345,22 +4346,31 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm2 = vmspace_alloc(vm_map_min(old_map), vm_map_max(old_map),
-	    pmap_pinit);
+#define MEM_BLOCK 0 // fixed block
+#if defined(MEM_BLOCK)
+	unsigned block = MEM_BLOCK;
+#else
+	unsigned block = p2_pid;
+#endif
+	vm_offset_t proc_base = USER_MAX_ADDRESS * block; //wyc sa
+	vm_offset_t umin = to_near_addr(vm_map_min(old_map));
+	vm_offset_t umax = to_near_addr(vm_map_max(old_map) - 1) + 1;
+	vm2 = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (vm2 == NULL)
 		return (NULL);
 
-	vm2->vm_taddr = vm1->vm_taddr;
-	vm2->vm_daddr = vm1->vm_daddr;
-	vm2->vm_maxsaddr = vm1->vm_maxsaddr;
-	vm2->vm_stacktop = vm1->vm_stacktop;
-	vm2->vm_shp_base = vm1->vm_shp_base;
+	vm2->vm_taddr = proc_base + to_near_addr(vm1->vm_taddr);
+	vm2->vm_daddr = proc_base + to_near_addr(vm1->vm_daddr);
+	vm2->vm_maxsaddr = proc_base + to_near_addr(vm1->vm_maxsaddr);
+	vm2->vm_stacktop = proc_base + to_near_addr(vm1->vm_stacktop - 1) + 1;
+	vm2->vm_shp_base = proc_base + to_near_addr(vm1->vm_shp_base);
+
 	vm_map_lock(old_map);
 	if (old_map->busy)
 		vm_map_wait_busy(old_map);
 	new_map = &vm2->vm_map;
 	locked = vm_map_trylock(new_map); /* trylock to silence WITNESS */
-	KASSERT(locked, ("vmspace_fork: lock failed"));
+	KASSERT(locked, ("%s: lock failed", __func__));
 
 	error = pmap_vmspace_copy(new_map->pmap, old_map->pmap);
 	if (error != 0) {
@@ -4426,7 +4436,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				vm_object_clear_flag(object, OBJ_ONEMAPPING);
 				if (old_entry->cred != NULL) {
 					KASSERT(object->cred == NULL,
-					    ("vmspace_fork both cred"));
+					    ("%s both cred", __func__));
 					object->cred = old_entry->cred;
 					object->charge = old_entry->end -
 					    old_entry->start;
@@ -4443,12 +4453,12 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 				    object->type == OBJT_VNODE) {
 					KASSERT(((struct vnode *)object->
 					    handle)->v_writecount > 0,
-					    ("vmspace_fork: v_writecount %p",
-					    object));
+					    ("%s: v_writecount %p",
+					    __func__, object));
 					KASSERT(object->un_pager.vnp.
 					    writemappings > 0,
-					    ("vmspace_fork: vnp.writecount %p",
-					    object));
+					    ("%s: vnp.writecount %p",
+					    __func__, object));
 				}
 				VM_OBJECT_WUNLOCK(object);
 			}
@@ -4937,14 +4947,20 @@ out:
  * mapped to it, then create a new one.  The new vmspace is null.
  */
 int
-vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
+vmspace_exec(struct proc *p, vm_offset_t umin, vm_offset_t umax)
 {
 	struct vmspace *oldvmspace = p->p_vmspace;
 	struct vmspace *newvmspace;
 
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
-	newvmspace = vmspace_alloc(minuser, maxuser, pmap_pinit);
+#if defined(MEM_BLOCK)
+	unsigned block = MEM_BLOCK;
+#else
+	unsigned block = p->p_pid;
+#endif
+	vm_offset_t proc_base = USER_MAX_ADDRESS * block; //wyc sa
+	newvmspace = vmspace_alloc(proc_base, umin, umax, pmap_pinit);
 	if (newvmspace == NULL)
 		return (ENOMEM);
 	newvmspace->vm_swrss = oldvmspace->vm_swrss;
@@ -4974,7 +4990,7 @@ vmspace_unshare(struct proc *p)
 	struct vmspace *oldvmspace = p->p_vmspace;
 	struct vmspace *newvmspace;
 	vm_ooffset_t fork_charge;
-
+WYC_PANIC();
 	/*
 	 * The caller is responsible for ensuring that the reference count
 	 * cannot concurrently transition 1 -> 2.
@@ -4982,7 +4998,7 @@ vmspace_unshare(struct proc *p)
 	if (refcount_load(&oldvmspace->vm_refcnt) == 1)
 		return (0);
 	fork_charge = 0;
-	newvmspace = vmspace_fork(oldvmspace, &fork_charge);
+	newvmspace = vmspace_fork(oldvmspace, p->p_pid, &fork_charge);
 	if (newvmspace == NULL)
 		return (ENOMEM);
 	if (!swap_reserve_by_cred(fork_charge, p->p_ucred)) {

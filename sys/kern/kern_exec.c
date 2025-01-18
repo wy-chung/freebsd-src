@@ -1305,7 +1305,7 @@ out:
 	 * vm_ssize and vm_maxsaddr are somewhat antiquated concepts, but they
 	 * are still used to enforce the stack rlimit on the process stack.
 	 */
-	vmspace->vm_maxsaddr = (char *)stack_addr;
+	vmspace->vm_maxsaddr = /*(char *)*/stack_addr;
 	vmspace->vm_stacktop = stack_top;
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
 	vmspace->vm_shp_base = sharedpage_addr;
