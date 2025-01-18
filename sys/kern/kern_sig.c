@@ -3669,8 +3669,8 @@ sigexit(struct thread *td, int sig)
 		}
 		if (kern_logsigexit)
 			log(LOG_INFO,
-			    "pid %d (%s), jid %d, uid %d: exited on "
-			    "signal %d%s\n", p->p_pid, p->p_comm,
+			    "pid %d (%s), jid %d, uid %d: exited on signal %d%s\n",
+			    p->p_pid, p->p_comm,
 			    p->p_ucred->cr_prison->pr_id,
 			    td->td_ucred->cr_uid,
 			    sig &~ WCOREFLAG, coreinfo);

@@ -225,7 +225,7 @@ static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps = LIST_HEAD_INITIALIZER();
 
-enum pmap_mode __read_frequently pmap_mode = PMAP_MODE_SV39;
+enum _pmap_mode __read_frequently pmap_mode = PMAP_MODE_SV39;
 SYSCTL_INT(_vm_pmap, OID_AUTO, mode, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pmap_mode, 0,
     "translation mode, 0 = SV39, 1 = SV48");
@@ -704,7 +704,9 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	memset((char *)(var), 0, ((np) * PAGE_SIZE));
 
 	mode = 0;
+	// the tunables are in /boot/loader.conf
 	TUNABLE_INT_FETCH("vm.pmap.mode", &mode);
+	mode = PMAP_MODE_SV48; //wyc force it to SV48 mode
 	if (mode == PMAP_MODE_SV48 && (mmu_caps & MMU_SV48) != 0) {
 		/*
 		 * Enable SV48 mode: allocate an L0 page and set SV48 mode in
