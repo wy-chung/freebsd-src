@@ -213,27 +213,6 @@
 #define	USER_MIN_ADDRESS	0
 #define	USER_MAX_ADDRESS	(0x0000000100000000UL)
 
-static inline vm_offset_t
-to_near_addr(vm_offset_t addr) //wyc
-{
-#define _LOWER (USER_MAX_ADDRESS-1)
-	return addr & _LOWER;
-#undef _LOWER
-}
-
-static inline vm_offset_t __attribute__((optnone)) //wycdebug
-to_far_addr(vm_offset_t addr, vm_offset_t proc_base)
-{
-#define _UPPER ~(USER_MAX_ADDRESS-1)
-	// addr might be an far address when called from elf64_load_file
-	addr |= proc_base; //wyc sa, should use '|' instead of '+'
-	if ((addr & _UPPER) != proc_base)
-		WYC_PANIC();
-
-	return addr;
-#undef _UPPER
-}
-
 /*
  * How many physical pages per kmem arena virtual page.
  */

@@ -307,6 +307,10 @@ int	copyout(const void * _Nonnull __restrict kaddr,
 	    void * __restrict udaddr, size_t len);
 int	copyout_nofault(const void * _Nonnull __restrict kaddr,
 	    void * __restrict udaddr, size_t len);
+//wyc
+vm_offset_t to_near_addr(vm_offset_t addr);
+vm_offset_t to_far_addr(vm_offset_t addr, vm_offset_t proc_base);
+vm_offset_t td_far_addr(struct thread *td, vm_offset_t addr);
 
 #ifdef SAN_NEEDS_INTERCEPTORS
 int	SAN_INTERCEPTOR(copyin)(const void *, void *, size_t);

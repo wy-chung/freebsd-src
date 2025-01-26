@@ -342,8 +342,10 @@ static __inline int
 fo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
-
-	return ((*fp->f_ops->fo_read)(fp, uio, active_cred, flags, td));
+#if defined(WYC)
+	vnops.fo_read = vn_io_fault;
+#endif
+	return ((*fp->f_ops->fo_read)(fp, uio, active_cred, flags, td)); // vnops.
 }
 
 static __inline int

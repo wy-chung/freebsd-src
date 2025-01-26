@@ -64,6 +64,33 @@
 
 #include <machine/bus.h>
 
+#define _LOWER (USER_MAX_ADDRESS-1)
+#define _UPPER ~(USER_MAX_ADDRESS-1)
+vm_offset_t
+to_near_addr(vm_offset_t addr) //wyc
+{
+	return addr & _LOWER;
+}
+
+vm_offset_t __attribute__((optnone)) //wycdebug
+to_far_addr(vm_offset_t addr, vm_offset_t proc_base)
+{
+	// addr might be an far address when called from elf64_load_file
+	addr |= proc_base; //wyc sa, should use '|' instead of '+'
+	if ((addr & _UPPER) != proc_base)
+		WYC_PANIC();
+
+	return addr;
+}
+
+vm_offset_t __attribute__((optnone)) //wycdebug
+td_far_addr(struct thread *td, vm_offset_t addr)
+{
+	return to_far_addr(addr, td->td_proc->p_vmspace->vm_base);
+}
+#undef _LOWER
+#undef _UPPER
+
 SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, UIO_MAXIOV,
 	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
 
