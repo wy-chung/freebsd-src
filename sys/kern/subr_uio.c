@@ -83,7 +83,7 @@ to_far_addr(vm_offset_t addr, vm_offset_t proc_base)
 	return addr;
 }
 
-vm_offset_t __attribute__((optnone)) //wycdebug
+vm_offset_t
 td_far_addr(struct thread *td, vm_offset_t addr)
 {
 	return to_far_addr(addr, td->td_proc->p_vmspace->vm_base);

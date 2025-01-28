@@ -1090,7 +1090,7 @@ struct open_args {
 int
 sys_open(struct thread *td, struct open_args *uap)
 {
-
+	TD_FAR_ADDR(td, uap->path);
 	return (kern_openat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, uap->mode));
 }

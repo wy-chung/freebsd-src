@@ -857,14 +857,16 @@ sys_wait4(struct thread *td, struct wait4_args *uap)
 	struct rusage ru, *rup;
 	int error, status;
 
-	if (uap->rusage != NULL)
+	TD_FAR_ADDR(td, uap->status);
+	TD_FAR_ADDR(td, uap->rusage);
+	if (TO_NEAR_ADDR(uap->rusage) != NULL)
 		rup = &ru;
 	else
 		rup = NULL;
 	error = kern_wait(td, uap->pid, &status, uap->options, rup);
-	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0)
+	if (TO_NEAR_ADDR(uap->status) != NULL && error == 0 && td->td_retval[0] != 0)
 		error = copyout(&status, uap->status, sizeof(status));
-	if (uap->rusage != NULL && error == 0 && td->td_retval[0] != 0)
+	if (TO_NEAR_ADDR(uap->rusage) != NULL && error == 0 && td->td_retval[0] != 0)
 		error = copyout(&ru, uap->rusage, sizeof(struct rusage));
 	return (error);
 }

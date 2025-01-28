@@ -194,6 +194,7 @@ sys_read(struct thread *td, struct read_args *uap)
 	struct iovec aiov;
 	int error;
 
+	TD_FAR_ADDR(td, uap->buf);
 	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = uap->buf;
@@ -395,6 +396,7 @@ sys_write(struct thread *td, struct write_args *uap)
 	struct iovec aiov;
 	int error;
 
+	TD_FAR_ADDR(td, uap->buf);
 	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = (void *)(uintptr_t)uap->buf;
