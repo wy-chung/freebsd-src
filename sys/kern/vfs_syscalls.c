@@ -941,6 +941,7 @@ int
 sys_chdir(struct thread *td, struct chdir_args *uap)
 {
 
+	TD_FAR_ADDR(td, uap->path);
 	return (kern_chdir(td, uap->path, UIO_USERSPACE));
 }
 
@@ -1108,6 +1109,7 @@ sys_openat(struct thread *td, struct openat_args *uap)
 {
 
 	AUDIT_ARG_FD(uap->fd);
+	TD_FAR_ADDR(td, uap->path);
 	return (kern_openat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
 	    uap->mode));
 }
@@ -1546,6 +1548,8 @@ int
 sys_link(struct thread *td, struct link_args *uap)
 {
 
+	TD_FAR_ADDR(td, uap->path);
+	TD_FAR_ADDR(td, uap->link);
 	return (kern_linkat(td, AT_FDCWD, AT_FDCWD, uap->path, uap->link,
 	    UIO_USERSPACE, AT_SYMLINK_FOLLOW));
 }
@@ -1563,6 +1567,8 @@ int
 sys_linkat(struct thread *td, struct linkat_args *uap)
 {
 
+	TD_FAR_ADDR(td, uap->path1);
+	TD_FAR_ADDR(td, uap->path2);
 	return (kern_linkat(td, uap->fd1, uap->fd2, uap->path1, uap->path2,
 	    UIO_USERSPACE, uap->flag));
 }
@@ -1727,6 +1733,8 @@ int
 sys_symlink(struct thread *td, struct symlink_args *uap)
 {
 
+	TD_FAR_ADDR(td, uap->path);
+	TD_FAR_ADDR(td, uap->link);
 	return (kern_symlinkat(td, uap->path, AT_FDCWD, uap->link,
 	    UIO_USERSPACE));
 }
@@ -1877,6 +1885,7 @@ int
 sys_unlink(struct thread *td, struct unlink_args *uap)
 {
 
+	TD_FAR_ADDR(td, uap->path);
 	return (kern_funlinkat(td, AT_FDCWD, uap->path, FD_NONE, UIO_USERSPACE,
 	    0, 0));
 }
@@ -2912,6 +2921,7 @@ int
 sys_chmod(struct thread *td, struct chmod_args *uap)
 {
 
+	TD_FAR_ADDR(td, uap->path);
 	return (kern_fchmodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode, 0));
 }
@@ -3040,6 +3050,7 @@ int
 sys_chown(struct thread *td, struct chown_args *uap)
 {
 
+	TD_FAR_ADDR(td, uap->path);
 	return (kern_fchownat(td, AT_FDCWD, uap->path, UIO_USERSPACE, uap->uid,
 	    uap->gid, 0));
 }
@@ -3630,6 +3641,8 @@ int
 sys_rename(struct thread *td, struct rename_args *uap)
 {
 
+	TD_FAR_ADDR(td, uap->from);
+	TD_FAR_ADDR(td, uap->to);
 	return (kern_renameat(td, AT_FDCWD, uap->from, AT_FDCWD,
 	    uap->to, UIO_USERSPACE));
 }

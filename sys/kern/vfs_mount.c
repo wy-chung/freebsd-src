@@ -1057,6 +1057,9 @@ sys_mount(struct thread *td, struct mount_args *uap)
 	uint64_t flags;
 	int error;
 
+	TD_FAR_ADDR(td, uap->type);
+	TD_FAR_ADDR(td, uap->path);
+	TD_FAR_ADDR(td, uap->data);
 	/*
 	 * Mount flags are now 64-bits. On 32-bit architectures only
 	 * 32-bits are passed in, but from here on everything handles
@@ -1717,6 +1720,7 @@ int
 sys_unmount(struct thread *td, struct unmount_args *uap)
 {
 
+	TD_FAR_ADDR(td, uap->path);
 	return (kern_unmount(td, uap->path, uap->flags));
 }
 

@@ -95,6 +95,7 @@ filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 	int error, ret;
 	struct filemon *filemon;
 
+	// uap->path will be converted to far in sys_chdir
 	if ((ret = sys_chdir(td, uap)) == 0) {
 		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			if ((error = copyinstr(uap->path, filemon->fname1,
@@ -215,6 +216,7 @@ filemon_wrapper_open(struct thread *td, struct open_args *uap)
 {
 	int ret;
 
+	// uap->path will be converted to far in sys_open
 	if ((ret = sys_open(td, uap)) == 0)
 		_filemon_wrapper_openat(td, uap->path, uap->flags, AT_FDCWD);
 
@@ -226,6 +228,7 @@ filemon_wrapper_openat(struct thread *td, struct openat_args *uap)
 {
 	int ret;
 
+	// uap->path will be converted to far in sys_openat
 	if ((ret = sys_openat(td, uap)) == 0)
 		_filemon_wrapper_openat(td, uap->path, uap->flag, uap->fd);
 
@@ -238,6 +241,7 @@ filemon_wrapper_rename(struct thread *td, struct rename_args *uap)
 	int error, ret;
 	struct filemon *filemon;
 
+	// uap->from and uap->to will be converted to far in sys_rename
 	if ((ret = sys_rename(td, uap)) == 0) {
 		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			if (((error = copyinstr(uap->from, filemon->fname1,
@@ -286,6 +290,7 @@ filemon_wrapper_link(struct thread *td, struct link_args *uap)
 {
 	int ret;
 
+	// uap->path and uap->link will be converted to far in sys_link
 	if ((ret = sys_link(td, uap)) == 0)
 		_filemon_wrapper_link(td, uap->path, uap->link);
 
@@ -297,6 +302,7 @@ filemon_wrapper_symlink(struct thread *td, struct symlink_args *uap)
 {
 	int ret;
 
+	// uap->path and uap->link will be converted to far in sys_symlink
 	if ((ret = sys_symlink(td, uap)) == 0)
 		_filemon_wrapper_link(td, uap->path, uap->link);
 
@@ -308,6 +314,7 @@ filemon_wrapper_linkat(struct thread *td, struct linkat_args *uap)
 {
 	int ret;
 
+	// uap->path1 and uap->path1 will be converted to far in sys_linkat
 	if ((ret = sys_linkat(td, uap)) == 0)
 		_filemon_wrapper_link(td, uap->path1, uap->path2);
 
@@ -344,6 +351,7 @@ filemon_wrapper_unlink(struct thread *td, struct unlink_args *uap)
 	int error, ret;
 	struct filemon *filemon;
 
+	// uap->path will be converted to far in sys_unlink
 	if ((ret = sys_unlink(td, uap)) == 0) {
 		if ((filemon = filemon_proc_get(curproc)) != NULL) {
 			if ((error = copyinstr(uap->path, filemon->fname1,
@@ -410,6 +418,7 @@ filemon_wrapper_install(void)
 	sysent[SYS_linkat].sy_call = (sy_call_t *) filemon_wrapper_linkat;
 
 #if defined(COMPAT_FREEBSD32)
+WYC_PANIC();
 	freebsd32_sysent[FREEBSD32_SYS_chdir].sy_call = (sy_call_t *) filemon_wrapper_chdir;
 	freebsd32_sysent[FREEBSD32_SYS_open].sy_call = (sy_call_t *) filemon_wrapper_open;
 	freebsd32_sysent[FREEBSD32_SYS_openat].sy_call = (sy_call_t *) filemon_wrapper_openat;

@@ -74,6 +74,7 @@ sys_break(struct thread *td, struct break_args *uap)
 	uintptr_t addr;
 	int error;
 
+	TD_FAR_ADDR(td, uap->nsize);
 	addr = (uintptr_t)uap->nsize;
 	error = kern_break(td, &addr);
 	if (error == 0)
