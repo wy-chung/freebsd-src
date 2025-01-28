@@ -312,7 +312,7 @@ vm_offset_t to_near_addr(vm_offset_t addr);
 vm_offset_t to_far_addr(vm_offset_t addr, vm_offset_t proc_base);
 vm_offset_t td_far_addr(struct thread *td, vm_offset_t addr);
 
-#define TO_NEAR_ADDR(addr) (typeof(addr))to_near_addr((vm_offset_t)addr)
+#define TO_NEAR_ADDR(addr) ((typeof(addr))to_near_addr((vm_offset_t)addr))
 #define TD_FAR_ADDR(td, addr) addr = (typeof(addr))td_far_addr(td, (vm_offset_t)addr)
 
 #ifdef SAN_NEEDS_INTERCEPTORS

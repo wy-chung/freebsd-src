@@ -2573,6 +2573,7 @@ sys_getlogin(struct thread *td, struct getlogin_args *uap)
 	PROC_UNLOCK(p);
 	if (len > uap->namelen)
 		return (ERANGE);
+	TD_FAR_ADDR(td, uap->namebuf);
 	return (copyout(login, uap->namebuf, len));
 }
 
@@ -2597,6 +2598,7 @@ sys_setlogin(struct thread *td, struct setlogin_args *uap)
 	error = priv_check(td, PRIV_PROC_SETLOGIN);
 	if (error)
 		return (error);
+	TD_FAR_ADDR(td, uap->namebuf);
 	error = copyinstr(uap->namebuf, logintmp, sizeof(logintmp), NULL);
 	if (error != 0) {
 		if (error == ENAMETOOLONG)

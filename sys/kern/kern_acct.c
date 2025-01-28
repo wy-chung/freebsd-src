@@ -213,6 +213,7 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	 * appending and make sure it's a 'normal'.
 	 */
 	if (uap->path != NULL) {
+		TD_FAR_ADDR(td, uap->path);
 		NDINIT(&nd, LOOKUP, NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
 		    uap->path);
 		flags = FWRITE | O_APPEND;

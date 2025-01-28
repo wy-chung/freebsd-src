@@ -52,7 +52,7 @@
  */
 #ifndef _SYS_SYSPROTO_H_
 struct profil_args {
-	caddr_t	samples;
+	char	*samples;
 	size_t	size;
 	size_t	offset;
 	u_int	scale;
@@ -75,6 +75,7 @@ sys_profil(struct thread *td, struct profil_args *uap)
 		PROC_UNLOCK(p);
 		return (0);
 	}
+	TD_FAR_ADDR(td, uap->samples);
 	PROC_LOCK(p);
 	upp = &td->td_proc->p_stats->p_prof;
 	PROC_PROFLOCK(p);

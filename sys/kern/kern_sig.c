@@ -1728,6 +1728,7 @@ sys_sigaltstack(struct thread *td, struct sigaltstack_args *uap)
 	int error;
 
 	if (uap->ss != NULL) {
+		TD_FAR_ADDR(td, uap->ss);
 		error = copyin(uap->ss, &ss, sizeof(ss));
 		if (error)
 			return (error);
@@ -1736,8 +1737,10 @@ sys_sigaltstack(struct thread *td, struct sigaltstack_args *uap)
 	    (uap->oss != NULL) ? &oss : NULL);
 	if (error)
 		return (error);
-	if (uap->oss != NULL)
+	if (uap->oss != NULL) {
+		TD_FAR_ADDR(td, uap->oss);
 		error = copyout(&oss, uap->oss, sizeof(stack_t));
+	}
 	return (error);
 }
 

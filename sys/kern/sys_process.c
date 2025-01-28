@@ -627,6 +627,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		return (ENOSYS);
 	error = 0;
 
+	TD_FAR_ADDR(td, uap->addr);
 	AUDIT_ARG_PID(uap->pid);
 	AUDIT_ARG_CMD(uap->req);
 	AUDIT_ARG_VALUE(uap->data);

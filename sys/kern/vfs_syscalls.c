@@ -2132,7 +2132,7 @@ struct access_args {
 int
 sys_access(struct thread *td, struct access_args *uap)
 {
-
+	// uap->path is adjusted in kern_accessat
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    0, uap->amode));
 }
@@ -2148,7 +2148,7 @@ struct faccessat_args {
 int
 sys_faccessat(struct thread *td, struct faccessat_args *uap)
 {
-
+	// uap->path is adjusted in kern_accessat
 	return (kern_accessat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
 	    uap->amode));
 }
@@ -2183,6 +2183,7 @@ kern_accessat(struct thread *td, int fd, const char *path,
 	} else
 		usecred = cred;
 	AUDIT_ARG_VALUE(amode);
+	TD_FAR_ADDR(td, path);
 	NDINIT_ATRIGHTS(&nd, LOOKUP, LOCKSHARED | LOCKLEAF |
 	    AUDITVNODE1 | at2cnpflags(flag, AT_RESOLVE_BENEATH | AT_SYMLINK_NOFOLLOW |
 	    AT_EMPTY_PATH), pathseg, path, fd, &cap_fstat_rights);
@@ -2213,7 +2214,7 @@ struct eaccess_args {
 int
 sys_eaccess(struct thread *td, struct eaccess_args *uap)
 {
-
+	// uap->path is adjusted in kern_accessat
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    AT_EACCESS, uap->amode));
 }
@@ -2789,7 +2790,7 @@ struct chflags_args {
 int
 sys_chflags(struct thread *td, struct chflags_args *uap)
 {
-
+	// uap->path is adjusted in kern_chflagsat
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, 0));
 }
@@ -2805,7 +2806,7 @@ struct chflagsat_args {
 int
 sys_chflagsat(struct thread *td, struct chflagsat_args *uap)
 {
-
+	// uap->path is adjusted in kern_chflagsat
 	return (kern_chflagsat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->flags, uap->atflag));
 }
@@ -2822,7 +2823,7 @@ struct lchflags_args {
 int
 sys_lchflags(struct thread *td, struct lchflags_args *uap)
 {
-
+	// uap->path is adjusted in kern_chflagsat
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, AT_SYMLINK_NOFOLLOW));
 }
@@ -2834,6 +2835,7 @@ kern_chflagsat(struct thread *td, int fd, const char *path,
 	struct nameidata nd;
 	int error;
 
+	TD_FAR_ADDR(td, path);
 	if ((atflag & ~(AT_SYMLINK_NOFOLLOW | AT_RESOLVE_BENEATH |
 	    AT_EMPTY_PATH)) != 0)
 		return (EINVAL);

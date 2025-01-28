@@ -1057,6 +1057,7 @@ sys_ktrace(struct thread *td, struct ktrace_args *uap)
 		/*
 		 * an operation which requires a file argument.
 		 */
+		TD_FAR_ADDR(td, uap->fname);
 		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname);
 		flags = FREAD | FWRITE | O_NOFOLLOW;
 		error = vn_open(&nd, &flags, 0, NULL);
