@@ -746,6 +746,7 @@ sys_getitimer(struct thread *td, struct getitimer_args *uap)
 	error = kern_getitimer(td, uap->which, &aitv);
 	if (error != 0)
 		return (error);
+	TD_FAR_ADDR(td, uap->itv);
 	return (copyout(&aitv, uap->itv, sizeof (struct itimerval)));
 }
 
@@ -801,14 +802,16 @@ sys_setitimer(struct thread *td, struct setitimer_args *uap)
 
 	if (uap->itv == NULL) {
 		uap->itv = uap->oitv;
+		//uap->itv will be adjusted in sys_getitimer
 		return (sys_getitimer(td, (struct getitimer_args *)uap));
 	}
-
+	TD_FAR_ADDR(td, uap->itv);
 	if ((error = copyin(uap->itv, &aitv, sizeof(struct itimerval))))
 		return (error);
 	error = kern_setitimer(td, uap->which, &aitv, &oitv);
 	if (error != 0 || uap->oitv == NULL)
 		return (error);
+	TD_FAR_ADDR(td, uap->oitv);
 	return (copyout(&oitv, uap->oitv, sizeof(struct itimerval)));
 }
 

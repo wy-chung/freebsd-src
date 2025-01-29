@@ -510,7 +510,7 @@ struct msync_args {
 int
 sys_msync(struct thread *td, struct msync_args *uap)
 {
-	// uap->addr is adjusted in kern_msync
+	// uap->addr will be adjusted in kern_msync
 	return (kern_msync(td, (uintptr_t)uap->addr, uap->len, uap->flags));
 }
 
@@ -564,7 +564,7 @@ struct munmap_args {
 int
 sys_munmap(struct thread *td, struct munmap_args *uap)
 {
-
+	// uap->addr will be adjusted in kern_munmap
 	return (kern_munmap(td, (uintptr_t)uap->addr, uap->len));
 }
 
@@ -584,6 +584,7 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 	if (size == 0)
 		return (EINVAL);
 
+	TD_FAR_ADDR(td, addr0);
 	addr = addr0;
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
@@ -656,6 +657,7 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot,
 	vm_size_t pageoff;
 	int vm_error, max_prot;
 
+	TD_FAR_ADDR(td, addr0);
 	addr = addr0;
 	if ((prot & ~(_PROT_ALL | PROT_MAX(_PROT_ALL))) != 0)
 		return (EINVAL);
@@ -747,7 +749,7 @@ struct madvise_args {
 int
 sys_madvise(struct thread *td, struct madvise_args *uap)
 {
-
+	// uap->addr will be adjusted in kern_madvise
 	return (kern_madvise(td, (uintptr_t)uap->addr, uap->len, uap->behav));
 }
 
@@ -773,6 +775,7 @@ kern_madvise(struct thread *td, uintptr_t addr0, size_t len, int behav)
 	 * that VM_*_ADDRESS are not constants due to casts (argh).
 	 */
 	map = &td->td_proc->p_vmspace->vm_map;
+	TD_FAR_ADDR(td, addr0);
 	addr = addr0;
 	if (!vm_map_range_valid(map, addr, addr + len))
 		return (EINVAL);
@@ -801,7 +804,7 @@ struct mincore_args {
 int
 sys_mincore(struct thread *td, struct mincore_args *uap)
 {
-
+	// uap->addr and uap->vec will be adjusted in kern_mincore
 	return (kern_mincore(td, (uintptr_t)uap->addr, uap->len, uap->vec));
 }
 
@@ -819,6 +822,8 @@ kern_mincore(struct thread *td, uintptr_t addr0, size_t len, char *vec)
 	int error, lastvecindex, mincoreinfo, vecindex;
 	unsigned int timestamp;
 
+	TD_FAR_ADDR(td, addr0);
+	TD_FAR_ADDR(td, vec);
 	/*
 	 * Make sure that the addresses presented are valid for user
 	 * mode.

@@ -72,14 +72,17 @@ to_near_addr(vm_offset_t addr) //wyc
 	return addr & _LOWER;
 }
 
+// addr might be an far address when called from elf64_load_file
 vm_offset_t __attribute__((optnone)) //wycdebug
 to_far_addr(vm_offset_t addr, vm_offset_t proc_base)
 {
-	// addr might be an far address when called from elf64_load_file
-	addr |= proc_base; //wyc sa, should use '|' instead of '+'
-	if ((addr & _UPPER) != proc_base)
-		WYC_PANIC();
+	if ((addr & _UPPER) == 0)
+		return proc_base | addr;
 
+	if ((addr & _UPPER) != proc_base) {
+		printf("%s: upper %lx procbase %lx\n", __func__, addr & _UPPER, proc_base);
+		WYC_PANIC();
+	}
 	return addr;
 }
 

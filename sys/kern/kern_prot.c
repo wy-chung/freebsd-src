@@ -328,6 +328,7 @@ sys_getgroups(struct thread *td, struct getgroups_args *uap)
 	if (uap->gidsetsize < ngrp)
 		return (EINVAL);
 
+	TD_FAR_ADDR(td, uap->gidset);
 	error = copyout(cred->cr_groups, uap->gidset, ngrp * sizeof(gid_t));
 out:
 	td->td_retval[0] = ngrp;
@@ -850,6 +851,7 @@ sys_setgroups(struct thread *td, struct setgroups_args *uap)
 	else
 		groups = smallgroups;
 
+	TD_FAR_ADDR(td, uap->gidset);
 	error = copyin(uap->gidset, groups, gidsetsize * sizeof(gid_t));
 	if (error == 0)
 		error = kern_setgroups(td, &gidsetsize, groups);

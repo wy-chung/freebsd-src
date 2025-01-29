@@ -2355,7 +2355,7 @@ sys_swapon(struct thread *td, struct swapon_args *uap)
 		error = ENOMEM;
 		goto done;
 	}
-
+	TD_FAR_ADDR(td, uap->name);
 	NDINIT(&nd, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
 	    UIO_USERSPACE, uap->name);
 	error = namei(&nd);

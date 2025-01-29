@@ -422,6 +422,7 @@ kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg)
 	struct __oflock ofl;
 	intptr_t arg1;
 	int error, newcmd;
+	vm_offset_t faddr;
 
 	error = 0;
 	newcmd = cmd;
@@ -432,7 +433,8 @@ kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg)
 		/*
 		 * Convert old flock structure to new.
 		 */
-		error = copyin((void *)(intptr_t)arg, &ofl, sizeof(ofl));
+		faddr = td_far_addr(td, arg);
+		error = copyin((void *)faddr, &ofl, sizeof(ofl));
 		fl.l_start = ofl.l_start;
 		fl.l_len = ofl.l_len;
 		fl.l_pid = ofl.l_pid;
@@ -457,7 +459,8 @@ kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg)
 	case F_SETLK:
 	case F_SETLKW:
 	case F_SETLK_REMOTE:
-		error = copyin((void *)(intptr_t)arg, &fl, sizeof(fl));
+		faddr = td_far_addr(td, arg);
+		error = copyin((void *)faddr, &fl, sizeof(fl));
 		arg1 = (intptr_t)&fl;
 		break;
 	default:
@@ -475,9 +478,11 @@ kern_fcntl_freebsd(struct thread *td, int fd, int cmd, long arg)
 		ofl.l_pid = fl.l_pid;
 		ofl.l_type = fl.l_type;
 		ofl.l_whence = fl.l_whence;
-		error = copyout(&ofl, (void *)(intptr_t)arg, sizeof(ofl));
+		faddr = td_far_addr(td, arg);
+		error = copyout(&ofl, (void *)faddr, sizeof(ofl));
 	} else if (cmd == F_GETLK) {
-		error = copyout(&fl, (void *)(intptr_t)arg, sizeof(fl));
+		faddr = td_far_addr(td, arg);
+		error = copyout(&fl, (void *)faddr, sizeof(fl));
 	}
 	return (error);
 }
