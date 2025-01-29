@@ -996,6 +996,7 @@ sys_chroot(struct thread *td, struct chroot_args *uap)
 		}
 		PROC_UNLOCK(p);
 	}
+	TD_FAR_ADDR(td, uap->path);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1,
 	    UIO_USERSPACE, uap->path);
 	error = namei(&nd);
@@ -2658,7 +2659,7 @@ struct readlink_args {
 int
 sys_readlink(struct thread *td, struct readlink_args *uap)
 {
-
+	// uap->path and uap->buf are adjusted in kernel_readlinkat
 	return (kern_readlinkat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->buf, UIO_USERSPACE, uap->count));
 }
@@ -2673,7 +2674,7 @@ struct readlinkat_args {
 int
 sys_readlinkat(struct thread *td, struct readlinkat_args *uap)
 {
-
+	// uap->path and uap->buf are adjusted in kernel_readlinkat
 	return (kern_readlinkat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->buf, UIO_USERSPACE, uap->bufsize));
 }
@@ -2689,6 +2690,9 @@ kern_readlinkat(struct thread *td, int fd, const char *path,
 	if (count > IOSIZE_MAX)
 		return (EINVAL);
 
+	WYC_ASSERT(pathseg == UIO_USERSPACE && bufseg == UIO_USERSPACE);
+	TD_FAR_ADDR(td, path);
+	TD_FAR_ADDR(td, buf);
 	NDINIT_AT(&nd, LOOKUP, NOFOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1 |
 	    EMPTYPATH, pathseg, path, fd);
 
@@ -4306,6 +4310,7 @@ sys_revoke(struct thread *td, struct revoke_args *uap)
 	struct nameidata nd;
 	int error;
 
+	TD_FAR_ADDR(td, uap->path);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path);
 	if ((error = namei(&nd)) != 0)

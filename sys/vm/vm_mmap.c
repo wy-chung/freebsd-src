@@ -510,7 +510,7 @@ struct msync_args {
 int
 sys_msync(struct thread *td, struct msync_args *uap)
 {
-
+	// uap->addr is adjusted in kern_msync
 	return (kern_msync(td, (uintptr_t)uap->addr, uap->len, uap->flags));
 }
 
@@ -522,6 +522,7 @@ kern_msync(struct thread *td, uintptr_t addr0, size_t size, int flags)
 	vm_map_t map;
 	int rv;
 
+	TD_FAR_ADDR(td, addr0);
 	addr = addr0;
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;

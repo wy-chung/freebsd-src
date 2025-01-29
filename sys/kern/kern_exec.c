@@ -225,7 +225,8 @@ sys_execve(struct thread *td, struct execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
+	// uap->fname, uap->argv and uap->envv are adjusted in exec_copyin_args
+	error = exec_copyin_args(td, &args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &args, NULL, oldvmspace);
@@ -251,7 +252,8 @@ sys_fexecve(struct thread *td, struct fexecve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, NULL, UIO_SYSSPACE,
+	// uap->fname, uap->argv and uap->envv are adjusted in exec_copyin_args
+	error = exec_copyin_args(td, &args, NULL, UIO_SYSSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0) {
 		args.fd = uap->fd;
@@ -282,7 +284,8 @@ sys___mac_execve(struct thread *td, struct __mac_execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
+	// uap->fname, uap->argv and uap->envv are adjusted in exec_copyin_args
+	error = exec_copyin_args(td, &args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
 		error = kern_execve(td, &args, uap->mac_p, oldvmspace);
@@ -1318,16 +1321,17 @@ out:
  * space into the temporary string buffer.
  */
 int
-exec_copyin_args(struct image_args *args, const char *fname,
+exec_copyin_args(struct thread *td, struct image_args *args, const char *fname,
     enum uio_seg segflg, char **argv, char **envv)
 {
 	u_long arg, env;
 	int error;
 
+WYC_ASSERT(segflg == UIO_USERSPACE);
 	bzero(args, sizeof(*args));
 	if (argv == NULL)
 		return (EFAULT);
-
+	TD_FAR_ADDR(td, argv);
 	/*
 	 * Allocate demand-paged memory for the file name, argument, and
 	 * environment strings.
@@ -1339,6 +1343,7 @@ exec_copyin_args(struct image_args *args, const char *fname,
 	/*
 	 * Copy the file name.
 	 */
+	TD_FAR_ADDR(td, fname);
 	error = exec_args_add_fname(args, fname, segflg);
 	if (error != 0)
 		goto err_exit;
@@ -1354,6 +1359,7 @@ exec_copyin_args(struct image_args *args, const char *fname,
 		}
 		if (arg == 0)
 			break;
+		TD_FAR_ADDR(td, arg);
 		error = exec_args_add_arg(args, (char *)(uintptr_t)arg,
 		    UIO_USERSPACE);
 		if (error != 0)
@@ -1364,6 +1370,7 @@ exec_copyin_args(struct image_args *args, const char *fname,
 	 * extract environment strings
 	 */
 	if (envv) {
+		TD_FAR_ADDR(td, envv);
 		for (;;) {
 			error = fueword(envv++, &env);
 			if (error == -1) {
@@ -1372,6 +1379,7 @@ exec_copyin_args(struct image_args *args, const char *fname,
 			}
 			if (env == 0)
 				break;
+			TD_FAR_ADDR(td, env);
 			error = exec_args_add_env(args,
 			    (char *)(uintptr_t)env, UIO_USERSPACE);
 			if (error != 0)

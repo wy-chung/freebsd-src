@@ -650,7 +650,7 @@ oftruncate(struct thread *td, struct oftruncate_args *uap)
 #ifndef _SYS_SYSPROTO_H_
 struct ioctl_args {
 	int	fd;
-	u_long	com;
+	u_long	com;	// the request for this ioctl
 	caddr_t	data;
 };
 #endif
@@ -664,6 +664,7 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 	u_int size;
 	caddr_t data;
 
+	TD_FAR_ADDR(td, uap->data);
 #ifdef INVARIANTS
 	if (uap->com > 0xffffffff) {
 		printf(
