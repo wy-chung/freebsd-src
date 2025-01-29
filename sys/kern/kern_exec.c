@@ -225,7 +225,7 @@ sys_execve(struct thread *td, struct execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	// uap->fname, uap->argv and uap->envv are adjusted in exec_copyin_args
+	// uap->fname, uap->argv and uap->envv will be adjusted in exec_copyin_args
 	error = exec_copyin_args(td, &args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
@@ -252,7 +252,7 @@ sys_fexecve(struct thread *td, struct fexecve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	// uap->fname, uap->argv and uap->envv are adjusted in exec_copyin_args
+	// uap->fname, uap->argv and uap->envv will be adjusted in exec_copyin_args
 	error = exec_copyin_args(td, &args, NULL, UIO_SYSSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0) {
@@ -284,7 +284,7 @@ sys___mac_execve(struct thread *td, struct __mac_execve_args *uap)
 	error = pre_execve(td, &oldvmspace);
 	if (error != 0)
 		return (error);
-	// uap->fname, uap->argv and uap->envv are adjusted in exec_copyin_args
+	// uap->fname, uap->argv and uap->envv will be adjusted in exec_copyin_args
 	error = exec_copyin_args(td, &args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)

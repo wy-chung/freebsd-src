@@ -2133,7 +2133,7 @@ struct access_args {
 int
 sys_access(struct thread *td, struct access_args *uap)
 {
-	// uap->path is adjusted in kern_accessat
+	// uap->path will be adjusted in kern_accessat
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    0, uap->amode));
 }
@@ -2149,7 +2149,7 @@ struct faccessat_args {
 int
 sys_faccessat(struct thread *td, struct faccessat_args *uap)
 {
-	// uap->path is adjusted in kern_accessat
+	// uap->path will be adjusted in kern_accessat
 	return (kern_accessat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
 	    uap->amode));
 }
@@ -2215,7 +2215,7 @@ struct eaccess_args {
 int
 sys_eaccess(struct thread *td, struct eaccess_args *uap)
 {
-	// uap->path is adjusted in kern_accessat
+	// uap->path will be adjusted in kern_accessat
 	return (kern_accessat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    AT_EACCESS, uap->amode));
 }
@@ -2659,7 +2659,7 @@ struct readlink_args {
 int
 sys_readlink(struct thread *td, struct readlink_args *uap)
 {
-	// uap->path and uap->buf are adjusted in kernel_readlinkat
+	// uap->path and uap->buf will be adjusted in kernel_readlinkat
 	return (kern_readlinkat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->buf, UIO_USERSPACE, uap->count));
 }
@@ -2674,7 +2674,7 @@ struct readlinkat_args {
 int
 sys_readlinkat(struct thread *td, struct readlinkat_args *uap)
 {
-	// uap->path and uap->buf are adjusted in kernel_readlinkat
+	// uap->path and uap->buf will be adjusted in kernel_readlinkat
 	return (kern_readlinkat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->buf, UIO_USERSPACE, uap->bufsize));
 }
@@ -2794,7 +2794,7 @@ struct chflags_args {
 int
 sys_chflags(struct thread *td, struct chflags_args *uap)
 {
-	// uap->path is adjusted in kern_chflagsat
+	// uap->path will be adjusted in kern_chflagsat
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, 0));
 }
@@ -2810,7 +2810,7 @@ struct chflagsat_args {
 int
 sys_chflagsat(struct thread *td, struct chflagsat_args *uap)
 {
-	// uap->path is adjusted in kern_chflagsat
+	// uap->path will be adjusted in kern_chflagsat
 	return (kern_chflagsat(td, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->flags, uap->atflag));
 }
@@ -2827,7 +2827,7 @@ struct lchflags_args {
 int
 sys_lchflags(struct thread *td, struct lchflags_args *uap)
 {
-	// uap->path is adjusted in kern_chflagsat
+	// uap->path will be adjusted in kern_chflagsat
 	return (kern_chflagsat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->flags, AT_SYMLINK_NOFOLLOW));
 }

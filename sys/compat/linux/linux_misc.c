@@ -304,6 +304,7 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 	size_t len;
 	int error = 0;
 
+	// args->addr will be adjusted in kern_munmap
 	if (args->flags & ~(LINUX_MREMAP_FIXED | LINUX_MREMAP_MAYMOVE)) {
 		td->td_retval[0] = 0;
 		return (EINVAL);
@@ -343,7 +344,7 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 int
 linux_msync(struct thread *td, struct linux_msync_args *args)
 {
-	// uap->addr is adjusted in kern_msync
+	// uap->addr will be adjusted in kern_msync
 	return (kern_msync(td, args->addr, args->len,
 	    args->fl & ~LINUX_MS_SYNC));
 }

@@ -447,7 +447,7 @@ done:
 int
 sys_accept(struct thread *td, struct accept_args *uap)
 {
-	// uaps are adjusted in accept1
+	// uaps will be adjusted in accept1
 	return (accept1(td, uap->s, uap->name, uap->anamelen, ACCEPT4_INHERIT));
 }
 
@@ -457,7 +457,7 @@ sys_accept4(struct thread *td, struct accept4_args *uap)
 
 	if (uap->flags & ~(SOCK_CLOEXEC | SOCK_NONBLOCK))
 		return (EINVAL);
-	// uaps are adjusted in accept1
+	// uaps will be adjusted in accept1
 	return (accept1(td, uap->s, uap->name, uap->anamelen, uap->flags));
 }
 
@@ -465,7 +465,7 @@ sys_accept4(struct thread *td, struct accept4_args *uap)
 int
 oaccept(struct thread *td, struct oaccept_args *uap)
 {
-	// uaps are adjusted in accept1
+	// uaps will be adjusted in accept1
 	return (accept1(td, uap->s, uap->name, uap->anamelen,
 	    ACCEPT4_INHERIT | ACCEPT4_COMPAT));
 }
@@ -1105,7 +1105,7 @@ sys_recvfrom(struct thread *td, struct recvfrom_args *uap)
 {
 	TD_FAR_ADDR(td, uap->buf);
 	TD_FAR_ADDR(td, uap->from);
-	// uap->fromlenaddr is adjusted in kern_recvfrom
+	// uap->fromlenaddr will be adjusted in kern_recvfrom
 	return (kern_recvfrom(td, uap->s, uap->buf, uap->len,
 	    uap->flags, uap->from, uap->fromlenaddr));
 }
@@ -1117,7 +1117,7 @@ orecvfrom(struct thread *td, struct orecvfrom_args *uap)
 {
 	TD_FAR_ADDR(td, uap->buf);
 	TD_FAR_ADDR(td, uap->from);
-	// uap->fromlenaddr is adjusted in kern_recvfrom
+	// uap->fromlenaddr will be adjusted in kern_recvfrom
 	return (kern_recvfrom(td, uap->s, uap->buf, uap->len,
 	    uap->flags | MSG_COMPAT, uap->from, uap->fromlenaddr));
 }
@@ -1423,7 +1423,7 @@ bad:
 int
 sys_getsockname(struct thread *td, struct getsockname_args *uap)
 {
-	// uap->asa and uap->alen are adjusted in user_getsockname
+	// uap->asa and uap->alen will be adjusted in user_getsockname
 	return (user_getsockname(td, uap->fdes, uap->asa, uap->alen, false));
 }
 
@@ -1431,7 +1431,7 @@ sys_getsockname(struct thread *td, struct getsockname_args *uap)
 int
 ogetsockname(struct thread *td, struct ogetsockname_args *uap)
 {
-	// uap->asa and uap->alen are adjusted in user_getsockname
+	// uap->asa and uap->alen will be adjusted in user_getsockname
 	return (user_getsockname(td, uap->fdes, uap->asa, uap->alen, true));
 }
 #endif /* COMPAT_OLDSOCK */
@@ -1513,7 +1513,7 @@ done:
 int
 sys_getpeername(struct thread *td, struct getpeername_args *uap)
 {
-	// uaps are adjusted in user_getpeername
+	// uaps will be adjusted in user_getpeername
 	return (user_getpeername(td, uap->fdes, uap->asa, uap->alen, false));
 }
 
@@ -1521,7 +1521,7 @@ sys_getpeername(struct thread *td, struct getpeername_args *uap)
 int
 ogetpeername(struct thread *td, struct ogetpeername_args *uap)
 {
-	// uaps are adjusted in user_getpeername
+	// uaps will be adjusted in user_getpeername
 	return (user_getpeername(td, uap->fdes, uap->asa, uap->alen, true));
 }
 #endif /* COMPAT_OLDSOCK */
