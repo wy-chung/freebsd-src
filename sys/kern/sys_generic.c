@@ -1095,6 +1095,7 @@ sys_select(struct thread *td, struct select_args *uap)
 	int error;
 
 	if (uap->tv != NULL) {
+		TD_FAR_ADDR(td, uap->tv);
 		error = copyin(uap->tv, &tv, sizeof(tv));
 		if (error)
 			return (error);
@@ -1102,6 +1103,7 @@ sys_select(struct thread *td, struct select_args *uap)
 	} else
 		tvp = NULL;
 
+	// uap->in, uap->ou, uap->ex will be adjusted in kern_select
 	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
 	    NFDBITS));
 }
@@ -1116,7 +1118,7 @@ sys_select(struct thread *td, struct select_args *uap)
  * nd is fd_nfiles.
  */
 static int
-select_check_badfd(fd_set *fd_in, int nd, int ndu, int abi_nfdbits)
+select_check_badfd(struct thread *td, fd_set *fd_in, int nd, int ndu, int abi_nfdbits)
 {
 	char *addr, *oaddr;
 	int b, i, res;
@@ -1180,13 +1182,13 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	if (nd > lf)
 		nd = lf;
 
-	error = select_check_badfd(fd_in, nd, ndu, abi_nfdbits);
+	error = select_check_badfd(td, fd_in, nd, ndu, abi_nfdbits);
 	if (error != 0)
 		return (error);
-	error = select_check_badfd(fd_ou, nd, ndu, abi_nfdbits);
+	error = select_check_badfd(td, fd_ou, nd, ndu, abi_nfdbits);
 	if (error != 0)
 		return (error);
-	error = select_check_badfd(fd_ex, nd, ndu, abi_nfdbits);
+	error = select_check_badfd(td, fd_ex, nd, ndu, abi_nfdbits);
 	if (error != 0)
 		return (error);
 
@@ -1314,7 +1316,7 @@ done:
 #undef swizzle_fdset
 
 #define	putbits(name, x) \
-	if (name && (error2 = copyout(obits[x], name, ncpubytes))) \
+	if (TO_NEAR_ADDR(name) && (error2 = copyout(obits[x], name, ncpubytes))) \
 		error = error2;
 	if (error == 0) {
 		int error2;
