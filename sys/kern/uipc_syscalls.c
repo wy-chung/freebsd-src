@@ -1238,16 +1238,20 @@ kern_shutdown(struct thread *td, int s, int how)
 	return (error);
 }
 
+static int
+kern_setsockopt(struct thread *td, int s, int level, int name,
+    const void *uval, enum uio_seg valseg, socklen_t valsize);
+
 int
 sys_setsockopt(struct thread *td, struct setsockopt_args *uap)
 {
-
+	// uap->val will be adjusted to far in kern_setsockopt
 	return (kern_setsockopt(td, uap->s, uap->level, uap->name,
 	    uap->val, UIO_USERSPACE, uap->valsize));
 }
 
-int
-kern_setsockopt(struct thread *td, int s, int level, int name, const void *val,
+static int
+kern_setsockopt(struct thread *td, int s, int level, int name, const void *uval,
     enum uio_seg valseg, socklen_t valsize)
 {
 	struct socket *so;
@@ -1256,7 +1260,7 @@ kern_setsockopt(struct thread *td, int s, int level, int name, const void *val,
 	struct sockopt sopt;
 	int error;
 
-	if (val == NULL && valsize != 0)
+	if (uval == NULL && valsize != 0)
 		return (EFAULT);
 	if ((int)valsize < 0)
 		return (EINVAL);
@@ -1264,7 +1268,8 @@ kern_setsockopt(struct thread *td, int s, int level, int name, const void *val,
 	sopt.sopt_dir = SOPT_SET;
 	sopt.sopt_level = level;
 	sopt.sopt_name = name;
-	sopt.sopt_val = __DECONST(void *, val);
+	TD_FAR_ADDR(td, uval);
+	sopt.sopt_val = __DECONST(void *, uval);
 	sopt.sopt_valsize = valsize;
 	switch (valseg) {
 	case UIO_USERSPACE:

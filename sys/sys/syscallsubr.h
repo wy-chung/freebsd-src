@@ -318,8 +318,8 @@ int	kern_setitimer(struct thread *, u_int, struct itimerval *,
 	    struct itimerval *);
 int	kern_setpriority(struct thread *td, int which, int who, int prio);
 int	kern_setrlimit(struct thread *, u_int, struct rlimit *);
-int	kern_setsockopt(struct thread *td, int s, int level, int name,
-	    const void *optval, enum uio_seg valseg, socklen_t valsize);
+//int	kern_setsockopt(struct thread *td, int s, int level, int name,
+//	    const void *optval, enum uio_seg valseg, socklen_t valsize);
 int	kern_settimeofday(struct thread *td, struct timeval *tv,
 	    struct timezone *tzp);
 int	kern_shm_open(struct thread *td, const char *userpath, int flags,
