@@ -237,11 +237,12 @@ linux_select(struct thread *td, struct linux_select_args *args)
 	struct timeval tv0, tv1, utv, *tvp;
 	int error;
 
+	TD_FAR_ADDR(args->timeout);
 	/*
 	 * Store current time for computation of the amount of
 	 * time left.
 	 */
-	if (args->timeout) {
+	if (TO_NEAR_ADDR(args->timeout)) {
 		if ((error = copyin(args->timeout, &ltv, sizeof(ltv))))
 			goto select_out;
 		utv.tv_sec = ltv.tv_sec;
@@ -266,12 +267,13 @@ linux_select(struct thread *td, struct linux_select_args *args)
 	} else
 		tvp = NULL;
 
+	// args->readfds, args->writefds, args->execeptfds will be adjusted in kern_select
 	error = kern_select(td, args->nfds, args->readfds, args->writefds,
 	    args->exceptfds, tvp, LINUX_NFDBITS);
 	if (error)
 		goto select_out;
 
-	if (args->timeout) {
+	if (TO_NEAR_ADDR(args->timeout)) {
 		if (td->td_retval[0]) {
 			/*
 			 * Compute how much time was left of the timeout,
@@ -2096,9 +2098,9 @@ linux_pselect6(struct thread *td, struct linux_pselect6_args *args)
 }
 
 static int
-linux_common_pselect6(struct thread *td, l_int nfds, l_fd_set *readfds,
-    l_fd_set *writefds, l_fd_set *exceptfds, struct timespec *tsp,
-    l_uintptr_t *sig)
+linux_common_pselect6(struct thread *td, l_int nfds, l_fd_set *ureadfds, // 'u' menas pointer to user address
+    l_fd_set *uwritefds, l_fd_set *uexceptfds, struct timespec *tsp,
+    l_uintptr_t *usig)
 {
 	struct timeval utv, tv0, tv1, *tvp;
 	struct l_pselect6arg lpse6;
@@ -2107,8 +2109,9 @@ linux_common_pselect6(struct thread *td, l_int nfds, l_fd_set *readfds,
 	int error;
 
 	ssp = NULL;
-	if (sig != NULL) {
-		error = copyin(sig, &lpse6, sizeof(lpse6));
+	if (usig != NULL) {
+		TD_FAR_ADDR(usig);
+		error = copyin(usig, &lpse6, sizeof(lpse6));
 		if (error != 0)
 			return (error);
 		error = linux_copyin_sigset(td, PTRIN(lpse6.ss),
@@ -2132,8 +2135,9 @@ linux_common_pselect6(struct thread *td, l_int nfds, l_fd_set *readfds,
 	} else
 		tvp = NULL;
 
-	error = kern_pselect(td, nfds, readfds, writefds,
-	    exceptfds, tvp, ssp, LINUX_NFDBITS);
+	// ureadfds, uwritefds, uexceptfds will be adjusted in kern_pselect
+	error = kern_pselect(td, nfds, ureadfds, uwritefds,
+	    uexceptfds, tvp, ssp, LINUX_NFDBITS);
 
 	if (tsp != NULL) {
 		/*

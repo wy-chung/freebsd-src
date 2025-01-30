@@ -1020,10 +1020,11 @@ sys_pselect(struct thread *td, struct pselect_args *uap)
 {
 	struct timespec ts;
 	struct timeval tv, *tvp;
-	sigset_t set, *uset;
+	sigset_t ss, *ssp; // ori set, *uset;
 	int error;
 
 	if (uap->ts != NULL) {
+		TD_FAR_ADDR(td, uap->ts);
 		error = copyin(uap->ts, &ts, sizeof(ts));
 		if (error != 0)
 		    return (error);
@@ -1032,30 +1033,33 @@ sys_pselect(struct thread *td, struct pselect_args *uap)
 	} else
 		tvp = NULL;
 	if (uap->sm != NULL) {
-		error = copyin(uap->sm, &set, sizeof(set));
+		TD_FAR_ADDR(td, uap->sm);
+		error = copyin(uap->sm, &ss, sizeof(ss));
 		if (error != 0)
 			return (error);
-		uset = &set;
+		ssp = &ss;
 	} else
-		uset = NULL;
+		ssp = NULL;
+	// uap->in, uap->ou and uap->ex will be adjusted in kern_pselect
 	return (kern_pselect(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
-	    uset, NFDBITS));
+	    ssp, NFDBITS));
 }
 
 int
-kern_pselect(struct thread *td, int nd, fd_set *in, fd_set *ou, fd_set *ex,
-    struct timeval *tvp, sigset_t *uset, int abi_nfdbits)
+kern_pselect(struct thread *td, int nd, fd_set *uin, // 'u' means pointer to user address
+    fd_set *uou, fd_set *uex, struct timeval *tvp, sigset_t *ssp /*ori uset*/, int abi_nfdbits)
 {
 	int error;
 
-	if (uset != NULL) {
-		error = kern_sigprocmask(td, SIG_SETMASK, uset,
+	if (ssp != NULL) {
+		error = kern_sigprocmask(td, SIG_SETMASK, ssp,
 		    &td->td_oldsigmask, 0);
 		if (error != 0)
 			return (error);
 	}
-	error = kern_select(td, nd, in, ou, ex, tvp, abi_nfdbits);
-	if (uset != NULL) {
+	// uin, uou, uex will be adjusted in kern_select
+	error = kern_select(td, nd, uin, uou, uex, tvp, abi_nfdbits);
+	if (ssp != NULL) {
 		/*
 		 * Make sure that ast() is called on return to
 		 * usermode and TDP_OLDMASK is cleared, restoring old
@@ -1118,23 +1122,24 @@ sys_select(struct thread *td, struct select_args *uap)
  * nd is fd_nfiles.
  */
 static int
-select_check_badfd(struct thread *td, fd_set *fd_in, int nd, int ndu, int abi_nfdbits)
+select_check_badfd(struct thread *td, fd_set *ufd_in, int nd, int ndu, int abi_nfdbits) // wyc 'u' means user address
 {
 	char *addr, *oaddr;
 	int b, i, res;
 	uint8_t bits;
 
-	if (nd >= ndu || fd_in == NULL)
+	if (nd >= ndu || ufd_in == NULL)
 		return (0);
 
+	TD_FAR_ADDR(td, ufd_in);
 	oaddr = NULL;
 	bits = 0; /* silence gcc */
 	for (i = nd; i < ndu; i++) {
 		b = i / NBBY;
 #if BYTE_ORDER == LITTLE_ENDIAN
-		addr = (char *)fd_in + b;
+		addr = (char *)ufd_in + b;
 #else
-		addr = (char *)fd_in;
+		addr = (char *)ufd_in;
 		if (abi_nfdbits == NFDBITS) {
 			addr += rounddown(b, sizeof(fd_mask)) +
 			    sizeof(fd_mask) - 1 - b % sizeof(fd_mask);
@@ -1157,8 +1162,8 @@ select_check_badfd(struct thread *td, fd_set *fd_in, int nd, int ndu, int abi_nf
 }
 
 int
-kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
-    fd_set *fd_ex, struct timeval *tvp, int abi_nfdbits)
+kern_select(struct thread *td, int nd, fd_set *ufd_in, fd_set *ufd_ou, // wyc 'u' means user address
+    fd_set *ufd_ex, struct timeval *tvp, int abi_nfdbits)
 {
 	struct filedesc *fdp;
 	/*
@@ -1182,13 +1187,14 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	if (nd > lf)
 		nd = lf;
 
-	error = select_check_badfd(td, fd_in, nd, ndu, abi_nfdbits);
+	// ufd_in, ufd_ou and ufd_ex are near address
+	error = select_check_badfd(td, ufd_in, nd, ndu, abi_nfdbits);
 	if (error != 0)
 		return (error);
-	error = select_check_badfd(td, fd_ou, nd, ndu, abi_nfdbits);
+	error = select_check_badfd(td, ufd_ou, nd, ndu, abi_nfdbits);
 	if (error != 0)
 		return (error);
-	error = select_check_badfd(td, fd_ex, nd, ndu, abi_nfdbits);
+	error = select_check_badfd(td, ufd_ex, nd, ndu, abi_nfdbits);
 	if (error != 0)
 		return (error);
 
@@ -1200,11 +1206,11 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	ncpbytes = nfdbits / NBBY;
 	ncpubytes = roundup(nd, abi_nfdbits) / NBBY;
 	nbufbytes = 0;
-	if (fd_in != NULL)
+	if (ufd_in != NULL) // ufd_in is near address
 		nbufbytes += 2 * ncpbytes;
-	if (fd_ou != NULL)
+	if (ufd_ou != NULL) // ufd_ou is near address
 		nbufbytes += 2 * ncpbytes;
-	if (fd_ex != NULL)
+	if (ufd_ex != NULL) // ufd_ex is near address
 		nbufbytes += 2 * ncpbytes;
 	if (nbufbytes <= sizeof s_selbits)
 		selbits = &s_selbits[0];
@@ -1219,13 +1225,14 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	sbp = selbits;
 #define	getbits(name, x) \
 	do {								\
-		if (name == NULL) {					\
+		if (name == NULL) { /* name is near addr */		\
 			ibits[x] = NULL;				\
 			obits[x] = NULL;				\
 		} else {						\
 			ibits[x] = sbp + nbufbytes / 2 / sizeof *sbp;	\
 			obits[x] = sbp;					\
 			sbp += ncpbytes / sizeof *sbp;			\
+			TD_FAR_ADDR(td, name); /* wyc */		\
 			error = copyin(name, ibits[x], ncpubytes);	\
 			if (error != 0)					\
 				goto done;				\
@@ -1234,9 +1241,9 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 				    ncpbytes - ncpubytes);		\
 		}							\
 	} while (0)
-	getbits(fd_in, 0);
-	getbits(fd_ou, 1);
-	getbits(fd_ex, 2);
+	getbits(ufd_in, 0);
+	getbits(ufd_ou, 1);
+	getbits(ufd_ex, 2);
 #undef	getbits
 
 #if BYTE_ORDER == BIG_ENDIAN && defined(__LP64__)
@@ -1316,14 +1323,15 @@ done:
 #undef swizzle_fdset
 
 #define	putbits(name, x) \
-	if (TO_NEAR_ADDR(name) && (error2 = copyout(obits[x], name, ncpubytes))) \
+	if (name && (error2 = copyout(obits[x], TD_FAR_ADDR(td, name), ncpubytes))) \
 		error = error2;
+
 	if (error == 0) {
 		int error2;
 
-		putbits(fd_in, 0);
-		putbits(fd_ou, 1);
-		putbits(fd_ex, 2);
+		putbits(ufd_in, 0);
+		putbits(ufd_ou, 1);
+		putbits(ufd_ex, 2);
 #undef putbits
 	}
 	if (selbits != &s_selbits[0])
