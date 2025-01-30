@@ -651,11 +651,13 @@ sys_gettimeofday(struct thread *td, struct gettimeofday_args *uap)
 
 	if (uap->tp) {
 		microtime(&atv);
+		TD_FAR_ADDR(td, uap->tp);
 		error = copyout(&atv, uap->tp, sizeof (atv));
 	}
 	if (error == 0 && uap->tzp != NULL) {
 		rtz.tz_minuteswest = 0;
 		rtz.tz_dsttime = 0;
+		TD_FAR_ADDR(td, uap->tzp);
 		error = copyout(&rtz, uap->tzp, sizeof (rtz));
 	}
 	return (error);

@@ -1294,13 +1294,19 @@ kern_setsockopt(struct thread *td, int s, int level, int name, const void *uval,
 	return(error);
 }
 
+static int
+kern_getsockopt(struct thread *td, int s, int level, int name, void *val /*NULL or far*/,
+    enum uio_seg valseg, socklen_t *valsize);
+
 int
 sys_getsockopt(struct thread *td, struct getsockopt_args *uap)
 {
 	socklen_t valsize;
 	int error;
 
+	TD_FAR_ADDR(td, uap->avalsize);
 	if (uap->val) {
+		TD_FAR_ADDR(td, uap->val);
 		error = copyin(uap->avalsize, &valsize, sizeof (valsize));
 		if (error != 0)
 			return (error);
@@ -1318,8 +1324,8 @@ sys_getsockopt(struct thread *td, struct getsockopt_args *uap)
  * Kernel version of getsockopt.
  * optval can be a userland or userspace. optlen is always a kernel pointer.
  */
-int
-kern_getsockopt(struct thread *td, int s, int level, int name, void *val,
+static int
+kern_getsockopt(struct thread *td, int s, int level, int name, void *val /*NULL or far*/,
     enum uio_seg valseg, socklen_t *valsize)
 {
 	struct socket *so;

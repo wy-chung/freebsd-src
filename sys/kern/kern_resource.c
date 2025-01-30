@@ -1171,8 +1171,10 @@ sys_getrusage(struct thread *td, struct getrusage_args *uap)
 	int error;
 
 	error = kern_getrusage(td, uap->who, &ru);
-	if (error == 0)
+	if (error == 0) {
+		TD_FAR_ADDR(td, uap->rusage);
 		error = copyout(&ru, uap->rusage, sizeof(struct rusage));
+	}
 	return (error);
 }
 
