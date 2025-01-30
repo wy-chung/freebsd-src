@@ -489,6 +489,8 @@ struct uio;
  */
 int	getsockaddr(struct sockaddr **namp, const struct sockaddr *uaddr,
 	    size_t len);
+int	getsockaddr_td(struct thread *td, struct sockaddr **namp,
+	    const struct sockaddr *uaddr, size_t len);
 int	getsock_cap(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp, struct filecaps *havecaps);
 int	getsock(struct thread *td, int fd, cap_rights_t *rightsp,

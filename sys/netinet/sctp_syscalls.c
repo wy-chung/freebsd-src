@@ -228,7 +228,8 @@ sys_sctp_generic_sendmsg(struct thread *td, struct sctp_generic_sendmsg_args *ua
 
 	cap_rights_init_one(&rights, CAP_SEND);
 	if (uap->tolen != 0) {
-		error = getsockaddr(&to, uap->to, uap->tolen);
+		// uap->to will be adjusted to far addr in getsockaddr_td
+		error = getsockaddr_td(td, &to, uap->to, uap->tolen);
 		if (error != 0) {
 			to = NULL;
 			goto sctp_bad2;
@@ -328,7 +329,8 @@ sys_sctp_generic_sendmsg_iov(struct thread *td, struct sctp_generic_sendmsg_iov_
 	}
 	cap_rights_init_one(&rights, CAP_SEND);
 	if (uap->tolen != 0) {
-		error = getsockaddr(&to, uap->to, uap->tolen);
+		// uap->to will be adjusted to far addr in getsockaddr_td
+		error = getsockaddr_td(td, &to, uap->to, uap->tolen);
 		if (error != 0) {
 			to = NULL;
 			goto sctp_bad2;

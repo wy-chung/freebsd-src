@@ -120,6 +120,7 @@ static int	mountnfs(struct nfs_args *, struct mount *,
 static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
 		    struct sockaddr_storage *, int *, off_t *,
 		    struct timeval *);
+#if !defined(WYC)
 static vfs_mount_t nfs_mount;
 static vfs_cmount_t nfs_cmount;
 static vfs_unmount_t nfs_unmount;
@@ -128,7 +129,7 @@ static vfs_statfs_t nfs_statfs;
 static vfs_sync_t nfs_sync;
 static vfs_sysctl_t nfs_sysctl;
 static vfs_purge_t nfs_purge;
-
+#endif
 /*
  * nfs vfs operations.
  */

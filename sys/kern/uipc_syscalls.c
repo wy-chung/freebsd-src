@@ -185,7 +185,8 @@ sys_bind(struct thread *td, struct bind_args *uap)
 	struct sockaddr *sa;
 	int error;
 
-	error = getsockaddr(&sa, uap->name, uap->namelen);
+	// uap->name will be adjusted to far addr in getsockaddr_td
+	error = getsockaddr_td(td, &sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_bindat(td, AT_FDCWD, uap->s, sa);
 		free(sa, M_SONAME);
@@ -240,7 +241,8 @@ sys_bindat(struct thread *td, struct bindat_args *uap)
 	struct sockaddr *sa;
 	int error;
 
-	error = getsockaddr(&sa, uap->name, uap->namelen);
+	// uap->name will be adjusted to far addr in getsockaddr_td
+	error = getsockaddr_td(td, &sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_bindat(td, uap->fd, uap->s, sa);
 		free(sa, M_SONAME);
@@ -477,7 +479,8 @@ sys_connect(struct thread *td, struct connect_args *uap)
 	struct sockaddr *sa;
 	int error;
 
-	error = getsockaddr(&sa, uap->name, uap->namelen);
+	// uap->name will be adjusted to far addr in getsockaddr_td
+	error = getsockaddr_td(td, &sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_connectat(td, AT_FDCWD, uap->s, sa);
 		free(sa, M_SONAME);
@@ -553,7 +556,8 @@ sys_connectat(struct thread *td, struct connectat_args *uap)
 	struct sockaddr *sa;
 	int error;
 
-	error = getsockaddr(&sa, uap->name, uap->namelen);
+	// uap->name will be adjusted to far addr in getsockaddr_td
+	error = getsockaddr_td(td, &sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_connectat(td, uap->fd, uap->s, sa);
 		free(sa, M_SONAME);
@@ -676,7 +680,8 @@ sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 	int error;
 
 	if (mp->msg_name != NULL) {
-		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
+		// mp->msg_name will be adjusted to far addr in getsockaddr_td
+		error = getsockaddr_td(td, &to, mp->msg_name, mp->msg_namelen);
 		if (error != 0) {
 			to = NULL;
 			goto bad;
@@ -1565,7 +1570,7 @@ sockargs(struct mbuf **mp, char *buf, socklen_t buflen, int type)
 }
 
 int
-getsockaddr(struct sockaddr **namp, const struct sockaddr *uaddr, size_t len)
+getsockaddr_td(struct thread *td, struct sockaddr **namp, const struct sockaddr *uaddr, size_t len)
 {
 	struct sockaddr *sa;
 	int error;
@@ -1575,6 +1580,7 @@ getsockaddr(struct sockaddr **namp, const struct sockaddr *uaddr, size_t len)
 	if (len < offsetof(struct sockaddr, sa_data[0]))
 		return (EINVAL);
 	sa = malloc(len, M_SONAME, M_WAITOK);
+	TD_FAR_ADDR(td, uaddr);
 	error = copyin(uaddr, sa, len);
 	if (error != 0) {
 		free(sa, M_SONAME);
@@ -1588,6 +1594,14 @@ getsockaddr(struct sockaddr **namp, const struct sockaddr *uaddr, size_t len)
 		*namp = sa;
 	}
 	return (error);
+}
+
+int
+getsockaddr(struct sockaddr **namp, const struct sockaddr *uaddr, size_t len)
+{
+	struct thread *td = curthread;
+	// uaddr will be adjusted to far addr in getsockaddr_td
+	return getsockaddr_td(td, namp, uaddr, len);
 }
 
 /*
