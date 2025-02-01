@@ -81,7 +81,7 @@ struct bus_dma_segment;
 struct uio *allocuio(u_int iovcnt);
 void	freeuio(struct uio *uio);
 struct uio *cloneuio(struct uio *uiop);
-int	copyiniov(const struct iovec *iovp, u_int iovcnt, struct iovec **iov,
+int	copyiniov(struct thread *td, const struct iovec *iovp, u_int iovcnt, struct iovec **iov,
 	    int error);
 int	copyinuio(struct thread *td, const struct iovec *uiovp, u_int iovcnt, struct uio **uiop);
 int	copyout_map(struct thread *td, vm_offset_t *addr, size_t sz);

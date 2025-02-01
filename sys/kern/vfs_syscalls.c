@@ -1462,7 +1462,7 @@ struct mkfifo_args {
 int
 sys_mkfifo(struct thread *td, struct mkfifo_args *uap)
 {
-
+	TD_FAR_ADDR(td, uap->path);
 	return (kern_mkfifoat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    uap->mode));
 }
@@ -3650,8 +3650,8 @@ int
 sys_rename(struct thread *td, struct rename_args *uap)
 {
 	// uap->from and uap->to will be adjusted in the func below
-	return (kern_renameat(td, AT_FDCWD, uap->from, AT_FDCWD,
-	    uap->to, UIO_USERSPACE));
+	return (kern_renameat(td, AT_FDCWD, uap->from,
+	    AT_FDCWD, uap->to, UIO_USERSPACE));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -3666,8 +3666,8 @@ int
 sys_renameat(struct thread *td, struct renameat_args *uap)
 {
 	// uap->old and uap->new will be adjusted in the func below
-	return (kern_renameat(td, uap->oldfd, uap->old, uap->newfd, uap->new,
-	    UIO_USERSPACE));
+	return (kern_renameat(td, uap->oldfd, uap->old,
+	    uap->newfd, uap->new, UIO_USERSPACE));
 }
 
 #ifdef MAC
@@ -3696,8 +3696,8 @@ kern_renameat_mac(struct thread *td, int oldfd, const char *old, int newfd,
 #endif
 
 static int
-kern_renameat(struct thread *td, int oldfd, const char *uold, int newfd,
-    const char *unew, enum uio_seg pathseg)
+kern_renameat(struct thread *td, int oldfd, const char *uold,
+    int newfd, const char *unew, enum uio_seg pathseg)
 {
 	struct mount *mp = NULL;
 	struct vnode *tvp, *fvp, *tdvp;

@@ -185,8 +185,8 @@ sys_bind(struct thread *td, struct bind_args *uap)
 	struct sockaddr *sa;
 	int error;
 
-	// uap->name will be adjusted to far addr in getsockaddr_td
-	error = getsockaddr_td(td, &sa, uap->name, uap->namelen);
+	TD_FAR_ADDR(td, uap->name);
+	error = _getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_bindat(td, AT_FDCWD, uap->s, sa);
 		free(sa, M_SONAME);
@@ -241,8 +241,8 @@ sys_bindat(struct thread *td, struct bindat_args *uap)
 	struct sockaddr *sa;
 	int error;
 
-	// uap->name will be adjusted to far addr in getsockaddr_td
-	error = getsockaddr_td(td, &sa, uap->name, uap->namelen);
+	TD_FAR_ADDR(td, uap->name);
+	error = _getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_bindat(td, uap->fd, uap->s, sa);
 		free(sa, M_SONAME);
@@ -479,8 +479,8 @@ sys_connect(struct thread *td, struct connect_args *uap)
 	struct sockaddr *sa;
 	int error;
 
-	// uap->name will be adjusted to far addr in getsockaddr_td
-	error = getsockaddr_td(td, &sa, uap->name, uap->namelen);
+	TD_FAR_ADDR(td, uap->name);
+	error = _getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_connectat(td, AT_FDCWD, uap->s, sa);
 		free(sa, M_SONAME);
@@ -556,8 +556,8 @@ sys_connectat(struct thread *td, struct connectat_args *uap)
 	struct sockaddr *sa;
 	int error;
 
-	// uap->name will be adjusted to far addr in getsockaddr_td
-	error = getsockaddr_td(td, &sa, uap->name, uap->namelen);
+	TD_FAR_ADDR(td, uap->name);
+	error = _getsockaddr(&sa, uap->name, uap->namelen);
 	if (error == 0) {
 		error = kern_connectat(td, uap->fd, uap->s, sa);
 		free(sa, M_SONAME);
@@ -680,8 +680,8 @@ sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 	int error;
 
 	if (mp->msg_name != NULL) {
-		// mp->msg_name will be adjusted to far addr in getsockaddr_td
-		error = getsockaddr_td(td, &to, mp->msg_name, mp->msg_namelen);
+		TD_FAR_ADDR(td, mp->msg_name);
+		error = _getsockaddr(&to, mp->msg_name, mp->msg_namelen);
 		if (error != 0) {
 			to = NULL;
 			goto bad;
@@ -700,6 +700,7 @@ sendit(struct thread *td, int s, struct msghdr *mp, int flags)
 	}
 
 	if (mp->msg_control) {
+		TD_FAR_ADDR(td, mp->msg_control);
 		if (mp->msg_controllen < sizeof(struct cmsghdr)
 #ifdef COMPAT_OLDSOCK
 		    && (mp->msg_flags != MSG_COMPAT ||
@@ -825,15 +826,16 @@ sys_sendto(struct thread *td, struct sendto_args *uap)
 	struct msghdr msg;
 	struct iovec aiov;
 
-	msg.msg_name = __DECONST(void *, uap->to);
+	msg.msg_name = __DECONST(void *, uap->to); // will be adjusted to far in sendit()
 	msg.msg_namelen = uap->tolen;
 	msg.msg_iov = &aiov;
 	msg.msg_iovlen = 1;
-	msg.msg_control = 0;
+	msg.msg_control = 0; // will be adjusted to far in sendit()
 #ifdef COMPAT_OLDSOCK
 	if (SV_PROC_FLAG(td->td_proc, SV_AOUT))
 		msg.msg_flags = 0;
 #endif
+	TD_FAR_ADDR(td, uap->buf);
 	aiov.iov_base = __DECONST(void *, uap->buf);
 	aiov.iov_len = uap->len;
 	return (sendit(td, uap->s, &msg, uap->flags));
@@ -864,10 +866,12 @@ osendmsg(struct thread *td, struct osendmsg_args *uap)
 	struct iovec *iov;
 	int error;
 
+	TD_FAR_ADDR(td, uap->msg);
 	error = copyin(uap->msg, &msg, sizeof (struct omsghdr));
 	if (error != 0)
 		return (error);
-	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
+	// msg.msg_iov will be adjusted to far
+	error = copyiniov(td, msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
 	if (error != 0)
 		return (error);
 	msg.msg_iov = iov;
@@ -889,7 +893,8 @@ sys_sendmsg(struct thread *td, struct sendmsg_args *uap)
 	error = copyin(uap->msg, &msg, sizeof (msg));
 	if (error != 0)
 		return (error);
-	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
+	// msg.msg_iov will be adjusted to far
+	error = copyiniov(td, msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
 	if (error != 0)
 		return (error);
 	msg.msg_iov = iov;
@@ -1058,7 +1063,7 @@ out:
 }
 
 static int
-recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp)
+recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp /*FAR*/)
 {
 	int error;
 
@@ -1078,19 +1083,21 @@ recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp)
 
 static int
 kern_recvfrom(struct thread *td, int s, void *buf, size_t len, int flags,
-    struct sockaddr *from, socklen_t *fromlenaddr)
+    struct sockaddr *from, socklen_t *ufromlenaddr)
 {
 	struct msghdr msg;
 	struct iovec aiov;
 	int error;
+	socklen_t *fromlenaddr;
 
-	if (fromlenaddr != NULL) {
-		TD_FAR_ADDR(td, fromlenaddr);
+	if (ufromlenaddr != NULL) {
+		fromlenaddr = (socklen_t *)td_far_addr(td, (vm_offset_t)ufromlenaddr);
 		error = copyin(fromlenaddr, &msg.msg_namelen,
 		    sizeof (msg.msg_namelen));
 		if (error != 0)
 			goto done2;
 	} else {
+		fromlenaddr = NULL;
 		msg.msg_namelen = 0;
 	}
 	msg.msg_name = from;
@@ -1110,7 +1117,7 @@ sys_recvfrom(struct thread *td, struct recvfrom_args *uap)
 {
 	TD_FAR_ADDR(td, uap->buf);
 	TD_FAR_ADDR(td, uap->from);
-	// uap->fromlenaddr will be adjusted in kern_recvfrom
+	// uap->fromlenaddr will be adjusted to far
 	return (kern_recvfrom(td, uap->s, uap->buf, uap->len,
 	    uap->flags, uap->from, uap->fromlenaddr));
 }
@@ -1122,7 +1129,7 @@ orecvfrom(struct thread *td, struct orecvfrom_args *uap)
 {
 	TD_FAR_ADDR(td, uap->buf);
 	TD_FAR_ADDR(td, uap->from);
-	// uap->fromlenaddr will be adjusted in kern_recvfrom
+	// uap->fromlenaddr will be adjusted to far
 	return (kern_recvfrom(td, uap->s, uap->buf, uap->len,
 	    uap->flags | MSG_COMPAT, uap->from, uap->fromlenaddr));
 }
@@ -1135,6 +1142,7 @@ orecv(struct thread *td, struct orecv_args *uap)
 	struct msghdr msg;
 	struct iovec aiov;
 
+WYC_PANIC(); // assume that this syscall is not supported
 	msg.msg_name = 0;
 	msg.msg_namelen = 0;
 	msg.msg_iov = &aiov;
@@ -1158,14 +1166,17 @@ orecvmsg(struct thread *td, struct orecvmsg_args *uap)
 	struct iovec *iov;
 	int error;
 
+WYC_PANIC(); // assume that this syscall is not supported
 	error = copyin(uap->msg, &msg, sizeof (struct omsghdr));
 	if (error != 0)
 		return (error);
-	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
+	// msg.msg_iov will be adjusted to far
+	error = copyiniov(td, msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
 	if (error != 0)
 		return (error);
 	msg.msg_flags = uap->flags | MSG_COMPAT;
 	msg.msg_iov = iov;
+	TD_FAR_ADDR();
 	error = recvit(td, uap->s, &msg, &uap->msg->msg_namelen);
 	if (msg.msg_controllen && error == 0)
 		error = copyout(&msg.msg_controllen,
@@ -1186,7 +1197,10 @@ sys_recvmsg(struct thread *td, struct recvmsg_args *uap)
 	error = copyin(uap->msg, &msg, sizeof (msg));
 	if (error != 0)
 		return (error);
-	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
+	TD_FAR_ADDR(td, msg.msg_name);
+	TD_FAR_ADDR(td, msg.msg_control);
+	// msg.msg_iov will be adjusted to far
+	error = copyiniov(td, msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
 	if (error != 0)
 		return (error);
 	msg.msg_flags = uap->flags;
@@ -1581,7 +1595,7 @@ sockargs(struct mbuf **mp, char *buf, socklen_t buflen, int type)
 }
 
 int
-getsockaddr_td(struct thread *td, struct sockaddr **namp, const struct sockaddr *uaddr, size_t len)
+_getsockaddr(struct sockaddr **namp, const struct sockaddr *so_addr, size_t len)
 {
 	struct sockaddr *sa;
 	int error;
@@ -1591,8 +1605,7 @@ getsockaddr_td(struct thread *td, struct sockaddr **namp, const struct sockaddr 
 	if (len < offsetof(struct sockaddr, sa_data[0]))
 		return (EINVAL);
 	sa = malloc(len, M_SONAME, M_WAITOK);
-	TD_FAR_ADDR(td, uaddr);
-	error = copyin(uaddr, sa, len);
+	error = copyin(so_addr, sa, len);
 	if (error != 0) {
 		free(sa, M_SONAME);
 	} else {
@@ -1608,11 +1621,12 @@ getsockaddr_td(struct thread *td, struct sockaddr **namp, const struct sockaddr 
 }
 
 int
-getsockaddr(struct sockaddr **namp, const struct sockaddr *uaddr, size_t len)
+getsockaddr(struct sockaddr **namp, const struct sockaddr *so_addr, size_t len)
 {
+	//WYC_ASSERT(so_addr < USER_MAX_ADDRESS);
 	struct thread *td = curthread;
-	// uaddr will be adjusted to far addr in getsockaddr_td
-	return getsockaddr_td(td, namp, uaddr, len);
+	TD_FAR_ADDR(td, so_addr);
+	return _getsockaddr(namp, so_addr, len);
 }
 
 /*

@@ -228,8 +228,8 @@ sys_sctp_generic_sendmsg(struct thread *td, struct sctp_generic_sendmsg_args *ua
 
 	cap_rights_init_one(&rights, CAP_SEND);
 	if (uap->tolen != 0) {
-		// uap->to will be adjusted to far addr in getsockaddr_td
-		error = getsockaddr_td(td, &to, uap->to, uap->tolen);
+		TD_FAR_ADDR(td, uap->to);
+		error = _getsockaddr(&to, uap->to, uap->tolen);
 		if (error != 0) {
 			to = NULL;
 			goto sctp_bad2;
@@ -329,8 +329,8 @@ sys_sctp_generic_sendmsg_iov(struct thread *td, struct sctp_generic_sendmsg_iov_
 	}
 	cap_rights_init_one(&rights, CAP_SEND);
 	if (uap->tolen != 0) {
-		// uap->to will be adjusted to far addr in getsockaddr_td
-		error = getsockaddr_td(td, &to, uap->to, uap->tolen);
+		TD_FAR_ADDR(td, uap->to);
+		error = _getsockaddr(&to, uap->to, uap->tolen);
 		if (error != 0) {
 			to = NULL;
 			goto sctp_bad2;
@@ -349,7 +349,8 @@ sys_sctp_generic_sendmsg_iov(struct thread *td, struct sctp_generic_sendmsg_iov_
 		    uap->iovlen, &iov, EMSGSIZE);
 	else
 #endif
-		error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
+		// uap->iov will be adjusted to far
+		error = copyiniov(td, uap->iov, uap->iovlen, &iov, EMSGSIZE);
 	if (error != 0)
 		goto sctp_bad1;
 #ifdef KTRACE
@@ -451,7 +452,8 @@ sys_sctp_generic_recvmsg(struct thread *td, struct sctp_generic_recvmsg_args *ua
 		    uap->iovlen, &iov, EMSGSIZE);
 	else
 #endif
-		error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
+		// uap->iov will be adjusted to far
+		error = copyiniov(td, uap->iov, uap->iovlen, &iov, EMSGSIZE);
 	if (error != 0)
 		goto out1;
 

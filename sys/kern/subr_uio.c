@@ -385,21 +385,28 @@ again:
 }
 
 int
-copyiniov(const struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
+copyiniov(struct thread *td, const struct iovec *uiov, u_int iovcnt, struct iovec **aiov, int error)
 {
+	struct iovec *iov;
 	u_int iovlen;
 
-	*iov = NULL;
+WYC_ASSERT(error == EMSGSIZE);
+	*aiov = NULL;
 	if (iovcnt > UIO_MAXIOV)
 		return (error);
 	iovlen = iovcnt * sizeof(struct iovec);
-	*iov = malloc(iovlen, M_IOV, M_WAITOK);
-	error = copyin(iovp, *iov, iovlen);
+	iov = malloc(iovlen, M_IOV, M_WAITOK);
+	TD_FAR_ADDR(td, uiov);
+	error = copyin(uiov, iov, iovlen);
 	if (error) {
-		free(*iov, M_IOV);
-		*iov = NULL;
+		free(iov, M_IOV);
+		return error;
 	}
-	return (error);
+	for (int i = 0; i < iovcnt; i++)
+		TD_FAR_ADDR(td, iov[i].iov_base); //wyc adjuct base to far address
+
+	*aiov = iov;
+	return (ESUCCESS);
 }
 
 int
