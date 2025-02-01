@@ -678,6 +678,7 @@ sys_settimeofday(struct thread *td, struct settimeofday_args *uap)
 	int error;
 
 	if (uap->tv) {
+		TD_FAR_ADDR(td, uap->tv);
 		error = copyin(uap->tv, &atv, sizeof(atv));
 		if (error)
 			return (error);
@@ -685,6 +686,7 @@ sys_settimeofday(struct thread *td, struct settimeofday_args *uap)
 	} else
 		tvp = NULL;
 	if (uap->tzp) {
+		TD_FAR_ADDR(td, uap->tzp);
 		error = copyin(uap->tzp, &atz, sizeof(atz));
 		if (error)
 			return (error);

@@ -403,7 +403,7 @@ copyiniov(const struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
 }
 
 int
-copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop)
+copyinuio(struct thread *td, const struct iovec *uiovp, u_int iovcnt, struct uio **uiop)
 {
 	struct iovec *iov;
 	struct uio *uio;
@@ -416,7 +416,8 @@ copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop)
 	iovlen = iovcnt * sizeof(struct iovec);
 	uio = allocuio(iovcnt);
 	iov = uio->uio_iov;
-	error = copyin(iovp, iov, iovlen);
+	TD_FAR_ADDR(td, uiovp);
+	error = copyin(uiovp, iov, iovlen);
 	if (error != 0) {
 		freeuio(uio);
 		return (error);
@@ -430,6 +431,7 @@ copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop)
 			freeuio(uio);
 			return (EINVAL);
 		}
+		TD_FAR_ADDR(td, iov->iov_base); //wyc adjuct base to far address
 		uio->uio_resid += iov->iov_len;
 		iov++;
 	}

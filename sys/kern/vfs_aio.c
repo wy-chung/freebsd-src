@@ -293,7 +293,7 @@ struct kaioinfo {
  * Different ABIs provide their own operations.
  */
 struct aiocb_ops {
-	int	(*aio_copyin)(struct aiocb *ujob, struct kaiocb *kjob, int ty);
+	int	(*aio_copyin)(struct thread *td, struct aiocb *ujob, struct kaiocb *kjob, int ty);
 	long	(*fetch_status)(struct aiocb *ujob);
 	long	(*fetch_error)(struct aiocb *ujob);
 	int	(*store_status)(struct aiocb *ujob, long status);
@@ -1409,19 +1409,20 @@ aiocb_copyin_old_sigevent(struct aiocb *ujob, struct kaiocb *kjob,
 #endif
 
 static int
-aiocb_copyin(struct aiocb *ujob, struct kaiocb *kjob, int type)
+aiocb_copyin(struct thread *td, struct aiocb *ajob, struct kaiocb *kjob /*OUT*/, int type) // < aio_aqueue
 {
 	struct aiocb *kcb = &kjob->uaiocb;
 	int error;
 
-	error = copyin(ujob, kcb, sizeof(struct aiocb));
+	error = copyin(ajob, kcb, sizeof(struct aiocb));
 	if (error)
 		return (error);
 	if (type == LIO_NOP)
 		type = kcb->aio_lio_opcode;
 	if (type & LIO_VECTORED) {
 		/* malloc a uio and copy in the iovec */
-		error = copyinuio(__DEVOLATILE(struct iovec*, kcb->aio_iov),
+		// kcb->aio_iov will be adjusted in the fun below
+		error = copyinuio(td, __DEVOLATILE(struct iovec*, kcb->aio_iov),
 		    kcb->aio_iovcnt, &kjob->uiop);
 	}
 
@@ -1516,9 +1517,15 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 
 	ki = p->p_aioinfo;
 
-	ops->store_status(ujob, -1);
-	ops->store_error(ujob, 0);
-	ops->store_kernelinfo(ujob, -1);
+	struct aiocb *ajob = (struct aiocb *)td_far_addr(td, (vm_offset_t)ujob); // adjust ujob to far addr
+	ops->store_status(ajob, -1);
+	ops->store_error(ajob, 0);
+	ops->store_kernelinfo(ajob, -1);
+#if defined(WYC)
+	aiocb_store_status(ajob, -1);
+	aiocb_store_error(ajob, 0);
+	aiocb_store_kernelinfo(ajob, -1);
+#endif
 
 	if (num_queue_count >= max_queue_count ||
 	    ki->kaio_count >= max_aio_queue_per_proc) {
@@ -1529,7 +1536,10 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 	job = uma_zalloc(aiocb_zone, M_WAITOK | M_ZERO);
 	knlist_init_mtx(&job->klist, AIO_MTX(ki));
 
-	error = ops->aio_copyin(ujob, job, type);
+	error = ops->aio_copyin(td, ajob, job, type);
+#if defined(WYC)
+	error = aiocb_copyin();
+#endif
 	if (error)
 		goto err2;
 
@@ -1575,7 +1585,7 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 	ksiginfo_init(&job->ksi);
 
 	/* Save userspace address of the job info. */
-	job->ujob = ujob;
+	job->ujob = TO_NEAR_ADDR(ajob);
 
 	/*
 	 * Validate the opcode and fetch the file object for the specified
@@ -1634,7 +1644,10 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 	jid = jobrefid++;
 	job->seqno = jobseqno++;
 	mtx_unlock(&aio_job_mtx);
-	error = ops->store_kernelinfo(ujob, jid);
+	error = ops->store_kernelinfo(ajob, jid);
+#if defined(WYC)
+	error = aiocb_store_kernelinfo();
+#endif
 	if (error) {
 		error = EINVAL;
 		goto err3;
@@ -1668,7 +1681,10 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 
 no_kqueue:
 
-	ops->store_error(ujob, EINPROGRESS);
+	ops->store_error(ajob, EINPROGRESS);
+#if defined(WYC)
+	aiocb_store_error();
+#endif
 	job->uaiocb._aiocb_private.error = EINPROGRESS;
 	job->userproc = p;
 	job->cred = crhold(td->td_ucred);
@@ -1739,7 +1755,10 @@ err2:
 		freeuio(job->uiop);
 	uma_zfree(aiocb_zone, job);
 err1:
-	ops->store_error(ujob, error);
+	ops->store_error(ajob, error);
+#if defined(WYC)
+	aiocb_store_error();
+#endif
 	return (error);
 }
 
@@ -2180,14 +2199,14 @@ freebsd6_aio_read(struct thread *td, struct freebsd6_aio_read_args *uap)
 int
 sys_aio_read(struct thread *td, struct aio_read_args *uap)
 {
-
+	// uap->aiocbp will be adjusted to far in aio_aqueue
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_READ, &aiocb_ops));
 }
 
 int
 sys_aio_readv(struct thread *td, struct aio_readv_args *uap)
 {
-
+	// uap->aiocbp will be adjusted to far in aio_aqueue
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_READV, &aiocb_ops));
 }
 
@@ -2196,7 +2215,7 @@ sys_aio_readv(struct thread *td, struct aio_readv_args *uap)
 int
 freebsd6_aio_write(struct thread *td, struct freebsd6_aio_write_args *uap)
 {
-
+	// uap->aiocbp will be adjusted in aio_aqueue
 	return (aio_aqueue(td, (struct aiocb *)uap->aiocbp, NULL, LIO_WRITE,
 	    &aiocb_ops_osigevent));
 }
@@ -2205,31 +2224,31 @@ freebsd6_aio_write(struct thread *td, struct freebsd6_aio_write_args *uap)
 int
 sys_aio_write(struct thread *td, struct aio_write_args *uap)
 {
-
+	// uap->aiocbp will be adjusted to far in aio_aqueue
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_WRITE, &aiocb_ops));
 }
 
 int
 sys_aio_writev(struct thread *td, struct aio_writev_args *uap)
 {
-
+	// uap->aiocbp will be adjusted to far in aio_aqueue
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_WRITEV, &aiocb_ops));
 }
 
 int
 sys_aio_mlock(struct thread *td, struct aio_mlock_args *uap)
 {
-
+	// uap->aiocbp will be adjusted to far in aio_aqueue
 	return (aio_aqueue(td, uap->aiocbp, NULL, LIO_MLOCK, &aiocb_ops));
 }
 
 static int
-kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
+kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list/*UID*/,
     struct aiocb **acb_list, int nent, struct sigevent *sig,
     struct aiocb_ops *ops)
 {
 	struct proc *p = td->td_proc;
-	struct aiocb *job;
+	//struct aiocb *job;
 	struct kaioinfo *ki;
 	struct aioliojob *lj;
 	struct kevent kev;
@@ -2309,8 +2328,9 @@ kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
 	nagain = 0;
 	nerror = 0;
 	for (i = 0; i < nent; i++) {
-		job = acb_list[i];
+		struct aiocb *job = acb_list[i];
 		if (job != NULL) {
+			// job will be adjusted to far in aio_queue
 			error = aio_aqueue(td, job, lj, LIO_NOP, ops);
 			if (error == EAGAIN)
 				nagain++;
@@ -2422,6 +2442,7 @@ sys_lio_listio(struct thread *td, struct lio_listio_args *uap)
 		return (EINVAL);
 
 	if (uap->sig && (uap->mode == LIO_NOWAIT)) {
+		TD_FAR_ADDR(td, uap->sig);
 		error = copyin(uap->sig, &sig, sizeof(sig));
 		if (error)
 			return (error);
@@ -2430,9 +2451,10 @@ sys_lio_listio(struct thread *td, struct lio_listio_args *uap)
 		sigp = NULL;
 
 	acb_list = malloc(sizeof(struct aiocb *) * nent, M_LIO, M_WAITOK);
+	TD_FAR_ADDR(td, uap->acb_list);
 	error = copyin(uap->acb_list, acb_list, nent * sizeof(acb_list[0]));
 	if (error == 0)
-		error = kern_lio_listio(td, uap->mode, uap->acb_list, acb_list,
+		error = kern_lio_listio(td, uap->mode, uap->acb_list/*UID*/, acb_list,
 		    nent, sigp, &aiocb_ops);
 	free(acb_list, M_LIO);
 	return (error);
@@ -2609,14 +2631,14 @@ kern_aio_fsync(struct thread *td, int op, struct aiocb *ujob,
 	default:
 		return (EINVAL);
 	}
-
+	// ujob will be adjusted to far in aio_aqueue
 	return (aio_aqueue(td, ujob, NULL, listop, ops));
 }
 
 int
 sys_aio_fsync(struct thread *td, struct aio_fsync_args *uap)
 {
-
+	// uap->aiocbp will be adjusted in kern_aio_fsync
 	return (kern_aio_fsync(td, uap->op, uap->aiocbp, &aiocb_ops));
 }
 

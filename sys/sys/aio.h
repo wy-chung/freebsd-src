@@ -106,8 +106,14 @@ struct __aiocb_private {
 typedef struct aiocb {
 	int	aio_fildes;		/* File descriptor */
 	off_t	aio_offset;		/* File offset for I/O */
-	volatile void *aio_buf;		/* I/O buffer in process space */
-	size_t	aio_nbytes;		/* Number of bytes for I/O */
+	union {
+		volatile void *aio_buf;		/* I/O buffer in process space */
+		volatile void *aio_iov;		/* I/O buffer in process space */
+	};
+	union {
+		size_t	aio_nbytes;		/* Number of bytes for I/O */
+		size_t	aio_iovcnt;		/* Number of bytes for I/O */
+	};
 	int	__spare__[2];
 	void	*__spare2__;
 	int	aio_lio_opcode;		/* LIO opcode */
@@ -116,8 +122,8 @@ typedef struct aiocb {
 	struct	sigevent aio_sigevent;	/* Signal to deliver */
 } aiocb_t;
 
-#define	aio_iov	aio_buf			/* I/O scatter/gather list */
-#define	aio_iovcnt	aio_nbytes	/* Length of aio_iov */
+//#define	aio_iov	aio_buf			/* I/O scatter/gather list */
+//#define	aio_iovcnt	aio_nbytes	/* Length of aio_iov */
 
 #ifdef _KERNEL
 

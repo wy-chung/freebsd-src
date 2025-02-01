@@ -1284,11 +1284,13 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	hdr_uio = trl_uio = NULL;
 
 	if (uap->hdtr != NULL) {
+		TD_FAR_ADDR(td, uap->hdtr);
 		error = copyin(uap->hdtr, &hdtr, sizeof(hdtr));
 		if (error != 0)
 			goto out;
 		if (hdtr.headers != NULL) {
-			error = copyinuio(hdtr.headers, hdtr.hdr_cnt,
+			// hdtr.headers will be adjusted in the fun below
+			error = copyinuio(td, hdtr.headers, hdtr.hdr_cnt,
 			    &hdr_uio);
 			if (error != 0)
 				goto out;
@@ -1307,7 +1309,8 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 #endif
 		}
 		if (hdtr.trailers != NULL) {
-			error = copyinuio(hdtr.trailers, hdtr.trl_cnt,
+			// hdtr.trailers will be adjusted in the fun below
+			error = copyinuio(td, hdtr.trailers, hdtr.trl_cnt,
 			    &trl_uio);
 			if (error != 0)
 				goto out;
@@ -1327,8 +1330,10 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	    uap->nbytes, &sbytes, uap->flags, td);
 	fdrop(fp, td);
 
-	if (uap->sbytes != NULL)
+	if (uap->sbytes != NULL) {
+		TD_FAR_ADDR(td, uap->sbytes);
 		(void)copyout(&sbytes, uap->sbytes, sizeof(off_t));
+	}
 
 out:
 	freeuio(hdr_uio);

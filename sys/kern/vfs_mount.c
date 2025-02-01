@@ -466,7 +466,8 @@ sys_nmount(struct thread *td, struct nmount_args *uap)
 		return (EINVAL);
 	}
 
-	error = copyinuio(uap->iovp, iovcnt, &auio);
+	// uap->iovp will be adjusted in the fun below
+	error = copyinuio(td, uap->iovp, iovcnt, &auio);
 	if (error) {
 		CTR2(KTR_VFS, "%s: failed for invalid uio op with %d errno",
 		    __func__, error);

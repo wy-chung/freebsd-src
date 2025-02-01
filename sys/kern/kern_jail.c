@@ -536,7 +536,8 @@ sys_jail_set(struct thread *td, struct jail_set_args *uap)
 	if (uap->iovcnt & 1)
 		return (EINVAL);
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	// uap->iovp will be adjusted in the fun below
+	error = copyinuio(td, uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
 	error = kern_jail_set(td, auio, uap->flags);
@@ -2273,13 +2274,16 @@ sys_jail_get(struct thread *td, struct jail_get_args *uap)
 	if (uap->iovcnt & 1)
 		return (EINVAL);
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	// uap->iovp will be adjusted in the fun below
+	error = copyinuio(td, uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
 	error = kern_jail_get(td, auio, uap->flags);
-	if (error == 0)
+	if (error == 0) {
+		TD_FAR_ADDR(td, uap->iovp);
 		error = copyout(auio->uio_iov, uap->iovp,
 		    uap->iovcnt * sizeof(struct iovec));
+	}
 	freeuio(auio);
 	return (error);
 }

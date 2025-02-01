@@ -270,7 +270,8 @@ sys_readv(struct thread *td, struct readv_args *uap)
 	struct uio *auio;
 	int error;
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	// uap->iovp will be adjusted in the fun below
+	error = copyinuio(td, uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
 	error = kern_readv(td, uap->fd, auio);
@@ -309,7 +310,8 @@ sys_preadv(struct thread *td, struct preadv_args *uap)
 	struct uio *auio;
 	int error;
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	// uap->iovp will be adjusted in the fun below
+	error = copyinuio(td, uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
 	error = kern_preadv(td, uap->fd, auio, uap->offset);
@@ -473,7 +475,8 @@ sys_writev(struct thread *td, struct writev_args *uap)
 	struct uio *auio;
 	int error;
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	// uap->iovp will be adjusted in the fun below
+	error = copyinuio(td, uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
 	error = kern_writev(td, uap->fd, auio);
@@ -512,7 +515,8 @@ sys_pwritev(struct thread *td, struct pwritev_args *uap)
 	struct uio *auio;
 	int error;
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	// uap->iovp will be adjusted in the fun below
+	error = copyinuio(td, uap->iovp, uap->iovcnt, &auio);
 	if (error)
 		return (error);
 	error = kern_pwritev(td, uap->fd, auio, uap->offset);

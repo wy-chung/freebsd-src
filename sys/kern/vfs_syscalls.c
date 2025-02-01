@@ -3633,6 +3633,9 @@ sys_fdatasync(struct thread *td, struct fdatasync_args *uap)
 	return (kern_fsync(td, uap->fd, false));
 }
 
+static int
+kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
+    const char *new, enum uio_seg pathseg);
 /*
  * Rename files.  Source and destination must either both be directories, or
  * both not be directories.  If target is a directory, it must be empty.
@@ -3646,9 +3649,7 @@ struct rename_args {
 int
 sys_rename(struct thread *td, struct rename_args *uap)
 {
-
-	TD_FAR_ADDR(td, uap->from);
-	TD_FAR_ADDR(td, uap->to);
+	// uap->from and uap->to will be adjusted in the func below
 	return (kern_renameat(td, AT_FDCWD, uap->from, AT_FDCWD,
 	    uap->to, UIO_USERSPACE));
 }
@@ -3664,7 +3665,7 @@ struct renameat_args {
 int
 sys_renameat(struct thread *td, struct renameat_args *uap)
 {
-
+	// uap->old and uap->new will be adjusted in the func below
 	return (kern_renameat(td, uap->oldfd, uap->old, uap->newfd, uap->new,
 	    UIO_USERSPACE));
 }
@@ -3694,15 +3695,17 @@ kern_renameat_mac(struct thread *td, int oldfd, const char *old, int newfd,
 }
 #endif
 
-int
-kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
-    const char *new, enum uio_seg pathseg)
+static int
+kern_renameat(struct thread *td, int oldfd, const char *uold, int newfd,
+    const char *unew, enum uio_seg pathseg)
 {
 	struct mount *mp = NULL;
 	struct vnode *tvp, *fvp, *tdvp;
 	struct nameidata fromnd, tond;
 	uint64_t tondflags;
 	int error;
+	const char *old = (const char *)td_far_addr(td, (vm_offset_t)uold);
+	const char *new = (const char *)td_far_addr(td, (vm_offset_t)unew);
 
 again:
 	bwillwrite();

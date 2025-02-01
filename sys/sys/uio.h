@@ -83,7 +83,7 @@ void	freeuio(struct uio *uio);
 struct uio *cloneuio(struct uio *uiop);
 int	copyiniov(const struct iovec *iovp, u_int iovcnt, struct iovec **iov,
 	    int error);
-int	copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop);
+int	copyinuio(struct thread *td, const struct iovec *uiovp, u_int iovcnt, struct uio **uiop);
 int	copyout_map(struct thread *td, vm_offset_t *addr, size_t sz);
 int	copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz);
 int	physcopyin(void *src, vm_paddr_t dst, size_t len);
