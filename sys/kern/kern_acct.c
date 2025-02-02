@@ -212,7 +212,6 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	if (error)
 		return (error);
 
-	flags = 0; //wycpull
 	/*
 	 * If accounting is to be started to a file, open that file for
 	 * appending and make sure it's a 'normal'.
@@ -283,7 +282,7 @@ sys_acct(struct thread *td, struct acct_args *uap)
 	 */
 	acct_vp = nd.ni_vp;
 	acct_cred = crhold(td->td_ucred);
-	acct_flags = flags; //wycpush variable 'flags' is uninitialized when used here
+	acct_flags = flags;
 	if (acct_state & ACCT_RUNNING)
 		acct_state &= ~ACCT_EXITREQ;
 	else {
