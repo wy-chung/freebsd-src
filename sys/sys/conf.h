@@ -222,7 +222,7 @@ struct cdevsw {
 	union {
 		struct cdevsw		*d_gianttrick;
 		SLIST_ENTRY(cdevsw)	d_postfree_list;
-	};// __d_giant; //wyc pull
+	};// __d_giant;
 };
 //#define	d_gianttrick		__d_giant.gianttrick
 //#define	d_postfree_list		__d_giant.postfree_list
