@@ -56,6 +56,7 @@ MIASM =  \
 	chroot.o \
 	msync.o \
 	vfork.o \
+	tfork.o \
 	sbrk.o \
 	sstk.o \
 	freebsd11_vadvise.o \
