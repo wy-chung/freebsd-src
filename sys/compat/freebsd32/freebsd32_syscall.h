@@ -71,7 +71,7 @@
 				/* 64 is old getpagesize */
 #define	FREEBSD32_SYS_msync	65
 #define	FREEBSD32_SYS_vfork	66
-				/* 67 is obsolete vread */
+#define	FREEBSD32_SYS_tfork	67
 				/* 68 is obsolete vwrite */
 #define	FREEBSD32_SYS_sbrk	69
 #define	FREEBSD32_SYS_sstk	70
