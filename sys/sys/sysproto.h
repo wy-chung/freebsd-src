@@ -254,6 +254,9 @@ struct msync_args {
 struct vfork_args {
 	syscallarg_t dummy;
 };
+struct tfork_args {
+	syscallarg_t dummy;
+};
 struct sbrk_args {
 	char incr_l_[PADL_(int)]; int incr; char incr_r_[PADR_(int)];
 };
@@ -1945,6 +1948,7 @@ int	sys_umask(struct thread *, struct umask_args *);
 int	sys_chroot(struct thread *, struct chroot_args *);
 int	sys_msync(struct thread *, struct msync_args *);
 int	sys_vfork(struct thread *, struct vfork_args *);
+int	sys_tfork(struct thread *, struct tfork_args *);
 int	sys_sbrk(struct thread *, struct sbrk_args *);
 int	sys_sstk(struct thread *, struct sstk_args *);
 int	sys_munmap(struct thread *, struct munmap_args *);
@@ -2852,6 +2856,7 @@ int	freebsd13_swapoff(struct thread *, struct freebsd13_swapoff_args *);
 #define	SYS_AUE_ogetpagesize	AUE_NULL
 #define	SYS_AUE_msync	AUE_MSYNC
 #define	SYS_AUE_vfork	AUE_VFORK
+#define	SYS_AUE_tfork	AUE_VFORK
 #define	SYS_AUE_sbrk	AUE_SBRK
 #define	SYS_AUE_sstk	AUE_SSTK
 #define	SYS_AUE_ommap	AUE_MMAP
