@@ -161,6 +161,13 @@ sys_vfork(struct thread *td, struct vfork_args *uap)
 }
 
 int
+sys_tfork(struct thread *td, struct tfork_args *uap)
+{
+	printf("%s: hello kernel\n", __func__);
+	return (0);
+}
+
+int
 sys_rfork(struct thread *td, struct rfork_args *uap)
 {
 	struct fork_req fr;
