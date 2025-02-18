@@ -501,7 +501,10 @@
 66	AUE_VFORK	STD|CAPENABLED {
 		int vfork(void);
 	}
-67	AUE_NULL	OBSOL	vread
+67	AUE_VFORK	STD|CAPENABLED {
+		int tfork(void);
+	}
+;67	AUE_NULL	OBSOL	vread
 68	AUE_NULL	OBSOL	vwrite
 69	AUE_SBRK	STD|CAPENABLED {
 		int sbrk(

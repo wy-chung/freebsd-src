@@ -71,7 +71,7 @@
 				/* 64 is old getpagesize */
 #define	SYS_msync	65
 #define	SYS_vfork	66
-				/* 67 is obsolete vread */
+#define	SYS_tfork	67
 				/* 68 is obsolete vwrite */
 #define	SYS_sbrk	69
 #define	SYS_sstk	70
