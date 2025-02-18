@@ -421,6 +421,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
+	/* tfork */
+	case 67: {
+		*n_args = 0;
+		break;
+	}
 	/* sbrk */
 	case 69: {
 		struct sbrk_args *p = params;
@@ -4037,6 +4042,9 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* vfork */
 	case 66:
+		break;
+	/* tfork */
+	case 67:
 		break;
 	/* sbrk */
 	case 69:
@@ -9430,6 +9438,8 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* vfork */
 	case 66:
+	/* tfork */
+	case 67:
 	/* sbrk */
 	case 69:
 		if (ndx == 0 || ndx == 1)
