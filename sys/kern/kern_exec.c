@@ -1259,7 +1259,7 @@ exec_map_stack(struct image_params *imgp)
 	 * at the top of UVA.
 	 */
 	vm_object_reference(obj);
-	if ((imgp->imgp_flags & IMGP_ASLR_SHARED_PAGE) != 0) {
+	if ((imgp->imgp_flags & IMGP_ASLR_SHARED_PAGE) != 0) { // false
 		sharedpage_addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
 		    lim_max(curthread, RLIMIT_DATA));
 

@@ -205,7 +205,7 @@ SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, stack, CTLFLAG_RWTUN,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
     ": enable stack address randomization");
 
-static int __elfN(aslr_shared_page) = __ELF_WORD_SIZE == 64;
+static int __elfN(aslr_shared_page) = false; //ori __ELF_WORD_SIZE == 64;
 SYSCTL_INT(ASLR_NODE_OID, OID_AUTO, shared_page, CTLFLAG_RWTUN,
     &__elfN(aslr_shared_page), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
@@ -1491,7 +1491,7 @@ __elfN(freebsd_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 		    vmspace->vm_shp_base + imgp->sysent->sv_fxrng_gen_offset);
 	}
 #endif
-	if ((imgp->sysent->sv_flags & SV_DSO_SIG) != 0 && __elfN(vdso) != 0) {
+	if ((imgp->sysent->sv_flags & SV_DSO_SIG) != 0 && __elfN(vdso) != 0) { // false && false
 		AUXARGS_ENTRY(pos, AT_KPRELOAD,
 		    vmspace->vm_shp_base + imgp->sysent->sv_vdso_offset);
 	}

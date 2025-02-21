@@ -87,9 +87,9 @@ int __vdso_gettimekeep(struct vdso_timekeep **tk);
 struct timecounter;
 
 struct vdso_sv_tk {
-	int		sv_timekeep_off;
-	int		sv_timekeep_curr;
-	uint32_t	sv_timekeep_gen;
+	int		sv_timekeep_off;	// offset
+	int		sv_timekeep_curr;	// current index
+	uint32_t	sv_timekeep_gen;	// generation number
 };
 
 #ifdef RANDOM_FENESTRASX
