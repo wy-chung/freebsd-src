@@ -643,7 +643,8 @@ __thr_interpose_libc(void)
 #define	SLOT(name)					\
 	*(__libc_interposing_slot(INTERPOS_##name)) =	\
 	    (interpos_func_t)__thr_##name;
-	SLOT(accept);
+	//SLOT(accept);
+	*(__libc_interposing_slot(INTERPOS_accept)) = (interpos_func_t)__thr_accept;
 	SLOT(accept4);
 	SLOT(aio_suspend);
 	SLOT(close);
