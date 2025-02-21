@@ -315,7 +315,7 @@ exec_sysvec_init(void *param)
 
 	sv->sv_shared_page_obj = shared_page_obj;
 	if ((flags & SV_ABI_MASK) == SV_ABI_FREEBSD) {
-		if ((flags & SV_DSO_SIG) != 0) {
+		if ((flags & SV_DSO_SIG) != 0) { // false
 			res = shared_page_fill((uintptr_t)sv->sv_szsigcode,
 			    16, sv->sv_sigcode);
 			if (res == -1)
@@ -330,7 +330,7 @@ exec_sysvec_init(void *param)
 			sv->sv_sigcode_offset = res;
 		}
 	}
-	if ((flags & SV_TIMEKEEP) != 0) {
+	if ((flags & SV_TIMEKEEP) != 0) { // true
 #ifdef COMPAT_FREEBSD32
 		if ((flags & SV_ILP32) != 0) {
 			if ((flags & SV_ABI_MASK) == SV_ABI_FREEBSD) {
@@ -344,7 +344,7 @@ exec_sysvec_init(void *param)
 			sv->sv_timekeep_offset = compat32_svtk->sv_timekeep_off;
 		} else {
 #endif
-			if ((flags & SV_ABI_MASK) == SV_ABI_FREEBSD) {
+			if ((flags & SV_ABI_MASK) == SV_ABI_FREEBSD) { // true
 				KASSERT(host_svtk == NULL,
 				    ("Host already registered"));
 				host_svtk = alloc_sv_tk();

@@ -55,6 +55,11 @@ struct image_args {
 	int fd;			/* file descriptor of the executable */
 };
 
+	//unsigned char interpreted;	/* mask of interpreters that have run */
+#define IMGACT_SHELL	0x1
+#define IMGACT_BINMISC	0x2
+	//uint32_t imgp_flags;
+#define IMGP_ASLR_SHARED_PAGE	0x1
 struct image_params {
 	struct proc *proc;		/* our process */
 	struct label *execlabel;	/* optional exec label */
@@ -83,15 +88,12 @@ struct image_params {
 	vm_prot_t stack_prot;
 	u_long stack_sz;
 	struct ucred *newcred;		/* new credentials if changing */
-#define IMGACT_SHELL	0x1
-#define IMGACT_BINMISC	0x2
 	unsigned char interpreted;	/* mask of interpreters that have run */
 	bool credential_setid;		/* true if becoming setid */
 	bool vmspace_destroyed;		/* we've blown away original vm space */
 	bool opened;			/* we have opened executable vnode */
 	bool textset;
 	u_int map_flags;
-#define IMGP_ASLR_SHARED_PAGE	0x1
 	uint32_t imgp_flags;
 	struct vnode *interpreter_vp;	/* vnode of the interpreter */
 };

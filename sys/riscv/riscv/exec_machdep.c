@@ -190,18 +190,12 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 }
 
 /* Sanity check these are the same size, they will be memcpy'd to and from */
-CTASSERT(sizeof(((struct trapframe *)0)->tf_a) ==
-    sizeof((struct gpregs *)0)->gp_a);
-CTASSERT(sizeof(((struct trapframe *)0)->tf_s) ==
-    sizeof((struct gpregs *)0)->gp_s);
-CTASSERT(sizeof(((struct trapframe *)0)->tf_t) ==
-    sizeof((struct gpregs *)0)->gp_t);
-CTASSERT(sizeof(((struct trapframe *)0)->tf_a) ==
-    sizeof((struct reg *)0)->a);
-CTASSERT(sizeof(((struct trapframe *)0)->tf_s) ==
-    sizeof((struct reg *)0)->s);
-CTASSERT(sizeof(((struct trapframe *)0)->tf_t) ==
-    sizeof((struct reg *)0)->t);
+CTASSERT(sizeof(((struct trapframe *)0)->tf_a) == sizeof((struct gpregs *)0)->gp_a);
+CTASSERT(sizeof(((struct trapframe *)0)->tf_s) == sizeof((struct gpregs *)0)->gp_s);
+CTASSERT(sizeof(((struct trapframe *)0)->tf_t) == sizeof((struct gpregs *)0)->gp_t);
+CTASSERT(sizeof(((struct trapframe *)0)->tf_a) == sizeof((struct reg *)0)->a);
+CTASSERT(sizeof(((struct trapframe *)0)->tf_s) == sizeof((struct reg *)0)->s);
+CTASSERT(sizeof(((struct trapframe *)0)->tf_t) == sizeof((struct reg *)0)->t);
 
 int
 get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)

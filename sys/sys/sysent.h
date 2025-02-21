@@ -98,6 +98,9 @@ struct trapframe;
 struct vnode;
 struct note_info_list;
 
+#if defined(WYC)
+struct sysentvec riscvent = elf64_freebsd_sysvec;
+#endif
 struct sysentvec {
 	int		sv_size;	/* number of entries */
 	struct sysent	*sv_table;	/* pointer to sysent */
@@ -135,11 +138,11 @@ struct sysentvec {
 	int		(*sv_fetch_syscall_args)(struct thread *);
 	const char	**sv_syscallnames;
 	vm_offset_t	sv_timekeep_offset;
-	vm_offset_t	sv_shared_page_base;
+	vm_offset_t	sv_shared_page_base; // SHAREDPAGE_SV48
 	vm_offset_t	sv_shared_page_len;
 	vm_offset_t	sv_sigcode_offset;
 	void		*sv_shared_page_obj;
-	vm_offset_t	sv_vdso_offset;
+	vm_offset_t	sv_vdso_offset; // not used in riscv
 	void		(*sv_schedtail)(struct thread *);
 	void		(*sv_thread_detach)(struct thread *);
 	int		(*sv_trap)(struct thread *);
