@@ -116,9 +116,15 @@ thr_create_initthr(struct thread *td, void *thunk)
 	return (set_mcontext(td, &args->ctx.uc_mcontext));
 }
 
+#if 0
+struct thr_create_args {
+	ucontext_t *ctx;
+	long *id;
+	int flags;
+};
+#endif
 int
 sys_thr_create(struct thread *td, struct thr_create_args *uap)
-    /* ucontext_t *ctx, long *id, int flags */
 {
 	struct thr_create_initthr_args args;
 	int error;
@@ -129,9 +135,14 @@ sys_thr_create(struct thread *td, struct thr_create_args *uap)
 	return (thread_create(td, NULL, thr_create_initthr, &args));
 }
 
+#if 0
+struct thr_new_args {
+	struct thr_param *param;
+	int param_size;
+};
+#endif
 int
 sys_thr_new(struct thread *td, struct thr_new_args *uap)
-    /* struct thr_param * */
 {
 	struct thr_param param;
 	int error;
@@ -253,6 +264,10 @@ thread_create(struct thread *td, struct rtprio *rtp,
 	cpu_copy_thread(newtd, td);
 
 	error = initialize_thread(newtd, thunk);
+#if defined(WYC)
+	thr_new_initthr();	// kern_thr_new
+	thr_create_initthr();	// sys_thr_create
+#endif
 	if (error != 0) {
 		thread_cow_free(newtd);
 		thread_free(newtd);

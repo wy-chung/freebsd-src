@@ -48,9 +48,11 @@ static void thread_start(struct pthread *curthread);
 
 __weak_reference(_pthread_create, pthread_create);
 
+typedef void * start_routine_t(void *);
+
 int
 _pthread_create(pthread_t * __restrict thread,
-    const pthread_attr_t * __restrict attr, void *(*start_routine) (void *),
+    const pthread_attr_t * __restrict attr, start_routine_t start_routine,
     void * __restrict arg)
 {
 	struct pthread *curthread, *new_thread;
@@ -68,7 +70,7 @@ _pthread_create(pthread_t * __restrict thread,
 	/*
 	 * Tell libc and others now they need lock to protect their data.
 	 */
-	if (_thr_isthreaded() == 0) {
+	if (_thr_isthreaded() == false) {
 		_malloc_first_thread();
 		_thr_setthreaded(1);
 	}
@@ -182,6 +184,9 @@ _pthread_create(pthread_t * __restrict thread,
 	}
 
 	ret = thr_new(&param, sizeof(param));
+#if defined(WYC)
+	sys_thr_new();
+#endif
 
 	if (ret != 0) {
 		ret = errno;
