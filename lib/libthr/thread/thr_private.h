@@ -259,12 +259,13 @@ struct pthread_atfork {
 	void (*child)(void);
 };
 
+	//int	flags;
+#define	THR_STACK_USER		0x100	/* 0xFF reserved for <pthread.h> */
 struct pthread_attr {
 	int	sched_policy;
 	int	sched_inherit;
 	int	prio;
 	int	suspend;
-#define	THR_STACK_USER		0x100	/* 0xFF reserved for <pthread.h> */
 	int	flags;
 	void	*stackaddr_attr;
 	size_t	stacksize_attr;
@@ -362,6 +363,27 @@ struct pthread_key {
  */
 #define TID(thread)	((uint32_t) ((thread)->tid))
 
+#define	TID_TERMINATED		1
+	//int			flags;
+#define THR_FLAGS_PRIVATE	0x0001
+#define	THR_FLAGS_NEED_SUSPEND	0x0002	/* thread should be suspended */
+#define	THR_FLAGS_SUSPENDED	0x0004	/* thread is suspended */
+#define	THR_FLAGS_DETACHED	0x0008	/* thread is detached */
+	//int			tlflags;
+#define	TLFLAGS_GC_SAFE		0x0001	/* thread safe for cleaning */
+#define	TLFLAGS_IN_TDLIST	0x0002	/* thread in all thread list */
+#define	TLFLAGS_IN_GCLIST	0x0004	/* thread in gc list */
+
+#define	TMQ_NORM		0	/* NORMAL or PRIO_INHERIT normal */
+#define	TMQ_NORM_PRIV		1	/* NORMAL or PRIO_INHERIT normal priv */
+#define	TMQ_NORM_PP		2	/* PRIO_PROTECT normal mutexes */
+#define	TMQ_NORM_PP_PRIV	3	/* PRIO_PROTECT normal priv */
+#define	TMQ_ROBUST_PP		4	/* PRIO_PROTECT robust mutexes */
+#define	TMQ_ROBUST_PP_PRIV	5	/* PRIO_PROTECT robust priv */
+#define	TMQ_NITEMS		6
+
+#define	THR_MAGIC		((u_int32_t) 0xd09ba115)
+
 /*
  * Thread structure.
  */
@@ -369,7 +391,6 @@ struct pthread {
 #define _pthread_startzero	tid
 	/* Kernel thread id. */
 	long			tid;
-#define	TID_TERMINATED		1
 
 	/*
 	 * Lock for accesses to this thread structure.
@@ -480,28 +501,14 @@ struct pthread {
 
 	/* Miscellaneous flags; only set with scheduling lock held. */
 	int			flags;
-#define THR_FLAGS_PRIVATE	0x0001
-#define	THR_FLAGS_NEED_SUSPEND	0x0002	/* thread should be suspended */
-#define	THR_FLAGS_SUSPENDED	0x0004	/* thread is suspended */
-#define	THR_FLAGS_DETACHED	0x0008	/* thread is detached */
 
 	/* Thread list flags; only set with thread list lock held. */
 	int			tlflags;
-#define	TLFLAGS_GC_SAFE		0x0001	/* thread safe for cleaning */
-#define	TLFLAGS_IN_TDLIST	0x0002	/* thread in all thread list */
-#define	TLFLAGS_IN_GCLIST	0x0004	/* thread in gc list */
 
 	/*
 	 * Queues of the owned mutexes.  Private queue must have index
 	 * + 1 of the corresponding full queue.
 	 */
-#define	TMQ_NORM		0	/* NORMAL or PRIO_INHERIT normal */
-#define	TMQ_NORM_PRIV		1	/* NORMAL or PRIO_INHERIT normal priv */
-#define	TMQ_NORM_PP		2	/* PRIO_PROTECT normal mutexes */
-#define	TMQ_NORM_PP_PRIV	3	/* PRIO_PROTECT normal priv */
-#define	TMQ_ROBUST_PP		4	/* PRIO_PROTECT robust mutexes */
-#define	TMQ_ROBUST_PP_PRIV	5	/* PRIO_PROTECT robust priv */	
-#define	TMQ_NITEMS		6
 	struct mutex_queue	mq[TMQ_NITEMS];
 
 	void				*ret;
@@ -531,7 +538,6 @@ struct pthread {
 	 * Magic value to help recognize a valid thread structure
 	 * from an invalid one:
 	 */
-#define	THR_MAGIC		((u_int32_t) 0xd09ba115)
 	u_int32_t		magic;
 
 	/* Enable event reporting */
