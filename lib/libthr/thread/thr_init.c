@@ -310,7 +310,7 @@ _thread_init_hack(void)
 void
 _libpthread_init(struct pthread *curthread)
 {
-	int first, dlopened;
+	bool first;
 
 	/* Check if this function has already been called: */
 	if (_thr_initial != NULL && curthread == NULL)
@@ -331,7 +331,7 @@ _libpthread_init(struct pthread *curthread)
 
 	/* Set the initial thread. */
 	if (curthread == NULL) {
-		first = 1;
+		first = true;
 		/* Force _get_curthread() return NULL until set. */
 		_tcb_get()->tcb_thread = NULL;
 		/* Create and initialize the initial thread. */
@@ -340,7 +340,7 @@ _libpthread_init(struct pthread *curthread)
 			PANIC("Can't allocate initial thread");
 		init_main_thread(curthread);
 	} else {
-		first = 0;
+		first = false;
 	}
 		
 	/*
@@ -354,7 +354,7 @@ _libpthread_init(struct pthread *curthread)
 
 	if (first) {
 		_thr_initial = curthread;
-		dlopened = _rtld_is_dlopened(&_thread_autoinit_dummy_decl) != 0;
+		bool dlopened = _rtld_is_dlopened(&_thread_autoinit_dummy_decl) != 0;
 		_thr_signal_init(dlopened);
 		if (_thread_event_mask & TD_CREATE)
 			_thr_report_creation(curthread, curthread);
