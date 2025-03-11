@@ -133,7 +133,7 @@ libc_free_aligned(void *ptr)
 	__je_bootstrap_free(mem);
 }
 
-#ifdef TLS_VARIANT_I
+#ifdef TLS_VARIANT_I // riscv
 
 /*
  * There are two versions of variant I of TLS
@@ -173,7 +173,7 @@ libc_free_aligned(void *ptr)
  * Return pointer to allocated TLS block
  */
 static void *
-get_tls_block_ptr(void *tcb, size_t tcbsize)
+libc_get_tls_block_ptr(void *tcb, size_t tcbsize)
 {
 	size_t extra_size, post_size, pre_size, tls_block_size;
 
@@ -205,7 +205,7 @@ __libc_free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
 	tls = (Elf_Addr **)tcb;
 	dtv = tls[0];
 	__je_bootstrap_free(dtv);
-	libc_free_aligned(get_tls_block_ptr(tcb, tcbsize));
+	libc_free_aligned(libc_get_tls_block_ptr(tcb, tcbsize));
 }
 
 /*
@@ -264,7 +264,7 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 	tls = (char *)tcb + TLS_TCB_SIZE + post_size;
 
 	if (oldtcb != NULL) {
-		memcpy(tls_block, get_tls_block_ptr(oldtcb, tcbsize),
+		memcpy(tls_block, libc_get_tls_block_ptr(oldtcb, tcbsize),
 		    tls_block_size);
 		libc_free_aligned(oldtcb);
 
@@ -292,7 +292,7 @@ __libc_allocate_tls(void *oldtcb, size_t tcbsize, size_t tcbalign)
 
 #endif
 
-#ifdef TLS_VARIANT_II
+#ifdef TLS_VARIANT_II // x86
 
 /*
  * Free Static TLS using the Variant II method.
@@ -399,7 +399,7 @@ __libc_free_tls(void *tcb __unused, size_t tcbsize __unused,
 #endif /* PIC */
 
 void
-_init_tls(void)
+_init_tls(void) // < __libc_start1
 {
 #ifndef PIC
 	Elf_Addr *sp;
