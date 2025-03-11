@@ -76,7 +76,7 @@ _pthread_create(pthread_t * __restrict thread,
 	}
 
 	curthread = _get_curthread();
-	if ((new_thread = _thr_alloc(curthread)) == NULL)
+	if ((new_thread = _thr_alloc(curthread)) == NULL) // allocate tls here
 		return (EAGAIN);
 
 	memset(&param, 0, sizeof(param));
@@ -105,7 +105,7 @@ _pthread_create(pthread_t * __restrict thread,
 	new_thread->tid = TID_TERMINATED;
 
 	old_stack_prot = _rtld_get_stack_prot();
-	if (create_stack(&new_thread->attr) != 0) {
+	if (create_stack(&new_thread->attr) != 0) { // if not success
 		/* Insufficient memory to create a stack: */
 		_thr_free(curthread, new_thread);
 		return (EAGAIN);
@@ -236,6 +236,9 @@ out:
 	return (ret);
 }
 
+// return
+//    0: sucess
+//   -1: failure
 static int
 create_stack(struct pthread_attr *pattr)
 {
@@ -245,7 +248,7 @@ create_stack(struct pthread_attr *pattr)
 	if ((pattr->stackaddr_attr) != NULL) {
 		pattr->guardsize_attr = 0;
 		pattr->flags |= THR_STACK_USER;
-		ret = 0;
+		ret = 0; // success
 	}
 	else
 		ret = _thr_stack_alloc(pattr);
