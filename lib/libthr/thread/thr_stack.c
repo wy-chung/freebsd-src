@@ -177,6 +177,9 @@ __thr_map_stacks_exec(void)
 	THREAD_LIST_UNLOCK(curthread);
 }
 
+// return
+//     0: success
+//    -1: failure
 int
 _thr_stack_alloc(struct pthread_attr *attr)
 {
@@ -215,13 +218,12 @@ _thr_stack_alloc(struct pthread_attr *attr)
 			LIST_REMOVE(spare_stack, qe);
 			attr->stackaddr_attr = spare_stack->stackaddr;
 		}
-	}
+	} else {
 	/*
 	 * The user specified a non-default stack and/or guard size, so try to
 	 * allocate a stack from the non-default size stack cache, using the
 	 * rounded up stack size (stack_size) in the search:
 	 */
-	else {
 		LIST_FOREACH(spare_stack, &mstackq, qe) {
 			if (spare_stack->stacksize == stacksize &&
 			    spare_stack->guardsize == guardsize) {

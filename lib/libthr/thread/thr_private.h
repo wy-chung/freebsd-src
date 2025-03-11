@@ -262,16 +262,16 @@ struct pthread_atfork {
 	//int	flags;
 #define	THR_STACK_USER		0x100	/* 0xFF reserved for <pthread.h> */
 struct pthread_attr {
-	int	sched_policy;
-	int	sched_inherit;
-	int	prio;
-	int	suspend;
-	int	flags;
-	void	*stackaddr_attr;
-	size_t	stacksize_attr;
-	size_t	guardsize_attr;
-	cpuset_t	*cpuset;
-	size_t	cpusetsize;
+	int	sched_policy;	// SCHED_OTHER
+	int	sched_inherit;	// PTHREAD_INHERIT_SCHED
+	int	prio;		// 0
+	int	suspend;	// THR_CREATE_RUNNING
+	int	flags;		// PTHREAD_SCOPE_SYSTEM
+	void	*stackaddr_attr;// NULL
+	size_t	stacksize_attr;	// THR_STACK_DEFAULT, 4M
+	size_t	guardsize_attr;	// 0
+	cpuset_t	*cpuset;// 0
+	size_t	cpusetsize;	// NULL
 };
 
 struct wake_addr {
@@ -438,10 +438,6 @@ struct pthread {
 	void			*arg;
 	struct pthread_attr	attr;
 
-#define	SHOULD_CANCEL(thr)					\
-	((thr)->cancel_pending && (thr)->cancel_enable &&	\
-	 (thr)->no_cancel == 0)
-
 	/* Cancellation is enabled */
 	int			cancel_enable;
 
@@ -523,7 +519,7 @@ struct pthread {
 	int			rtld_bits;
 
 	/* Thread control block */
-	struct tcb		*tcb;
+	struct tcb		*tcb;	// tls_base
 
 	/* Cleanup handlers Link List */
 	struct pthread_cleanup	*cleanup;
@@ -583,6 +579,10 @@ struct pthread {
 	/* pthread_set/get_name_np */
 	char			*name;
 };
+
+#define	SHOULD_CANCEL(thr)					\
+	((thr)->cancel_pending && (thr)->cancel_enable &&	\
+	 (thr)->no_cancel == 0)
 
 #define THR_SHOULD_GC(thrd) 						\
 	((thrd)->refcount == 0 && (thrd)->state == PS_DEAD &&		\
