@@ -33,7 +33,7 @@
  * Variant I TLS uses the same TCB layout across architectures.
  */
 
-#define	TLS_VARIANT_I
+#define	TLS_VARIANT_I // riscv
 
 struct pthread;
 
