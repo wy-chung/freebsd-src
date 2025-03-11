@@ -5342,13 +5342,13 @@ tls_get_addr_common(uintptr_t **dtvp, int index, size_t offset)
 	return (tls_get_addr_slow(dtvp, index, offset, false));
 }
 
-#ifdef TLS_VARIANT_I
+#ifdef TLS_VARIANT_I // riscv
 
 /*
  * Return pointer to allocated TLS block
  */
 static void *
-get_tls_block_ptr(void *tcb, size_t tcbsize)
+rtld_get_tls_block_ptr(void *tcb, size_t tcbsize)
 {
     size_t extra_size, post_size, pre_size, tls_block_size;
     size_t tls_init_align;
@@ -5374,7 +5374,7 @@ get_tls_block_ptr(void *tcb, size_t tcbsize)
  *     offsets, whereas libc's tls_static_space is just the executable's static
  *     TLS segment.
  */
-void *
+void * // , NULL, TLS_TCB_SIZE, TLS_TCB_ALIGN
 allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
 {
     Obj_Entry *obj;
@@ -5404,9 +5404,9 @@ allocate_tls(Obj_Entry *objs, void *oldtcb, size_t tcbsize, size_t tcbalign)
     tcb = (Elf_Addr **)(tls_block + pre_size + extra_size);
 
     if (oldtcb != NULL) {
-	memcpy(tls_block, get_tls_block_ptr(oldtcb, tcbsize),
+	memcpy(tls_block, rtld_get_tls_block_ptr(oldtcb, tcbsize),
 	    tls_static_space);
-	free(get_tls_block_ptr(oldtcb, tcbsize));
+	free(rtld_get_tls_block_ptr(oldtcb, tcbsize));
 
 	/* Adjust the DTV. */
 	dtv = tcb[0];
@@ -5470,12 +5470,12 @@ free_tls(void *tcb, size_t tcbsize, size_t tcbalign __unused)
 	}
     }
     free(dtv);
-    free(get_tls_block_ptr(tcb, tcbsize));
+    free(rtld_get_tls_block_ptr(tcb, tcbsize));
 }
 
 #endif	/* TLS_VARIANT_I */
 
-#ifdef TLS_VARIANT_II
+#ifdef TLS_VARIANT_II // x86
 
 /*
  * Allocate Static TLS using the Variant II method.
@@ -5606,7 +5606,7 @@ allocate_module_tls(int index)
 	}
 
 	if (obj->tls_static) {
-#ifdef TLS_VARIANT_I
+#ifdef TLS_VARIANT_I // riscv
 		p = (char *)_tcb_get() + obj->tlsoffset + TLS_TCB_SIZE;
 #else
 		p = (char *)_tcb_get() - obj->tlsoffset;
@@ -5646,7 +5646,7 @@ allocate_tls_offset(Obj_Entry *obj)
 	  obj->tlssize, obj->tlsalign, obj->tlspoffset);
 
     obj->tlsoffset = off;
-#ifdef TLS_VARIANT_I
+#ifdef TLS_VARIANT_I // riscv
     off += obj->tlssize;
 #endif
 
@@ -5681,7 +5681,7 @@ free_tls_offset(Obj_Entry *obj)
      * unloaded multiple times.
      */
     size_t off = obj->tlsoffset;
-#ifdef TLS_VARIANT_I
+#ifdef TLS_VARIANT_I // riscv
     off += obj->tlssize;
 #endif
     if (off == tls_last_offset) {
@@ -5691,7 +5691,7 @@ free_tls_offset(Obj_Entry *obj)
 }
 
 void *
-_rtld_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign)
+_rtld_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign) // NULL, TLS_TCB_SIZE, TLS_TCB_ALIGN
 {
     void *ret;
     RtldLockState lockstate;
