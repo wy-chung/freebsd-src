@@ -122,18 +122,18 @@ struct sysentvec {
 			    uintptr_t);
 	int		sv_minsigstksz;	/* minimum signal stack size */
 	vm_offset_t	sv_minuser;	/* VM_MIN_ADDRESS */
-	vm_offset_t	sv_maxuser;	/* VM_MAXUSER_ADDRESS */
-	vm_offset_t	sv_usrstack;	/* USRSTACK */
-	vm_offset_t	sv_psstrings;	/* PS_STRINGS */
+	vm_offset_t	sv_maxuser;	/* VM_MAXUSER_ADDRESS */ // VM_MAX_USER_ADDRESS_SV48
+	vm_offset_t	sv_usrstack;	/* USRSTACK */ // USRSTACK_SV48
+	vm_offset_t	sv_psstrings;	/* PS_STRINGS */ // PS_STRINGS_SV48
 	size_t		sv_psstringssz;	/* PS_STRINGS size */
-	int		sv_stackprot;	/* vm protection for stack */
+	int		sv_stackprot;	/* vm protection for stack */ // VM_PROT_READ | VM_PROT_WRITE
 	int		(*sv_copyout_strings)(struct image_params *,
-			    uintptr_t *);
+			    uintptr_t *); // exec_copyout_strings
 	void		(*sv_setregs)(struct thread *, struct image_params *,
-			    uintptr_t);
-	void		(*sv_fixlimit)(struct rlimit *, int);
-	u_long		*sv_maxssiz;
-	u_int		sv_flags;
+			    uintptr_t); // exec_setregs
+	void		(*sv_fixlimit)(struct rlimit *, int); // NULL
+	u_long		*sv_maxssiz;	// NULL
+	u_int		sv_flags; // SV_ABI_FREEBSD | SV_LP64 | SV_SHP | SV_TIMEKEEP | SV_ASLR | SV_RNG_SEED_VER | SV_SIGSYS
 	void		(*sv_set_syscall_retval)(struct thread *, int);
 	int		(*sv_fetch_syscall_args)(struct thread *);
 	const char	**sv_syscallnames;
