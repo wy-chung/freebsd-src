@@ -1210,14 +1210,14 @@ exec_map_stack(struct image_params *imgp)
 	} else if (sv->sv_maxssiz != NULL) {
 		ssiz = *sv->sv_maxssiz;
 	} else {
-		ssiz = maxssiz;
+		ssiz = maxssiz; // 0x4000,0000 == MAXSSIZ == 1G
 	}
 
 	vmspace = p->p_vmspace;
 	map = &vmspace->vm_map;
 
 	stack_prot = sv->sv_shared_page_obj != NULL && imgp->stack_prot != 0 ?
-	    imgp->stack_prot : sv->sv_stackprot;
+	    imgp->stack_prot : sv->sv_stackprot; // VM_PROT_READ | VM_PROT_WRITE
 	if ((map->flags & MAP_ASLR_STACK) != 0) {
 		stack_addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
 		    lim_max(curthread, RLIMIT_DATA));
@@ -1226,8 +1226,8 @@ exec_map_stack(struct image_params *imgp)
 		stack_addr = sv->sv_usrstack - ssiz;
 		find_space = VMFS_NO_SPACE;
 	}
-	error = vm_map_find(map, NULL, 0, &stack_addr, (vm_size_t)ssiz,
-	    sv->sv_usrstack, find_space, stack_prot, VM_PROT_ALL,
+	error = vm_map_find(map, NULL/*object*/, 0/*offset*/, &stack_addr, (vm_size_t)ssiz,
+	    sv->sv_usrstack/*max_addr*/, find_space, stack_prot, VM_PROT_ALL,
 	    MAP_STACK_GROWS_DOWN);
 	if (error != KERN_SUCCESS) {
 		uprintf("exec_new_vmspace: mapping stack size %#jx prot %#x "
@@ -1251,19 +1251,19 @@ exec_map_stack(struct image_params *imgp)
 	}
 
 	/*
-	 * If randomization is disabled then the shared page will
-	 * be mapped at address specified in sysentvec.
-	 * Otherwise any address above .data section can be selected.
+	 * If randomization is enabled, any address above .data section can be selected.
 	 * Same logic is used for stack address randomization.
 	 * If the address randomization is applied map a guard page
 	 * at the top of UVA.
+	 * If randomization is disabled then the shared page will
+	 * be mapped at address specified in sysentvec.
 	 */
 	vm_object_reference(obj);
 	if ((imgp->imgp_flags & IMGP_ASLR_SHARED_PAGE) != 0) { // false
 		sharedpage_addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
 		    lim_max(curthread, RLIMIT_DATA));
 
-		error = vm_map_fixed(map, NULL, 0,
+		error = vm_map_fixed(map, NULL, 0,	// guard page at the top of user address
 		    sv->sv_maxuser - PAGE_SIZE, PAGE_SIZE,
 		    VM_PROT_NONE, VM_PROT_NONE, MAP_CREATE_GUARD);
 		if (error != KERN_SUCCESS) {
