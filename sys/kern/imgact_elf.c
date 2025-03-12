@@ -889,8 +889,13 @@ fail:
  * did not pass sanity checks for overflow and range correctness.
  */
 static int
+#if defined(WYC)
+rnd_elf32_base(vm_map_t map, u_long minv, u_long maxv,
+    u_int align, u_long *resp)
+#else
 __CONCAT(rnd_, __elfN(base))(vm_map_t map, u_long minv, u_long maxv,
     u_int align, u_long *resp)
+#endif
 {
 	u_long rbase, res;
 
@@ -1091,7 +1096,11 @@ __elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
 #define	ET_DYN_ADDR_RAND	1
 
 static int
+#if defined(WYC)
+exec_elf64_imgact(struct image_params *imgp)
+#else
 __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
+#endif
 {
 	struct thread *td;
 	const Elf_Ehdr *hdr;

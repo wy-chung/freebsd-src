@@ -42,22 +42,22 @@
  * Virtual memory related constants, all in bytes
  */
 #ifndef MAXTSIZ
-#define	MAXTSIZ		(1*1024*1024*1024)	/* max text size */
+#define	MAXTSIZ		(1*1024*1024*1024)	/* max text size */ // 128M for i386
 #endif
 #ifndef DFLDSIZ
-#define	DFLDSIZ		(128*1024*1024)		/* initial data size limit */
+#define	DFLDSIZ		(128*1024*1024)		/* initial data size limit */ // same as i386
 #endif
 #ifndef MAXDSIZ
-#define	MAXDSIZ		(1*1024*1024*1024)	/* max data size */
+#define	MAXDSIZ		(1*1024*1024*1024)	/* max data size */ // 512M for i386
 #endif
 #ifndef DFLSSIZ
-#define	DFLSSIZ		(128*1024*1024)		/* initial stack size limit */
+#define	DFLSSIZ		(128*1024*1024)		/* initial stack size limit */ // 8M for i386
 #endif
 #ifndef MAXSSIZ
-#define	MAXSSIZ		(1*1024*1024*1024)	/* max stack size */
+#define	MAXSSIZ		(1*1024*1024*1024)	/* max stack size */ // 64M for i386
 #endif
 #ifndef SGROWSIZ
-#define	SGROWSIZ	(128*1024)		/* amount to grow stack */
+#define	SGROWSIZ	(128*1024)		/* amount to grow stack */ // same as i386
 #endif
 
 /*
