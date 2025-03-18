@@ -124,8 +124,9 @@ g_conftxt_geom(struct sbuf *sb, struct g_geom *gp, int level)
 		if (gp->dumpconf != NULL)
 			gp->dumpconf(sb, NULL, gp, NULL, pp);
 		sbuf_cat(sb, "\n");
-		LIST_FOREACH(cp, &pp->consumers, consumers)
+		LIST_FOREACH(cp, &pp->consumers, consumers) {
 			g_conftxt_geom(sb, cp->geom, level + 1);
+		}
 	}
 }
 
@@ -134,8 +135,9 @@ g_conftxt_class(struct sbuf *sb, struct g_class *mp)
 {
 	struct g_geom *gp;
 
-	LIST_FOREACH(gp, &mp->geom, geom)
+	LIST_FOREACH(gp, &mp->geom, geom) {
 		g_conftxt_geom(sb, gp, 0);
+	}
 }
 
 void
