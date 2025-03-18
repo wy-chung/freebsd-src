@@ -55,13 +55,14 @@ static int g_nop_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
 static void g_nop_config(struct gctl_req *req, struct g_class *mp,
     const char *verb);
+#if !defined(WYC)
 static g_access_t g_nop_access;
 static g_dumpconf_t g_nop_dumpconf;
 static g_orphan_t g_nop_orphan;
 static g_provgone_t g_nop_providergone;
 static g_resize_t g_nop_resize;
 static g_start_t g_nop_start;
-
+#endif
 struct g_class g_nop_class = {
 	.name = G_NOP_CLASS_NAME,
 	.version = G_VERSION,
@@ -331,7 +332,7 @@ g_nop_access(struct g_provider *pp, int dr, int dw, int de)
 	return (error);
 }
 
-static int
+static int __attribute__((optnone))
 g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
     const char *gnopname, int ioerror, u_int count_until_fail,
     u_int rfailprob, u_int wfailprob, u_int delaymsec, u_int rdelayprob,
@@ -404,7 +405,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		n = snprintf(name, sizeof(name), "%s%s", gnopname,
 		    G_NOP_SUFFIX);
 	} else {
-		n = snprintf(name, sizeof(name), "%s%s", pp->name,
+		n = snprintf(name, sizeof(name), "%s%s", pp->name,	// name == vtbd1.nop
 		    G_NOP_SUFFIX);
 	}
 	if (n <= 0 || n >= sizeof(name)) {
@@ -423,11 +424,11 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	sc->sc_explicitsize = explicitsize;
 	sc->sc_stripesize = stripesize;
 	sc->sc_stripeoffset = stripeoffset;
-	if (physpath && strcmp(physpath, G_NOP_PHYSPATH_PASSTHROUGH)) {
+	if (physpath && strcmp(physpath, G_NOP_PHYSPATH_PASSTHROUGH)) { // strcmp return 0 when equal
 		sc->sc_physpath = strndup(physpath, MAXPATHLEN, M_GEOM);
 	} else
-		sc->sc_physpath = NULL;
-	sc->sc_error = ioerror;
+		sc->sc_physpath = NULL;	// <==
+	sc->sc_error = ioerror;		// EIO		5
 	sc->sc_count_until_fail = count_until_fail;
 	sc->sc_rfailprob = rfailprob;
 	sc->sc_wfailprob = wfailprob;
@@ -469,7 +470,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	newpp->flags |= pp->flags & G_PF_ACCEPT_UNMAPPED;
 	g_error_provider(newpp, 0);
 	G_NOP_DEBUG(0, "Device %s created.", gp->name);
-	return (0);
+	return (ESUCCESS);
 fail:
 	if (cp->provider != NULL)
 		g_detach(cp);
@@ -533,7 +534,7 @@ g_nop_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 	return (g_nop_destroy(gp, 0));
 }
 
-static void
+static void __attribute__((optnone))
 g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_provider *pp;
@@ -568,11 +569,11 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Missing device(s).");
 		return;
 	}
-	val = gctl_get_paraml_opt(req, "error", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "error", sizeof(*val)); // default -1
 	if (val != NULL) {
 		error = *val;
 	}
-	val = gctl_get_paraml_opt(req, "rfailprob", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "rfailprob", sizeof(*val)); // default -1
 	if (val != NULL) {
 		rfailprob = *val;
 		if (rfailprob < -1 || rfailprob > 100) {
@@ -580,7 +581,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 	}
-	val = gctl_get_paraml_opt(req, "wfailprob", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "wfailprob", sizeof(*val)); // default -1
 	if (val != NULL) {
 		wfailprob = *val;
 		if (wfailprob < -1 || wfailprob > 100) {
@@ -588,7 +589,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 	}
-	val = gctl_get_paraml_opt(req, "delaymsec", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "delaymsec", sizeof(*val)); // default -1
 	if (val != NULL) {
 		delaymsec = *val;
 		if (delaymsec < 1 && delaymsec != -1) {
@@ -596,7 +597,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 	}
-	val = gctl_get_paraml_opt(req, "rdelayprob", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "rdelayprob", sizeof(*val)); // default -1
 	if (val != NULL) {
 		rdelayprob = *val;
 		if (rdelayprob < -1 || rdelayprob > 100) {
@@ -604,7 +605,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 	}
-	val = gctl_get_paraml_opt(req, "wdelayprob", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "wdelayprob", sizeof(*val)); // default -1
 	if (val != NULL) {
 		wdelayprob = *val;
 		if (wdelayprob < -1 || wdelayprob > 100) {
@@ -612,7 +613,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 	}
-	val = gctl_get_paraml_opt(req, "count_until_fail", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "count_until_fail", sizeof(*val)); // default -1
 	if (val != NULL) {
 		count_until_fail = *val;
 		if (count_until_fail < -1) {
@@ -621,7 +622,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 	}
-	val = gctl_get_paraml_opt(req, "offset", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "offset", sizeof(*val)); // default 0
 	if (val != NULL) {
 		offset = *val;
 		if (offset < 0) {
@@ -629,7 +630,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 	}
-	val = gctl_get_paraml_opt(req, "size", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "size", sizeof(*val)); // default 0
 	if (val != NULL) {
 		size = *val;
 		if (size < 0) {
@@ -637,7 +638,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 	}
-	val = gctl_get_paraml_opt(req, "secsize", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "secsize", sizeof(*val)); // default 0
 	if (val != NULL) {
 		secsize = *val;
 		if (secsize < 0) {
@@ -645,7 +646,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 	}
-	val = gctl_get_paraml_opt(req, "stripesize", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "stripesize", sizeof(*val)); // default 0
 	if (val != NULL) {
 		stripesize = *val;
 		if (stripesize < 0) {
@@ -653,7 +654,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 	}
-	val = gctl_get_paraml_opt(req, "stripeoffset", sizeof(*val));
+	val = gctl_get_paraml_opt(req, "stripeoffset", sizeof(*val)); // default 0
 	if (val != NULL) {
 		stripeoffset = *val;
 		if (stripeoffset < 0) {
@@ -662,8 +663,8 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 	}
-	physpath = gctl_get_asciiparam(req, "physpath");
-	gnopname = gctl_get_asciiparam(req, "gnopname");
+	physpath = gctl_get_asciiparam(req, "physpath"); // default G_NOP_PHYSPATH_PASSTHROUGH "\255"
+	gnopname = gctl_get_asciiparam(req, "gnopname"); // default G_VAL_OPTIONAL (void *)-1
 
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
@@ -671,7 +672,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		if (pp == NULL)
 			return;
 		if (g_nop_create(req, mp, pp,
-		    gnopname,
+		    gnopname, // NULL
 		    error == -1 ? EIO : (int)error,
 		    count_until_fail == -1 ? 0 : (u_int)count_until_fail,
 		    rfailprob == -1 ? 0 : (u_int)rfailprob,
@@ -681,7 +682,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		    wdelayprob == -1 ? 0 : (u_int)wdelayprob,
 		    (off_t)offset, (off_t)size, (u_int)secsize,
 		    (off_t)stripesize, (off_t)stripeoffset,
-		    physpath) != 0) {
+		    physpath) != 0) { // "\255"
 			return;
 		}
 	}

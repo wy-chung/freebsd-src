@@ -50,7 +50,7 @@ struct g_nop_delay;
 TAILQ_HEAD(g_nop_delay_head, g_nop_delay);
 
 struct g_nop_softc {
-	int			 sc_error;
+	int			 sc_error;	// the error number returned to upper layer when fail is injected
 	off_t			 sc_offset;
 	off_t			 sc_explicitsize;
 	off_t			 sc_stripesize;
@@ -72,7 +72,7 @@ struct g_nop_softc {
 	uintmax_t		 sc_speedups;
 	uintmax_t		 sc_readbytes;
 	uintmax_t		 sc_wrotebytes;
-	char			*sc_physpath;
+	char			*sc_physpath;	// NULL, Physical path of the transparent provider
 	struct mtx		 sc_lock;
 	struct g_nop_delay_head	 sc_head_delay;
 };

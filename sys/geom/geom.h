@@ -117,7 +117,7 @@ struct g_class {
 	 * The remaining elements are private
 	 */
 	LIST_ENTRY(g_class)	class;
-	LIST_HEAD(,g_geom)	geom;
+	LIST_HEAD(,g_geom)	geom;	// a list of geom instances of this class
 };
 
 #define G_VERSION_00	0x19950323
@@ -127,6 +127,11 @@ struct g_class {
 /*
  * The g_geom is an instance of a g_class.
  */
+	//unsigned		flags;
+#define	G_GEOM_WITHER		0x01
+#define	G_GEOM_VOLATILE_BIO	0x02
+#define	G_GEOM_IN_ACCESS	0x04
+#define	G_GEOM_ACCESS_WAIT	0x08
 struct g_geom {
 	char			*name;
 	struct g_class		*class;
@@ -148,10 +153,6 @@ struct g_geom {
 	void			*spare1;
 	void			*softc;
 	unsigned		flags;
-#define	G_GEOM_WITHER		0x01
-#define	G_GEOM_VOLATILE_BIO	0x02
-#define	G_GEOM_IN_ACCESS	0x04
-#define	G_GEOM_ACCESS_WAIT	0x08
 };
 
 /*
@@ -202,6 +203,12 @@ struct g_geom_alias {
 /*
  * A g_provider is a "logical disk".
  */
+	//u_int			flags;
+#define G_PF_WITHER		0x2
+#define G_PF_ORPHAN		0x4
+#define	G_PF_ACCEPT_UNMAPPED	0x8
+#define G_PF_DIRECT_SEND	0x10
+#define G_PF_DIRECT_RECEIVE	0x20
 struct g_provider {
 	char			*name;
 	LIST_ENTRY(g_provider)	provider;
@@ -218,11 +225,6 @@ struct g_provider {
 	u_int			spare1;
 	u_int			spare2;
 	u_int			flags;
-#define G_PF_WITHER		0x2
-#define G_PF_ORPHAN		0x4
-#define	G_PF_ACCEPT_UNMAPPED	0x8
-#define G_PF_DIRECT_SEND	0x10
-#define G_PF_DIRECT_RECEIVE	0x20
 	LIST_HEAD(,g_geom_alias) aliases;
 
 	/* Two fields for the implementing class to use */

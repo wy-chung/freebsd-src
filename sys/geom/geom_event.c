@@ -163,16 +163,16 @@ g_orphan_provider(struct g_provider *pp, int error)
 {
 
 	/* G_VALID_PROVIDER(pp)  We likely lack topology lock */
-	g_trace(G_T_TOPOLOGY, "g_orphan_provider(%p(%s), %d)",
+	g_trace(G_T_TOPOLOGY, "%s(%p(%s), %d)", __func__,
 	    pp, pp->name, error);
 	KASSERT(error != 0,
-	    ("g_orphan_provider(%p(%s), 0) error must be non-zero\n",
+	    ("%s(%p(%s), 0) error must be non-zero\n", __func__,
 	     pp, pp->name));
 
 	pp->error = error;
 	mtx_lock(&g_eventlock);
 	KASSERT(!(pp->flags & G_PF_ORPHAN),
-	    ("g_orphan_provider(%p(%s)), already an orphan", pp, pp->name));
+	    ("%s(%p(%s)), already an orphan", __func__, pp, pp->name));
 	pp->flags |= G_PF_ORPHAN;
 	TAILQ_INSERT_TAIL(&g_doorstep, pp, orphan);
 	mtx_unlock(&g_eventlock);
