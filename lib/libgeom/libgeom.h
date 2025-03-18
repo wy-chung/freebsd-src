@@ -70,13 +70,16 @@ struct gprovider;
 
 LIST_HEAD(gconf, gconfig);
 
+enum gwhat {
+	ISCLASS,
+	ISGEOM,
+	ISPROVIDER,
+	ISCONSUMER,
+};
 struct gident {
 	void			*lg_id;
 	void			*lg_ptr;
-	enum {	ISCLASS,
-		ISGEOM,
-		ISPROVIDER,
-		ISCONSUMER }	lg_what;
+	enum gwhat		lg_what;
 };
 
 struct gmesh {
