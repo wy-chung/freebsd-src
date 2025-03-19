@@ -62,12 +62,12 @@ struct gctl_req_arg {
 
 struct gctl_req {
 	u_int				version;
-	u_int				serial;
+	//u_int				serial;	//wycpull looks like this field is not used
 	u_int				narg;
 	struct gctl_req_arg		*arg;
 	u_int				lerror;
 	char				*error;
-	struct gctl_req_table		*reqt;
+	//struct gctl_req_table		*reqt;	//wycpull looks like this field is not used
 
 	/* kernel only fields */
 	int				nerror;

@@ -41,7 +41,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define GCTL_TABLE 1
+//#define GCTL_TABLE 1	//wycpull looks like this macro is not used
 #include <libgeom.h>
 
 /*
