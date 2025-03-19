@@ -1329,16 +1329,16 @@ g_compare_names(const char *namea, const char *nameb)
 	int deva, devb;
 
 	if (strcmp(namea, nameb) == 0)
-		return (1);
+		return (true);
 	deva = g_get_device_prefix_len(namea);
 	if (deva == 0)
-		return (0);
+		return (false);
 	devb = g_get_device_prefix_len(nameb);
 	if (devb == 0)
-		return (0);
+		return (false);
 	if (strcmp(namea + deva, nameb + devb) == 0)
-		return (1);
-	return (0);
+		return (true);
+	return (false);
 }
 
 #if defined(DIAGNOSTIC) || defined(DDB)
