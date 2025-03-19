@@ -124,8 +124,9 @@ g_nop_resize(struct g_consumer *cp)
 		return;
 	}
 	size = cp->provider->mediasize - sc->sc_offset;
-	LIST_FOREACH(pp, &gp->provider, provider)
+	LIST_FOREACH(pp, &gp->provider, provider) {
 		g_resize_provider(pp, size);
+	}
 }
 
 static int

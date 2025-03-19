@@ -48,7 +48,7 @@
 
 #include <geom/geom.h>
 #include <geom/geom_int.h>
-#define GCTL_TABLE 1
+//#define GCTL_TABLE 1	//wycpull looks like this macro is not used
 #include <geom/geom_ctl.h>
 
 #include <machine/stdarg.h>
