@@ -51,13 +51,13 @@ static uma_zone_t g_stripe_zone;
 static int g_stripe_destroy(struct g_stripe_softc *sc, boolean_t force);
 static int g_stripe_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
-
+#if !defined(WYC)
 static g_taste_t g_stripe_taste;
 static g_ctl_req_t g_stripe_config;
 static g_dumpconf_t g_stripe_dumpconf;
 static g_init_t g_stripe_init;
 static g_fini_t g_stripe_fini;
-
+#endif
 struct g_class g_stripe_class = {
 	.name = G_STRIPE_CLASS_NAME,
 	.version = G_VERSION,

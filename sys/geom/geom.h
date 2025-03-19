@@ -171,7 +171,11 @@ struct g_bioq {
  * can only be attached to one g_provider, but multiple g_consumers
  * can be attached to one g_provider.
  */
-
+	//int			flags;
+#define G_CF_SPOILED		0x1
+#define G_CF_ORPHAN		0x4
+#define G_CF_DIRECT_SEND	0x10
+#define G_CF_DIRECT_RECEIVE	0x20
 struct g_consumer {
 	struct g_geom		*geom;
 	LIST_ENTRY(g_consumer)	consumer;
@@ -179,10 +183,6 @@ struct g_consumer {
 	LIST_ENTRY(g_consumer)	consumers;	/* XXX: better name */
 	int			acr, acw, ace;
 	int			flags;
-#define G_CF_SPOILED		0x1
-#define G_CF_ORPHAN		0x4
-#define G_CF_DIRECT_SEND	0x10
-#define G_CF_DIRECT_RECEIVE	0x20
 	struct devstat		*stat;
 	u_int			nstart, nend;
 
