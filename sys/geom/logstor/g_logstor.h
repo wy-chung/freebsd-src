@@ -25,31 +25,31 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_G_UNION_H_
-#define	_G_UNION_H_
+#ifndef	_G_LOGSTOR_H_
+#define	_G_LOGSTOR_H_
 
-#define	G_UNION_CLASS_NAME	"UNION"
-#define	G_UNION_VERSION		1
-#define	G_UNION_SUFFIX		".union"
+#define	G_LOGSTOR_CLASS_NAME	"LOGSTOR"
+#define	G_LOGSTOR_VERSION		1
+#define	G_LOGSTOR_SUFFIX		".logstor"
 /*
- * Special flag to instruct gunion to passthrough the underlying provider's
+ * Special flag to instruct glogstor to passthrough the underlying provider's
  * physical path
  */
-#define G_UNION_PHYSPATH_PASSTHROUGH "\255"
+#define G_LOGSTOR_PHYSPATH_PASSTHROUGH "\255"
 
 #ifdef _KERNEL
-#define	G_UNION_DEBUG(lvl, ...) \
-    _GEOM_DEBUG("GEOM_UNION", g_union_debug, (lvl), NULL, __VA_ARGS__)
-#define G_UNION_LOGREQLVL(lvl, bp, ...) \
-    _GEOM_DEBUG("GEOM_UNION", g_union_debug, (lvl), (bp), __VA_ARGS__)
-#define	G_UNION_LOGREQ(bp, ...)	G_UNION_LOGREQLVL(3, (bp), __VA_ARGS__)
+#define	G_LOGSTOR_DEBUG(lvl, ...) \
+    _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, (lvl), NULL, __VA_ARGS__)
+#define G_LOGSTOR_LOGREQLVL(lvl, bp, ...) \
+    _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, (lvl), (bp), __VA_ARGS__)
+#define	G_LOGSTOR_LOGREQ(bp, ...)	G_LOGSTOR_LOGREQLVL(3, (bp), __VA_ARGS__)
 
-TAILQ_HEAD(wiplist, g_union_wip);
+TAILQ_HEAD(wiplist, g_logstor_wip);
 
 /*
- * State maintained by each instance of a UNION GEOM.
+ * State maintained by each instance of a LOGSTOR GEOM.
  */
-struct g_union_softc {
+struct g_logstor_softc {
 	struct rwlock	   sc_rwlock;		/* writemap lock */
 	uint64_t	 **sc_writemap_root;	/* root of write map */
 	uint64_t	  *sc_leafused;		/* 1 => leaf has allocation */
@@ -59,7 +59,7 @@ struct g_union_softc {
 	long		   sc_bits_per_leaf;	/* bits per leaf node entry */
 	long		   sc_writemap_memory;	/* memory used by writemap */
 	off_t		   sc_offset;		/* starting offset in lower */
-	off_t		   sc_size;		/* size of union geom */
+	off_t		   sc_size;		/* size of logstor geom */
 	off_t		   sc_sectorsize;	/* sector size of geom */
 	struct g_consumer *sc_uppercp;		/* upper-level provider */
 	struct g_consumer *sc_lowercp;		/* lower-level provider */
@@ -93,11 +93,11 @@ struct g_union_softc {
  * linked to wip_waiting list of the I/O that it overlaps. When an I/O
  * completes, it restarts all the I/O operations on its wip_waiting list.
  */
-struct g_union_wip {
+struct g_logstor_wip {
 	struct wiplist		 wip_waiting;	/* list of I/Os waiting on me */
-	TAILQ_ENTRY(g_union_wip) wip_next;	/* pending or active I/O list */
+	TAILQ_ENTRY(g_logstor_wip) wip_next;	/* pending or active I/O list */
 	struct bio		*wip_bp;	/* bio for this I/O */
-	struct g_union_softc	*wip_sc;	/* g_union's softc */
+	struct g_logstor_softc	*wip_sc;	/* g_logstor's softc */
 	off_t			 wip_start;	/* starting offset of I/O */
 	off_t			 wip_end;	/* ending offset of I/O */
 	long			 wip_numios;	/* BIO_READs in progress */
@@ -105,7 +105,7 @@ struct g_union_wip {
 };
 
 /*
- * UNION flags
+ * LOGSTOR flags
  */
 #define DOING_COMMIT	0x00000001	/* a commit command is in progress */
 
@@ -120,25 +120,25 @@ struct g_union_wip {
 
 /*
  * The writelock is held while a commit operation is in progress.
- * While held union device may not be used or in use.
+ * While held logstor device may not be used or in use.
  * Returns == 0 if lock was successfully obtained.
  */
 static inline int
-g_union_get_writelock(struct g_union_softc *sc)
+g_logstor_get_writelock(struct g_logstor_softc *sc)
 {
 
 	return (atomic_testandset_long(&sc->sc_flags, DOING_COMMIT_BITNUM)); // set bit DOING_COMMIT_BITNUM
 }
 
 static inline void
-g_union_rel_writelock(struct g_union_softc *sc)
+g_logstor_rel_writelock(struct g_logstor_softc *sc)
 {
 	long ret __diagused; // is used only when KASSERT is defined
 
 	ret = atomic_testandclear_long(&sc->sc_flags, DOING_COMMIT_BITNUM); // clear bit DOING_COMMIT_BITNUM
-	KASSERT(ret != 0, ("UNION GEOM releasing unheld lock"));
+	KASSERT(ret != 0, ("LOGSTOR GEOM releasing unheld lock"));
 }
 
 #endif	/* _KERNEL */
 
-#endif	/* _G_UNION_H_ */
+#endif	/* _G_LOGSTOR_H_ */

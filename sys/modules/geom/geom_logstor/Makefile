@@ -1,7 +1,7 @@
 
-.PATH: ${SRCTOP}/sys/geom/union
+.PATH: ${SRCTOP}/sys/geom/logstor
 
-KMOD=	geom_union
-SRCS=	g_union.c
+KMOD=	geom_logstor
+SRCS=	g_logstor.c
 
 .include <bsd.kmod.mk>
