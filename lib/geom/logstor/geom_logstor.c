@@ -28,12 +28,13 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <libgeom.h>
-#include <geom/union/g_union.h>
+//#include <geom/logstor/g_logstor.h>
+#include "/nfs/freebsd-src/sys/geom/logstor/g_logstor.h"
 
 #include "core/geom.h"
 
 uint32_t lib_version = G_LIB_VERSION;
-uint32_t version = G_UNION_VERSION;
+uint32_t version = G_LOGSTOR_VERSION;
 
 struct g_command class_commands[] = {
 	{ "create", G_FLAG_LOADKLD, NULL,
@@ -42,10 +43,10 @@ struct g_command class_commands[] = {
 		{ 's', "size", "0", G_TYPE_NUMBER },
 		{ 'S', "secsize", "0", G_TYPE_NUMBER },
 		{ 'v', "verbose", NULL, G_TYPE_BOOL },
-		{ 'Z', "gunionname", G_VAL_OPTIONAL, G_TYPE_STRING },
+		{ 'Z', "glogstorname", G_VAL_OPTIONAL, G_TYPE_STRING },
 		G_OPT_SENTINEL
 	    },
-	    "[-v] [-o offset] [-s size] [-S secsize] [-Z gunionname] "
+	    "[-v] [-o offset] [-s size] [-S secsize] [-Z glogstorname] "
 	    "upperdev lowerdev"
 	},
 	{ "destroy", 0, NULL,
