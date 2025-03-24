@@ -40,63 +40,63 @@
 
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
-#include <geom/union/g_union.h>
+#include <geom/logstor/g_logstor.h>
 
 SYSCTL_DECL(_kern_geom);
-static SYSCTL_NODE(_kern_geom, OID_AUTO, union, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "GEOM_UNION stuff");
-static u_int g_union_debug = 0;
-SYSCTL_UINT(_kern_geom_union, OID_AUTO, debug, CTLFLAG_RW, &g_union_debug, 0,
+static SYSCTL_NODE(_kern_geom, OID_AUTO, logstor, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "GEOM_LOGSTOR stuff");
+static u_int g_logstor_debug = 0;
+SYSCTL_UINT(_kern_geom_logstor, OID_AUTO, debug, CTLFLAG_RW, &g_logstor_debug, 0,
     "Debug level");
 
-static void g_union_config(struct gctl_req *req, struct g_class *mp,
+static void g_logstor_config(struct gctl_req *req, struct g_class *mp,
     const char *verb);
 #if !defined(WYC)
-static g_access_t g_union_access;
-static g_start_t g_union_start;
-static g_dumpconf_t g_union_dumpconf;
-static g_orphan_t g_union_orphan;
-static int g_union_destroy_geom(struct gctl_req *req, struct g_class *mp,
+static g_access_t g_logstor_access;
+static g_start_t g_logstor_start;
+static g_dumpconf_t g_logstor_dumpconf;
+static g_orphan_t g_logstor_orphan;
+static int g_logstor_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
-static g_provgone_t g_union_providergone;
-static g_resize_t g_union_resize;
+static g_provgone_t g_logstor_providergone;
+static g_resize_t g_logstor_resize;
 #endif
-struct g_class g_union_class = {
-	.name = G_UNION_CLASS_NAME,
+struct g_class g_logstor_class = {
+	.name = G_LOGSTOR_CLASS_NAME,
 	.version = G_VERSION,
-	.ctlreq = g_union_config,
-	.access = g_union_access,
-	.start = g_union_start,
-	.dumpconf = g_union_dumpconf,
-	.orphan = g_union_orphan,
-	.destroy_geom = g_union_destroy_geom,
-	.providergone = g_union_providergone,
-	.resize = g_union_resize,
+	.ctlreq = g_logstor_config,
+	.access = g_logstor_access,
+	.start = g_logstor_start,
+	.dumpconf = g_logstor_dumpconf,
+	.orphan = g_logstor_orphan,
+	.destroy_geom = g_logstor_destroy_geom,
+	.providergone = g_logstor_providergone,
+	.resize = g_logstor_resize,
 };
 
-static void g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool);
-static intmax_t g_union_fetcharg(struct gctl_req *req, const char *name);
-static bool g_union_verify_nprefix(const char *name);
-static void g_union_ctl_destroy(struct gctl_req *req, struct g_class *mp, bool);
-static struct g_geom *g_union_find_geom(struct g_class *mp, const char *name);
-static void g_union_ctl_reset(struct gctl_req *req, struct g_class *mp, bool);
-static void g_union_ctl_revert(struct gctl_req *req, struct g_class *mp, bool);
-static void g_union_revert(struct g_union_softc *sc);
-static void g_union_doio(struct g_union_wip *wip);
-static void g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool);
-static void g_union_setmap(struct bio *bp, struct g_union_softc *sc);
-static bool g_union_getmap(struct bio *bp, struct g_union_softc *sc,
+static void g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp, bool);
+static intmax_t g_logstor_fetcharg(struct gctl_req *req, const char *name);
+static bool g_logstor_verify_nprefix(const char *name);
+static void g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp, bool);
+static struct g_geom *g_logstor_find_geom(struct g_class *mp, const char *name);
+static void g_logstor_ctl_reset(struct gctl_req *req, struct g_class *mp, bool);
+static void g_logstor_ctl_revert(struct gctl_req *req, struct g_class *mp, bool);
+static void g_logstor_revert(struct g_logstor_softc *sc);
+static void g_logstor_doio(struct g_logstor_wip *wip);
+static void g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp, bool);
+static void g_logstor_setmap(struct bio *bp, struct g_logstor_softc *sc);
+static bool g_logstor_getmap(struct bio *bp, struct g_logstor_softc *sc,
 	off_t *len2read);
-static void g_union_done(struct bio *bp);
-static void g_union_kerneldump(struct bio *bp, struct g_union_softc *sc);
-static int g_union_dumper(void *, void *, off_t, size_t);
-static int g_union_destroy(struct gctl_req *req, struct g_geom *gp, bool force);
+static void g_logstor_done(struct bio *bp);
+static void g_logstor_kerneldump(struct bio *bp, struct g_logstor_softc *sc);
+static int g_logstor_dumper(void *, void *, off_t, size_t);
+static int g_logstor_destroy(struct gctl_req *req, struct g_geom *gp, bool force);
 
 /*
- * Operate on union-specific configuration commands.
+ * Operate on logstor-specific configuration commands.
  */
 static void
-g_union_config(struct gctl_req *req, struct g_class *mp, const char *verb)
+g_logstor_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 {
 	uint32_t *version, *verbose;
 
@@ -107,7 +107,7 @@ g_union_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		gctl_error(req, "No '%s' argument.", "version");
 		return;
 	}
-	if (*version != G_UNION_VERSION) {
+	if (*version != G_LOGSTOR_VERSION) {
 		gctl_error(req, "Userland and kernel parts are out of sync.");
 		return;
 	}
@@ -117,19 +117,19 @@ g_union_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		return;
 	}
 	if (strcmp(verb, "create") == 0) {
-		g_union_ctl_create(req, mp, *verbose);
+		g_logstor_ctl_create(req, mp, *verbose);
 		return;
 	} else if (strcmp(verb, "destroy") == 0) {
-		g_union_ctl_destroy(req, mp, *verbose);
+		g_logstor_ctl_destroy(req, mp, *verbose);
 		return;
 	} else if (strcmp(verb, "reset") == 0) {
-		g_union_ctl_reset(req, mp, *verbose);
+		g_logstor_ctl_reset(req, mp, *verbose);
 		return;
 	} else if (strcmp(verb, "revert") == 0) {
-		g_union_ctl_revert(req, mp, *verbose);
+		g_logstor_ctl_revert(req, mp, *verbose);
 		return;
 	} else if (strcmp(verb, "commit") == 0) {
-		g_union_ctl_commit(req, mp, *verbose);
+		g_logstor_ctl_commit(req, mp, *verbose);
 		return;
 	}
 
@@ -137,18 +137,18 @@ g_union_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 }
 
 /*
- * Create a union device.
+ * Create a logstor device.
  */
 static void
-g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
+g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 {
 	struct g_provider *upperpp, *lowerpp, *newpp;
 	struct g_consumer *uppercp, *lowercp;
-	struct g_union_softc *sc;
+	struct g_logstor_softc *sc;
 	struct g_geom_alias *gap;
 	struct g_geom *gp;
 	intmax_t offset, secsize, size, needed;
-	const char *gunionname;
+	const char *glogstorname;
 	int *nargs, error, i, n;
 	char name[64];
 
@@ -168,17 +168,17 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 		return;
 	}
 
-	offset = g_union_fetcharg(req, "offset");
-	size = g_union_fetcharg(req, "size");
-	secsize = g_union_fetcharg(req, "secsize");
-	gunionname = gctl_get_asciiparam(req, "gunionname");
+	offset = g_logstor_fetcharg(req, "offset");
+	size = g_logstor_fetcharg(req, "size");
+	secsize = g_logstor_fetcharg(req, "secsize");
+	glogstorname = gctl_get_asciiparam(req, "glogstorname");
 
 	upperpp = gctl_get_provider(req, "arg0");
 	lowerpp = gctl_get_provider(req, "arg1");
 	if (upperpp == NULL || lowerpp == NULL)
 		/* error message provided by gctl_get_provider() */
 		return;
-	/* Create the union */
+	/* Create the logstor */
 	if (secsize == 0)
 		secsize = lowerpp->sectorsize;
 	else if ((secsize % lowerpp->sectorsize) != 0) {
@@ -225,17 +225,17 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 		    (intmax_t)size);
 		return;
 	}
-	if (gunionname != NULL && !g_union_verify_nprefix(gunionname)) {
-		gctl_error(req, "Gunion name %s must be alphanumeric.",
-		    gunionname);
+	if (glogstorname != NULL && !g_logstor_verify_nprefix(glogstorname)) {
+		gctl_error(req, "Glogstor name %s must be alphanumeric.",
+		    glogstorname);
 		return;
 	}
-	if (gunionname != NULL) {
-		n = snprintf(name, sizeof(name), "%s%s", gunionname,
-		    G_UNION_SUFFIX);
+	if (glogstorname != NULL) {
+		n = snprintf(name, sizeof(name), "%s%s", glogstorname,
+		    G_LOGSTOR_SUFFIX);
 	} else {
 		n = snprintf(name, sizeof(name), "%s-%s%s", upperpp->name,
-		    lowerpp->name, G_UNION_SUFFIX);
+		    lowerpp->name, G_LOGSTOR_SUFFIX);
 	}
 	if (n <= 0 || n >= sizeof(name)) {
 		gctl_error(req, "Invalid provider name.");
@@ -249,7 +249,7 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	}
 	gp = g_new_geomf(mp, "%s", name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
-	rw_init(&sc->sc_rwlock, "gunion");
+	rw_init(&sc->sc_rwlock, "glogstor");
 	TAILQ_INIT(&sc->sc_wiplist);
 	sc->sc_offset = offset;
 	sc->sc_size = size;
@@ -274,10 +274,10 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	newpp->sectorsize = secsize;
 	LIST_FOREACH(gap, &upperpp->aliases, ga_next)
 		g_provider_add_alias(newpp, "%s%s", gap->ga_alias,
-		    G_UNION_SUFFIX);
+		    G_LOGSTOR_SUFFIX);
 	LIST_FOREACH(gap, &lowerpp->aliases, ga_next)
 		g_provider_add_alias(newpp, "%s%s", gap->ga_alias,
-		    G_UNION_SUFFIX);
+		    G_LOGSTOR_SUFFIX);
 	lowercp = g_new_consumer(gp);
 	lowercp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	if ((error = g_attach(lowercp, lowerpp)) != 0) {
@@ -319,7 +319,7 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	 *
 	 * We totally populate the leaf nodes rather than allocating them
 	 * as they are first used because their usage occurs in the
-	 * g_union_start() routine that may be running in the g_down
+	 * g_logstor_start() routine that may be running in the g_down
 	 * thread which cannot sleep.
 	 */
 	sc->sc_map_size = roundup(size / secsize, BITS_PER_ENTRY);
@@ -345,7 +345,7 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 		gctl_msg(req, 0, "Device %s created with memory map size %jd.",
 		    gp->name, (intmax_t)sc->sc_writemap_memory);
 	gctl_post_messages(req);
-	G_UNION_DEBUG(1, "Device %s created with memory map size %jd.",
+	G_LOGSTOR_DEBUG(1, "Device %s created with memory map size %jd.",
 	    gp->name, (intmax_t)sc->sc_writemap_memory);
 	return;
 
@@ -366,7 +366,7 @@ fail1:
  * Fetch named option and verify that it is positive.
  */
 static intmax_t
-g_union_fetcharg(struct gctl_req *req, const char *name)
+g_logstor_fetcharg(struct gctl_req *req, const char *name)
 {
 	intmax_t *val;
 
@@ -384,7 +384,7 @@ g_union_fetcharg(struct gctl_req *req, const char *name)
  * Verify that a name is alphanumeric.
  */
 static bool
-g_union_verify_nprefix(const char *name)
+g_logstor_verify_nprefix(const char *name)
 {
 	int i;
 
@@ -397,10 +397,10 @@ g_union_verify_nprefix(const char *name)
 }
 
 /*
- * Destroy a union device.
+ * Destroy a logstor device.
  */
 static void
-g_union_ctl_destroy(struct gctl_req *req, struct g_class *mp, bool verbose)
+g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp, bool verbose)
 {
 	int *nargs, *force, error, i;
 	struct g_geom *gp;
@@ -433,12 +433,12 @@ g_union_ctl_destroy(struct gctl_req *req, struct g_class *mp, bool verbose)
 		}
 		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 			name += strlen(_PATH_DEV);
-		gp = g_union_find_geom(mp, name);
+		gp = g_logstor_find_geom(mp, name);
 		if (gp == NULL) {
 			gctl_msg(req, EINVAL, "Device %s is invalid.", name);
 			continue;
 		}
-		error = g_union_destroy(verbose ? req : NULL, gp, *force);
+		error = g_logstor_destroy(verbose ? req : NULL, gp, *force);
 		if (error != 0)
 			gctl_msg(req, error, "Error %d: "
 			    "cannot destroy device %s.", error, gp->name);
@@ -447,10 +447,10 @@ g_union_ctl_destroy(struct gctl_req *req, struct g_class *mp, bool verbose)
 }
 
 /*
- * Find a union geom.
+ * Find a logstor geom.
  */
 static struct g_geom *
-g_union_find_geom(struct g_class *mp, const char *name)
+g_logstor_find_geom(struct g_class *mp, const char *name)
 {
 	struct g_geom *gp;
 
@@ -462,12 +462,12 @@ g_union_find_geom(struct g_class *mp, const char *name)
 }
 
 /*
- * Zero out all the statistics associated with a union device.
+ * Zero out all the statistics associated with a logstor device.
  */
 static void
-g_union_ctl_reset(struct gctl_req *req, struct g_class *mp, bool verbose)
+g_logstor_ctl_reset(struct gctl_req *req, struct g_class *mp, bool verbose)
 {
-	struct g_union_softc *sc;
+	struct g_logstor_softc *sc;
 	struct g_provider *pp;
 	struct g_geom *gp;
 	char param[16];
@@ -512,18 +512,18 @@ g_union_ctl_reset(struct gctl_req *req, struct g_class *mp, bool verbose)
 		sc->sc_wrotebytes = 0;
 		if (verbose)
 			gctl_msg(req, 0, "Device %s has been reset.", pp->name);
-		G_UNION_DEBUG(1, "Device %s has been reset.", pp->name);
+		G_LOGSTOR_DEBUG(1, "Device %s has been reset.", pp->name);
 	}
 	gctl_post_messages(req);
 }
 
 /*
- * Revert all write requests made to the top layer of the union.
+ * Revert all write requests made to the top layer of the logstor.
  */
 static void
-g_union_ctl_revert(struct gctl_req *req, struct g_class *mp, bool verbose)
+g_logstor_ctl_revert(struct gctl_req *req, struct g_class *mp, bool verbose)
 {
-	struct g_union_softc *sc;
+	struct g_logstor_softc *sc;
 	struct g_provider *pp;
 	struct g_geom *gp;
 	char param[16];
@@ -555,37 +555,37 @@ g_union_ctl_revert(struct gctl_req *req, struct g_class *mp, bool verbose)
 			continue;
 		}
 		sc = gp->softc;
-		if (g_union_get_writelock(sc) != 0) {
+		if (g_logstor_get_writelock(sc) != 0) {
 			gctl_msg(req, EINVAL, "Revert already in progress for "
 			    "provider %s.", pp->name);
 			continue;
 		}
 		/*
-		 * No mount or other use of union is allowed.
+		 * No mount or other use of logstor is allowed.
 		 */
 		if (pp->acr > 0 || pp->acw > 0 || pp->ace > 0) {
 			gctl_msg(req, EPERM,
 			    "Unable to get exclusive access for reverting of %s;\n"
 				"\t%s cannot be mounted or otherwise open during a revert.",
 			     pp->name, pp->name);
-			g_union_rel_writelock(sc);
+			g_logstor_rel_writelock(sc);
 			continue;
 		}
-		g_union_revert(sc);
-		g_union_rel_writelock(sc);
+		g_logstor_revert(sc);
+		g_logstor_rel_writelock(sc);
 		if (verbose)
 			gctl_msg(req, 0, "Device %s has been reverted.",
 			    pp->name);
-		G_UNION_DEBUG(1, "Device %s has been reverted.", pp->name);
+		G_LOGSTOR_DEBUG(1, "Device %s has been reverted.", pp->name);
 	}
 	gctl_post_messages(req);
 }
 
 /*
- * Revert union writes by zero'ing out the writemap.
+ * Revert logstor writes by zero'ing out the writemap.
  */
 static void
-g_union_revert(struct g_union_softc *sc)
+g_logstor_revert(struct g_logstor_softc *sc)
 {
 	int i;
 
@@ -601,9 +601,9 @@ g_union_revert(struct g_union_softc *sc)
  * Commit all the writes made in the top layer to the lower layer.
  */
 static void
-g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
+g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 {
-	struct g_union_softc *sc;
+	struct g_logstor_softc *sc;
 	struct g_provider *pp, *lowerpp;
 	struct g_consumer *lowercp;
 	struct g_geom *gp;
@@ -652,7 +652,7 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 			continue;
 		}
 		sc = gp->softc;
-		if (g_union_get_writelock(sc) != 0) {
+		if (g_logstor_get_writelock(sc) != 0) {
 			gctl_msg(req, EINVAL, "Commit already in progress for "
 			    "provider %s.", pp->name);
 			continue;
@@ -662,7 +662,7 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		lowercp = sc->sc_lowercp;
 		lowerpp = lowercp->provider;
 		/*
-		 * No mount or other use of union is allowed, unless the
+		 * No mount or other use of logstor is allowed, unless the
 		 * -f flag is given which allows read-only mount or usage.
 		 */
 		if ((*force == false && pp->acr > 0) || pp->acw > 0 ||
@@ -672,7 +672,7 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 				"\tNote that %s cannot be mounted or otherwise\n"
 				"\topen during a commit unless the -f flag is used.",
 			    pp->name, pp->name);
-			g_union_rel_writelock(sc);
+			g_logstor_rel_writelock(sc);
 			continue;
 		}
 		/*
@@ -687,14 +687,14 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 				"\tfor writing. Note that %s cannot be mounted or otherwise open\n"
 				"\tduring a commit unless the -f flag is used.",
 			    pp->name, lowerpp->name, lowerpp->name);
-			g_union_rel_writelock(sc);
+			g_logstor_rel_writelock(sc);
 			continue;
 		}
 		if ((error = g_access(lowercp, 0, 1, 0)) != 0) {
 			gctl_msg(req, error, "Error %d: provider %s is unable "
 			    "to access %s for writing.", error, pp->name,
 			    lowerpp->name);
-			g_union_rel_writelock(sc);
+			g_logstor_rel_writelock(sc);
 			continue;
 		}
 		g_topology_unlock();
@@ -704,7 +704,7 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		G_RLOCK(sc);
 		error = 0;
 		while (bp->bio_length > 0) {
-			if (!g_union_getmap(bp, sc, &len2rd)) {
+			if (!g_logstor_getmap(bp, sc, &len2rd)) {
 				/* not written, so skip */
 				bp->bio_offset += len2rd;
 				bp->bio_length -= len2rd;
@@ -721,7 +721,7 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 				bp->bio_length = len2wt;
 				bp->bio_cmd = BIO_READ;
 				g_io_request(bp, sc->sc_uppercp);
-				if ((error = biowait(bp, "rdunion")) != 0) {
+				if ((error = biowait(bp, "rdlogstor")) != 0) {
 					gctl_msg(req, error, "Commit read "
 					    "error %d in provider %s, commit "
 					    "aborted.", error, pp->name);
@@ -730,7 +730,7 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 				bp->bio_flags &= ~BIO_DONE;
 				bp->bio_cmd = BIO_WRITE;
 				g_io_request(bp, lowercp);
-				if ((error = biowait(bp, "wtunion")) != 0) {
+				if ((error = biowait(bp, "wtlogstor")) != 0) {
 					gctl_msg(req, error, "Commit write "
 					    "error %d in provider %s, commit "
 					    "aborted.", error, pp->name);
@@ -744,20 +744,20 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		}
 		G_RUNLOCK(sc);
 		/* clear the write map */
-		g_union_revert(sc);
+		g_logstor_revert(sc);
 cleanup:
 		g_topology_lock();
 		/* return lower to previous access */
 		if ((error1 = g_access(lowercp, 0, -1, 0)) != 0) {
-			G_UNION_DEBUG(2, "Error %d: device %s could not reset "
+			G_LOGSTOR_DEBUG(2, "Error %d: device %s could not reset "
 			    "access to %s (r=0 w=-1 e=0).", error1, pp->name,
 			    lowerpp->name);
 		}
-		g_union_rel_writelock(sc);
+		g_logstor_rel_writelock(sc);
 		if (error == 0 && verbose)
 			gctl_msg(req, 0, "Device %s has been committed.",
 			    pp->name);
-		G_UNION_DEBUG(1, "Device %s has been committed.", pp->name);
+		G_LOGSTOR_DEBUG(1, "Device %s has been committed.", pp->name);
 	}
 	gctl_post_messages(req);
 	g_free(bp->bio_data);
@@ -770,9 +770,9 @@ cleanup:
  * Generally allow access unless a commit is in progress.
  */
 static int
-g_union_access(struct g_provider *pp, int r, int w, int e)
+g_logstor_access(struct g_provider *pp, int r, int w, int e)
 {
-	struct g_union_softc *sc;
+	struct g_logstor_softc *sc;
 
 	sc = pp->geom->softc;
 	if (sc == NULL) {
@@ -783,23 +783,23 @@ g_union_access(struct g_provider *pp, int r, int w, int e)
 	r += pp->acr;
 	w += pp->acw;
 	e += pp->ace;
-	if (g_union_get_writelock(sc) != 0) {
+	if (g_logstor_get_writelock(sc) != 0) {
 		if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0)
 			return (0);
 		return (EBUSY);
 	}
-	g_union_rel_writelock(sc);
+	g_logstor_rel_writelock(sc);
 	return (0);
 }
 
 /*
- * Initiate an I/O operation on the union device.
+ * Initiate an I/O operation on the logstor device.
  */
 static void
-g_union_start(struct bio *bp)
+g_logstor_start(struct bio *bp)
 {
-	struct g_union_softc *sc;
-	struct g_union_wip *wip;
+	struct g_logstor_softc *sc;
+	struct g_logstor_wip *wip;
 	struct bio *cbp;
 
 	sc = bp->bio_to->geom->softc;
@@ -816,7 +816,7 @@ g_union_start(struct bio *bp)
 		wip->wip_end = wip->wip_start + bp->bio_length - 1;
 		wip->wip_numios = 1;
 		wip->wip_error = 0;
-		g_union_doio(wip);
+		g_logstor_doio(wip);
 		return;
 	}
 
@@ -835,39 +835,39 @@ g_union_start(struct bio *bp)
 
 	switch (cbp->bio_cmd) {
 	case BIO_DELETE:
-		G_UNION_LOGREQ(cbp, "Delete request received.");
+		G_LOGSTOR_LOGREQ(cbp, "Delete request received.");
 		atomic_add_long(&sc->sc_deletes, 1);
 		break;
 	case BIO_GETATTR:
-		G_UNION_LOGREQ(cbp, "Getattr request received.");
+		G_LOGSTOR_LOGREQ(cbp, "Getattr request received.");
 		atomic_add_long(&sc->sc_getattrs, 1);
 		if (strcmp(cbp->bio_attribute, "GEOM::kerneldump") != 0)
 			/* forward the GETATTR to the lower-level device */
 			break;
-		g_union_kerneldump(bp, sc);
+		g_logstor_kerneldump(bp, sc);
 		return;
 	case BIO_FLUSH:
-		G_UNION_LOGREQ(cbp, "Flush request received.");
+		G_LOGSTOR_LOGREQ(cbp, "Flush request received.");
 		atomic_add_long(&sc->sc_flushes, 1);
 		break;
 	case BIO_SPEEDUP:
-		G_UNION_LOGREQ(cbp, "Speedup request received.");
+		G_LOGSTOR_LOGREQ(cbp, "Speedup request received.");
 		atomic_add_long(&sc->sc_speedups, 1);
 		break;
 	case BIO_CMD0:
-		G_UNION_LOGREQ(cbp, "Cmd0 request received.");
+		G_LOGSTOR_LOGREQ(cbp, "Cmd0 request received.");
 		atomic_add_long(&sc->sc_cmd0s, 1);
 		break;
 	case BIO_CMD1:
-		G_UNION_LOGREQ(cbp, "Cmd1 request received.");
+		G_LOGSTOR_LOGREQ(cbp, "Cmd1 request received.");
 		atomic_add_long(&sc->sc_cmd1s, 1);
 		break;
 	case BIO_CMD2:
-		G_UNION_LOGREQ(cbp, "Cmd2 request received.");
+		G_LOGSTOR_LOGREQ(cbp, "Cmd2 request received.");
 		atomic_add_long(&sc->sc_cmd2s, 1);
 		break;
 	default:
-		G_UNION_LOGREQ(cbp, "Unknown (%d) request received.",
+		G_LOGSTOR_LOGREQ(cbp, "Unknown (%d) request received.",
 		    cbp->bio_cmd);
 		break;
 	}
@@ -875,14 +875,14 @@ g_union_start(struct bio *bp)
 }
 
 /*
- * Initiate a read or write operation on the union device.
+ * Initiate a read or write operation on the logstor device.
  */
 static void
-g_union_doio(struct g_union_wip *wip)
+g_logstor_doio(struct g_logstor_wip *wip)
 {
-	struct g_union_softc *sc;
+	struct g_logstor_softc *sc;
 	struct g_consumer *cp, *firstcp;
-	struct g_union_wip *activewip;
+	struct g_logstor_wip *activewip;
 	struct bio *cbp, *firstbp;
 	off_t rdlen, len2rd, offset;
 	int iocnt, needstoblock;
@@ -940,14 +940,14 @@ g_union_doio(struct g_union_wip *wip)
 		TAILQ_REMOVE(&sc->sc_wiplist, wip, wip_next);
 		G_WUNLOCK(sc);
 		KASSERT(TAILQ_FIRST(&wip->wip_waiting) == NULL,
-		    ("g_union_doio: non-empty work-in-progress waiting queue"));
+		    ("g_logstor_doio: non-empty work-in-progress waiting queue"));
 		g_io_deliver(wip->wip_bp, ENOMEM);
 		g_free(wip);
 		return;
 	}
 	G_WUNLOCK(sc);
 	cbp->bio_caller1 = wip;
-	cbp->bio_done = g_union_done;
+	cbp->bio_done = g_logstor_done;
 	cbp->bio_offset = wip->wip_start;
 
 	/*
@@ -955,7 +955,7 @@ g_union_doio(struct g_union_wip *wip)
 	 * are written are recorded in the bitmap when the I/O completes.
 	 */
 	if (cbp->bio_cmd == BIO_WRITE) {
-		G_UNION_LOGREQ(cbp, "Sending %jd byte write request to upper "
+		G_LOGSTOR_LOGREQ(cbp, "Sending %jd byte write request to upper "
 		    "level.", cbp->bio_length);
 		atomic_add_long(&sc->sc_writes, 1);
 		atomic_add_long(&sc->sc_wrotebytes, cbp->bio_length);
@@ -981,7 +981,7 @@ g_union_doio(struct g_union_wip *wip)
 	rdlen = cbp->bio_length;
 	offset = 0;
 	for (iocnt = 0; ; iocnt++) {
-		if (g_union_getmap(cbp, sc, &len2rd)) {
+		if (g_logstor_getmap(cbp, sc, &len2rd)) {
 			/* read top */
 			cp = sc->sc_uppercp;
 			level = "upper";
@@ -992,7 +992,7 @@ g_union_doio(struct g_union_wip *wip)
 		}
 		/* Check if only a single read is required */
 		if (iocnt == 0 && rdlen == len2rd) {
-			G_UNION_LOGREQLVL((cp == sc->sc_uppercp) ?
+			G_LOGSTOR_LOGREQLVL((cp == sc->sc_uppercp) ?
 			    3 : 4, cbp, "Sending %jd byte read "
 			    "request to %s level.", len2rd, level);
 			g_io_request(cbp, cp);
@@ -1005,7 +1005,7 @@ g_union_doio(struct g_union_wip *wip)
 			cbp->bio_data += offset;
 		offset += len2rd;
 		rdlen -= len2rd;
-		G_UNION_LOGREQLVL(3, cbp, "Sending %jd byte read "
+		G_LOGSTOR_LOGREQLVL(3, cbp, "Sending %jd byte read "
 		    "request to %s level.", len2rd, level);
 		/*
 		 * To avoid prematurely notifying our consumer
@@ -1030,7 +1030,7 @@ g_union_doio(struct g_union_wip *wip)
 			break;
 		}
 		cbp->bio_caller1 = wip;
-		cbp->bio_done = g_union_done;
+		cbp->bio_done = g_logstor_done;
 		cbp->bio_offset += offset;
 		cbp->bio_length = rdlen;
 		atomic_add_long(&sc->sc_reads, 1);
@@ -1041,13 +1041,13 @@ g_union_doio(struct g_union_wip *wip)
 }
 
 /*
- * Used when completing a union I/O operation.
+ * Used when completing a logstor I/O operation.
  */
 static void
-g_union_done(struct bio *bp)
+g_logstor_done(struct bio *bp)
 {
-	struct g_union_wip *wip, *waitingwip;
-	struct g_union_softc *sc;
+	struct g_logstor_wip *wip, *waitingwip;
+	struct g_logstor_softc *sc;
 
 	wip = bp->bio_caller1;
 	if (wip->wip_error != 0 && bp->bio_error == 0)
@@ -1057,12 +1057,12 @@ g_union_done(struct bio *bp)
 		sc = wip->wip_sc;
 		G_WLOCK(sc);
 		if (bp->bio_cmd == BIO_WRITE)
-			g_union_setmap(bp, sc);
+			g_logstor_setmap(bp, sc);
 		TAILQ_REMOVE(&sc->sc_wiplist, wip, wip_next);
 		G_WUNLOCK(sc);
 		while ((waitingwip = TAILQ_FIRST(&wip->wip_waiting)) != NULL) {
 			TAILQ_REMOVE(&wip->wip_waiting, waitingwip, wip_next);
-			g_union_doio(waitingwip);
+			g_logstor_doio(waitingwip);
 		}
 		g_free(wip);
 	}
@@ -1073,7 +1073,7 @@ g_union_done(struct bio *bp)
  * Record blocks that have been written in the map.
  */
 static void
-g_union_setmap(struct bio *bp, struct g_union_softc *sc)
+g_logstor_setmap(struct bio *bp, struct g_logstor_softc *sc)
 {
 	size_t root_idx;
 	uint64_t **leaf;
@@ -1082,13 +1082,13 @@ g_union_setmap(struct bio *bp, struct g_union_softc *sc)
 
 	G_WLOCKOWNED(sc);
 	KASSERT(bp->bio_offset % sc->sc_sectorsize == 0,
-	    ("g_union_setmap: offset not on sector boundry"));
+	    ("g_logstor_setmap: offset not on sector boundry"));
 	KASSERT(bp->bio_length % sc->sc_sectorsize == 0,
-	    ("g_union_setmap: length not a multiple of sectors"));
+	    ("g_logstor_setmap: length not a multiple of sectors"));
 	start = bp->bio_offset / sc->sc_sectorsize;
 	numsec = bp->bio_length / sc->sc_sectorsize;
 	KASSERT(start + numsec <= sc->sc_map_size,
-	    ("g_union_setmap: block %jd is out of range", start + numsec));
+	    ("g_logstor_setmap: block %jd is out of range", start + numsec));
 	for ( ; numsec > 0; numsec--, start++) {
 		root_idx = start / sc->sc_bits_per_leaf;
 		leaf = &sc->sc_writemap_root[root_idx];
@@ -1106,11 +1106,11 @@ g_union_setmap(struct bio *bp, struct g_union_softc *sc)
  * Return true if they have been written so should be read from the top
  * layer. Return false if they have not been written so should be read
  * from the bottom layer. Return in len2read the bytes to be read. See
- * the comment above the BIO_READ implementation in g_union_start() for
+ * the comment above the BIO_READ implementation in g_logstor_start() for
  * an explantion of why len2read may be shorter than the buffer length.
  */
 static bool
-g_union_getmap(struct bio *bp, struct g_union_softc *sc, off_t *len2read)
+g_logstor_getmap(struct bio *bp, struct g_logstor_softc *sc, off_t *len2read)
 {
 	off_t start, numsec, leafresid, bitloc;
 	bool first, maptype, retval;
@@ -1118,15 +1118,15 @@ g_union_getmap(struct bio *bp, struct g_union_softc *sc, off_t *len2read)
 	size_t root_idx;
 
 	KASSERT(bp->bio_offset % sc->sc_sectorsize == 0,
-	    ("g_union_getmap: offset not on sector boundry"));
+	    ("g_logstor_getmap: offset not on sector boundry"));
 	KASSERT(bp->bio_length % sc->sc_sectorsize == 0,
-	    ("g_union_getmap: length not a multiple of sectors"));
+	    ("g_logstor_getmap: length not a multiple of sectors"));
 	start = bp->bio_offset / sc->sc_sectorsize;
 	numsec = bp->bio_length / sc->sc_sectorsize;
-	G_UNION_DEBUG(4, "g_union_getmap: check %jd sectors starting at %jd\n",
+	G_LOGSTOR_DEBUG(4, "g_logstor_getmap: check %jd sectors starting at %jd\n",
 	    numsec, start);
 	KASSERT(start + numsec <= sc->sc_map_size,
-	    ("g_union_getmap: block %jd is out of range", start + numsec));
+	    ("g_logstor_getmap: block %jd is out of range", start + numsec));
 		root_idx = start / sc->sc_bits_per_leaf;
 	first = true;
 	maptype = false;
@@ -1186,8 +1186,8 @@ out:
 		numsec = 0;
 	}
 	*len2read = bp->bio_length - (numsec * sc->sc_sectorsize);
-	G_UNION_DEBUG(maptype ? 3 : 4,
-	    "g_union_getmap: return maptype %swritten for %jd "
+	G_LOGSTOR_DEBUG(maptype ? 3 : 4,
+	    "g_logstor_getmap: return maptype %swritten for %jd "
 	    "sectors ending at %jd\n", maptype ? "" : "NOT ",
 	    *len2read / sc->sc_sectorsize, start - 1);
 	return (maptype);
@@ -1197,7 +1197,7 @@ out:
  * Fill in details for a BIO_GETATTR request.
  */
 static void
-g_union_kerneldump(struct bio *bp, struct g_union_softc *sc)
+g_logstor_kerneldump(struct bio *bp, struct g_logstor_softc *sc)
 {
 	struct g_kerneldump *gkd;
 	struct g_geom *gp;
@@ -1210,7 +1210,7 @@ g_union_kerneldump(struct bio *bp, struct g_union_softc *sc)
 
 	pp = LIST_FIRST(&gp->provider);
 
-	gkd->di.dumper = g_union_dumper;
+	gkd->di.dumper = g_logstor_dumper;
 	gkd->di.priv = sc;
 	gkd->di.blocksize = pp->sectorsize;
 	gkd->di.maxiosize = DFLTPHYS;
@@ -1226,23 +1226,23 @@ g_union_kerneldump(struct bio *bp, struct g_union_softc *sc)
 }
 
 /*
- * Handler for g_union_kerneldump().
+ * Handler for g_logstor_kerneldump().
  */
 static int
-g_union_dumper(void *priv, void *virtual, off_t offset, size_t length)
+g_logstor_dumper(void *priv, void *virtual, off_t offset, size_t length)
 {
 
 	return (0);
 }
 
 /*
- * List union statistics.
+ * List logstor statistics.
  */
 static void
-g_union_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
+g_logstor_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
     struct g_consumer *cp, struct g_provider *pp)
 {
-	struct g_union_softc *sc;
+	struct g_logstor_softc *sc;
 
 	if (pp != NULL || cp != NULL || gp->softc == NULL)
 		return;
@@ -1285,31 +1285,31 @@ g_union_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
  * Clean up an orphaned geom.
  */
 static void
-g_union_orphan(struct g_consumer *cp)
+g_logstor_orphan(struct g_consumer *cp)
 {
 
 	g_topology_assert();
-	g_union_destroy(NULL, cp->geom, true);
+	g_logstor_destroy(NULL, cp->geom, true);
 }
 
 /*
- * Clean up a union geom.
+ * Clean up a logstor geom.
  */
 static int
-g_union_destroy_geom(struct gctl_req *req, struct g_class *mp,
+g_logstor_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp)
 {
 
-	return (g_union_destroy(NULL, gp, false));
+	return (g_logstor_destroy(NULL, gp, false));
 }
 
 /*
- * Clean up a union device.
+ * Clean up a logstor device.
  */
 static int
-g_union_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
+g_logstor_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 {
-	struct g_union_softc *sc;
+	struct g_logstor_softc *sc;
 	struct g_provider *pp;
 	int error;
 
@@ -1324,14 +1324,14 @@ g_union_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 			if (req != NULL)
 				gctl_msg(req, 0, "Device %s is still in use, "
 				    "so is being forcibly removed.", gp->name);
-			G_UNION_DEBUG(1, "Device %s is still in use, so "
+			G_LOGSTOR_DEBUG(1, "Device %s is still in use, so "
 			    "is being forcibly removed.", gp->name);
 		} else {
 			if (req != NULL)
 				gctl_msg(req, EBUSY, "Device %s is still open "
 				    "(r=%d w=%d e=%d).", gp->name, pp->acr,
 				    pp->acw, pp->ace);
-			G_UNION_DEBUG(1, "Device %s is still open "
+			G_LOGSTOR_DEBUG(1, "Device %s is still open "
 			    "(r=%d w=%d e=%d).", gp->name, pp->acr,
 			    pp->acw, pp->ace);
 			return (EBUSY);
@@ -1339,14 +1339,14 @@ g_union_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 	} else {
 		if (req != NULL)
 			gctl_msg(req, 0, "Device %s removed.", gp->name);
-		G_UNION_DEBUG(1, "Device %s removed.", gp->name);
+		G_LOGSTOR_DEBUG(1, "Device %s removed.", gp->name);
 	}
 	/* Close consumers */
 	if ((error = g_access(sc->sc_lowercp, -1, 0, -1)) != 0)
-		G_UNION_DEBUG(2, "Error %d: device %s could not reset access "
+		G_LOGSTOR_DEBUG(2, "Error %d: device %s could not reset access "
 		    "to %s.", error, gp->name, sc->sc_lowercp->provider->name);
 	if ((error = g_access(sc->sc_uppercp, -1, -1, -1)) != 0)
-		G_UNION_DEBUG(2, "Error %d: device %s could not reset access "
+		G_LOGSTOR_DEBUG(2, "Error %d: device %s could not reset access "
 		    "to %s.", error, gp->name, sc->sc_uppercp->provider->name);
 
 	g_wither_geom(gp, ENXIO);
@@ -1355,13 +1355,13 @@ g_union_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 }
 
 /*
- * Clean up a union provider.
+ * Clean up a logstor provider.
  */
 static void
-g_union_providergone(struct g_provider *pp)
+g_logstor_providergone(struct g_provider *pp)
 {
 	struct g_geom *gp;
-	struct g_union_softc *sc;
+	struct g_logstor_softc *sc;
 	size_t i;
 
 	gp = pp->geom;
@@ -1379,9 +1379,9 @@ g_union_providergone(struct g_provider *pp)
  * Respond to a resized provider.
  */
 static void
-g_union_resize(struct g_consumer *cp)
+g_logstor_resize(struct g_consumer *cp)
 {
-	struct g_union_softc *sc;
+	struct g_logstor_softc *sc;
 	struct g_geom *gp;
 
 	g_topology_assert();
@@ -1395,8 +1395,8 @@ g_union_resize(struct g_consumer *cp)
 	 */
 	if (sc->sc_size < cp->provider->mediasize - sc->sc_offset)
 		return;
-	g_union_destroy(NULL, gp, true);
+	g_logstor_destroy(NULL, gp, true);
 }
 
-DECLARE_GEOM_CLASS(g_union_class, g_union);
-MODULE_VERSION(geom_union, 0);
+DECLARE_GEOM_CLASS(g_logstor_class, g_logstor);
+MODULE_VERSION(geom_logstor, 0);
