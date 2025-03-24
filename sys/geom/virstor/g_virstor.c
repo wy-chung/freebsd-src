@@ -58,14 +58,14 @@ FEATURE(g_virstor, "GEOM virtual storage support");
 
 /* Declare malloc(9) label */
 static MALLOC_DEFINE(M_GVIRSTOR, "gvirstor", "GEOM_VIRSTOR Data");
-
+#if !defined(WYC)
 /* GEOM class methods */
 static g_init_t g_virstor_init;
 static g_fini_t g_virstor_fini;
 static g_taste_t g_virstor_taste;
 static g_ctl_req_t g_virstor_config;
 static g_ctl_destroy_geom_t g_virstor_destroy_geom;
-
+#endif
 /* Declare & initialize class structure ("geom class") */
 struct g_class g_virstor_class = {
 	.name =		G_VIRSTOR_CLASS_NAME,
@@ -813,7 +813,7 @@ g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	 * is first from a (possibly) multi-consumer geom) or it just needs
 	 * to be added to an existing instance. */
 	sc = NULL;
-	gp = NULL;
+	//gp = NULL;
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)

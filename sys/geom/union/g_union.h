@@ -127,15 +127,15 @@ static inline int
 g_union_get_writelock(struct g_union_softc *sc)
 {
 
-	return (atomic_testandset_long(&sc->sc_flags, DOING_COMMIT_BITNUM));
+	return (atomic_testandset_long(&sc->sc_flags, DOING_COMMIT_BITNUM)); // set bit DOING_COMMIT_BITNUM
 }
 
 static inline void
 g_union_rel_writelock(struct g_union_softc *sc)
 {
-	long ret __diagused;
+	long ret __diagused; // is used only when KASSERT is defined
 
-	ret = atomic_testandclear_long(&sc->sc_flags, DOING_COMMIT_BITNUM);
+	ret = atomic_testandclear_long(&sc->sc_flags, DOING_COMMIT_BITNUM); // clear bit DOING_COMMIT_BITNUM
 	KASSERT(ret != 0, ("UNION GEOM releasing unheld lock"));
 }
 

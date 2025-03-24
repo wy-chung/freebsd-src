@@ -304,6 +304,7 @@ g_metadata_store(const char *name, const unsigned char *md, size_t size)
 	}
 	assert(sectorsize >= (ssize_t)size);
 	sector = malloc(sectorsize);
+	//unsigned char sector[sectorsize]; // C99 supports Variable Length Arrays (VLAs)
 	if (sector == NULL) {
 		error = ENOMEM;
 		goto out;
@@ -349,6 +350,7 @@ g_metadata_clear(const char *name, const char *magic)
 		goto out;
 	}
 	sector = malloc(sectorsize);
+	//unsigned char sector[sectorsize]; // C99 supports Variable Length Arrays (VLAs)
 	if (sector == NULL) {
 		error = ENOMEM;
 		goto out;
@@ -445,7 +447,7 @@ gctl_get_int(struct gctl_req *req, const char *pfmt, ...)
 	va_list ap;
 
 	va_start(ap, pfmt);
-	p = gctl_get_param(req, sizeof(int), pfmt, ap);
+	p = gctl_get_param(req, sizeof(int), pfmt, ap); // sizeof(int) == 4
 	va_end(ap);
 	return (*p);
 }
@@ -457,7 +459,7 @@ gctl_get_intmax(struct gctl_req *req, const char *pfmt, ...)
 	va_list ap;
 
 	va_start(ap, pfmt);
-	p = gctl_get_param(req, sizeof(intmax_t), pfmt, ap);
+	p = gctl_get_param(req, sizeof(intmax_t), pfmt, ap); // sizeof(intmax_t) == 8
 	va_end(ap);
 	return (*p);
 }

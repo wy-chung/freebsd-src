@@ -332,6 +332,7 @@ virstor_label(struct gctl_req *req)
 	/* Do it with calloc because there might be a need to set up chunk flags
 	 * in the future */
 	map = calloc(total_chunks, sizeof(*map));
+	// struct virstor_map_entry map[total_chunks];
 	if (map == NULL) {
 		gctl_error(req,
 		    "Out of memory (need %zu bytes for allocation map)",
@@ -405,6 +406,7 @@ virstor_label(struct gctl_req *req)
 				strlcpy(md.provider, name, sizeof(md.provider));
 		}
 		sect = calloc(ssize, sizeof(unsigned char));
+		//unsigned char sect[ssize];
 		if (sect == NULL)
 			err(1, "Cannot allocate sector of %zu bytes", ssize);
 		virstor_metadata_encode(&md, sect);
