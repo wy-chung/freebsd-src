@@ -51,6 +51,7 @@ SYSCTL_UINT(_kern_geom_union, OID_AUTO, debug, CTLFLAG_RW, &g_union_debug, 0,
 
 static void g_union_config(struct gctl_req *req, struct g_class *mp,
     const char *verb);
+#if !defined(WYC)
 static g_access_t g_union_access;
 static g_start_t g_union_start;
 static g_dumpconf_t g_union_dumpconf;
@@ -59,7 +60,7 @@ static int g_union_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
 static g_provgone_t g_union_providergone;
 static g_resize_t g_union_resize;
-
+#endif
 struct g_class g_union_class = {
 	.name = G_UNION_CLASS_NAME,
 	.version = G_VERSION,
@@ -563,9 +564,9 @@ g_union_ctl_revert(struct gctl_req *req, struct g_class *mp, bool verbose)
 		 * No mount or other use of union is allowed.
 		 */
 		if (pp->acr > 0 || pp->acw > 0 || pp->ace > 0) {
-			gctl_msg(req, EPERM, "Unable to get exclusive access "
-			    "for reverting of %s;\n\t%s cannot be mounted or "
-			    "otherwise open during a revert.",
+			gctl_msg(req, EPERM,
+			    "Unable to get exclusive access for reverting of %s;\n"
+				"\t%s cannot be mounted or otherwise open during a revert.",
 			     pp->name, pp->name);
 			g_union_rel_writelock(sc);
 			continue;
@@ -666,10 +667,11 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		 */
 		if ((*force == false && pp->acr > 0) || pp->acw > 0 ||
 		     pp->ace > 0) {
-			gctl_msg(req, EPERM, "Unable to get exclusive access "
-			    "for writing of %s.\n\tNote that %s cannot be "
-			    "mounted or otherwise\n\topen during a commit "
-			    "unless the -f flag is used.", pp->name, pp->name);
+			gctl_msg(req, EPERM,
+			    "Unable to get exclusive access for writing of %s.\n"
+				"\tNote that %s cannot be mounted or otherwise\n"
+				"\topen during a commit unless the -f flag is used.",
+			    pp->name, pp->name);
 			g_union_rel_writelock(sc);
 			continue;
 		}
@@ -680,11 +682,11 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		if ((*force == false && lowerpp->acr > lowercp->acr) ||
 		     lowerpp->acw > lowercp->acw ||
 		     lowerpp->ace > lowercp->ace) {
-			gctl_msg(req, EPERM, "provider %s is unable to get "
-			    "exclusive access to %s\n\tfor writing. Note that "
-			    "%s cannot be mounted or otherwise open\n\tduring "
-			    "a commit unless the -f flag is used.", pp->name,
-			    lowerpp->name, lowerpp->name);
+			gctl_msg(req, EPERM,
+			    "provider %s is unable to get exclusive access to %s\n"
+				"\tfor writing. Note that %s cannot be mounted or otherwise open\n"
+				"\tduring a commit unless the -f flag is used.",
+			    pp->name, lowerpp->name, lowerpp->name);
 			g_union_rel_writelock(sc);
 			continue;
 		}
