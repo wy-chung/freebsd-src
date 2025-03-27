@@ -287,7 +287,7 @@ WOULD_OVERFLOW(size_t nmemb, size_t size)
 #undef MUL_NO_OVERFLOW
 #endif /* _KERNEL */
 
-#else
+#else // _STANDALONE, meaning it does not depend on the standard C library
 /*
  * The native stand malloc / free interface we're mapping to
  */
