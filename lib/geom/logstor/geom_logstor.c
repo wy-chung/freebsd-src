@@ -41,7 +41,6 @@ struct g_command class_commands[] = {
 	    {
 		{ 'o', "offset", "0", G_TYPE_NUMBER },
 		{ 's', "size", "0", G_TYPE_NUMBER },
-		{ 'S', "secsize", "0", G_TYPE_NUMBER },
 		{ 'v', "verbose", NULL, G_TYPE_BOOL },
 		{ 'Z', "glogstorname", G_VAL_OPTIONAL, G_TYPE_STRING },
 		G_OPT_SENTINEL
