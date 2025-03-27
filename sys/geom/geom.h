@@ -206,7 +206,7 @@ struct g_geom_alias {
 	//u_int			flags;
 #define G_PF_WITHER		0x2
 #define G_PF_ORPHAN		0x4
-#define	G_PF_ACCEPT_UNMAPPED	0x8
+#define	G_PF_ACCEPT_UNMAPPED	0x8	// Unmapped I/O
 #define G_PF_DIRECT_SEND	0x10
 #define G_PF_DIRECT_RECEIVE	0x20
 struct g_provider {

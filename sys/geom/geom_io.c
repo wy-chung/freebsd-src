@@ -490,7 +490,7 @@ g_io_check(struct bio *bp)
 }
 
 void
-g_io_request(struct bio *bp, struct g_consumer *cp)
+g_io_request(struct bio *bp, struct g_consumer *cp) // sent bio down
 {
 	struct g_provider *pp;
 	int direct, error, first;
@@ -599,7 +599,7 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 }
 
 void
-g_io_deliver(struct bio *bp, int error)
+g_io_deliver(struct bio *bp, int error) // sent bio up
 {
 	struct bintime now;
 	struct g_consumer *cp;
