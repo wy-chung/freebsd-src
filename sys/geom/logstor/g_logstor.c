@@ -52,6 +52,7 @@ SYSCTL_UINT(_kern_geom_logstor, OID_AUTO, debug, CTLFLAG_RW, &g_logstor_debug, 0
 static void g_logstor_config(struct gctl_req *req, struct g_class *mp,
     const char *verb);
 #if !defined(WYC)
+//static g_taste_t g_logstor_taste; // from virstor
 static g_access_t g_logstor_access;
 static g_start_t g_logstor_start;
 static g_dumpconf_t g_logstor_dumpconf;
@@ -76,7 +77,6 @@ struct g_class g_logstor_class = {
 
 static void g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp, bool);
 static intmax_t g_logstor_fetcharg(struct gctl_req *req, const char *name);
-static bool g_logstor_verify_nprefix(const char *name);
 static void g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp, bool);
 static struct g_geom *g_logstor_find_geom(struct g_class *mp, const char *name);
 static void g_logstor_ctl_reset(struct gctl_req *req, struct g_class *mp, bool);
@@ -142,14 +142,11 @@ g_logstor_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 static void
 g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 {
-	struct g_provider *upperpp, *lowerpp, *newpp;
-	struct g_consumer *uppercp, *lowercp;
+	struct g_provider *pp, *newpp;
 	struct g_logstor_softc *sc;
 	struct g_geom_alias *gap;
 	struct g_geom *gp;
-	intmax_t offset, secsize, size, needed;
-	const char *glogstorname;
-	int *nargs, error, i, n;
+	int *nargs;
 	char name[64];
 
 	g_topology_assert();
@@ -159,84 +156,38 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 		gctl_error(req, "No '%s' argument.", "nargs");
 		return;
 	}
-	if (*nargs < 2) {
-		gctl_error(req, "Missing device(s).");
-		return;
-	}
-	if (*nargs > 2) {
+	if (*nargs != 2) {
 		gctl_error(req, "Extra device(s).");
 		return;
 	}
-
-	offset = g_logstor_fetcharg(req, "offset");
-	size = g_logstor_fetcharg(req, "size");
-	secsize = g_logstor_fetcharg(req, "secsize");
-	glogstorname = gctl_get_asciiparam(req, "glogstorname");
-
-	upperpp = gctl_get_provider(req, "arg0");
-	lowerpp = gctl_get_provider(req, "arg1");
-	if (upperpp == NULL || lowerpp == NULL)
+	pp = gctl_get_provider(req, "arg0");
+	if (pp == NULL)
 		/* error message provided by gctl_get_provider() */
 		return;
 	/* Create the logstor */
-	if (secsize == 0)
-		secsize = lowerpp->sectorsize;
-	else if ((secsize % lowerpp->sectorsize) != 0) {
-		gctl_error(req, "Sector size %jd is not a multiple of lower "
-		    "provider %s's %jd sector size.", (intmax_t)secsize,
-		    lowerpp->name, (intmax_t)lowerpp->sectorsize);
-		return;
-	}
-	if (secsize > maxphys) {
-		gctl_error(req, "Too big secsize %jd for lower provider %s.",
-		    (intmax_t)secsize, lowerpp->name);
-		return;
-	}
-	if (secsize % upperpp->sectorsize != 0) {
+	intmax_t secsize = 4096;
+	if (secsize % pp->sectorsize != 0) {
 		gctl_error(req, "Sector size %jd is not a multiple of upper "
 		    "provider %s's %jd sector size.", (intmax_t)secsize,
-		    upperpp->name, (intmax_t)upperpp->sectorsize);
+		    pp->name, (intmax_t)pp->sectorsize);
 		return;
 	}
-	if ((offset % secsize) != 0) {
-		gctl_error(req, "Offset %jd is not a multiple of lower "
-		    "provider %s's %jd sector size.", (intmax_t)offset,
-		    lowerpp->name, (intmax_t)lowerpp->sectorsize);
-		return;
-	}
+	intmax_t size = g_logstor_fetcharg(req, "size");
 	if (size == 0)
-		size = lowerpp->mediasize - offset;
-	else
-		size -= offset;
+		size = pp->mediasize;
+
 	if ((size % secsize) != 0) {
 		gctl_error(req, "Size %jd is not a multiple of sector size "
 		    "%jd.", (intmax_t)size, (intmax_t)secsize);
 		return;
 	}
-	if (offset + size < lowerpp->mediasize) {
-		gctl_error(req, "Size %jd is too small for lower provider %s, "
-		    "needs %jd.", (intmax_t)(offset + size), lowerpp->name,
-		    lowerpp->mediasize);
-		return;
-	}
-	if (size > upperpp->mediasize) {
+	if (size > pp->mediasize) {
 		gctl_error(req, "Upper provider %s size (%jd) is too small, "
-		    "needs %jd.", upperpp->name, (intmax_t)upperpp->mediasize,
+		    "needs %jd.", pp->name, (intmax_t)pp->mediasize,
 		    (intmax_t)size);
 		return;
 	}
-	if (glogstorname != NULL && !g_logstor_verify_nprefix(glogstorname)) {
-		gctl_error(req, "Glogstor name %s must be alphanumeric.",
-		    glogstorname);
-		return;
-	}
-	if (glogstorname != NULL) {
-		n = snprintf(name, sizeof(name), "%s%s", glogstorname,
-		    G_LOGSTOR_SUFFIX);
-	} else {
-		n = snprintf(name, sizeof(name), "%s-%s%s", upperpp->name,
-		    lowerpp->name, G_LOGSTOR_SUFFIX);
-	}
+	int n = snprintf(name, sizeof(name), "%s%s", pp->name, G_LOGSTOR_SUFFIX);
 	if (n <= 0 || n >= sizeof(name)) {
 		gctl_error(req, "Invalid provider name.");
 		return;
@@ -251,7 +202,6 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	rw_init(&sc->sc_rwlock, "glogstor");
 	TAILQ_INIT(&sc->sc_wiplist);
-	sc->sc_offset = offset;
 	sc->sc_size = size;
 	sc->sc_sectorsize = secsize;
 	sc->sc_reads = 0;
@@ -270,46 +220,27 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 
 	newpp = g_new_providerf(gp, "%s", gp->name);
 	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
-	newpp->mediasize = size;
+	newpp->mediasize = size; //wyctodo
 	newpp->sectorsize = secsize;
-	LIST_FOREACH(gap, &upperpp->aliases, ga_next)
+	LIST_FOREACH(gap, &pp->aliases, ga_next) {
 		g_provider_add_alias(newpp, "%s%s", gap->ga_alias,
 		    G_LOGSTOR_SUFFIX);
-	LIST_FOREACH(gap, &lowerpp->aliases, ga_next)
-		g_provider_add_alias(newpp, "%s%s", gap->ga_alias,
-		    G_LOGSTOR_SUFFIX);
-	lowercp = g_new_consumer(gp);
-	lowercp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
-	if ((error = g_attach(lowercp, lowerpp)) != 0) {
+	}
+	struct g_consumer *cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
+	int error;
+	if ((error = g_attach(cp, pp)) != 0) {
 		gctl_error(req, "Error %d: cannot attach to provider %s.",
-		    error, lowerpp->name);
-		goto fail1;
+		    error, pp->name);
+		goto fail;
 	}
-	/* request read and exclusive access for lower */
-	if ((error = g_access(lowercp, 1, 0, 1)) != 0) {
-		gctl_error(req, "Error %d: cannot obtain exclusive access to "
-		    "%s.\n\tMust be unmounted or mounted read-only.", error,
-		    lowerpp->name);
-		goto fail2;
-	}
-	uppercp = g_new_consumer(gp);
-	uppercp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
-	if ((error = g_attach(uppercp, upperpp)) != 0) {
-		gctl_error(req, "Error %d: cannot attach to provider %s.",
-		    error, upperpp->name);
-		goto fail3;
-	}
-	/* request read, write, and exclusive access for upper */
-	if ((error = g_access(uppercp, 1, 1, 1)) != 0) {
+	/* request read, write, and exclusive access for lower */
+	if ((error = g_access(cp, 1, 1, 1)) != 0) {
 		gctl_error(req, "Error %d: cannot obtain write access to %s.",
-		    error, upperpp->name);
-		goto fail4;
+		    error, pp->name);
+		goto fail;
 	}
-	sc->sc_uppercp = uppercp;
-	sc->sc_lowercp = lowercp;
-
-	newpp->flags |= (upperpp->flags & G_PF_ACCEPT_UNMAPPED) &
-	    (lowerpp->flags & G_PF_ACCEPT_UNMAPPED);
+	newpp->flags |= (pp->flags & G_PF_ACCEPT_UNMAPPED);
 	g_error_provider(newpp, 0);
 	/*
 	 * Allocate the map that tracks the sectors that have been written
@@ -323,7 +254,7 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	 * thread which cannot sleep.
 	 */
 	sc->sc_map_size = roundup(size / secsize, BITS_PER_ENTRY);
-	needed = sc->sc_map_size / BITS_PER_ENTRY;
+	intmax_t needed = sc->sc_map_size / BITS_PER_ENTRY;
 	for (sc->sc_root_size = 1;
 	     sc->sc_root_size * sc->sc_root_size < needed;
 	     sc->sc_root_size++)
@@ -334,7 +265,7 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	sc->sc_bits_per_leaf = sc->sc_leaf_size * BITS_PER_ENTRY;
 	sc->sc_leafused = g_malloc(roundup(sc->sc_root_size, BITS_PER_ENTRY),
 	    M_WAITOK | M_ZERO);
-	for (i = 0; i < sc->sc_root_size; i++)
+	for (int i = 0; i < sc->sc_root_size; i++)
 		sc->sc_writemap_root[i] =
 		    g_malloc(sc->sc_leaf_size * sizeof(uint64_t),
 		    M_WAITOK | M_ZERO);
@@ -349,15 +280,7 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	    gp->name, (intmax_t)sc->sc_writemap_memory);
 	return;
 
-fail4:
-	g_detach(uppercp);
-fail3:
-	g_destroy_consumer(uppercp);
-	g_access(lowercp, -1, 0, -1);
-fail2:
-	g_detach(lowercp);
-fail1:
-	g_destroy_consumer(lowercp);
+fail:
 	g_destroy_provider(newpp);
 	g_destroy_geom(gp);
 }
@@ -378,22 +301,6 @@ g_logstor_fetcharg(struct gctl_req *req, const char *name)
 	gctl_msg(req, EINVAL, "Invalid '%s' (%jd): negative value, "
 	    "using default.", name, *val);
 	return (0);
-}
-
-/*
- * Verify that a name is alphanumeric.
- */
-static bool
-g_logstor_verify_nprefix(const char *name)
-{
-	int i;
-
-	for (i = 0; i < strlen(name); i++) {
-		if (isalpha(name[i]) == 0 && isdigit(name[i]) == 0) {
-			return (false);
-		}
-	}
-	return (true);
 }
 
 /*
@@ -589,12 +496,12 @@ g_logstor_revert(struct g_logstor_softc *sc)
 {
 	int i;
 
-	G_WLOCK(sc);
+	GL_WLOCK(sc);
 	for (i = 0; i < sc->sc_root_size; i++)
 		memset(sc->sc_writemap_root[i], 0,
 		    sc->sc_leaf_size * sizeof(uint64_t));
 	memset(sc->sc_leafused, 0, roundup(sc->sc_root_size, BITS_PER_ENTRY));
-	G_WUNLOCK(sc);
+	GL_WUNLOCK(sc);
 }
 
 /*
@@ -605,12 +512,12 @@ g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 {
 	struct g_logstor_softc *sc;
 	struct g_provider *pp, *lowerpp;
-	struct g_consumer *lowercp;
+	struct g_consumer *cp;
 	struct g_geom *gp;
 	struct bio *bp;
 	char param[16];
 	off_t len2rd, len2wt, savelen;
-	int i, error, error1, *nargs, *force, *reboot;
+	int error, error1, *nargs, *force, *reboot;
 
 	g_topology_assert();
 
@@ -638,11 +545,12 @@ g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 	bp = g_alloc_bio();
 	bp->bio_data = g_malloc(MAXBSIZE, M_WAITOK);
 	bp->bio_done = biodone;
-	for (i = 0; i < *nargs; i++) {
+	for (int i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
 		pp = gctl_get_provider(req, param);
 		if (pp == NULL) {
-			gctl_msg(req, EINVAL, "No '%s' argument.", param);
+			gctl_msg(req, EINVAL, "Provider %s does not exist.",
+			    param);
 			continue;
 		}
 		gp = pp->geom;
@@ -659,8 +567,8 @@ g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		}
 	
 		/* upgrade to write access for lower */
-		lowercp = sc->sc_lowercp;
-		lowerpp = lowercp->provider;
+		cp = sc->sc_lowercp;
+		lowerpp = cp->provider;
 		/*
 		 * No mount or other use of logstor is allowed, unless the
 		 * -f flag is given which allows read-only mount or usage.
@@ -679,9 +587,9 @@ g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		 * No mount or other use of lower media is allowed, unless the
 		 * -f flag is given which allows read-only mount or usage.
 		 */
-		if ((*force == false && lowerpp->acr > lowercp->acr) ||
-		     lowerpp->acw > lowercp->acw ||
-		     lowerpp->ace > lowercp->ace) {
+		if ((*force == false && lowerpp->acr > cp->acr) ||
+		     lowerpp->acw > cp->acw ||
+		     lowerpp->ace > cp->ace) {
 			gctl_msg(req, EPERM,
 			    "provider %s is unable to get exclusive access to %s\n"
 				"\tfor writing. Note that %s cannot be mounted or otherwise open\n"
@@ -690,7 +598,7 @@ g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 			g_logstor_rel_writelock(sc);
 			continue;
 		}
-		if ((error = g_access(lowercp, 0, 1, 0)) != 0) {
+		if ((error = g_access(cp, 0, 1, 0)) != 0) {
 			gctl_msg(req, error, "Error %d: provider %s is unable "
 			    "to access %s for writing.", error, pp->name,
 			    lowerpp->name);
@@ -701,7 +609,7 @@ g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		/* Loop over write map copying across written blocks */
 		bp->bio_offset = 0;
 		bp->bio_length = sc->sc_map_size * sc->sc_sectorsize;
-		G_RLOCK(sc);
+		GL_RLOCK(sc);
 		error = 0;
 		while (bp->bio_length > 0) {
 			if (!g_logstor_getmap(bp, sc, &len2rd)) {
@@ -710,7 +618,7 @@ g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 				bp->bio_length -= len2rd;
 				continue;
 			}
-			G_RUNLOCK(sc);
+			GL_RUNLOCK(sc);
 			/* need to read then write len2rd sectors */
 			for ( ; len2rd > 0; len2rd -= len2wt) {
 				/* limit ourselves to MAXBSIZE size I/Os */
@@ -729,7 +637,7 @@ g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 				}
 				bp->bio_flags &= ~BIO_DONE;
 				bp->bio_cmd = BIO_WRITE;
-				g_io_request(bp, lowercp);
+				g_io_request(bp, cp);
 				if ((error = biowait(bp, "wtlogstor")) != 0) {
 					gctl_msg(req, error, "Commit write "
 					    "error %d in provider %s, commit "
@@ -740,15 +648,15 @@ g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 				bp->bio_offset += len2wt;
 				bp->bio_length = savelen - len2wt;
 			}
-			G_RLOCK(sc);
+			GL_RLOCK(sc);
 		}
-		G_RUNLOCK(sc);
+		GL_RUNLOCK(sc);
 		/* clear the write map */
 		g_logstor_revert(sc);
 cleanup:
 		g_topology_lock();
 		/* return lower to previous access */
-		if ((error1 = g_access(lowercp, 0, -1, 0)) != 0) {
+		if ((error1 = g_access(cp, 0, -1, 0)) != 0) {
 			G_LOGSTOR_DEBUG(2, "Error %d: device %s could not reset "
 			    "access to %s (r=0 w=-1 e=0).", error1, pp->name,
 			    lowerpp->name);
@@ -791,7 +699,109 @@ g_logstor_access(struct g_provider *pp, int r, int w, int e)
 	g_logstor_rel_writelock(sc);
 	return (0);
 }
+#if defined(WYC)
+/*
+ * Taste event (per-class callback)
+ * Examines a provider and creates geom instances if needed
+ */
+static struct g_geom *
+g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
+{
+	struct g_virstor_metadata md;
+	struct g_geom *gp;
+	struct g_consumer *cp;
+	struct g_virstor_softc *sc;
+	int error;
 
+	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
+	g_topology_assert();
+	LOG_MSG(LVL_DEBUG, "Tasting %s", pp->name);
+
+	/* We need a dummy geom to attach a consumer to the given provider */
+	gp = g_new_geomf(mp, "virstor:taste.helper");
+	gp->start = (void *)invalid_call;	/* XXX: hacked up so the        */
+	gp->access = (void *)invalid_call;	/* compiler doesn't complain.   */
+	gp->orphan = (void *)invalid_call;	/* I really want these to fail. */
+
+	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
+	error = g_attach(cp, pp);
+	if (error == 0) {
+		error = read_metadata(cp, &md);
+		g_detach(cp);
+	}
+	g_destroy_consumer(cp);
+	g_destroy_geom(gp);
+
+	if (error != 0)
+		return (NULL);
+
+	if (strcmp(md.md_magic, G_VIRSTOR_MAGIC) != 0)
+		return (NULL);
+	if (md.md_version != G_VIRSTOR_VERSION) {
+		LOG_MSG(LVL_ERROR, "Kernel module version invalid "
+		    "to handle %s (%s) : %d should be %d",
+		    md.md_name, pp->name, md.md_version, G_VIRSTOR_VERSION);
+		return (NULL);
+	}
+	if (md.provsize != pp->mediasize)
+		return (NULL);
+
+	/* If the provider name is hardcoded, use the offered provider only
+	 * if it's been offered with its proper name (the one used in
+	 * the label command). */
+	if (md.provider[0] != '\0' &&
+	    !g_compare_names(md.provider, pp->name))
+		return (NULL);
+
+	/* Iterate all geoms this class already knows about to see if a new
+	 * geom instance of this class needs to be created (in case the provider
+	 * is first from a (possibly) multi-consumer geom) or it just needs
+	 * to be added to an existing instance. */
+	sc = NULL;
+	//gp = NULL;
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		sc = gp->softc;
+		if (sc == NULL)
+			continue;
+		if (strcmp(md.md_name, sc->geom->name) != 0)
+			continue;
+		if (md.md_id != sc->id)
+			continue;
+		break;
+	}
+	if (gp != NULL) { /* We found an existing geom instance; add to it */
+		LOG_MSG(LVL_INFO, "Adding %s to %s", pp->name, md.md_name);
+		error = add_provider_to_geom(sc, pp, &md);
+		if (error != 0) {
+			LOG_MSG(LVL_ERROR, "Error adding %s to %s (error %d)",
+			    pp->name, md.md_name, error);
+			return (NULL);
+		}
+	} else { /* New geom instance needs to be created */
+		gp = create_virstor_geom(mp, &md);
+		if (gp == NULL) {
+			LOG_MSG(LVL_ERROR, "Error creating new instance of "
+			    "class %s: %s", mp->name, md.md_name);
+			LOG_MSG(LVL_DEBUG, "Error creating %s at %s",
+			    md.md_name, pp->name);
+			return (NULL);
+		}
+		sc = gp->softc;
+		LOG_MSG(LVL_INFO, "Adding %s to %s (first found)", pp->name,
+		    md.md_name);
+		error = add_provider_to_geom(sc, pp, &md);
+		if (error != 0) {
+			LOG_MSG(LVL_ERROR, "Error adding %s to %s (error %d)",
+			    pp->name, md.md_name, error);
+			virstor_geom_destroy(sc, TRUE, FALSE);
+			return (NULL);
+		}
+	}
+
+	return (gp);
+}
+#endif
 /*
  * Initiate an I/O operation on the logstor device.
  */
@@ -885,7 +895,7 @@ g_logstor_doio(struct g_logstor_wip *wip)
 	struct g_logstor_wip *activewip;
 	struct bio *cbp, *firstbp;
 	off_t rdlen, len2rd, offset;
-	int iocnt, needstoblock;
+	int iocnt;
 	char *level;
 
 	/*
@@ -903,12 +913,12 @@ g_logstor_doio(struct g_logstor_wip *wip)
 	 * on its wip_waiting list.
 	 */
 	sc = wip->wip_sc;
-	G_WLOCK(sc);
+	GL_WLOCK(sc);
 	TAILQ_FOREACH(activewip, &sc->sc_wiplist, wip_next) {
 		if (wip->wip_end < activewip->wip_start ||
 		    wip->wip_start > activewip->wip_end)
 			continue;
-		needstoblock = 1;
+		bool needstoblock = true;
 		if (wip->wip_bp->bio_cmd == BIO_WRITE)
 			if (activewip->wip_bp->bio_cmd == BIO_WRITE)
 				sc->sc_writeblockwrite += 1;
@@ -919,13 +929,13 @@ g_logstor_doio(struct g_logstor_wip *wip)
 				sc->sc_writeblockread += 1;
 			else {
 				sc->sc_readcurrentread += 1;
-				needstoblock = 0;
+				needstoblock = false;
 			}
 		/* Put request on a waiting list if necessary */
 		if (needstoblock) {
 			TAILQ_INSERT_TAIL(&activewip->wip_waiting, wip,
 			    wip_next);
-			G_WUNLOCK(sc);
+			GL_WUNLOCK(sc);
 			return;
 		}
 	}
@@ -938,14 +948,14 @@ g_logstor_doio(struct g_logstor_wip *wip)
 	cbp = g_clone_bio(wip->wip_bp);
 	if (cbp == NULL) {
 		TAILQ_REMOVE(&sc->sc_wiplist, wip, wip_next);
-		G_WUNLOCK(sc);
+		GL_WUNLOCK(sc);
 		KASSERT(TAILQ_FIRST(&wip->wip_waiting) == NULL,
 		    ("g_logstor_doio: non-empty work-in-progress waiting queue"));
 		g_io_deliver(wip->wip_bp, ENOMEM);
 		g_free(wip);
 		return;
 	}
-	G_WUNLOCK(sc);
+	GL_WUNLOCK(sc);
 	cbp->bio_caller1 = wip;
 	cbp->bio_done = g_logstor_done;
 	cbp->bio_offset = wip->wip_start;
@@ -1055,11 +1065,11 @@ g_logstor_done(struct bio *bp)
 	wip->wip_error = 0;
 	if (atomic_fetchadd_long(&wip->wip_numios, -1) == 1) {
 		sc = wip->wip_sc;
-		G_WLOCK(sc);
+		GL_WLOCK(sc);
 		if (bp->bio_cmd == BIO_WRITE)
 			g_logstor_setmap(bp, sc);
 		TAILQ_REMOVE(&sc->sc_wiplist, wip, wip_next);
-		G_WUNLOCK(sc);
+		GL_WUNLOCK(sc);
 		while ((waitingwip = TAILQ_FIRST(&wip->wip_waiting)) != NULL) {
 			TAILQ_REMOVE(&wip->wip_waiting, waitingwip, wip_next);
 			g_logstor_doio(waitingwip);
@@ -1080,7 +1090,7 @@ g_logstor_setmap(struct bio *bp, struct g_logstor_softc *sc)
 	uint64_t *wordp;
 	off_t start, numsec;
 
-	G_WLOCKOWNED(sc);
+	GL_WLOCKOWNED(sc);
 	KASSERT(bp->bio_offset % sc->sc_sectorsize == 0,
 	    ("g_logstor_setmap: offset not on sector boundry"));
 	KASSERT(bp->bio_length % sc->sc_sectorsize == 0,
@@ -1112,28 +1122,28 @@ g_logstor_setmap(struct bio *bp, struct g_logstor_softc *sc)
 static bool
 g_logstor_getmap(struct bio *bp, struct g_logstor_softc *sc, off_t *len2read)
 {
-	off_t start, numsec, leafresid, bitloc;
+	off_t start, numsec, bitloc;
 	bool first, maptype, retval;
 	uint64_t *leaf, word;
 	size_t root_idx;
 
 	KASSERT(bp->bio_offset % sc->sc_sectorsize == 0,
-	    ("g_logstor_getmap: offset not on sector boundry"));
+	    ("%s: offset not on sector boundry", __func__));
 	KASSERT(bp->bio_length % sc->sc_sectorsize == 0,
-	    ("g_logstor_getmap: length not a multiple of sectors"));
+	    ("%s: length not a multiple of sectors", __func__));
 	start = bp->bio_offset / sc->sc_sectorsize;
 	numsec = bp->bio_length / sc->sc_sectorsize;
-	G_LOGSTOR_DEBUG(4, "g_logstor_getmap: check %jd sectors starting at %jd\n",
-	    numsec, start);
+	G_LOGSTOR_DEBUG(4, "%s: check %jd sectors starting at %jd\n",
+	    __func__, numsec, start);
 	KASSERT(start + numsec <= sc->sc_map_size,
-	    ("g_logstor_getmap: block %jd is out of range", start + numsec));
-		root_idx = start / sc->sc_bits_per_leaf;
+	    ("%s: block %jd is out of range", __func__, start + numsec));
+	root_idx = start / sc->sc_bits_per_leaf;
 	first = true;
 	maptype = false;
 	while (numsec > 0) {
 		/* Check first if the leaf records any written sectors */
 		root_idx = start / sc->sc_bits_per_leaf;
-		leafresid = sc->sc_bits_per_leaf -
+		off_t leafresid = sc->sc_bits_per_leaf -
 		    (start % sc->sc_bits_per_leaf);
 		if (((sc->sc_leafused[root_idx / BITS_PER_ENTRY]) &
 		    (1ULL << (root_idx % BITS_PER_ENTRY))) == 0) {

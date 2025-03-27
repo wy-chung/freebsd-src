@@ -30,15 +30,15 @@
 #include <sys/param.h>
 #include <sys/endian.h>
 
-#include <geom/virstor/g_virstor_md.h>
-#include <geom/virstor/binstream.h>
+#include <geom/logstor/g_logstor_md.h>
+#include <geom/logstor/binstream.h>
 
 /*
- * Encode data from g_virstor_metadata structure into a endian-independent
+ * Encode data from g_logstor_metadata structure into a endian-independent
  * byte stream.
  */
 void
-virstor_metadata_encode(struct g_virstor_metadata *md, unsigned char *data)
+logstor_metadata_encode(struct g_logstor_metadata *md, unsigned char *data)
 {
 	bin_stream_t bs;
 
@@ -62,11 +62,11 @@ virstor_metadata_encode(struct g_virstor_metadata *md, unsigned char *data)
 }
 
 /*
- * Decode data from endian-independent byte stream into g_virstor_metadata
+ * Decode data from endian-independent byte stream into g_logstor_metadata
  * structure.
  */
 void
-virstor_metadata_decode(unsigned char *data, struct g_virstor_metadata *md)
+logstor_metadata_decode(unsigned char *data, struct g_logstor_metadata *md)
 {
 	bin_stream_t bs;
 
