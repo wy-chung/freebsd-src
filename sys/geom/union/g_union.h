@@ -112,11 +112,11 @@ struct g_union_wip {
 #define DOING_COMMIT_BITNUM	 0	/* a commit command is in progress */
 
 #define BITS_PER_ENTRY	(sizeof(uint64_t) * NBBY)
-#define G_RLOCK(sc)	rw_rlock(&(sc)->sc_rwlock)
-#define G_RUNLOCK(sc)	rw_runlock(&(sc)->sc_rwlock)
-#define G_WLOCK(sc)	rw_wlock(&(sc)->sc_rwlock)
-#define G_WUNLOCK(sc)	rw_wunlock(&(sc)->sc_rwlock)
-#define G_WLOCKOWNED(sc) rw_assert(&(sc)->sc_rwlock, RA_WLOCKED)
+#define GU_RLOCK(sc)	rw_rlock(&(sc)->sc_rwlock)
+#define GU_RUNLOCK(sc)	rw_runlock(&(sc)->sc_rwlock)
+#define GU_WLOCK(sc)	rw_wlock(&(sc)->sc_rwlock)
+#define GU_WUNLOCK(sc)	rw_wunlock(&(sc)->sc_rwlock)
+#define GU_WLOCKOWNED(sc) rw_assert(&(sc)->sc_rwlock, RA_WLOCKED)
 
 /*
  * The writelock is held while a commit operation is in progress.
