@@ -589,12 +589,12 @@ g_union_revert(struct g_union_softc *sc)
 {
 	int i;
 
-	G_WLOCK(sc);
+	GU_WLOCK(sc);
 	for (i = 0; i < sc->sc_root_size; i++)
 		memset(sc->sc_writemap_root[i], 0,
 		    sc->sc_leaf_size * sizeof(uint64_t));
 	memset(sc->sc_leafused, 0, roundup(sc->sc_root_size, BITS_PER_ENTRY));
-	G_WUNLOCK(sc);
+	GU_WUNLOCK(sc);
 }
 
 /*
@@ -701,7 +701,7 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 		/* Loop over write map copying across written blocks */
 		bp->bio_offset = 0;
 		bp->bio_length = sc->sc_map_size * sc->sc_sectorsize;
-		G_RLOCK(sc);
+		GU_RLOCK(sc);
 		error = 0;
 		while (bp->bio_length > 0) {
 			if (!g_union_getmap(bp, sc, &len2rd)) {
@@ -710,7 +710,7 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 				bp->bio_length -= len2rd;
 				continue;
 			}
-			G_RUNLOCK(sc);
+			GU_RUNLOCK(sc);
 			/* need to read then write len2rd sectors */
 			for ( ; len2rd > 0; len2rd -= len2wt) {
 				/* limit ourselves to MAXBSIZE size I/Os */
@@ -740,9 +740,9 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 				bp->bio_offset += len2wt;
 				bp->bio_length = savelen - len2wt;
 			}
-			G_RLOCK(sc);
+			GU_RLOCK(sc);
 		}
-		G_RUNLOCK(sc);
+		GU_RUNLOCK(sc);
 		/* clear the write map */
 		g_union_revert(sc);
 cleanup:
@@ -903,7 +903,7 @@ g_union_doio(struct g_union_wip *wip)
 	 * on its wip_waiting list.
 	 */
 	sc = wip->wip_sc;
-	G_WLOCK(sc);
+	GU_WLOCK(sc);
 	TAILQ_FOREACH(activewip, &sc->sc_wiplist, wip_next) {
 		if (wip->wip_end < activewip->wip_start ||
 		    wip->wip_start > activewip->wip_end)
@@ -925,7 +925,7 @@ g_union_doio(struct g_union_wip *wip)
 		if (needstoblock) {
 			TAILQ_INSERT_TAIL(&activewip->wip_waiting, wip,
 			    wip_next);
-			G_WUNLOCK(sc);
+			GU_WUNLOCK(sc);
 			return;
 		}
 	}
@@ -938,14 +938,14 @@ g_union_doio(struct g_union_wip *wip)
 	cbp = g_clone_bio(wip->wip_bp);
 	if (cbp == NULL) {
 		TAILQ_REMOVE(&sc->sc_wiplist, wip, wip_next);
-		G_WUNLOCK(sc);
+		GU_WUNLOCK(sc);
 		KASSERT(TAILQ_FIRST(&wip->wip_waiting) == NULL,
 		    ("g_union_doio: non-empty work-in-progress waiting queue"));
 		g_io_deliver(wip->wip_bp, ENOMEM);
 		g_free(wip);
 		return;
 	}
-	G_WUNLOCK(sc);
+	GU_WUNLOCK(sc);
 	cbp->bio_caller1 = wip;
 	cbp->bio_done = g_union_done;
 	cbp->bio_offset = wip->wip_start;
@@ -1055,11 +1055,11 @@ g_union_done(struct bio *bp)
 	wip->wip_error = 0;
 	if (atomic_fetchadd_long(&wip->wip_numios, -1) == 1) {
 		sc = wip->wip_sc;
-		G_WLOCK(sc);
+		GU_WLOCK(sc);
 		if (bp->bio_cmd == BIO_WRITE)
 			g_union_setmap(bp, sc);
 		TAILQ_REMOVE(&sc->sc_wiplist, wip, wip_next);
-		G_WUNLOCK(sc);
+		GU_WUNLOCK(sc);
 		while ((waitingwip = TAILQ_FIRST(&wip->wip_waiting)) != NULL) {
 			TAILQ_REMOVE(&wip->wip_waiting, waitingwip, wip_next);
 			g_union_doio(waitingwip);
@@ -1080,15 +1080,15 @@ g_union_setmap(struct bio *bp, struct g_union_softc *sc)
 	uint64_t *wordp;
 	off_t start, numsec;
 
-	G_WLOCKOWNED(sc);
+	GU_WLOCKOWNED(sc); // it's an assert
 	KASSERT(bp->bio_offset % sc->sc_sectorsize == 0,
-	    ("g_union_setmap: offset not on sector boundry"));
+	    ("%s: offset not on sector boundry", __func__));
 	KASSERT(bp->bio_length % sc->sc_sectorsize == 0,
-	    ("g_union_setmap: length not a multiple of sectors"));
+	    ("%s: length not a multiple of sectors", __func__));
 	start = bp->bio_offset / sc->sc_sectorsize;
 	numsec = bp->bio_length / sc->sc_sectorsize;
 	KASSERT(start + numsec <= sc->sc_map_size,
-	    ("g_union_setmap: block %jd is out of range", start + numsec));
+	    ("%s: block %jd is out of range", __func__, start + numsec));
 	for ( ; numsec > 0; numsec--, start++) {
 		root_idx = start / sc->sc_bits_per_leaf;
 		leaf = &sc->sc_writemap_root[root_idx];
