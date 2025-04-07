@@ -1118,15 +1118,15 @@ g_union_getmap(struct bio *bp, struct g_union_softc *sc, off_t *len2read)
 	size_t root_idx;
 
 	KASSERT(bp->bio_offset % sc->sc_sectorsize == 0,
-	    ("g_union_getmap: offset not on sector boundry"));
+	    ("%s: offset not on sector boundry", __func__));
 	KASSERT(bp->bio_length % sc->sc_sectorsize == 0,
-	    ("g_union_getmap: length not a multiple of sectors"));
+	    ("%s: length not a multiple of sectors", __func__));
 	start = bp->bio_offset / sc->sc_sectorsize;
 	numsec = bp->bio_length / sc->sc_sectorsize;
-	G_UNION_DEBUG(4, "g_union_getmap: check %jd sectors starting at %jd\n",
+	G_UNION_DEBUG(4, "%s: check %jd sectors starting at %jd\n", __func__,
 	    numsec, start);
 	KASSERT(start + numsec <= sc->sc_map_size,
-	    ("g_union_getmap: block %jd is out of range", start + numsec));
+	    ("%s: block %jd is out of range", __func__, start + numsec));
 		root_idx = start / sc->sc_bits_per_leaf;
 	first = true;
 	maptype = false;
@@ -1187,8 +1187,8 @@ out:
 	}
 	*len2read = bp->bio_length - (numsec * sc->sc_sectorsize);
 	G_UNION_DEBUG(maptype ? 3 : 4,
-	    "g_union_getmap: return maptype %swritten for %jd "
-	    "sectors ending at %jd\n", maptype ? "" : "NOT ",
+	    "%s: return maptype %swritten for %jd "
+	    "sectors ending at %jd\n", __func__, maptype ? "" : "NOT ",
 	    *len2read / sc->sc_sectorsize, start - 1);
 	return (maptype);
 }
