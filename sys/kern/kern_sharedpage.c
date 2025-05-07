@@ -57,7 +57,7 @@
 static struct sx shared_page_alloc_sx;
 static vm_object_t shared_page_obj;
 static int shared_page_free;
-char *shared_page_mapping;
+char *shared_page_mapping; // in kernel's virtual address
 
 #ifdef RANDOM_FENESTRASX
 static struct vdso_fxrng_generation *fxrng_shpage_mapping;
