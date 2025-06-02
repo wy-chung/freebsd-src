@@ -1668,10 +1668,6 @@ is_sec_valid_during_commit(uint32_t sa, uint32_t ba_rev)
 static bool
 is_sec_valid(uint32_t sa, uint32_t ba_rev)
 {
-#if defined(MY_DEBUG)
-	union meta_addr ma_rev __unused;
-	ma_rev.uint32 = ba_rev;
-#endif
 	if (ba_rev < BLOCK_MAX) {
 		return is_sec_valid_fp(sa, ba_rev);
 #if defined(WYC)
@@ -1701,12 +1697,6 @@ _logstor_write(uint32_t ba, void *data)
 {
 	static bool is_called = false;
 	struct _seg_sum *seg_sum = &sc.seg_sum;
-#if defined(MY_DEBUG)
-	union meta_addr ma __unused;
-	union meta_addr ma_rev __unused;
-
-	ma.uint32 = ba;
-#endif
 
 	KASSERT(ba < sc.superblock.block_cnt_max || IS_META_ADDR(ba), "");
 	KASSERT(sc.seg_alloc_sa >= SECTORS_PER_SEG, "");
@@ -1722,9 +1712,6 @@ again:
 	{
 		uint32_t sa = sc.seg_alloc_sa + i;
 		uint32_t ba_rev = seg_sum->ss_rm[i]; // ba from the reverse map
-#if defined(MY_DEBUG)
-		ma_rev.uint32 = ba_rev;
-#endif
 		if (is_sec_valid(sa, ba_rev))
 			continue;
 
@@ -1890,10 +1877,6 @@ disk_init(int fd)
 	    (sector_cnt / (SECTOR_SIZE / 4)) * FD_COUNT * 4;
 	KASSERT(max_block < BLOCK_MAX, ""); // 1G
 	sb->block_cnt_max = max_block;
-#if defined(MY_DEBUG)
-	printf("%s: sector_cnt %u block_cnt_max %u\n",
-	    __func__, sector_cnt, sb->block_cnt_max);
-#endif
 	sb->seg_alloc = SEG_DATA_START;	// start allocate from here
 
 	sb->fd_cur = 0;			// current mapping is file 0
@@ -2273,9 +2256,6 @@ fbuf_mod_init(void)
 	// insert fbuf to both QUEUE_LEAF_CLEAN and hash queue
 	for (i = 0; i < fbuf_count; ++i) {
 		struct _fbuf *fbuf = &sc.fbufs[i];
-#if defined(MY_DEBUG)
-		fbuf->index = i;
-#endif
 		fbuf->fc.is_sentinel = false;
 		fbuf->fc.accessed = false;
 		fbuf->fc.modified = false;
@@ -2527,7 +2507,7 @@ fbuf_bucket_init(int which)
 {
 	struct _fbuf_sentinel *bucket_head;
 
-#if defined(MY_DEBUG)
+#if defined(INVARIANTS)
 	KASSERT(which < FBUF_BUCKET_CNT, "which must be within the bucket range");
 	sc.fbuf_bucket_len[which] = 0;
 #endif
@@ -2543,7 +2523,7 @@ fbuf_bucket_insert_head(int which, struct _fbuf *fbuf)
 	struct _fbuf_sentinel *bucket_head;
 	struct _fbuf *next;
 
-#if defined(MY_DEBUG)
+#if defined(INVARIANTS)
 	KASSERT(which < FBUF_BUCKET_CNT, "which must be within the bucket range");
 	fbuf->bucket_which = which;
 	++sc.fbuf_bucket_len[which];
@@ -2564,7 +2544,7 @@ fbuf_bucket_remove(struct _fbuf *fbuf)
 {
 	struct _fbuf *prev;
 	struct _fbuf *next;
-#if defined(MY_DEBUG)
+#if defined(INVARIANTS)
 	struct _fbuf_sentinel *bucket_head;
 	int which = fbuf->bucket_which;
 
@@ -2663,9 +2643,6 @@ again:
 	return fbuf;
 }
 
-#if defined(MY_DEBUG)
-static struct _fbuf *depth[3];
-#endif
 /*
 Description:
     Read or write the file buffer with metadata address @ma
@@ -2698,9 +2675,6 @@ fbuf_access(union meta_addr ma)
 	for (int i = 0; ; ++i) {
 		ima.depth = i;
 		fbuf = fbuf_search(ima);
-#if defined(MY_DEBUG)
-		depth[i] = fbuf;
-#endif
 		if (fbuf == NULL) {
 			fbuf = fbuf_alloc(ima, i);	// allocate a fbuf from clean queue
 			fbuf->parent = parent;
@@ -2720,10 +2694,8 @@ fbuf_access(union meta_addr ma)
 				KASSERT(sa >= SECTORS_PER_SEG, "sector address must not be within the first segment");
 				my_read(sa, fbuf->data);
 			}
-#if defined(MY_DEBUG)
+#if defined(INVARIANTS)
 			fbuf->sa = sa;
-			if (parent)
-				parent->child[index] = fbuf;
 #endif
 		} else {
 			KASSERT(fbuf->parent == parent, "");
@@ -2752,7 +2724,7 @@ fbuf_write(struct _fbuf *fbuf)
 
 	KASSERT(fbuf->fc.modified, "fbuf must have been modified");
 	sa = _logstor_write(fbuf->ma.uint32, fbuf->data);
-#if defined(MY_DEBUG)
+#if defined(INVARIANTS)
 	fbuf->sa = sa;
 #endif
 	fbuf->fc.modified = false;

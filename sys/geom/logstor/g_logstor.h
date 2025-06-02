@@ -203,12 +203,9 @@ struct _fbuf { // file buffer
 
 	union meta_addr	ma;	// the metadata address
 	uint16_t queue_which;
-#if defined(MY_DEBUG)
+#if defined(INVARIANTS)
 	uint16_t bucket_which;
-	uint16_t index; // the array index for this fbuf
-	uint16_t dbg_child_cnt;
 	uint32_t sa;	// the sector address of the @data
-	struct _fbuf 	*child[SECTOR_SIZE/sizeof(uint32_t)];
 #endif
 	// the metadata is cached here
 	uint32_t	data[SECTOR_SIZE/sizeof(uint32_t)];
@@ -233,6 +230,9 @@ struct g_logstor_softc {
 
 	// buffer hash queue
 	struct _fbuf_sentinel fbuf_bucket[FBUF_BUCKET_CNT];
+#if defined(INVARIANTS)
+	int fbuf_bucket_len[FBUF_BUCKET_CNT];
+#endif
 	// statistics
 	unsigned data_write_count;	// data block write to disk
 	unsigned other_write_count;	// other write to disk, such as metadata write and segment cleaning
