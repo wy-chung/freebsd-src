@@ -70,8 +70,8 @@ static g_ctl_destroy_geom_t g_virstor_destroy_geom;
 struct g_class g_virstor_class = {
 	.name =		G_VIRSTOR_CLASS_NAME,
 	.version =	G_VERSION,
-	.init =		g_virstor_init,
-	.fini =		g_virstor_fini,
+	.init =		g_virstor_init,	// empty
+	.fini =		g_virstor_fini,	// empty
 	.taste =	g_virstor_taste,
 	.ctlreq =	g_virstor_config,
 	.destroy_geom = g_virstor_destroy_geom
@@ -1720,7 +1720,7 @@ g_virstor_start(struct bio *b)
 				cb->bio_length = sc->sectorsize;
 				cb->bio_caller1 = &sc->components[0];
 				bioq_disksort(&bq, cb);
-			}
+			} // (me->flags & VIRSTOR_MAP_ALLOCATED) == 0
 
 			comp = &sc->components[me->provider_no];
 			cb = g_clone_bio(b);
@@ -1740,11 +1740,11 @@ g_virstor_start(struct bio *b)
 			cb->bio_data = addr;
 			cb->bio_caller1 = comp;
 			bioq_disksort(&bq, cb);
-		}
+		} /* handle BIO_WRITE */
 		addr += in_chunk_length;
 		length -= in_chunk_length;
 		offset += in_chunk_length;
-	}
+	} // while
 
 	/* Fire off bio's here */
 	count = 0;
