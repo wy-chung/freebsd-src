@@ -43,14 +43,14 @@
 #include <core/geom.h>
 #include <misc/subr.h>
 
-#include <geom/virstor/g_virstor_md.h>
-#include <geom/virstor/g_virstor.h>
+#include <geom/logstor/g_logstor_md.h>
+#include <geom/logstor/g_logstor.h>
 
 uint32_t lib_version = G_LIB_VERSION;
-uint32_t version = G_VIRSTOR_VERSION;
+uint32_t version = G_LOGSTOR_VERSION;
 
-#define	GVIRSTOR_CHUNK_SIZE	"4M"
-#define	GVIRSTOR_VIR_SIZE	"2T"
+#define	GLOGSTOR_CHUNK_SIZE	"4M"
+#define	GLOGSTOR_VIR_SIZE	"2T"
 
 #if G_LIB_VERSION == 1
 /* Support RELENG_6 */
@@ -58,22 +58,22 @@ uint32_t version = G_VIRSTOR_VERSION;
 #endif
 
 /*
- * virstor_main gets called by the geom(8) utility
+ * logstor_main gets called by the geom(8) utility
  */
-static void virstor_main(struct gctl_req *req, unsigned flags);
+static void logstor_main(struct gctl_req *req, unsigned flags);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, virstor_main, G_NULL_OPTS,
+	{ "clear", G_FLAG_VERBOSE, logstor_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
-	{ "dump", 0, virstor_main, G_NULL_OPTS,
+	{ "dump", 0, logstor_main, G_NULL_OPTS,
 	    "prov ..."
 	},
-	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, virstor_main,
+	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, logstor_main,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL},
-		{ 'm', "chunk_size", GVIRSTOR_CHUNK_SIZE, G_TYPE_NUMBER},
-		{ 's', "vir_size", GVIRSTOR_VIR_SIZE, G_TYPE_NUMBER},
+		{ 'm', "chunk_size", GLOGSTOR_CHUNK_SIZE, G_TYPE_NUMBER},
+		{ 's', "vir_size", GLOGSTOR_VIR_SIZE, G_TYPE_NUMBER},
 		G_OPT_SENTINEL
 	    },
 	    "[-h] [-v] [-m chunk_size] [-s vir_size] name provider0 [provider1 ...]"
@@ -108,13 +108,13 @@ struct g_command class_commands[] = {
 static int verbose = 0;
 
 /* Helper functions' declarations */
-static void virstor_clear(struct gctl_req *req);
-static void virstor_dump(struct gctl_req *req);
-static void virstor_label(struct gctl_req *req);
+static void logstor_clear(struct gctl_req *req);
+static void logstor_dump(struct gctl_req *req);
+static void logstor_label(struct gctl_req *req);
 
 /* Dispatcher function (no real work done here, only verbose flag recorder) */
 static void
-virstor_main(struct gctl_req *req, unsigned flags)
+logstor_main(struct gctl_req *req, unsigned flags)
 {
 	const char *name;
 
@@ -127,16 +127,16 @@ virstor_main(struct gctl_req *req, unsigned flags)
 		return;
 	}
 	if (strcmp(name, "label") == 0)
-		virstor_label(req);
+		logstor_label(req);
 	else if (strcmp(name, "clear") == 0)
-		virstor_clear(req);
+		logstor_clear(req);
 	else if (strcmp(name, "dump") == 0)
-		virstor_dump(req);
+		logstor_dump(req);
 	else
 		gctl_error(req, "%s: Unknown command: %s.", __func__, name);
 
 	/* No CTASSERT in userland
-	CTASSERT(VIRSTOR_MAP_BLOCK_ENTRIES*VIRSTOR_MAP_ENTRY_SIZE == MAXPHYS);
+	CTASSERT(LOGSTOR_MAP_BLOCK_ENTRIES*LOGSTOR_MAP_ENTRY_SIZE == MAXPHYS);
 	*/
 }
 
@@ -147,9 +147,9 @@ virstor_main(struct gctl_req *req, unsigned flags)
  * can be instantiated with the tasted metadata.
  */
 static void
-virstor_label(struct gctl_req *req)
+logstor_label(struct gctl_req *req)
 {
-	struct g_virstor_metadata md;
+	struct g_logstor_metadata md;
 	off_t msize;
 	unsigned char *sect;
 	unsigned int i;
@@ -157,7 +157,7 @@ virstor_label(struct gctl_req *req)
 	const char *name;
 	char param[32];
 	int hardcode, nargs, error;
-	struct virstor_map_entry *map;
+	struct logstor_map_entry *map;
 	size_t total_chunks;	/* We'll run out of memory if
 				   this needs to be bigger. */
 	unsigned int map_chunks; /* Chunks needed by the map (map size). */
@@ -179,8 +179,8 @@ virstor_label(struct gctl_req *req)
 	 * name.
 	 */
 	bzero(&md, sizeof(md));
-	strlcpy(md.md_magic, G_VIRSTOR_MAGIC, sizeof(md.md_magic));
-	md.md_version = G_VIRSTOR_VERSION;
+	strlcpy(md.md_magic, G_LOGSTOR_MAGIC, sizeof(md.md_magic));
+	md.md_version = G_LOGSTOR_VERSION;
 	name = gctl_get_ascii(req, "arg0");
 	if (name == NULL) {
 		gctl_error(req, "No 'arg%u' argument.", 0);
@@ -259,7 +259,7 @@ virstor_label(struct gctl_req *req)
 		total_chunks += add_chunks;
 		md.md_virsize = (off_t)total_chunks * (off_t)md.md_chunk_size;
 		map_size = total_chunks * sizeof(*map);
-		fprintf(stderr, "Resizing virtual size to fit virstor "
+		fprintf(stderr, "Resizing virtual size to fit logstor "
 		    "structures.\n");
 		fprintf(stderr, "New virtual size: %ju MB (%zu new chunks)\n",
 		    (uintmax_t)(md.md_virsize / (1024 * 1024)), add_chunks);
@@ -332,7 +332,7 @@ virstor_label(struct gctl_req *req)
 	/* Do it with calloc because there might be a need to set up chunk flags
 	 * in the future */
 	map = calloc(total_chunks, sizeof(*map));
-	// struct virstor_map_entry map[total_chunks];
+	// struct logstor_map_entry map[total_chunks];
 	if (map == NULL) {
 		gctl_error(req,
 		    "Out of memory (need %zu bytes for allocation map)",
@@ -388,8 +388,8 @@ virstor_label(struct gctl_req *req)
 			md.flags = 0;
 		} else {
 			md.chunk_reserved = map_chunks * 2;
-			md.flags = VIRSTOR_PROVIDER_ALLOCATED |
-			    VIRSTOR_PROVIDER_CURRENT;
+			md.flags = LOGSTOR_PROVIDER_ALLOCATED |
+			    LOGSTOR_PROVIDER_CURRENT;
 			md.chunk_next = md.chunk_reserved;
 			if (verbose)
 				printf("(%u reserved) ", md.chunk_reserved);
@@ -409,7 +409,7 @@ virstor_label(struct gctl_req *req)
 		//unsigned char sect[ssize];
 		if (sect == NULL)
 			err(1, "Cannot allocate sector of %zu bytes", ssize);
-		virstor_metadata_encode(&md, sect);
+		logstor_metadata_encode(&md, sect);
 		error = g_metadata_store(name, sect, ssize);
 		free(sect);
 		if (error != 0) {
@@ -430,7 +430,7 @@ virstor_label(struct gctl_req *req)
 
 /* Clears metadata on given provider(s) IF it's owned by us */
 static void
-virstor_clear(struct gctl_req *req)
+logstor_clear(struct gctl_req *req)
 {
 	const char *name;
 	char param[32];
@@ -447,7 +447,7 @@ virstor_clear(struct gctl_req *req)
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_ascii(req, "%s", param);
 
-		error = g_metadata_clear(name, G_VIRSTOR_MAGIC);
+		error = g_metadata_clear(name, G_LOGSTOR_MAGIC);
 		if (error != 0) {
 			fprintf(stderr, "Can't clear metadata on %s: %s "
 			    "(do I own it?)\n", name, strerror(error));
@@ -473,7 +473,7 @@ virstor_clear(struct gctl_req *req)
 
 /* Print some metadata information */
 static void
-virstor_metadata_dump(const struct g_virstor_metadata *md)
+logstor_metadata_dump(const struct g_logstor_metadata *md)
 {
 	printf("          Magic string: %s\n", md->md_magic);
 	printf("      Metadata version: %u\n", (u_int) md->md_version);
@@ -491,11 +491,11 @@ virstor_metadata_dump(const struct g_virstor_metadata *md)
 	printf("       Reserved chunks: %u\n", md->chunk_reserved);
 }
 
-/* Called by geom(8) via gvirstor_main() to dump metadata information */
+/* Called by geom(8) via glogstor_main() to dump metadata information */
 static void
-virstor_dump(struct gctl_req *req)
+logstor_dump(struct gctl_req *req)
 {
-	struct g_virstor_metadata md;
+	struct g_logstor_metadata md;
 	u_char tmpmd[512];	/* temporary buffer */
 	const char *name;
 	char param[16];
@@ -513,7 +513,7 @@ virstor_dump(struct gctl_req *req)
 		name = gctl_get_ascii(req, "%s", param);
 
 		error = g_metadata_read(name, (u_char *) & tmpmd, sizeof(tmpmd),
-		    G_VIRSTOR_MAGIC);
+		    G_LOGSTOR_MAGIC);
 		if (error != 0) {
 			fprintf(stderr, "Can't read metadata from %s: %s.\n",
 			    name, strerror(error));
@@ -521,9 +521,9 @@ virstor_dump(struct gctl_req *req)
 			    "Not fully done (error reading metadata).");
 			continue;
 		}
-		virstor_metadata_decode((u_char *) & tmpmd, &md);
+		logstor_metadata_decode((u_char *) & tmpmd, &md);
 		printf("Metadata on %s:\n", name);
-		virstor_metadata_dump(&md);
+		logstor_metadata_dump(&md);
 		printf("\n");
 	}
 }
