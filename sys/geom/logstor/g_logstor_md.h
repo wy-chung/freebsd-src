@@ -26,24 +26,24 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _G_VIRSTOR_MD_H_
-#define _G_VIRSTOR_MD_H_
+#ifndef _G_LOGSTOR_MD_H_
+#define _G_LOGSTOR_MD_H_
 
 /*
  * Metadata declaration
  */
 
-#define	G_VIRSTOR_MAGIC		"GEOM::VIRSTOR"
-#define	G_VIRSTOR_VERSION	1
+#define	G_LOGSTOR_MAGIC		"GEOM::LOGSTOR"
+#define	G_LOGSTOR_VERSION	1
 
 /* flag: provider is allocated */
-#define	VIRSTOR_PROVIDER_ALLOCATED	1
+#define	LOGSTOR_PROVIDER_ALLOCATED	1
 /* flag: provider is currently being filled (usually it's the last
- * provider with VIRSTOR_PROVIDER_ALLOCATED flag */
-#define VIRSTOR_PROVIDER_CURRENT	2
+ * provider with LOGSTOR_PROVIDER_ALLOCATED flag */
+#define LOGSTOR_PROVIDER_CURRENT	2
 
-struct g_virstor_metadata {
-	/* Data global to the virstor device */
+struct g_logstor_metadata {
+	/* Data global to the logstor device */
 	char		md_magic[16];		/* Magic value. */
 	uint32_t	md_version;		/* Version number. */
 	char		md_name[16];		/* Device name (e.g. "mydata") */
@@ -62,7 +62,7 @@ struct g_virstor_metadata {
 	uint16_t	flags;			/* Provider's flags */
 };
 
-void virstor_metadata_encode(struct g_virstor_metadata *md, unsigned char *data);
-void virstor_metadata_decode(unsigned char *data, struct g_virstor_metadata *md);
+void logstor_metadata_encode(struct g_logstor_metadata *md, unsigned char *data);
+void logstor_metadata_decode(unsigned char *data, struct g_logstor_metadata *md);
 
-#endif	/* !_G_VIRSTOR_H_ */
+#endif	/* !_G_LOGSTOR_H_ */

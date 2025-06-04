@@ -26,30 +26,30 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _G_VIRSTOR_H_
-#define _G_VIRSTOR_H_
+#ifndef _G_LOGSTOR_H_
+#define _G_LOGSTOR_H_
 
-#define	G_VIRSTOR_CLASS_NAME "VIRSTOR"
+#define	G_LOGSTOR_CLASS_NAME "LOGSTOR"
 
-#define VIRSTOR_MAP_ALLOCATED 1
-struct virstor_map_entry {
+#define LOGSTOR_MAP_ALLOCATED 1
+struct logstor_map_entry {
 	uint16_t	flags;
 	uint16_t	provider_no;
 	uint32_t	provider_chunk;
 };
 
-#define	VIRSTOR_MAP_ENTRY_SIZE (sizeof(struct virstor_map_entry))
-#define	VIRSTOR_MAP_BLOCK_ENTRIES (maxphys / VIRSTOR_MAP_ENTRY_SIZE)
+#define	LOGSTOR_MAP_ENTRY_SIZE (sizeof(struct logstor_map_entry))
+#define	LOGSTOR_MAP_BLOCK_ENTRIES (maxphys / LOGSTOR_MAP_ENTRY_SIZE)
 /* Struct size is guarded by MPASS in main source */
 
 #ifdef _KERNEL
 
 #define	LOG_MSG(lvl, ...) \
-    _GEOM_DEBUG("GEOM_VIRSTOR", g_virstor_debug, (lvl), NULL, __VA_ARGS__)
+    _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, (lvl), NULL, __VA_ARGS__)
 #define	LOG_MESSAGE LOG_MSG
 
 #define	LOG_REQ(lvl, bp, ...) \
-    _GEOM_DEBUG("GEOM_VIRSTOR", g_virstor_debug, (lvl), (bp), __VA_ARGS__)
+    _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, (lvl), (bp), __VA_ARGS__)
 #define	LOG_REQUEST LOG_REQ
 
 /* "critical" system announcements (e.g. "geom is up") */
@@ -68,9 +68,9 @@ struct virstor_map_entry {
 #define	LVL_MOREDEBUG	15
 
 /* Component data */
-struct g_virstor_component {
+struct g_logstor_component {
 	struct g_consumer	*gcons;
-	struct g_virstor_softc	*sc;
+	struct g_logstor_softc	*sc;
 	unsigned int		 index;		/* Component index in array */
 	unsigned int		 chunk_count;
 	unsigned int		 chunk_next;
@@ -79,31 +79,31 @@ struct g_virstor_component {
 };
 
 /* Internal geom instance data */
-struct g_virstor_softc {
+struct g_logstor_softc {
 	struct g_geom		*geom;
 	struct g_provider	*provider;
-	struct g_virstor_component *components;
+	struct g_logstor_component *components;
 	u_int			 n_components;
 	u_int			 curr_component; /* Component currently used */
 	uint32_t		 id;		/* Unique ID of this geom */
-	off_t			 virsize;	/* Total size of virstor */
+	off_t			 virsize;	/* Total size of logstor */
 	off_t			 sectorsize;
 	size_t			 chunk_size;
 	size_t			 chunk_count;	/* governs map_size */
-	struct virstor_map_entry *map;
+	struct logstor_map_entry *map;
 	size_t			 map_size;	/* (in bytes) */
 	size_t			 map_sectors;	/* Size of map in sectors */
 	size_t			 me_per_sector;	/* # map entries in a sector */
-	STAILQ_HEAD(, g_virstor_bio_q)	 delayed_bio_q;	/* Queue of delayed BIOs */
+	STAILQ_HEAD(, g_logstor_bio_q)	 delayed_bio_q;	/* Queue of delayed BIOs */
 	struct mtx		 delayed_bio_q_mtx;
 };
 
 /* "delayed BIOs" Queue element */
-struct g_virstor_bio_q {
+struct g_logstor_bio_q {
 	struct bio		*bio;
-	STAILQ_ENTRY(g_virstor_bio_q) linkage;
+	STAILQ_ENTRY(g_logstor_bio_q) linkage;
 };
 
 #endif	/* _KERNEL */
 
-#endif	/* !_G_VIRSTOR_H_ */
+#endif	/* !_G_LOGSTOR_H_ */
