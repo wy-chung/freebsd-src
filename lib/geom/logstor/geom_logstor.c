@@ -92,15 +92,21 @@ struct g_command class_commands[] = {
 	    },
 	    "[-fv] name ... (alias for \"destroy\")"
 	},
-	{ "add", G_FLAG_VERBOSE, NULL,
+	{ "commit", 0, NULL,
 	    {
-		{ 'h', "hardcode", NULL, G_TYPE_BOOL},
+		{ 'f', "force", NULL, G_TYPE_BOOL },
+		{ 'r', "reboot", NULL, G_TYPE_BOOL },
+		{ 'v', "verbose", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-vh] name prov [prov ...]"
+	    "[-frv] prov ..."
 	},
-	{ "remove", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
-	    "[-v] name ..."
+	{ "revert", 0, NULL,
+	    {
+		{ 'v', "verbose", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-v] prov ..."
 	},
 	G_CMD_SENTINEL
 };
