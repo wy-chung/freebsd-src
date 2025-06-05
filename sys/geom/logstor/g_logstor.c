@@ -1974,6 +1974,31 @@ invalid_call(void)
 }
 
 //=========================
+static int
+logstor_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
+{
+	struct bio *bp;
+	int errorc;
+
+	KASSERT(length > 0 && length >= cp->provider->sectorsize &&
+	    length <= maxphys, ("g_read_data(): invalid length %jd",
+	    (intmax_t)length));
+
+	bp = g_alloc_bio();
+	bp->bio_cmd = BIO_READ;
+	bp->bio_done = NULL;
+	bp->bio_offset = offset;
+	bp->bio_length = length;
+	bp->bio_data = ptr;
+	g_io_request(bp, cp);
+	errorc = biowait(bp, "gread");
+	if (errorc == 0 && bp->bio_completed != length)
+		errorc = EIO;
+	g_destroy_bio(bp);
+
+	return errorc;
+}
+
 #if defined(RAM_DISK_SIZE)
 static off_t
 get_mediasize(int fd)
