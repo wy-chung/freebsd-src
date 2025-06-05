@@ -172,7 +172,7 @@ _Static_assert(sizeof(struct _superblock) < SECTOR_SIZE, "The size of the super 
 struct _seg_sum {
 	uint32_t ss_rm[SECTORS_PER_SEG - 1];	// reverse map
 	// reverse map SECTORS_PER_SEG - 1 is not used so we store something here
-	uint32_t ss_alloc;	// the sector for allocation in the segment
+	uint32_t ss_allocp;	// the sector for allocation in the segment
 	//uint32_t ss_gen;  // sequence number. used for redo after system crash
 };
 
@@ -277,7 +277,7 @@ struct g_logstor_softc {
 
 	int fbuf_count;
 	struct _fbuf *fbufs;	// an array of fbufs
-	struct _fbuf *fbuf_alloc; // point to the fbuf candidate for replacement
+	struct _fbuf *fbuf_allocp; // point to the fbuf candidate for replacement
 	struct _fbuf_sentinel fbuf_queue[QUEUE_CNT];
 	int fbuf_queue_len[QUEUE_CNT];
 
@@ -296,19 +296,19 @@ struct g_logstor_softc {
 	struct _superblock superblock;
 };
 
-uint32_t logstor_init(void);
-void logstor_fini(void);
-int  logstor_open(const char *disk_file);
-void logstor_close(void);
-uint32_t logstor_read(uint32_t ba, void *data);
-uint32_t logstor_write(uint32_t ba, void *data);
-void logstor_commit(void);
-int logstor_delete(off_t offset, void *data, off_t length);
-uint32_t logstor_get_block_cnt(void);
-unsigned logstor_get_data_write_count(void);
-unsigned logstor_get_other_write_count(void);
-unsigned logstor_get_fbuf_hit(void);
-unsigned logstor_get_fbuf_miss(void);
+uint32_t logstor_init(struct g_logstor_softc *sc);
+void logstor_fini(struct g_logstor_softc *sc);
+int  logstor_open(struct g_logstor_softc *sc, const char *disk_file);
+void logstor_close(struct g_logstor_softc *sc);
+uint32_t logstor_read(struct g_logstor_softc *sc, uint32_t ba, void *data);
+uint32_t logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data);
+void logstor_commit(struct g_logstor_softc *sc);
+int logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data, off_t length);
+uint32_t logstor_get_block_cnt(struct g_logstor_softc *sc);
+unsigned logstor_get_data_write_count(struct g_logstor_softc *sc);
+unsigned logstor_get_other_write_count(struct g_logstor_softc *sc);
+unsigned logstor_get_fbuf_hit(struct g_logstor_softc *sc);
+unsigned logstor_get_fbuf_miss(struct g_logstor_softc *sc);
 
 #endif	/* _KERNEL */
 
