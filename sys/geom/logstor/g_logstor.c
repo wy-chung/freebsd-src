@@ -189,8 +189,8 @@ static char *ram_disk;
 #endif
 static struct logstor_softc sc;
 
-static uint32_t _logstor_read(struct g_logstor_softc *sc, uint32_t ba, void *data);
-static uint32_t _logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data);
+static uint32_t _logstor_read(struct g_logstor_softc *sc, struct bio *bp);
+static uint32_t _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *data);
 
 static void _seg_alloc(struct g_logstor_softc *sc);
 static void seg_sum_write(struct g_logstor_softc *sc);
@@ -223,8 +223,9 @@ static void fbuf_clean_queue_check(struct g_logstor_softc *sc);
 static union meta_addr ma2pma(union meta_addr ma, unsigned *pindex_out);
 static uint32_t ma2sa(struct g_logstor_softc *sc, union meta_addr ma);
 
-static void my_read (uint32_t sa, void *buf);
-static void my_write(uint32_t sa, const void *buf);
+static int _g_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
+static void md_read (struct g_logstor_softc *sc, uint32_t sa, void *buf);
+static void md_write(struct g_logstor_softc *sc, uint32_t sa, const void *buf);
 
 static uint32_t logstor_ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba);
 static uint32_t logstor_ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba);
@@ -1631,6 +1632,7 @@ g_logstor_done(struct bio *bp)
 {
 	struct bio *bp2;
 
+	KASSERT(bp->bio_completed == SECTOR_SIZE);
 	bp2 = bp->bio_parent;
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
@@ -1648,20 +1650,20 @@ g_logstor_done(struct bio *bp)
  * Called in g_down thread
  */
 static void
-g_logstor_start(struct bio *b)
+g_logstor_start(struct bio *bp)
 {
 	struct g_logstor_softc *sc;
 	struct g_provider *pp;
-	uint32_t (*logstor_access)(struct g_logstor_softc *sc, uint32_t ba, void *data);
+	uint32_t (*logstor_access)(struct g_logstor_softc *sc, struct bio *bp);
 
-	pp = b->bio_to;
+	pp = bp->bio_to;
 	sc = pp->geom->softc;
 	KASSERT(sc != NULL, ("%s: no softc (error=%d, device=%s)", __func__,
-	    b->bio_to->error, b->bio_to->name));
+	    bp->bio_to->error, bp->bio_to->name));
 
-	LOG_REQ(LVL_MOREDEBUG, b, "%s", __func__);
+	LOG_REQ(LVL_MOREDEBUG, bp, "%s", __func__);
 
-	switch (b->bio_cmd) {
+	switch (bp->bio_cmd) {
 	case BIO_READ:
 		logstor_access = logstor_read;
 		break;
@@ -1672,30 +1674,30 @@ g_logstor_start(struct bio *b)
 		KASSERT(false, "not implemented yet");
 		return;
 	default:
-		g_io_deliver(b, EOPNOTSUPP);
+		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}
 
-	LOG_MSG(LVL_DEBUG2, "BIO arrived, size=%ju", b->bio_length);
+	LOG_MSG(LVL_DEBUG2, "BIO arrived, size=%ju", bp->bio_length);
 
-	KASSERT(b->bio_offset % SECTOR_SIZE == 0, "");
-	KASSERT(b->bio_length % SECTOR_SIZE == 0, "");
-	int sec_cnt = b->bio_length / SECTOR_SIZE;
+	KASSERT(bp->bio_offset % SECTOR_SIZE == 0, "");
+	KASSERT(bp->bio_length % SECTOR_SIZE == 0, "");
+	int sec_cnt = bp->bio_length / SECTOR_SIZE;
 
 	for (int i = 0; i < sec_cnt; ++i) {
-		struct bio *cb = g_clone_bio(b);
+		struct bio *cb = g_clone_bio(bp);
 		if (cb == NULL) {
-			if (b->bio_error == 0)
-				b->bio_error = ENOMEM;
-			g_io_deliver(b, b->bio_error);
+			if (bp->bio_error == 0)
+				bp->bio_error = ENOMEM;
+			g_io_deliver(bp, bp->bio_error);
 			return;
 		}
 		cb->bio_to = sc->provider;
 		cb->bio_done = g_logstor_done;
-		cb->bio_offset = b->bio_offset + i * SECTOR_SIZE;
+		cb->bio_offset = bp->bio_offset + i * SECTOR_SIZE;
 		cb->bio_length = SECTOR_SIZE;
-		cb->bio_data = b->bio_data + i * SECTOR_SIZE;
-		//logstor_access(sc, cb);
+		cb->bio_data = bp->bio_data + i * SECTOR_SIZE;
+		logstor_access(sc, cb);
 	}
 
 //=========================
@@ -1706,6 +1708,7 @@ g_logstor_start(struct bio *b)
 	struct bio_queue_head bq;
 	size_t chunk_size;	/* cached for convenience */
 	u_int count;
+	struct bio *b = bp;
 
 	bioq_init(&bq);
 
@@ -2078,7 +2081,7 @@ logstor_open(struct g_logstor_softc *sc, const char *disk_file)
 	KASSERT(sc->superblock.seg_alloc >= SEG_DATA_START, "");
 	sc->seg_alloc_sa = sega2sa(sc->superblock.seg_alloc);
 	uint32_t sa = sc->seg_alloc_sa + SEG_SUM_OFFSET;
-	my_read(sa, &sc->seg_sum);
+	md_read(sc, sa, &sc->seg_sum);
 	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, "");
 	sc->ss_modified = false;
 	sc->data_write_count = sc->other_write_count = 0;
@@ -2098,18 +2101,18 @@ logstor_close(struct g_logstor_softc *sc)
 }
 
 uint32_t
-logstor_read(struct g_logstor_softc *sc, uint32_t ba, void *data)
+logstor_read(struct g_logstor_softc *sc, struct bio *bp)
 {
 	fbuf_clean_queue_check(sc);
-	uint32_t sa = _logstor_read(sc,ba, data);
+	uint32_t sa = _logstor_read(sc, bp);
 	return sa;
 }
 
 uint32_t
-logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
+logstor_write(struct g_logstor_softc *sc, struct bio *bp)
 {
 	fbuf_clean_queue_check(sc);
-	uint32_t sa = _logstor_write(sc, ba, data);
+	uint32_t sa = _logstor_write(sc, bp, 0, NULL);
 	return sa;
 }
 
@@ -2191,12 +2194,12 @@ logstor_commit(struct g_logstor_softc *sc)
 }
 
 uint32_t
-_logstor_read(struct g_logstor_softc *sc, unsigned ba, void *data)
+_logstor_read(struct g_logstor_softc *sc, struct bio *bp)
 {
 	uint32_t ba;	// block address
 	uint32_t sa;	// sector address
 
-	uint32_t ba = b->bio_offset / SECTOR_SIZE;
+	uint32_t ba = bp->bio_offset / SECTOR_SIZE;
 	KASSERT(ba < sc->superblock.block_cnt_max, "");
 
 	sa = logstor_ba2sa_fp(sc, ba);
@@ -2205,17 +2208,17 @@ _logstor_read(struct g_logstor_softc *sc, unsigned ba, void *data)
 	logstor_ba2sa_during_commit();
 #endif
 	if (sa == SECTOR_NULL) {
-		bzero(b->bio_data, SECTOR_SIZE);
-		b->bio_error = 0;
-		b->bio_completed = SECTOR_SIZE;
-		g_logstor_done(b);
+		bzero(bp->bio_data, SECTOR_SIZE);
+		bp->bio_error = 0;
+		bp->bio_completed = SECTOR_SIZE;
+		g_logstor_done(bp);
 #if defined(WYC)
-		g_std_done(b);
+		g_std_done(bp);
 #endif
 	} else {
 		KASSERT(sa >= SECTORS_PER_SEG, "");
-		b->bio_offset = sa * SECTOR_SIZE;
-		g_io_request(b, sc->provider);
+		bp->bio_offset = sa * SECTOR_SIZE;
+		g_io_request(bp, sc->consumer);
 	}
 	return sa;
 }
@@ -2293,13 +2296,19 @@ Return:
   the sector address where the data is written
 */
 static uint32_t
-_logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
+_logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *data)
 {
 	static bool is_called = false;
 	struct _seg_sum *seg_sum = &sc->seg_sum;
 
-	KASSERT(ba < sc->superblock.block_cnt_max || IS_META_ADDR(ba), "");
 	KASSERT(sc->seg_alloc_sa >= SECTORS_PER_SEG, "");
+	if (bp) {
+		ba = bp->bio_offset / SECTOR_SIZE;
+		KASSERT(ba < sc->superblock.block_cnt_max, "");
+		data = bp->bio_data;
+	} else {
+		KASSERT(IS_META_ADDR(ba), "");
+	}
 	if (is_called) // recursive call is not allowed
 		exit(1);
 	is_called = true;
@@ -2317,21 +2326,26 @@ again:
 		if (is_sec_valid(sa, ba_rev))
 			continue;
 
-		my_write(sa, data);
+		if (bp) {
+			bp->bio_offset = sa * SECTOR_SIZE;
+			g_io_request(bp, sc->consumer);
+		} else { // metadata
+			md_write(sc, sa, data);
+		}
 		seg_sum->ss_rm[i] = ba;		// record reverse mapping
 		sc->ss_modified = true;
 		seg_sum->ss_allocp = i + 1;	// advnace the alloc pointer
 		if (seg_sum->ss_allocp == SEG_SUM_OFFSET)
 			_seg_alloc(sc);
 
-		if (IS_META_ADDR(ba))
-			++sc->other_write_count;
-		else {
+		if (bp) {
 			++sc->data_write_count;
 			// record the forward mapping for the %ba
 			// the forward mapping must be recorded after
 			// the segment summary block write
 			file_write_4byte(sc, sc->superblock.fd_cur, ba, sa);
+		} else { // metadata
+			++sc->other_write_count;
 		}
 		is_called = false;
 		return sa;
@@ -2432,7 +2446,7 @@ seg_sum_write(struct g_logstor_softc *sc)
 	// segment summary is at the end of a segment
 	KASSERT(sc->seg_alloc_sa >= SECTORS_PER_SEG, "");
 	sa = sc->seg_alloc_sa + SEG_SUM_OFFSET;
-	my_write(sa, (void *)&sc->seg_sum);
+	md_write(sc, sa, (void *)&sc->seg_sum);
 	sc->ss_modified = false;
 	sc->other_write_count++; // the write for the segment summary
 }
@@ -2507,11 +2521,11 @@ disk_init(struct g_logstor_softc *sc, int fd)
 	struct _seg_sum ss;
 	for (int i = 0; i < SECTORS_PER_SEG - 1; ++i)
 		ss.ss_rm[i] = BLOCK_INVALID;
-	sc->superblock.seg_cnt = seg_cnt; // to silence the assert fail in my_write
+	sc->superblock.seg_cnt = seg_cnt; // to silence the assert fail in md_write
 	// initialize all segment summary blocks
 	for (int i = SEG_DATA_START; i < seg_cnt; ++i)
 	{	uint32_t sa = sega2sa(i) + SEG_SUM_OFFSET;
-		my_write(sa, &ss);
+		md_write(sc, sa, &ss);
 	}
 	return max_block;
 }
@@ -2583,25 +2597,54 @@ superblock_write(struct g_logstor_softc *sc)
 		sc->sb_sa = 0;
 	memcpy(buf, &sc->superblock, sb_size);
 	memset(buf + sb_size, 0, SECTOR_SIZE - sb_size);
-	my_write(sc->sb_sa, buf);
+	md_write(sc, sc->sb_sa, buf);
 	sc->sb_modified = false;
 	sc->other_write_count++;
 }
 
-static void
-my_read(uint32_t sa, void *buf)
+static int
+_g_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
 {
-//MY_BREAK(sa == );
-	KASSERT(sa < sc.superblock.seg_cnt * SECTORS_PER_SEG, "");
-	memcpy(buf, ram_disk + (off_t)sa * SECTOR_SIZE, SECTOR_SIZE);
+	struct bio *bp;
+	int errorc;
+
+	KASSERT(length > 0 && length >= cp->provider->sectorsize &&
+	    length <= maxphys, ("%s(): invalid length %jd", __func__,
+	    (intmax_t)length));
+
+	bp = g_alloc_bio();
+	bp->bio_cmd = BIO_READ;
+	bp->bio_done = NULL;
+	bp->bio_offset = offset;
+	bp->bio_data = ptr;
+	bp->bio_length = length;
+	g_io_request(bp, cp);
+	errorc = biowait(bp, "gread");
+	if (errorc == 0 && bp->bio_completed != length)
+		errorc = EIO;
+	g_destroy_bio(bp);
+
+	return (errorc);
 }
 
 static void
-my_write(uint32_t sa, const void *buf)
+md_read(struct g_logstor_softc *sc, uint32_t sa, void *buf)
 {
-//MY_BREAK(sa == );
-	KASSERT(sa < sc.superblock.seg_cnt * SECTORS_PER_SEG, "");
-	memcpy(ram_disk + (off_t)sa * SECTOR_SIZE , buf, SECTOR_SIZE);
+	int rc;
+
+	KASSERT(sa < sc->superblock.seg_cnt * SECTORS_PER_SEG, "");
+	rc = _g_read_data(sc->consumr, sa * SECTOR_SIZE, buf, SECTOR_SIZE);
+	KASSERT(rc == 0, "");
+}
+
+static void
+md_write(struct g_logstor_softc *sc, uint32_t sa, const void *buf)
+{
+	int rc;
+
+	KASSERT(sa < sc->superblock.seg_cnt * SECTORS_PER_SEG, "");
+	rc = g_write_data(sc->consumer, sa * SECTOR_SIZE, buf, SECTOR_SIZE);
+	KASSERT(rc == 0, "");
 }
 
 /*
@@ -2625,7 +2668,7 @@ _seg_alloc(struct g_logstor_softc *sc)
 		// has accessed all the segment summary blocks
 		MY_PANIC();
 	sc->seg_alloc_sa = sega2sa(sc->superblock.seg_alloc);
-	my_read(sc->seg_alloc_sa + SEG_SUM_OFFSET, &sc->seg_sum);
+	md_read(sc, sc->seg_alloc_sa + SEG_SUM_OFFSET, &sc->seg_sum);
 	sc->seg_sum.ss_allocp = 0;
 }
 
@@ -3287,7 +3330,7 @@ fbuf_access(struct g_logstor_softc *sc, union meta_addr ma)
 					sc->superblock.fd_root[ma.fd] = SECTOR_CACHE;
 			} else {
 				KASSERT(sa >= SECTORS_PER_SEG, "");
-				my_read(sa, fbuf->data);
+				md_read(sc, sa, fbuf->data);
 			}
 		} else {
 			KASSERT(fbuf->parent == parent, "");
@@ -3315,7 +3358,7 @@ fbuf_write(struct g_logstor_softc *sc, struct _fbuf *fbuf)
 	uint32_t sa;		// sector address
 
 	KASSERT(fbuf->fc.modified, "");
-	sa = _logstor_write(sc, fbuf->ma.uint32, fbuf->data);
+	sa = _logstor_write(sc, NULL, fbuf->ma.uint32, fbuf->data);
 	fbuf->fc.modified = false;
 
 	// update the sector address of this fbuf in its parent's fbuf
