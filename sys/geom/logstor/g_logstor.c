@@ -145,49 +145,9 @@ static void invalid_call(void);
 //=========================
 #define RAM_DISK_SIZE		0x180000000UL // 6G
 
-/*
-	logstor soft control
-*/
-struct logstor_softc {
-	uint32_t seg_alloc_start;// the starting segment for _logstor_write
-	uint32_t seg_alloc_sa;	// the sector address of the segment for allocation
-	struct _seg_sum seg_sum;// segment summary for the hot segment
-	uint32_t sb_sa; 	// superblock's sector address
-	bool sb_modified;	// is the super block modified
-	bool ss_modified;	// is segment summary modified
-
-	int fbuf_count;
-	struct _fbuf *fbufs;	// an array of fbufs
-	struct _fbuf *fbuf_allocp; // point to the fbuf candidate for replacement
-	struct _fbuf_sentinel fbuf_queue[QUEUE_CNT];
-	int fbuf_queue_len[QUEUE_CNT];
-
-	// buffer hash queue
-	struct _fbuf_sentinel fbuf_bucket[FBUF_BUCKET_CNT];
-
-	// statistics
-	unsigned data_write_count;	// data block write to disk
-	unsigned other_write_count;	// other write to disk, such as metadata write and segment cleaning
-	unsigned fbuf_hit;
-	unsigned fbuf_miss;
-
-	/*
-	  The macro RAM_DISK_SIZE is used for debug.
-	  By using RAM as the storage device, the test can run way much faster.
-	*/
-#if !defined(RAM_DISK_SIZE)
-	int disk_fd;
-#endif
-	struct _superblock superblock;
-};
-
-uint32_t gdb_cond0 = -1;
-uint32_t gdb_cond1 = -1;
-
 #if defined(RAM_DISK_SIZE)
 static char *ram_disk;
 #endif
-static struct logstor_softc sc;
 
 static uint32_t _logstor_read(struct g_logstor_softc *sc, struct bio *bp);
 static uint32_t _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *data);
@@ -225,7 +185,7 @@ static uint32_t ma2sa(struct g_logstor_softc *sc, union meta_addr ma);
 
 static int _g_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 static void md_read (struct g_logstor_softc *sc, uint32_t sa, void *buf);
-static void md_write(struct g_logstor_softc *sc, uint32_t sa, const void *buf);
+static void md_write(struct g_logstor_softc *sc, uint32_t sa, void *buf);
 
 static uint32_t logstor_ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba);
 static uint32_t logstor_ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba);
@@ -1632,7 +1592,7 @@ g_logstor_done(struct bio *bp)
 {
 	struct bio *bp2;
 
-	KASSERT(bp->bio_completed == SECTOR_SIZE);
+	KASSERT(bp->bio_completed == SECTOR_SIZE, "");
 	bp2 = bp->bio_parent;
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
@@ -2199,7 +2159,7 @@ _logstor_read(struct g_logstor_softc *sc, struct bio *bp)
 	uint32_t ba;	// block address
 	uint32_t sa;	// sector address
 
-	uint32_t ba = bp->bio_offset / SECTOR_SIZE;
+	ba = bp->bio_offset / SECTOR_SIZE;
 	KASSERT(ba < sc->superblock.block_cnt_max, "");
 
 	sa = logstor_ba2sa_fp(sc, ba);
@@ -2231,8 +2191,7 @@ is_sec_valid_comm(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev, uint
 
 	KASSERT(ba_rev < BLOCK_MAX, "");
 	for (int i = 0; i < fd_cnt; ++i) {
-		uint8_t _fd = fd[i];
-		sa_rev = file_read_4byte(sc, _fd, ba_rev);
+		sa_rev = file_read_4byte(sc, fd[i], ba_rev);
 		if (sa == sa_rev)
 			return true;
 	}
@@ -2323,7 +2282,7 @@ again:
 		uint32_t sa = sc->seg_alloc_sa + i;
 		uint32_t ba_rev = seg_sum->ss_rm[i]; // ba from the reverse map
 
-		if (is_sec_valid(sa, ba_rev))
+		if (is_sec_valid(sc, sa, ba_rev))
 			continue;
 
 		if (bp) {
@@ -2355,7 +2314,7 @@ again:
 }
 
 static uint32_t
-logstor_ba2sa_comm(uint32_t ba, uint8_t fd[], int fd_cnt)
+logstor_ba2sa_comm(struct g_logstor_softc *sc, uint32_t ba, uint8_t fd[], int fd_cnt)
 {
 	uint32_t sa;
 
@@ -2384,7 +2343,7 @@ logstor_ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba)
 	    sc->superblock.fd_snap,
 	};
 
-	return logstor_ba2sa_comm(ba, fd, NUM_OF_ELEMS(fd));
+	return logstor_ba2sa_comm(sc, ba, fd, NUM_OF_ELEMS(fd));
 }
 
 /*
@@ -2400,7 +2359,7 @@ logstor_ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba)
 	    sc->superblock.fd_snap,
 	};
 
-	return logstor_ba2sa_comm(ba, fd, NUM_OF_ELEMS(fd));
+	return logstor_ba2sa_comm(sc, ba, fd, NUM_OF_ELEMS(fd));
 }
 
 uint32_t
@@ -2630,17 +2589,17 @@ _g_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
 static void
 md_read(struct g_logstor_softc *sc, uint32_t sa, void *buf)
 {
-	int rc;
+	int rc __diagused;
 
 	KASSERT(sa < sc->superblock.seg_cnt * SECTORS_PER_SEG, "");
-	rc = _g_read_data(sc->consumr, sa * SECTOR_SIZE, buf, SECTOR_SIZE);
+	rc = _g_read_data(sc->consumer, sa * SECTOR_SIZE, buf, SECTOR_SIZE);
 	KASSERT(rc == 0, "");
 }
 
 static void
-md_write(struct g_logstor_softc *sc, uint32_t sa, const void *buf)
+md_write(struct g_logstor_softc *sc, uint32_t sa, void *buf)
 {
-	int rc;
+	int rc __diagused;
 
 	KASSERT(sa < sc->superblock.seg_cnt * SECTORS_PER_SEG, "");
 	rc = g_write_data(sc->consumer, sa * SECTOR_SIZE, buf, SECTOR_SIZE);
