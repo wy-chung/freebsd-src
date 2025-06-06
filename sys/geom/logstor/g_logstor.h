@@ -268,6 +268,7 @@ struct g_logstor_softc {
 	STAILQ_HEAD(, g_logstor_bio_q)	 delayed_bio_q;	/* Queue of delayed BIOs */
 	struct mtx		 delayed_bio_q_mtx;
 //=========================
+	struct g_consumer	*consumer;
 	uint32_t seg_alloc_start;// the starting segment for _logstor_write
 	uint32_t seg_alloc_sa;	// the sector address of the segment for allocation
 	struct _seg_sum seg_sum;// segment summary for the hot segment
@@ -300,8 +301,8 @@ uint32_t logstor_init(struct g_logstor_softc *sc);
 void logstor_fini(struct g_logstor_softc *sc);
 int  logstor_open(struct g_logstor_softc *sc, const char *disk_file);
 void logstor_close(struct g_logstor_softc *sc);
-uint32_t logstor_read(struct g_logstor_softc *sc, uint32_t ba, void *data);
-uint32_t logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data);
+uint32_t logstor_read(struct g_logstor_softc *sc, struct bio *bp);
+uint32_t logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *data);
 void logstor_commit(struct g_logstor_softc *sc);
 int logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data, off_t length);
 uint32_t logstor_get_block_cnt(struct g_logstor_softc *sc);
