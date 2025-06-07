@@ -2168,6 +2168,9 @@ logstor_ctl_revert(struct gctl_req *req, struct g_class *cp)
 		gctl_error(req, "Don't know anything about '%s'", geom_name);
 		return;
 	}
+
+	fbuf_cache_flush_and_invalidate_fd(sc, sc->superblock.fd_cur, FD_INVALID);
+	sc->superblock.fd_root[sc->superblock.fd_cur] = SECTOR_NULL;
 }
 
 uint32_t
