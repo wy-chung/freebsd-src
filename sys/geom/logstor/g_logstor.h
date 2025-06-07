@@ -290,10 +290,6 @@ struct g_logstor_softc {
 	unsigned fbuf_hit;
 	unsigned fbuf_miss;
 
-	/*
-	  The macro RAM_DISK_SIZE is used for debug.
-	  By using RAM as the storage device, the test can run way much faster.
-	*/
 	struct _superblock superblock;
 };
 
@@ -303,8 +299,6 @@ int  logstor_open(struct g_logstor_softc *sc, const char *disk_file);
 void logstor_close(struct g_logstor_softc *sc);
 uint32_t logstor_read(struct g_logstor_softc *sc, struct bio *bp);
 uint32_t logstor_write(struct g_logstor_softc *sc, struct bio *bp);
-void logstor_commit(struct g_logstor_softc *sc);
-int logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data, off_t length);
 uint32_t logstor_get_block_cnt(struct g_logstor_softc *sc);
 unsigned logstor_get_data_write_count(struct g_logstor_softc *sc);
 unsigned logstor_get_other_write_count(struct g_logstor_softc *sc);

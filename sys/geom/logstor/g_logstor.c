@@ -124,8 +124,6 @@ static void dump_me(struct logstor_map_entry *me, unsigned int nr);
 static void logstor_ctl_stop(struct gctl_req *, struct g_class *);
 static void logstor_ctl_add(struct gctl_req *, struct g_class *);
 static void logstor_ctl_remove(struct gctl_req *, struct g_class *);
-static void logstor_ctl_commit(struct gctl_req *, struct g_class *);
-static void logstor_ctl_revert(struct gctl_req *, struct g_class *);
 
 static struct g_logstor_softc * logstor_find_geom(const struct g_class *,
     const char *);
@@ -143,6 +141,10 @@ static void g_logstor_done(struct bio *);
 static void invalid_call(void);
 
 //=========================
+static void logstor_ctl_commit(struct gctl_req *, struct g_class *);
+static void logstor_ctl_revert(struct gctl_req *, struct g_class *);
+
+static int logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data, off_t length);
 static uint32_t _logstor_read(struct g_logstor_softc *sc, struct bio *bp);
 static uint32_t _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *data);
 
@@ -1952,31 +1954,6 @@ invalid_call(void)
 }
 
 //=========================
-static int
-logstor_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
-{
-	struct bio *bp;
-	int errorc;
-
-	KASSERT(length > 0 && length >= cp->provider->sectorsize &&
-	    length <= maxphys, ("g_read_data(): invalid length %jd",
-	    (intmax_t)length));
-
-	bp = g_alloc_bio();
-	bp->bio_cmd = BIO_READ;
-	bp->bio_done = NULL;
-	bp->bio_offset = offset;
-	bp->bio_length = length;
-	bp->bio_data = ptr;
-	g_io_request(bp, cp);
-	errorc = biowait(bp, "gread");
-	if (errorc == 0 && bp->bio_completed != length)
-		errorc = EIO;
-	g_destroy_bio(bp);
-
-	return errorc;
-}
-
 static inline off_t
 get_mediasize(struct g_logstor_softc *sc)
 {
@@ -2065,7 +2042,8 @@ logstor_write(struct g_logstor_softc *sc, struct bio *bp)
 //		return;
 // and the command below must be executed before mounting the device
 //	tunefs -t enabled /dev/ggate0
-int logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data __unused, off_t length)
+static int
+logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data __unused, off_t length)
 {
 	uint32_t ba;	// block address
 	int size;	// number of remaining sectors to process
@@ -2085,9 +2063,35 @@ int logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data __unused
 	return (0);
 }
 
-void
-logstor_commit(struct g_logstor_softc *sc)
+static void
+logstor_ctl_commit(struct gctl_req *req, struct g_class *cp)
 {
+	struct g_logstor_softc *sc;
+	int *nargs;
+	const char *geom_name;	/* geom to add a component to */
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "Error fetching argument '%s'", "nargs");
+		return;
+	}
+	if (*nargs != 1) {
+		gctl_error(req, "Invalid number of arguments");
+		return;
+	}
+
+	/* Find "our" geom */
+	geom_name = gctl_get_asciiparam(req, "arg0");
+	if (geom_name == NULL) {
+		gctl_error(req, "Error fetching argument '%s'", "geom_name (arg0)");
+		return;
+	}
+	sc = logstor_find_geom(cp, geom_name);
+	if (sc == NULL) {
+		gctl_error(req, "Don't know anything about '%s'", geom_name);
+		return;
+	}
+
 	// lock metadata
 	// move fd_cur to fd_prev
 	sc->superblock.fd_prev = sc->superblock.fd_cur;
@@ -2134,6 +2138,36 @@ logstor_commit(struct g_logstor_softc *sc)
 	is_sec_valid_fp = is_sec_valid_normal;
 	logstor_ba2sa_fp = logstor_ba2sa_normal;
 	//unlock metadata
+}
+
+static void
+logstor_ctl_revert(struct gctl_req *req, struct g_class *cp)
+{
+	struct g_logstor_softc *sc;
+	int *nargs;
+	const char *geom_name;	/* geom to add a component to */
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "Error fetching argument '%s'", "nargs");
+		return;
+	}
+	if (*nargs != 1) {
+		gctl_error(req, "Invalid number of arguments");
+		return;
+	}
+
+	/* Find "our" geom */
+	geom_name = gctl_get_asciiparam(req, "arg0");
+	if (geom_name == NULL) {
+		gctl_error(req, "Error fetching argument '%s'", "geom_name (arg0)");
+		return;
+	}
+	sc = logstor_find_geom(cp, geom_name);
+	if (sc == NULL) {
+		gctl_error(req, "Don't know anything about '%s'", geom_name);
+		return;
+	}
 }
 
 uint32_t
@@ -2225,7 +2259,7 @@ is_sec_valid(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 	} else if (ba_rev == BLOCK_INVALID) {
 		return false;
 	} else {
-		MY_PANIC();
+		panic("");
 		return false;
 	}
 }
@@ -2252,9 +2286,9 @@ _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *da
 		KASSERT(IS_META_ADDR(ba), "");
 	}
 	if (is_called) // recursive call is not allowed
-		exit(1);
-	is_called = true;
+		panic("");
 
+	is_called = true;
 	// record the starting segment
 	// if the search for free sector rolls over to the starting segment
 	// it means that there is no free sector in this disk
@@ -2427,7 +2461,7 @@ disk_init(struct g_logstor_softc *sc)
 		    __func__, (int)sizeof(struct _superblock), (int)sb->seg_cnt);
 		printf("    the size of the disk must be less than %lld\n",
 		    (SECTOR_SIZE - sizeof(struct _superblock)) * (long long)SEG_SIZE);
-		MY_PANIC();
+		panic("");
 	}
 	seg_cnt = sb->seg_cnt;
 	uint32_t max_block =
@@ -2600,7 +2634,7 @@ _seg_alloc(struct g_logstor_softc *sc)
 		sc->superblock.seg_alloc = SEG_DATA_START;
 	if (sc->superblock.seg_alloc == sc->seg_alloc_start)
 		// has accessed all the segment summary blocks
-		MY_PANIC();
+		panic("");
 	sc->seg_alloc_sa = sega2sa(sc->superblock.seg_alloc);
 	md_read(sc, sc->seg_alloc_sa + SEG_SUM_OFFSET, &sc->seg_sum);
 	sc->seg_sum.ss_allocp = 0;
@@ -2724,7 +2758,7 @@ ma_index_get(union meta_addr ma, unsigned depth)
 	case 1:
 		return ma.index1;
 	default:
-		MY_PANIC();
+		panic("");
 		return 0;
 	}
 }
@@ -2742,7 +2776,7 @@ ma_index_set(union meta_addr ma, unsigned depth, unsigned index)
 		ma.index1 = index;
 		break;
 	default:
-		MY_PANIC();
+		panic("");
 	}
 	return ma;
 }
@@ -2772,7 +2806,7 @@ ma2pma(union meta_addr ma, unsigned *pindex_out)
 		ma.depth = 1; // i.e. ma.depth - 1
 		break;
 	default:
-		MY_PANIC();
+		panic("");
 		break;
 	}
 	return ma;
