@@ -148,7 +148,7 @@ static int logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data, 
 static uint32_t _logstor_read(struct g_logstor_softc *sc, struct bio *bp);
 static uint32_t _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *data);
 
-static void _seg_alloc(struct g_logstor_softc *sc);
+static void seg_alloc(struct g_logstor_softc *sc);
 static void seg_sum_write(struct g_logstor_softc *sc);
 
 static uint32_t disk_init(struct g_logstor_softc *sc);
@@ -1998,9 +1998,9 @@ logstor_open(struct g_logstor_softc *sc, const char *disk_file)
 	sc->sb_modified = false;
 
 	// read the segment summary block
-	KASSERT(sc->superblock.seg_alloc >= SEG_DATA_START, "");
-	sc->seg_alloc_sa = sega2sa(sc->superblock.seg_alloc);
-	uint32_t sa = sc->seg_alloc_sa + SEG_SUM_OFFSET;
+	KASSERT(sc->superblock.seg_allocp >= SEG_DATA_START, "");
+	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
+	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
 	md_read(sc, sa, &sc->seg_sum);
 	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, "");
 	sc->ss_modified = false;
@@ -2277,7 +2277,7 @@ _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *da
 	static bool is_called = false;
 	struct _seg_sum *seg_sum = &sc->seg_sum;
 
-	KASSERT(sc->seg_alloc_sa >= SECTORS_PER_SEG, "");
+	KASSERT(sc->seg_allocp_sa >= SECTORS_PER_SEG, "");
 	if (bp) {
 		ba = bp->bio_offset / SECTOR_SIZE;
 		KASSERT(ba < sc->superblock.block_cnt_max, "");
@@ -2292,11 +2292,11 @@ _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *da
 	// record the starting segment
 	// if the search for free sector rolls over to the starting segment
 	// it means that there is no free sector in this disk
-	sc->seg_alloc_start = sc->superblock.seg_alloc;
+	sc->seg_allocp_start = sc->superblock.seg_allocp;
 again:
 	for (int i = seg_sum->ss_allocp; i < SEG_SUM_OFFSET; ++i)
 	{
-		uint32_t sa = sc->seg_alloc_sa + i;
+		uint32_t sa = sc->seg_allocp_sa + i;
 		uint32_t ba_rev = seg_sum->ss_rm[i]; // ba from the reverse map
 
 		if (is_sec_valid(sc, sa, ba_rev))
@@ -2312,7 +2312,7 @@ again:
 		sc->ss_modified = true;
 		seg_sum->ss_allocp = i + 1;	// advnace the alloc pointer
 		if (seg_sum->ss_allocp == SEG_SUM_OFFSET)
-			_seg_alloc(sc);
+			seg_alloc(sc);
 
 		if (bp) {
 			++sc->data_write_count;
@@ -2326,7 +2326,7 @@ again:
 		is_called = false;
 		return sa;
 	}
-	_seg_alloc(sc);
+	seg_alloc(sc);
 	goto again;
 }
 
@@ -2420,8 +2420,8 @@ seg_sum_write(struct g_logstor_softc *sc)
 	if (!sc->ss_modified)
 		return;
 	// segment summary is at the end of a segment
-	KASSERT(sc->seg_alloc_sa >= SECTORS_PER_SEG, "");
-	sa = sc->seg_alloc_sa + SEG_SUM_OFFSET;
+	KASSERT(sc->seg_allocp_sa >= SECTORS_PER_SEG, "");
+	sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
 	md_write(sc, sa, (void *)&sc->seg_sum);
 	sc->ss_modified = false;
 	sc->other_write_count++; // the write for the segment summary
@@ -2470,7 +2470,7 @@ disk_init(struct g_logstor_softc *sc)
 	KASSERT(max_block < 0x40000000, ""); // 1G
 	sb->block_cnt_max = max_block;
 
-	sb->seg_alloc = SEG_DATA_START;	// start allocate from here
+	sb->seg_allocp = SEG_DATA_START;	// start allocate from here
 
 	sb->fd_cur = 0;			// current mapping is file 0
 	sb->fd_snap = 1;
@@ -2522,7 +2522,7 @@ superblock_read(struct g_logstor_softc *sc)
 	sb = (struct _superblock *)buf[0];
 	md_read(sc, 0, sb);
 	if (sb->sig != SIG_LOGSTOR ||
-	    sb->seg_alloc >= sb->seg_cnt)
+	    sb->seg_allocp >= sb->seg_cnt)
 		return EINVAL;
 
 	sb_gen = sb->sb_gen;
@@ -2537,7 +2537,7 @@ superblock_read(struct g_logstor_softc *sc)
 	}
 	sc->sb_sa = (i - 1);
 	sb = (struct _superblock *)buf[(i-1)%2];
-	if (sb->seg_alloc >= sb->seg_cnt)
+	if (sb->seg_allocp >= sb->seg_cnt)
 		return EINVAL;
 
 	for (i=0; i<FD_COUNT; ++i)
@@ -2624,19 +2624,19 @@ Output:
   Initialize @seg_sum->sum.alloc_p to 0
 */
 static void
-_seg_alloc(struct g_logstor_softc *sc)
+seg_alloc(struct g_logstor_softc *sc)
 {
 	// write the previous segment summary to disk if it has been modified
 	seg_sum_write(sc);
 
-	KASSERT(sc->superblock.seg_alloc < sc->superblock.seg_cnt, "");
-	if (++sc->superblock.seg_alloc == sc->superblock.seg_cnt)
-		sc->superblock.seg_alloc = SEG_DATA_START;
-	if (sc->superblock.seg_alloc == sc->seg_alloc_start)
+	KASSERT(sc->superblock.seg_allocp < sc->superblock.seg_cnt, "");
+	if (++sc->superblock.seg_allocp == sc->superblock.seg_cnt)
+		sc->superblock.seg_allocp = SEG_DATA_START;
+	if (sc->superblock.seg_allocp == sc->seg_allocp_start)
 		// has accessed all the segment summary blocks
 		panic("");
-	sc->seg_alloc_sa = sega2sa(sc->superblock.seg_alloc);
-	md_read(sc, sc->seg_alloc_sa + SEG_SUM_OFFSET, &sc->seg_sum);
+	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
+	md_read(sc, sc->seg_allocp_sa + SEG_SUM_OFFSET, &sc->seg_sum);
 	sc->seg_sum.ss_allocp = 0;
 }
 
