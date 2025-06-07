@@ -133,7 +133,7 @@ struct _superblock {
 	   The segments are treated as circular buffer
 	 */
 	uint32_t seg_cnt;	// total number of segments
-	uint32_t seg_alloc;	// allocate this segment
+	uint32_t seg_allocp;	// allocate this segment
 	uint32_t sector_cnt_free;
 	// since the max meta file size is 4G (1K*1K*4K) and the entry size is 4
 	// block_cnt_max must be < (4G/4)
@@ -269,8 +269,8 @@ struct g_logstor_softc {
 	struct mtx		 delayed_bio_q_mtx;
 //=========================
 	struct g_consumer	*consumer;
-	uint32_t seg_alloc_start;// the starting segment for _logstor_write
-	uint32_t seg_alloc_sa;	// the sector address of the segment for allocation
+	uint32_t seg_allocp_start;// the starting segment for _logstor_write
+	uint32_t seg_allocp_sa;	// the sector address of the segment for allocation
 	struct _seg_sum seg_sum;// segment summary for the hot segment
 	uint32_t sb_sa; 	// superblock's sector address
 	bool sb_modified;	// is the super block modified
