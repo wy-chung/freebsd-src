@@ -143,19 +143,13 @@ static void g_logstor_done(struct bio *);
 static void invalid_call(void);
 
 //=========================
-#define RAM_DISK_SIZE		0x180000000UL // 6G
-
-#if defined(RAM_DISK_SIZE)
-static char *ram_disk;
-#endif
-
 static uint32_t _logstor_read(struct g_logstor_softc *sc, struct bio *bp);
 static uint32_t _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *data);
 
 static void _seg_alloc(struct g_logstor_softc *sc);
 static void seg_sum_write(struct g_logstor_softc *sc);
 
-static uint32_t disk_init(struct g_logstor_softc *sc, int fd);
+static uint32_t disk_init(struct g_logstor_softc *sc);
 static int  superblock_read(struct g_logstor_softc *sc);
 static void superblock_write(struct g_logstor_softc *sc);
 
@@ -1983,13 +1977,11 @@ logstor_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
 	return errorc;
 }
 
-#if defined(RAM_DISK_SIZE)
-static off_t
-get_mediasize(int fd)
+static inline off_t
+get_mediasize(struct g_logstor_softc *sc)
 {
-	return RAM_DISK_SIZE;
+	return sc->provider->mediasize;
 }
-#endif
 /*******************************
  *        logstor              *
  *******************************/
@@ -2009,22 +2001,13 @@ Return the max number of blocks for this disk
 */
 uint32_t logstor_init(struct g_logstor_softc *sc)
 {
-	int disk_fd;
 
-#if defined(RAM_DISK_SIZE)
-	ram_disk = malloc(RAM_DISK_SIZE);
-	KASSERT(ram_disk != NULL, "");
-	disk_fd = -1;
-#endif
-	return disk_init(sc, disk_fd);
+	return disk_init(sc);
 }
 
 void
 logstor_fini(struct g_logstor_softc *sc)
 {
-#if defined(RAM_DISK_SIZE)
-	free(ram_disk);
-#endif
 }
 
 int
@@ -2418,7 +2401,7 @@ Return:
     The max number of blocks for this disk
 */
 static uint32_t
-disk_init(struct g_logstor_softc *sc, int fd)
+disk_init(struct g_logstor_softc *sc)
 {
 	int32_t seg_cnt;
 	uint32_t sector_cnt;
@@ -2426,7 +2409,7 @@ disk_init(struct g_logstor_softc *sc, int fd)
 	off_t media_size;
 	char buf[SECTOR_SIZE] __attribute__ ((aligned));
 
-	media_size = get_mediasize(fd);
+	media_size = get_mediasize(sc);
 	sector_cnt = media_size / SECTOR_SIZE;
 
 	sb = (struct _superblock *)buf;
@@ -2466,16 +2449,12 @@ disk_init(struct g_logstor_softc *sc, int fd)
 	}
 
 	// write out super block
-#if defined(RAM_DISK_SIZE)
-	memcpy(ram_disk, sb, SECTOR_SIZE);
-#endif
+	md_write(sc, 0, sb);
 
 	// clear the rest of the supeblock's segment
 	bzero(buf, SECTOR_SIZE);
 	for (int i = 1; i < SECTORS_PER_SEG; i++) {
-#if defined(RAM_DISK_SIZE)
-		memcpy(ram_disk + i * SECTOR_SIZE, buf, SECTOR_SIZE);
-#endif
+		md_write(sc, i * SECTOR_SIZE, buf);
 	}
 	struct _seg_sum ss;
 	for (int i = 0; i < SECTORS_PER_SEG - 1; ++i)
@@ -2507,9 +2486,7 @@ superblock_read(struct g_logstor_softc *sc)
 
 	// get the superblock
 	sb = (struct _superblock *)buf[0];
-#if defined(RAM_DISK_SIZE)
-	memcpy(sb, ram_disk, SECTOR_SIZE);
-#endif
+	md_read(sc, 0, sb);
 	if (sb->sig != SIG_LOGSTOR ||
 	    sb->seg_alloc >= sb->seg_cnt)
 		return EINVAL;
@@ -2517,9 +2494,7 @@ superblock_read(struct g_logstor_softc *sc)
 	sb_gen = sb->sb_gen;
 	for (i = 1 ; i < SECTORS_PER_SEG; i++) {
 		sb = (struct _superblock *)buf[i%2];
-#if defined(RAM_DISK_SIZE)
-		memcpy(sb, ram_disk + i * SECTOR_SIZE, SECTOR_SIZE);
-#endif
+		md_read(sc, i * SECTOR_SIZE, sb);
 		if (sb->sig != SIG_LOGSTOR)
 			break;
 		if (sb->sb_gen != (uint16_t)(sb_gen + 1)) // IMPORTANT type cast
@@ -2740,22 +2715,18 @@ file_access_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba, uint32_t 
 	return fbuf;
 }
 
-static unsigned
+static inline unsigned
 ma_index_get(union meta_addr ma, unsigned depth)
 {
-	unsigned index;
-
 	switch (depth) {
 	case 0:
-		index = ma.index0;
-		break;
+		return ma.index0;
 	case 1:
-		index = ma.index1;
-		break;
+		return ma.index1;
 	default:
 		MY_PANIC();
+		return 0;
 	}
-	return (index);
 }
 
 static union meta_addr
@@ -2857,7 +2828,7 @@ fbuf_mod_init(struct g_logstor_softc *sc)
 	if (fbuf_count > FBUF_MAX)
 		fbuf_count = FBUF_MAX;
 	sc->fbuf_count = fbuf_count;
-	sc->fbufs = malloc(fbuf_count * sizeof(*sc->fbufs));
+	sc->fbufs = malloc(fbuf_count * sizeof(*sc->fbufs), M_GLOGSTOR, M_WAITOK);
 	KASSERT(sc->fbufs != NULL, "");
 
 	for (i = 0; i < FBUF_BUCKET_CNT; ++i) {
@@ -2889,7 +2860,7 @@ static void
 fbuf_mod_fini(struct g_logstor_softc *sc)
 {
 	fbuf_cache_flush(sc);
-	free(sc->fbufs);
+	free(sc->fbufs, M_GLOGSTOR);
 }
 
 static inline bool
