@@ -1798,7 +1798,7 @@ logstor_fini(struct g_logstor_softc *sc)
 }
 
 int
-logstor_open(struct g_logstor_softc *sc, const char *disk_file)
+logstor_open(struct g_logstor_softc *sc)
 {
 	bzero(sc, sizeof(*sc));
 	int error __unused;

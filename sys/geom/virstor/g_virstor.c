@@ -759,7 +759,7 @@ bailout:
  * Examines a provider and creates geom instances if needed
  */
 static struct g_geom *
-g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
+g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
 	struct g_virstor_metadata md;
 	struct g_geom *gp;

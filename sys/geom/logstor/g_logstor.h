@@ -295,7 +295,7 @@ struct g_logstor_softc {
 
 uint32_t logstor_init(struct g_logstor_softc *sc);
 void logstor_fini(struct g_logstor_softc *sc);
-int  logstor_open(struct g_logstor_softc *sc, const char *disk_file);
+int  logstor_open(struct g_logstor_softc *sc);
 void logstor_close(struct g_logstor_softc *sc);
 uint32_t logstor_read(struct g_logstor_softc *sc, struct bio *bp);
 uint32_t logstor_write(struct g_logstor_softc *sc, struct bio *bp);
