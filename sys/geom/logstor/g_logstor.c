@@ -265,7 +265,7 @@ logstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
 		gctl_error(req, "Error fetching argument '%s'", "nargs");
 		return;
 	}
-	if (*nargs < 1) {
+	if (*nargs != 1) {
 		gctl_error(req, "Invalid number of arguments");
 		return;
 	}
@@ -276,33 +276,31 @@ logstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
 	}
 
 	g_topology_lock();
-	for (i = 0; i < *nargs; i++) {
-		char param[8];
-		const char *name;
-		struct g_logstor_softc *sc;
-		int error;
+	char param[8];
+	const char *name;
+	struct g_logstor_softc *sc;
+	int error;
 
-		snprintf(param, sizeof(param), "arg%d", i);
-		name = gctl_get_asciiparam(req, param);
-		if (name == NULL) {
-			gctl_error(req, "No 'arg%d' argument", i);
-			g_topology_unlock();
-			return;
-		}
-		sc = logstor_find_geom(cp, name);
-		if (sc == NULL) {
-			gctl_error(req, "Don't know anything about '%s'", name);
-			g_topology_unlock();
-			return;
-		}
+	snprintf(param, sizeof(param), "arg%d", 0);
+	name = gctl_get_asciiparam(req, param);
+	if (name == NULL) {
+		gctl_error(req, "No 'arg%d' argument", 0);
+		g_topology_unlock();
+		return;
+	}
+	sc = logstor_find_geom(cp, name);
+	if (sc == NULL) {
+		gctl_error(req, "Don't know anything about '%s'", name);
+		g_topology_unlock();
+		return;
+	}
 
-		LOG_MSG(LVL_INFO, "Stopping %s by the userland command",
-		    sc->geom->name);
-		update_metadata(sc);
-		if ((error = logstor_geom_destroy(sc, TRUE, TRUE)) != 0) {
-			LOG_MSG(LVL_ERROR, "Cannot destroy %s: %d",
-			    sc->geom->name, error);
-		}
+	LOG_MSG(LVL_INFO, "Stopping %s by the userland command",
+	    sc->geom->name);
+	update_metadata(sc);
+	if ((error = logstor_geom_destroy(sc, TRUE, TRUE)) != 0) {
+		LOG_MSG(LVL_ERROR, "Cannot destroy %s: %d",
+		    sc->geom->name, error);
 	}
 	g_topology_unlock();
 }
@@ -897,21 +895,6 @@ logstor_geom_destroy(struct g_logstor_softc *sc, boolean_t force,
 
 	KASSERT(sc->provider == NULL, ("Provider still exists for %s",
 	    gp->name));
-
-	/* XXX: This might or might not work, since we're called with
-	 * the topology lock held. Also, it might panic the kernel if
-	 * the error'd BIO is in softupdates code. */
-	mtx_lock(&sc->delayed_bio_q_mtx);
-	while (!STAILQ_EMPTY(&sc->delayed_bio_q)) {
-		struct g_logstor_bio_q *bq;
-		bq = STAILQ_FIRST(&sc->delayed_bio_q);
-		bq->bio->bio_error = ENOSPC;
-		g_io_deliver(bq->bio, EIO);
-		STAILQ_REMOVE_HEAD(&sc->delayed_bio_q, linkage);
-		free(bq, M_GLOGSTOR);
-	}
-	mtx_unlock(&sc->delayed_bio_q_mtx);
-	mtx_destroy(&sc->delayed_bio_q_mtx);
 
 	free(sc->map, M_GLOGSTOR);
 	free(sc->components, M_GLOGSTOR);
