@@ -63,9 +63,11 @@ uint32_t version = G_LOGSTOR_VERSION;
 static void logstor_main(struct gctl_req *req, unsigned flags);
 
 struct g_command class_commands[] = {
+#if 0
 	{ "clear", G_FLAG_VERBOSE, logstor_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
+#endif
 	{ "dump", 0, logstor_main, G_NULL_OPTS,
 	    "prov ..."
 	},
@@ -114,7 +116,7 @@ struct g_command class_commands[] = {
 static int verbose = 0;
 
 /* Helper functions' declarations */
-static void logstor_clear(struct gctl_req *req);
+//static void logstor_clear(struct gctl_req *req);
 static void logstor_dump(struct gctl_req *req);
 static void logstor_label(struct gctl_req *req);
 
@@ -134,8 +136,10 @@ logstor_main(struct gctl_req *req, unsigned flags)
 	}
 	if (strcmp(name, "label") == 0)
 		logstor_label(req);
+#if 0
 	else if (strcmp(name, "clear") == 0)
 		logstor_clear(req);
+#endif
 	else if (strcmp(name, "dump") == 0)
 		logstor_dump(req);
 	else
@@ -155,285 +159,90 @@ logstor_main(struct gctl_req *req, unsigned flags)
 static void
 logstor_label(struct gctl_req *req)
 {
-	struct g_logstor_metadata md;
-	off_t msize;
-	unsigned char *sect;
-	unsigned int i;
-	size_t ssize, secsize;
+	int nargs;
 	const char *name;
-	char param[32];
-	int hardcode, nargs, error;
-	struct logstor_map_entry *map;
-	size_t total_chunks;	/* We'll run out of memory if
-				   this needs to be bigger. */
-	unsigned int map_chunks; /* Chunks needed by the map (map size). */
-	size_t map_size;	/* In bytes. */
-	ssize_t written;
-	int fd;
+	int dev_fd;
+	int32_t seg_cnt;
+	uint32_t sector_cnt;
+	off_t media_size;
+	struct logstor_superblock *sb;
+	char buf[SECTOR_SIZE] __attribute__((aligned(4)));
 
 	nargs = gctl_get_int(req, "nargs");
-	if (nargs < 2) {
-		gctl_error(req, "Too few arguments (%d): expecting: name "
-		    "provider0 [provider1 ...]", nargs);
+	if (nargs != 1) {
+		gctl_error(req, "Too few arguments (%d): expecting: name provider", nargs);
 		return;
 	}
-
-	hardcode = gctl_get_int(req, "hardcode");
-
-	/*
-	 * Initialize constant parts of metadata: magic signature, version,
-	 * name.
-	 */
-	bzero(&md, sizeof(md));
-	strlcpy(md.md_magic, G_LOGSTOR_MAGIC, sizeof(md.md_magic));
-	md.md_version = G_LOGSTOR_VERSION;
 	name = gctl_get_ascii(req, "arg0");
 	if (name == NULL) {
 		gctl_error(req, "No 'arg%u' argument.", 0);
 		return;
 	}
-	strlcpy(md.md_name, name, sizeof(md.md_name));
-
-	md.md_virsize = (off_t)gctl_get_intmax(req, "vir_size");
-	md.md_chunk_size = gctl_get_intmax(req, "chunk_size");
-	md.md_count = nargs - 1;
-
-	if (md.md_virsize == 0 || md.md_chunk_size == 0) {
-		gctl_error(req, "Virtual size and chunk size must be non-zero");
+	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, name);
+	dev_fd = open(buf, O_RDWR);
+	if (dev_fd < 0) {
+		printf("%s open\n", __func__);
 		return;
 	}
-
-	if (md.md_chunk_size % MAXPHYS != 0) {
-		/* XXX: This is not strictly needed, but it's convenient to
-		 * impose some limitations on it, so why not MAXPHYS. */
-		size_t new_size = rounddown(md.md_chunk_size, MAXPHYS);
-		if (new_size < md.md_chunk_size)
-			new_size += MAXPHYS;
-		fprintf(stderr, "Resizing chunk size to be a multiple of "
-		    "MAXPHYS (%d kB).\n", MAXPHYS / 1024);
-		fprintf(stderr, "New chunk size: %zu kB\n", new_size / 1024);
-		md.md_chunk_size = new_size;
-	}
-
-	if (md.md_virsize % md.md_chunk_size != 0) {
-		off_t chunk_count = md.md_virsize / md.md_chunk_size;
-		md.md_virsize = chunk_count * md.md_chunk_size;
-		fprintf(stderr, "Resizing virtual size to be a multiple of "
-		    "chunk size.\n");
-		fprintf(stderr, "New virtual size: %zu MB\n",
-		    (size_t)(md.md_virsize/(1024 * 1024)));
-	}
-
-	msize = secsize = 0;
-	for (i = 1; i < (unsigned)nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_ascii(req, "%s", param);
-		ssize = g_get_sectorsize(name);
-		if (ssize == 0)
-			fprintf(stderr, "%s for %s\n", strerror(errno), name);
-		msize += g_get_mediasize(name);
-		if (secsize == 0)
-			secsize = ssize;
-		else if (secsize != ssize) {
-			gctl_error(req, "Devices need to have same sector size "
-			    "(%u on %s needs to be %u).",
-			    (u_int)ssize, name, (u_int)secsize);
-			return;
-		}
-	}
-
-	if (secsize == 0) {
-		gctl_error(req, "Device not specified");
+	media_size = g_mediasize(dev_fd);
+	if (media_size < 0) {
+		printf("%s g_mediasize\n", __func__);
 		return;
 	}
+	sector_cnt = media_size / SECTOR_SIZE;
+	sb = (struct logstor_superblock *)buf;
+	sb->sig = SIG_LOGSTOR;
+	sb->ver_major = VER_MAJOR;
+	sb->ver_minor = VER_MINOR;
+	snprintf(sb->name, sizeof(sb->name), "%s%s", name, G_LOGSTOR_SUFFIX);
+	sb->sb_gen = arc4random();
+	seg_cnt = sector_cnt / SECTORS_PER_SEG;
+	if (sizeof(struct logstor_superblock) + seg_cnt > SECTOR_SIZE) {
+		printf("%s: size of superblock %d seg_cnt %d\n",
+		    __func__, (int)sizeof(struct logstor_superblock), (int)seg_cnt);
+		printf("    the size of the disk must be less than %lld\n",
+		    (SECTOR_SIZE - sizeof(struct logstor_superblock)) * (long long)SEG_SIZE);
+		exit(1);
+	}
+	sb->seg_cnt = seg_cnt;
+	uint32_t max_block =
+	    (seg_cnt - SEG_DATA_START) * BLOCKS_PER_SEG -
+	    (sector_cnt / (SECTOR_SIZE / 4)) * FD_COUNT * 4;
+	assert(max_block < 0x40000000); // 1G
+	sb->block_cnt_max = max_block;
 
-	if (md.md_chunk_size % secsize != 0) {
-		fprintf(stderr, "Error: chunk size is not a multiple of sector "
-		    "size.");
-		gctl_error(req, "Chunk size (in bytes) must be multiple of %u.",
-		    (unsigned int)secsize);
-		return;
+	sb->seg_allocp = SEG_DATA_START;	// start allocate from here
+
+	sb->fd_cur = 0;			// current mapping is file 0
+	sb->fd_snap = 1;
+	sb->fd_prev = FD_INVALID;	// mapping does not exist
+	sb->fd_snap_new = FD_INVALID;
+	sb->fd_root[0] = SECTOR_NULL;	// file 0 is all 0
+	// the root sector address for the files 1, 2 and 3
+	for (int i = 1; i < FD_COUNT; i++) {
+		sb->fd_root[i] = SECTOR_DEL;	// the file does not exit
 	}
 
-	total_chunks = md.md_virsize / md.md_chunk_size;
-	map_size = total_chunks * sizeof(*map);
-	assert(md.md_virsize % md.md_chunk_size == 0);
+	// write out super block
+	pwrite(dev_fd, sb, SECTOR_SIZE, 0);
 
-	ssize = map_size % secsize;
-	if (ssize != 0) {
-		size_t add_chunks = (secsize - ssize) / sizeof(*map);
-		total_chunks += add_chunks;
-		md.md_virsize = (off_t)total_chunks * (off_t)md.md_chunk_size;
-		map_size = total_chunks * sizeof(*map);
-		fprintf(stderr, "Resizing virtual size to fit logstor "
-		    "structures.\n");
-		fprintf(stderr, "New virtual size: %ju MB (%zu new chunks)\n",
-		    (uintmax_t)(md.md_virsize / (1024 * 1024)), add_chunks);
+	// clear the rest of the supeblock's segment
+	bzero(buf, SECTOR_SIZE);
+	for (int i = 1; i < SECTORS_PER_SEG; i++) {
+		pwrite(dev_fd, buf, SECTOR_SIZE, i * SECTOR_SIZE);
 	}
-
-	if (verbose)
-		printf("Total virtual chunks: %zu (%zu MB each), %ju MB total "
-		    "virtual size.\n",
-		    total_chunks, (size_t)(md.md_chunk_size / (1024 * 1024)),
-		    md.md_virsize/(1024 * 1024));
-
-	if ((off_t)md.md_virsize < msize)
-		fprintf(stderr, "WARNING: Virtual storage size < Physical "
-		    "available storage (%ju < %ju)\n", md.md_virsize, msize);
-
-	/* Clear last sector first to spoil all components if device exists. */
-	if (verbose)
-		printf("Clearing metadata on");
-
-	for (i = 1; i < (unsigned)nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_ascii(req, "%s", param);
-
-		if (verbose)
-			printf(" %s", name);
-
-		msize = g_get_mediasize(name);
-		ssize = g_get_sectorsize(name);
-		if (msize == 0 || ssize == 0) {
-			gctl_error(req, "Can't retrieve information about "
-			    "%s: %s.", name, strerror(errno));
-			return;
-		}
-		if (msize < (off_t) MAX(md.md_chunk_size*4, map_size))
-			gctl_error(req, "Device %s is too small", name);
-		error = g_metadata_clear(name, NULL);
-		if (error != 0) {
-			gctl_error(req, "Can't clear metadata on %s: %s.", name,
-			    strerror(error));
-			return;
-		}
+	struct _seg_sum ss;
+	for (int i = 0; i < SECTORS_PER_SEG - 1; ++i)
+		ss.ss_rm[i] = BLOCK_INVALID;
+	// initialize all segment summary blocks
+	for (int i = SEG_DATA_START; i < seg_cnt; ++i)
+	{	uint32_t sa = sega2sa(i) + SEG_SUM_OFFSET;
+		pwrite(dev_fd, &ss, SECTOR_SIZE, sa);
 	}
-
-
-	/* Write allocation table to the first provider - this needs to be done
-	 * before metadata is written because when kernel tastes it it's too
-	 * late */
-	name = gctl_get_ascii(req, "arg1"); /* device with metadata */
-	if (verbose)
-		printf(".\nWriting allocation table to %s...", name);
-
-	/* How many chunks does the map occupy? */
-	map_chunks = map_size/md.md_chunk_size;
-	if (map_size % md.md_chunk_size != 0)
-		map_chunks++;
-	if (verbose) {
-		printf(" (%zu MB, %d chunks) ", map_size/(1024*1024), map_chunks);
-		fflush(stdout);
-	}
-
-	if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
-		fd = open(name, O_RDWR);
-	else {
-		sprintf(param, "%s%s", _PATH_DEV, name);
-		fd = open(param, O_RDWR);
-	}
-	if (fd < 0)
-		gctl_error(req, "Cannot open provider %s to write map", name);
-
-	/* Do it with calloc because there might be a need to set up chunk flags
-	 * in the future */
-	map = calloc(total_chunks, sizeof(*map));
-	// struct logstor_map_entry map[total_chunks];
-	if (map == NULL) {
-		gctl_error(req,
-		    "Out of memory (need %zu bytes for allocation map)",
-		    map_size);
-	}
-
-	written = pwrite(fd, map, map_size, 0);
-	free(map);
-	if ((size_t)written != map_size) {
-		if (verbose) {
-			fprintf(stderr, "\nTried to write %zu, written %zd (%s)\n",
-			    map_size, written, strerror(errno));
-		}
-		gctl_error(req, "Error writing out allocation map!");
-		return;
-	}
-	close (fd);
-
-	if (verbose)
-		printf("\nStoring metadata on ");
-
-	/*
-	 * ID is randomly generated, unique for a geom. This is used to
-	 * recognize all providers belonging to one geom.
-	 */
-	md.md_id = arc4random();
-
-	/* Ok, store metadata. */
-	for (i = 1; i < (unsigned)nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_ascii(req, "%s", param);
-
-		msize = g_get_mediasize(name);
-		ssize = g_get_sectorsize(name);
-
-		if (verbose)
-			printf("%s ", name);
-
-		/* this provider's position/type in geom */
-		md.no = i - 1;
-		/* this provider's size */
-		md.provsize = msize;
-		/* chunk allocation info */
-		md.chunk_count = md.provsize / md.md_chunk_size;
-		if (verbose)
-			printf("(%u chunks) ", md.chunk_count);
-		/* Check to make sure last sector is unused */
-		if ((off_t)(md.chunk_count * md.md_chunk_size) > (off_t)(msize-ssize))
-		    md.chunk_count--;
-		md.chunk_next = 0;
-		if (i != 1) {
-			md.chunk_reserved = 0;
-			md.flags = 0;
-		} else {
-			md.chunk_reserved = map_chunks * 2;
-			md.flags = LOGSTOR_PROVIDER_ALLOCATED |
-			    LOGSTOR_PROVIDER_CURRENT;
-			md.chunk_next = md.chunk_reserved;
-			if (verbose)
-				printf("(%u reserved) ", md.chunk_reserved);
-		}
-
-		if (!hardcode)
-			bzero(md.provider, sizeof(md.provider));
-		else {
-			/* convert "/dev/something" to "something" */
-			if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0) {
-				strlcpy(md.provider, name + sizeof(_PATH_DEV) - 1,
-				    sizeof(md.provider));
-			} else
-				strlcpy(md.provider, name, sizeof(md.provider));
-		}
-		sect = calloc(ssize, sizeof(unsigned char));
-		//unsigned char sect[ssize];
-		if (sect == NULL)
-			err(1, "Cannot allocate sector of %zu bytes", ssize);
-		logstor_metadata_encode(&md, sect);
-		error = g_metadata_store(name, sect, ssize);
-		free(sect);
-		if (error != 0) {
-			if (verbose)
-				printf("\n");
-			fprintf(stderr, "Can't store metadata on %s: %s.\n",
-			    name, strerror(error));
-			gctl_error(req,
-			    "Not fully done (error storing metadata).");
-			return;
-		}
-	}
-#if 0
-	if (verbose)
-		printf("\n");
-#endif
+	close(dev_fd);
 }
 
+#if 0
 /* Clears metadata on given provider(s) IF it's owned by us */
 static void
 logstor_clear(struct gctl_req *req)
@@ -496,11 +305,13 @@ logstor_metadata_dump(const struct g_logstor_metadata *md)
 	printf("           Chunks free: %u\n", md->chunk_count - md->chunk_next);
 	printf("       Reserved chunks: %u\n", md->chunk_reserved);
 }
+#endif
 
 /* Called by geom(8) via glogstor_main() to dump metadata information */
 static void
-logstor_dump(struct gctl_req *req)
+logstor_dump(struct gctl_req *req __unused)
 {
+#if 0
 	struct g_logstor_metadata md;
 	u_char tmpmd[512];	/* temporary buffer */
 	const char *name;
@@ -532,4 +343,5 @@ logstor_dump(struct gctl_req *req)
 		logstor_metadata_dump(&md);
 		printf("\n");
 	}
+#endif
 }
