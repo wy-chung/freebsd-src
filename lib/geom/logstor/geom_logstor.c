@@ -63,11 +63,6 @@ uint32_t version = G_LOGSTOR_VERSION;
 static void logstor_main(struct gctl_req *req, unsigned flags);
 
 struct g_command class_commands[] = {
-#if 0
-	{ "clear", G_FLAG_VERBOSE, logstor_main, G_NULL_OPTS,
-	    "[-v] prov ..."
-	},
-#endif
 	{ "dump", 0, logstor_main, G_NULL_OPTS,
 	    "prov ..."
 	},
@@ -86,13 +81,6 @@ struct g_command class_commands[] = {
 		G_OPT_SENTINEL
 	    },
 	    "[-fv] name ..."
-	},
-	{ "stop", G_FLAG_VERBOSE, NULL,
-	    {
-		{ 'f', "force", NULL, G_TYPE_BOOL},
-		G_OPT_SENTINEL
-	    },
-	    "[-fv] name ... (alias for \"destroy\")"
 	},
 	{ "commit", 0, NULL,
 	    {
