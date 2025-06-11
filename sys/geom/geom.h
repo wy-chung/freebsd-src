@@ -60,9 +60,9 @@ struct disk_zone_args;
 struct thread;
 
 typedef int g_config_t (struct g_configargs *ca);
-typedef void g_ctl_req_t (struct gctl_req *, struct g_class *cp, char const *verb);
-typedef int g_ctl_create_geom_t (struct gctl_req *, struct g_class *cp, struct g_provider *pp);
-typedef int g_ctl_destroy_geom_t (struct gctl_req *, struct g_class *cp, struct g_geom *gp);
+typedef void g_ctl_req_t (struct gctl_req *, struct g_class *mp, char const *verb);
+typedef int g_ctl_create_geom_t (struct gctl_req *, struct g_class *mp, struct g_provider *pp);
+typedef int g_ctl_destroy_geom_t (struct gctl_req *, struct g_class *mp, struct g_geom *gp);
 typedef int g_ctl_config_geom_t (struct gctl_req *, struct g_geom *gp, const char *verb);
 typedef void g_init_t (struct g_class *mp);
 typedef void g_fini_t (struct g_class *mp);

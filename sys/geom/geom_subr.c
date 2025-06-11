@@ -760,7 +760,7 @@ g_resize_provider(struct g_provider *pp, off_t size)
 struct g_provider *
 g_provider_by_name(char const *arg)
 {
-	struct g_class *cp;
+	struct g_class *mp;
 	struct g_geom *gp;
 	struct g_provider *pp, *wpp;
 
@@ -768,8 +768,8 @@ g_provider_by_name(char const *arg)
 		arg += sizeof(_PATH_DEV) - 1;
 
 	wpp = NULL;
-	LIST_FOREACH(cp, &g_classes, class) {
-		LIST_FOREACH(gp, &cp->geom, geom) {
+	LIST_FOREACH(mp, &g_classes, class) {
+		LIST_FOREACH(gp, &mp->geom, geom) {
 			LIST_FOREACH(pp, &gp->provider, provider) {
 				if (strcmp(arg, pp->name) != 0)
 					continue;

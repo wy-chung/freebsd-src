@@ -124,7 +124,7 @@ static void logstor_ctl_stop(struct gctl_req *, struct g_class *);
 static void logstor_ctl_add(struct gctl_req *, struct g_class *);
 static void logstor_ctl_remove(struct gctl_req *, struct g_class *);
 
-static struct g_logstor_softc * logstor_find_geom(const struct g_class *,
+static struct g_logstor_softc * g_logstor_find_geom(const struct g_class *,
     const char *);
 static void update_metadata(struct g_logstor_softc *);
 static void fill_metadata(struct g_logstor_softc *, struct g_logstor_metadata *,
@@ -255,7 +255,7 @@ g_logstor_config(struct gctl_req *req, struct g_class *mp, char const *verb)
  * "stop" verb from userland
  */
 static void
-logstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
+logstor_ctl_stop(struct gctl_req *req, struct g_class *mp)
 {
 	int *force, *nargs;
 	int i;
@@ -288,7 +288,7 @@ logstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
 		g_topology_unlock();
 		return;
 	}
-	sc = logstor_find_geom(cp, name);
+	sc = g_logstor_find_geom(mp, name);
 	if (sc == NULL) {
 		gctl_error(req, "Don't know anything about '%s'", name);
 		g_topology_unlock();
@@ -311,7 +311,7 @@ logstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
  * .taste function for new components.
  */
 static void
-logstor_ctl_add(struct gctl_req *req, struct g_class *cp)
+logstor_ctl_add(struct gctl_req *req, struct g_class *mp)
 {
 	/* Note: while this is going on, I/O is being done on
 	 * the g_up and g_down threads. The idea is to make changes
@@ -347,7 +347,7 @@ logstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 		gctl_error(req, "Error fetching argument '%s'", "geom_name (arg0)");
 		return;
 	}
-	sc = logstor_find_geom(cp, geom_name);
+	sc = g_logstor_find_geom(mp, geom_name);
 	if (sc == NULL) {
 		gctl_error(req, "Don't know anything about '%s'", geom_name);
 		return;
@@ -487,21 +487,6 @@ logstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 }
 
 /*
- * Find a geom handled by the class
- */
-static struct g_logstor_softc *
-logstor_find_geom(const struct g_class *cp, const char *name)
-{
-	struct g_geom *gp;
-
-	LIST_FOREACH(gp, &cp->geom, geom) {
-		if (strcmp(name, gp->name) == 0)
-			return (gp->softc);
-	}
-	return (NULL);
-}
-
-/*
  * Update metadata on all components to reflect the current state
  * of these fields:
  *    - chunk_next
@@ -571,7 +556,7 @@ fill_metadata(struct g_logstor_softc *sc, struct g_logstor_metadata *md,
  * Can only be done if the component is unallocated.
  */
 static void
-logstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
+logstor_ctl_remove(struct gctl_req *req, struct g_class *mp)
 {
 	/* As this is executed in parallel to I/O, operations on logstor
 	 * structures must be as atomic as possible. */
@@ -597,7 +582,7 @@ logstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 		    "geom_name (arg0)");
 		return;
 	}
-	sc = logstor_find_geom(cp, geom_name);
+	sc = g_logstor_find_geom(mp, geom_name);
 	if (sc == NULL) {
 		gctl_error(req, "Don't know anything about '%s'", geom_name);
 		return;
@@ -1638,6 +1623,131 @@ invalid_call(void)
 }
 
 //=========================
+/*
+ * Find a union geom.
+ */
+static struct g_geom *
+g_logstor_find_geom(struct g_class *mp, const char *name)
+{
+	struct g_geom *gp;
+
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		if (strcmp(gp->name, name) == 0)
+			return (gp);
+	}
+	return (NULL);
+}
+
+/*
+ * Clean up a logstor device.
+ */
+static int
+g_logstor_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
+{
+	struct g_logstor_softc *sc;
+	struct g_provider *pp;
+	int error;
+
+	g_topology_assert();
+	sc = gp->softc;
+	if (sc == NULL)
+		return (ENXIO);
+	pp = LIST_FIRST(&gp->provider);
+	if ((sc->sc_flags & DOING_COMMIT) != 0 ||
+	    (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0))) {
+		if (force) {
+			if (req != NULL)
+				gctl_msg(req, 0, "Device %s is still in use, "
+				    "so is being forcibly removed.", gp->name);
+			G_UNION_DEBUG(1, "Device %s is still in use, so "
+			    "is being forcibly removed.", gp->name);
+		} else {
+			if (req != NULL)
+				gctl_msg(req, EBUSY, "Device %s is still open "
+				    "(r=%d w=%d e=%d).", gp->name, pp->acr,
+				    pp->acw, pp->ace);
+			G_UNION_DEBUG(1, "Device %s is still open "
+			    "(r=%d w=%d e=%d).", gp->name, pp->acr,
+			    pp->acw, pp->ace);
+			return (EBUSY);
+		}
+	} else {
+		if (req != NULL)
+			gctl_msg(req, 0, "Device %s removed.", gp->name);
+		G_UNION_DEBUG(1, "Device %s removed.", gp->name);
+	}
+	/* Close consumers */
+	if ((error = g_access(sc->sc_lowercp, -1, 0, -1)) != 0)
+		G_UNION_DEBUG(2, "Error %d: device %s could not reset access "
+		    "to %s.", error, gp->name, sc->sc_lowercp->provider->name);
+	if ((error = g_access(sc->sc_uppercp, -1, -1, -1)) != 0)
+		G_UNION_DEBUG(2, "Error %d: device %s could not reset access "
+		    "to %s.", error, gp->name, sc->sc_uppercp->provider->name);
+
+	g_wither_geom(gp, ENXIO);
+
+	return (0);
+}
+
+/*
+ * Destroy a logstor device.
+ */
+static void
+g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp, bool verbose)
+{
+	int *nargs, *force, error, i;
+	struct g_geom *gp;
+	const char *name;
+	char param[16];
+
+	g_topology_assert();
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs <= 0) {
+		gctl_error(req, "Missing device(s).");
+		return;
+	}
+	force = gctl_get_paraml(req, "force", sizeof(*force));
+	if (force == NULL) {
+		gctl_error(req, "No 'force' argument.");
+		return;
+	}
+
+	for (i = 0; i < *nargs; i++) {
+		snprintf(param, sizeof(param), "arg%d", i);
+		name = gctl_get_asciiparam(req, param);
+		if (name == NULL) {
+			gctl_msg(req, EINVAL, "No '%s' argument.", param);
+			continue;
+		}
+		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+			name += strlen(_PATH_DEV);
+		gp = g_logstor_find_geom(mp, name);
+		if (gp == NULL) {
+			gctl_msg(req, EINVAL, "Device %s is invalid.", name);
+			continue;
+		}
+		error = g_logstor_destroy(verbose ? req : NULL, gp, *force);
+		if (error != 0)
+			gctl_msg(req, error, "Error %d: "
+			    "cannot destroy device %s.", error, gp->name);
+	}
+	gctl_post_messages(req);
+}
+
+void
+logstor_close(struct g_logstor_softc *sc)
+{
+
+	fbuf_mod_fini(sc);
+	seg_sum_write(sc);
+	superblock_write(sc);
+}
+
 static inline off_t
 get_mediasize(struct g_logstor_softc *sc)
 {
@@ -1728,15 +1838,6 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	return (gp);
 }
 
-void
-logstor_close(struct g_logstor_softc *sc)
-{
-
-	fbuf_mod_fini(sc);
-	seg_sum_write(sc);
-	superblock_write(sc);
-}
-
 uint32_t
 logstor_read(struct g_logstor_softc *sc, struct bio *bp)
 {
@@ -1792,7 +1893,7 @@ logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
 }
 
 static void
-logstor_ctl_commit(struct gctl_req *req, struct g_class *cp)
+logstor_ctl_commit(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_logstor_softc *sc;
 	int *nargs;
@@ -1814,7 +1915,7 @@ logstor_ctl_commit(struct gctl_req *req, struct g_class *cp)
 		gctl_error(req, "Error fetching argument '%s'", "geom_name (arg0)");
 		return;
 	}
-	sc = logstor_find_geom(cp, geom_name);
+	sc = g_logstor_find_geom(mp, geom_name);
 	if (sc == NULL) {
 		gctl_error(req, "Don't know anything about '%s'", geom_name);
 		return;
@@ -1869,7 +1970,7 @@ logstor_ctl_commit(struct gctl_req *req, struct g_class *cp)
 }
 
 static void
-logstor_ctl_revert(struct gctl_req *req, struct g_class *cp)
+logstor_ctl_revert(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_logstor_softc *sc;
 	int *nargs;
@@ -1891,7 +1992,7 @@ logstor_ctl_revert(struct gctl_req *req, struct g_class *cp)
 		gctl_error(req, "Error fetching argument '%s'", "geom_name (arg0)");
 		return;
 	}
-	sc = logstor_find_geom(cp, geom_name);
+	sc = g_logstor_find_geom(mp, geom_name);
 	if (sc == NULL) {
 		gctl_error(req, "Don't know anything about '%s'", geom_name);
 		return;
