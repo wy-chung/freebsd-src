@@ -260,26 +260,11 @@ struct _fbuf { // file buffer
 
 /* Internal geom instance data */
 struct g_logstor_softc {
-	struct g_geom		*geom;
-	struct g_provider	*provider;
-	struct g_logstor_component *components;
-	u_int			 n_components;
-	u_int			 curr_component; /* Component currently used */
-	uint32_t		 id;		/* Unique ID of this geom */
-	off_t			 virsize;	/* Total size of logstor */
-	off_t			 sectorsize;
-	size_t			 chunk_size;
-	size_t			 chunk_count;	/* governs map_size */
-	struct logstor_map_entry *map;
-	size_t			 map_size;	/* (in bytes) */
-	size_t			 map_sectors;	/* Size of map in sectors */
-	size_t			 me_per_sector;	/* # map entries in a sector */
-	STAILQ_HEAD(, g_logstor_bio_q)	 delayed_bio_q;	/* Queue of delayed BIOs */
-	struct mtx		 delayed_bio_q_mtx;
-//=========================
 	bool (*is_sec_valid_fp)(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
 	uint32_t (*ba2sa_fp)(struct g_logstor_softc *sc, uint32_t ba);
 
+	struct g_geom		*geom;
+	struct g_provider	*provider;
 	struct g_consumer	*consumer;
 	uint64_t sc_flags;
 	uint32_t seg_allocp_start;// the starting segment for _logstor_write
