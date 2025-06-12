@@ -278,7 +278,7 @@ struct g_logstor_softc {
 	struct mtx		 delayed_bio_q_mtx;
 //=========================
 	struct g_consumer	*consumer;
-	uint32_t sc_flags;
+	uint64_t sc_flags;
 	uint32_t seg_allocp_start;// the starting segment for _logstor_write
 	uint32_t seg_allocp_sa;	// the sector address of the segment for allocation
 	struct _seg_sum seg_sum;// segment summary for the hot segment
@@ -302,15 +302,6 @@ struct g_logstor_softc {
 
 	struct logstor_superblock superblock;
 };
-
-void logstor_update_metadata(struct g_logstor_softc *sc);
-uint32_t logstor_read(struct g_logstor_softc *sc, struct bio *bp);
-uint32_t logstor_write(struct g_logstor_softc *sc, struct bio *bp);
-uint32_t logstor_get_block_cnt(struct g_logstor_softc *sc);
-unsigned logstor_get_data_write_count(struct g_logstor_softc *sc);
-unsigned logstor_get_other_write_count(struct g_logstor_softc *sc);
-unsigned logstor_get_fbuf_hit(struct g_logstor_softc *sc);
-unsigned logstor_get_fbuf_miss(struct g_logstor_softc *sc);
 
 #endif	/* _KERNEL */
 
