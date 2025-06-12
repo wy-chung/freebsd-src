@@ -277,6 +277,9 @@ struct g_logstor_softc {
 	STAILQ_HEAD(, g_logstor_bio_q)	 delayed_bio_q;	/* Queue of delayed BIOs */
 	struct mtx		 delayed_bio_q_mtx;
 //=========================
+	bool (*is_sec_valid_fp)(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
+	uint32_t (*ba2sa_fp)(struct g_logstor_softc *sc, uint32_t ba);
+
 	struct g_consumer	*consumer;
 	uint64_t sc_flags;
 	uint32_t seg_allocp_start;// the starting segment for _logstor_write

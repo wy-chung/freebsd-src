@@ -75,13 +75,20 @@ static g_ctl_destroy_geom_t g_logstor_destroy_geom;
 struct g_class g_logstor_class = {
 	.name =		G_LOGSTOR_CLASS_NAME,
 	.version =	G_VERSION,
-	.init =		g_logstor_init,	// empty
-	.fini =		g_logstor_fini,	// empty
 	.taste =	g_logstor_taste,
 	.ctlreq =	g_logstor_config,
+	.init =		g_logstor_init,	// empty
+	.fini =		g_logstor_fini,	// empty
 	.destroy_geom = g_logstor_destroy_geom
 	/* The .dumpconf and the rest are only usable for a geom instance, so
 	 * they will be set when such instance is created. */
+#if 0 // init in create_logstor_geom()
+	.start = g_logstor_start;
+	.access = g_logstor_access;
+	.orphan = g_logstor_orphan;
+	.dumpconf = g_logstor_dumpconf;
+	.spoiled = g_logstor_orphan;
+#endif
 };
 
 /* Declare sysctl's and loader tunables */
@@ -104,26 +111,20 @@ SYSCTL_UINT(_kern_geom_logstor, OID_AUTO, component_watermark, CTLFLAG_RWTUN,
     &g_logstor_component_watermark, 0,
     "Minimum number of free components before issuing administrative warning");
 
+//=========================
 static struct g_geom *create_logstor_geom(struct g_class *, struct logstor_superblock *);
-static u_int logstor_valid_components(struct g_logstor_softc *);
-static int logstor_geom_destroy(struct g_logstor_softc *, boolean_t,
-    boolean_t);
-static void remove_component(struct g_logstor_softc *,
-    struct g_logstor_component *, boolean_t);
-static void delay_destroy_consumer(void *, int);
 
 static struct g_geom *g_logstor_find_geom(struct g_class *, const char *);
 
+static void g_logstor_start(struct bio *);
 static void g_logstor_orphan(struct g_consumer *);
 static int g_logstor_access(struct g_provider *, int, int, int);
-static void g_logstor_start(struct bio *);
 static void g_logstor_dumpconf(struct sbuf *, const char *, struct g_geom *,
     struct g_consumer *, struct g_provider *);
-static void g_logstor_done(struct bio *);
 
 static void invalid_call(void);
+static void g_logstor_done(struct bio *);
 
-//=========================
 static void g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp);
 static void g_logstor_ctl_commit(struct gctl_req *, struct g_class *);
 static void g_logstor_ctl_revert(struct gctl_req *, struct g_class *);
@@ -173,9 +174,6 @@ static uint32_t ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba);
 static bool is_sec_valid_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
 static bool is_sec_valid_during_commit(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
 static bool is_sec_valid(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
-
-static bool (*is_sec_valid_fp)(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev) = is_sec_valid_normal;
-static uint32_t (*ba2sa_fp)(struct g_logstor_softc *sc, uint32_t ba) = ba2sa_normal;
 
 //=========================
 
@@ -292,107 +290,6 @@ g_logstor_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 }
 
 /*
- * Destroyes consumer passed to it in arguments. Used as a callback
- * on g_event queue.
- */
-static void
-delay_destroy_consumer(void *arg, int flags __unused)
-{
-	struct g_consumer *c = arg;
-	KASSERT(c != NULL, ("%s: invalid consumer", __func__));
-	LOG_MSG(LVL_DEBUG, "Consumer %s destroyed with delay",
-	    c->provider->name);
-	g_detach(c);
-	g_destroy_consumer(c);
-}
-
-/*
- * Remove a component (consumer) from geom instance; If it's the first
- * component being removed, orphan the provider to announce geom's being
- * dismantled
- */
-static void
-remove_component(struct g_logstor_softc *sc, struct g_logstor_component *comp,
-    boolean_t delay)
-{
-	struct g_consumer *c;
-
-	KASSERT(comp->gcons != NULL, ("Component with no consumer in %s",
-	    sc->geom->name));
-	c = comp->gcons;
-
-	comp->gcons = NULL;
-	KASSERT(c->provider != NULL, ("%s: no provider", __func__));
-	LOG_MSG(LVL_DEBUG, "Component %s removed from %s", c->provider->name,
-	    sc->geom->name);
-	if (sc->provider != NULL) {
-		LOG_MSG(LVL_INFO, "Removing provider %s", sc->provider->name);
-		g_wither_provider(sc->provider, ENXIO);
-		sc->provider = NULL;
-	}
-
-	if (c->acr > 0 || c->acw > 0 || c->ace > 0)
-		return;
-	if (delay) {
-		/* Destroy consumer after it's tasted */
-		g_post_event(delay_destroy_consumer, c, M_WAITOK, NULL);
-	} else {
-		g_detach(c);
-		g_destroy_consumer(c);
-	}
-}
-
-/*
- * Destroy geom - called internally
- * See g_logstor_destroy_geom for the other one
- */
-static int
-logstor_geom_destroy(struct g_logstor_softc *sc, boolean_t force,
-    boolean_t delay)
-{
-	struct g_provider *pp;
-	struct g_geom *gp;
-	u_int n;
-
-	g_topology_assert();
-
-	if (sc == NULL)
-		return (ENXIO);
-
-	pp = sc->provider;
-	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
-		LOG_MSG(force ? LVL_WARNING : LVL_ERROR,
-		    "Device %s is still open.", pp->name);
-		if (!force)
-			return (EBUSY);
-	}
-
-	for (n = 0; n < sc->n_components; n++) {
-		if (sc->components[n].gcons != NULL)
-			remove_component(sc, &sc->components[n], delay);
-	}
-
-	gp = sc->geom;
-	gp->softc = NULL;
-
-	KASSERT(sc->provider == NULL, ("Provider still exists for %s",
-	    gp->name));
-
-	free(sc->map, M_GLOGSTOR);
-	free(sc->components, M_GLOGSTOR);
-	bzero(sc, sizeof *sc);
-	free(sc, M_GLOGSTOR);
-
-	pp = LIST_FIRST(&gp->provider); /* We only offer one provider */
-	if (pp == NULL || (pp->acr == 0 && pp->acw == 0 && pp->ace == 0))
-		LOG_MSG(LVL_DEBUG, "Device %s destroyed", gp->name);
-
-	g_wither_geom(gp, ENXIO);
-
-	return (0);
-}
-
-/*
  * Creates a new instance of this GEOM class, initialise softc
  */
 static struct g_geom *
@@ -416,6 +313,8 @@ create_logstor_geom(struct g_class *mp, struct logstor_superblock *sb)
 	sc = malloc(sizeof(*sc), M_GLOGSTOR, M_WAITOK | M_ZERO);
 	sc->geom = gp;
 	gp->softc = sc;
+	sc->is_sec_valid_fp = is_sec_valid_normal;
+	sc->ba2sa_fp = ba2sa_normal;
 
 	//bzero(sc, sizeof(*sc));
 	memcpy(&sc->superblock, sb, sizeof(*sb));
@@ -458,44 +357,14 @@ create_logstor_geom(struct g_class *mp, struct logstor_superblock *sb)
 }
 
 /*
- * Returns count of active providers in this geom instance
- */
-static u_int
-logstor_valid_components(struct g_logstor_softc *sc)
-{
-	unsigned int nc, i;
-
-	nc = 0;
-	KASSERT(sc != NULL, ("%s: softc is NULL", __func__));
-	KASSERT(sc->components != NULL, ("%s: sc->components is NULL", __func__));
-	for (i = 0; i < sc->n_components; i++)
-		if (sc->components[i].gcons != NULL)
-			nc++;
-	return (nc);
-}
-
-/*
  * Called when the consumer gets orphaned (?)
  */
 static void
 g_logstor_orphan(struct g_consumer *cp)
 {
-	struct g_logstor_softc *sc;
-	struct g_logstor_component *comp;
-	struct g_geom *gp;
 
 	g_topology_assert();
-	gp = cp->geom;
-	sc = gp->softc;
-	if (sc == NULL)
-		return;
-
-	comp = cp->private;
-	KASSERT(comp != NULL, ("%s: No component in private part of consumer",
-	    __func__));
-	remove_component(sc, comp, FALSE);
-	if (LIST_EMPTY(&gp->consumer))
-		logstor_geom_destroy(sc, TRUE, FALSE);
+	g_logstor_destroy(NULL, cp->geom, true);
 }
 
 /*
@@ -505,71 +374,6 @@ static void
 g_logstor_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
     struct g_consumer *cp, struct g_provider *pp)
 {
-	struct g_logstor_softc *sc;
-
-	g_topology_assert();
-	sc = gp->softc;
-
-	if (sc == NULL || pp != NULL)
-		return;
-
-	if (cp != NULL) {
-		/* For each component */
-		struct g_logstor_component *comp;
-
-		comp = cp->private;
-		if (comp == NULL)
-			return;
-		sbuf_printf(sb, "%s<ComponentIndex>%u</ComponentIndex>\n",
-		    indent, comp->index);
-		sbuf_printf(sb, "%s<ChunkCount>%u</ChunkCount>\n",
-		    indent, comp->chunk_count);
-		sbuf_printf(sb, "%s<ChunksUsed>%u</ChunksUsed>\n",
-		    indent, comp->chunk_next);
-		sbuf_printf(sb, "%s<ChunksReserved>%u</ChunksReserved>\n",
-		    indent, comp->chunk_reserved);
-		sbuf_printf(sb, "%s<StorageFree>%u%%</StorageFree>\n",
-		    indent,
-		    comp->chunk_next > 0 ? 100 -
-		    ((comp->chunk_next + comp->chunk_reserved) * 100) /
-		    comp->chunk_count : 100);
-	} else {
-		/* For the whole thing */
-		u_int count, used, i;
-		off_t size;
-
-		count = used = size = 0;
-		for (i = 0; i < sc->n_components; i++) {
-			if (sc->components[i].gcons != NULL) {
-				count += sc->components[i].chunk_count;
-				used += sc->components[i].chunk_next +
-				    sc->components[i].chunk_reserved;
-				size += sc->components[i].gcons->
-				    provider->mediasize;
-			}
-		}
-
-		sbuf_printf(sb, "%s<Status>"
-		    "Components=%u, Online=%u</Status>\n", indent,
-		    sc->n_components, logstor_valid_components(sc));
-		sbuf_printf(sb, "%s<State>%u%% physical free</State>\n",
-		    indent, 100-(used * 100) / count);
-		sbuf_printf(sb, "%s<ChunkSize>%zu</ChunkSize>\n", indent,
-		    sc->chunk_size);
-		sbuf_printf(sb, "%s<PhysicalFree>%u%%</PhysicalFree>\n",
-		    indent, used > 0 ? 100 - (used * 100) / count : 100);
-		sbuf_printf(sb, "%s<ChunkPhysicalCount>%u</ChunkPhysicalCount>\n",
-		    indent, count);
-		sbuf_printf(sb, "%s<ChunkVirtualCount>%zu</ChunkVirtualCount>\n",
-		    indent, sc->chunk_count);
-		sbuf_printf(sb, "%s<PhysicalBacking>%zu%%</PhysicalBacking>\n",
-		    indent,
-		    (count * 100) / sc->chunk_count);
-		sbuf_printf(sb, "%s<PhysicalBackingSize>%jd</PhysicalBackingSize>\n",
-		    indent, size);
-		sbuf_printf(sb, "%s<VirtualSize>%jd</VirtualSize>\n", indent,
-		    sc->virsize);
-	}
 }
 
 /*
@@ -833,7 +637,7 @@ logstor_read(struct g_logstor_softc *sc, struct bio *bp)
 	ba = bp->bio_offset / SECTOR_SIZE;
 	KASSERT(ba < sc->superblock.block_cnt_max, ("%s", __func__));
 
-	sa = ba2sa_fp(sc, ba);
+	sa = sc->ba2sa_fp(sc, ba);
 #if defined(WYC)
 	ba2sa_normal();
 	ba2sa_during_commit();
@@ -995,8 +799,8 @@ g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp)
 	sc->superblock.fd_root[sc->superblock.fd_cur] = SECTOR_NULL;
 	sc->superblock.fd_root[sc->superblock.fd_snap_new] = SECTOR_NULL;
 
-	is_sec_valid_fp = is_sec_valid_during_commit;
-	ba2sa_fp = ba2sa_during_commit;
+	sc->is_sec_valid_fp = is_sec_valid_during_commit;
+	sc->ba2sa_fp = ba2sa_during_commit;
 	// unlock metadata
 
 	uint32_t block_max = sc->superblock.block_cnt_max;
@@ -1030,8 +834,8 @@ g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp)
 	seg_sum_write(sc);
 	superblock_write(sc);
 
-	is_sec_valid_fp = is_sec_valid_normal;
-	ba2sa_fp = ba2sa_normal;
+	sc->is_sec_valid_fp = is_sec_valid_normal;
+	sc->ba2sa_fp = ba2sa_normal;
 	//unlock metadata
 }
 
@@ -1169,7 +973,7 @@ static bool
 is_sec_valid(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 {
 	if (ba_rev < BLOCK_MAX) {
-		return is_sec_valid_fp(sc, sa, ba_rev);
+		return sc->is_sec_valid_fp(sc, sa, ba_rev);
 #if defined(WYC)
 		is_sec_valid_normal();
 		is_sec_valid_during_commit();
