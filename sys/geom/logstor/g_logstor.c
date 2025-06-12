@@ -61,6 +61,7 @@ static MALLOC_DEFINE(M_GLOGSTOR, "glogstor", "GEOM_LOGSTOR Data");
 
 #define DOING_COMMIT	0x00000001	/* a commit command is in progress */
 #define DOING_COMMIT_BITNUM	 0	/* a commit command is in progress */
+#define NUM_OF_ELEMS(x) (sizeof(x)/sizeof(x[0]))
 
 #if !defined(WYC)
 /* GEOM class methods */
@@ -103,8 +104,6 @@ SYSCTL_UINT(_kern_geom_logstor, OID_AUTO, component_watermark, CTLFLAG_RWTUN,
     &g_logstor_component_watermark, 0,
     "Minimum number of free components before issuing administrative warning");
 
-static int read_metadata(struct g_consumer *, struct g_logstor_metadata *);
-static void write_metadata(struct g_consumer *, struct g_logstor_metadata *);
 static struct g_geom *create_logstor_geom(struct g_class *, struct logstor_superblock *);
 static u_int logstor_valid_components(struct g_logstor_softc *);
 static int logstor_geom_destroy(struct g_logstor_softc *, boolean_t,
@@ -114,7 +113,6 @@ static void remove_component(struct g_logstor_softc *,
 static void delay_destroy_consumer(void *, int);
 
 static struct g_geom *g_logstor_find_geom(struct g_class *, const char *);
-static void update_metadata(struct g_logstor_softc *);
 
 static void g_logstor_orphan(struct g_consumer *);
 static int g_logstor_access(struct g_provider *, int, int, int);
@@ -129,8 +127,10 @@ static void invalid_call(void);
 static void g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp);
 static void g_logstor_ctl_commit(struct gctl_req *, struct g_class *);
 static void g_logstor_ctl_revert(struct gctl_req *, struct g_class *);
+static int  g_logstor_destroy(struct gctl_req *req, struct g_geom *gp, bool force);
 
-static uint32_t _logstor_read(struct g_logstor_softc *sc, struct bio *bp);
+static uint32_t logstor_read(struct g_logstor_softc *sc, struct bio *bp);
+static uint32_t logstor_write(struct g_logstor_softc *sc, struct bio *bp);
 static uint32_t _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *data);
 static int logstor_delete(struct g_logstor_softc *sc, struct bio *bp);
 
@@ -163,17 +163,19 @@ static void fbuf_clean_queue_check(struct g_logstor_softc *sc);
 static union meta_addr ma2pma(union meta_addr ma, unsigned *pindex_out);
 static uint32_t ma2sa(struct g_logstor_softc *sc, union meta_addr ma);
 
-static int _g_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 static void md_read (struct g_logstor_softc *sc, void *buf, uint32_t sa);
 static void md_write(struct g_logstor_softc *sc, void *buf, uint32_t sa);
+static void md_update(struct g_logstor_softc *sc);
+static int _g_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length);
 
-static uint32_t logstor_ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba);
-static uint32_t logstor_ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba);
+static uint32_t ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba);
+static uint32_t ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba);
 static bool is_sec_valid_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
 static bool is_sec_valid_during_commit(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
+static bool is_sec_valid(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
 
 static bool (*is_sec_valid_fp)(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev) = is_sec_valid_normal;
-static uint32_t (*logstor_ba2sa_fp)(struct g_logstor_softc *sc, uint32_t ba) = logstor_ba2sa_normal;
+static uint32_t (*ba2sa_fp)(struct g_logstor_softc *sc, uint32_t ba) = ba2sa_normal;
 
 //=========================
 
@@ -230,6 +232,17 @@ g_logstor_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 }
 
 /*
+ * Clean up a union geom.
+ */
+static int
+g_logstor_destroy_geom(struct gctl_req *req, struct g_class *mp,
+    struct g_geom *gp)
+{
+
+	return (g_logstor_destroy(NULL, gp, false));
+}
+
+/*
  * Clean up a logstor device.
  */
 static int
@@ -269,184 +282,13 @@ g_logstor_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 	}
 	/* Close consumers */
 	if ((error = g_access(sc->consumer, -1, 0, -1)) != 0)
+		;
 		//G_UNION_DEBUG(2, "Error %d: device %s could not reset access "
 		//    "to %s.", error, gp->name, sc->sc_lowercp->provider->name);
 
 	g_wither_geom(gp, ENXIO);
 
 	return (0);
-}
-
-/*
- * Destroy a logstor device.
- */
-static void
-g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp)
-{
-	int *nargs, *force, error, i;
-	struct g_geom *gp;
-	const char *name;
-	char param[16];
-
-	g_topology_assert();
-
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "No '%s' argument.", "nargs");
-		return;
-	}
-	if (*nargs <= 0) {
-		gctl_error(req, "Missing device(s).");
-		return;
-	}
-	force = gctl_get_paraml(req, "force", sizeof(*force));
-	if (force == NULL) {
-		gctl_error(req, "No 'force' argument.");
-		return;
-	}
-
-	for (i = 0; i < *nargs; i++) {
-		snprintf(param, sizeof(param), "arg%d", i);
-		name = gctl_get_asciiparam(req, param);
-		if (name == NULL) {
-			gctl_msg(req, EINVAL, "No '%s' argument.", param);
-			continue;
-		}
-		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-			name += strlen(_PATH_DEV);
-		gp = g_logstor_find_geom(mp, name);
-		if (gp == NULL) {
-			gctl_msg(req, EINVAL, "Device %s is invalid.", name);
-			continue;
-		}
-		struct g_logstor_softc *sc = gp->softc;
-		logstor_update_metadata(sc);
-		free(sc->fbufs, M_GLOGSTOR);
-
-		error = g_logstor_destroy(req, gp, *force);
-		if (error != 0)
-			gctl_msg(req, error, "Error %d: "
-			    "cannot destroy device %s.", error, gp->name);
-	}
-	gctl_post_messages(req);
-}
-
-/*
- * Update metadata on all components to reflect the current state
- * of these fields:
- *    - chunk_next
- *    - flags
- *    - md_count
- * Expects things to be set up so write_metadata() can work, i.e.
- * the topology lock must be held.
- */
-static void
-update_metadata(struct g_logstor_softc *sc)
-{
-	struct g_logstor_metadata md;
-	u_int n;
-
-	if (logstor_valid_components(sc) != sc->n_components)
-		return; /* Incomplete device */
-	LOG_MSG(LVL_DEBUG, "Updating metadata on components for %s",
-	    sc->geom->name);
-	/* Update metadata on components */
-	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__,
-	    sc->geom->class->name, sc->geom->name);
-	g_topology_assert();
-	for (n = 0; n < sc->n_components; n++) {
-		read_metadata(sc->components[n].gcons, &md);
-		md.chunk_next = sc->components[n].chunk_next;
-		md.flags = sc->components[n].flags;
-		md.md_count = sc->n_components;
-		write_metadata(sc->components[n].gcons, &md);
-	}
-}
-
-/*
- * Destroy geom forcibly.
- */
-static int
-g_logstor_destroy_geom(struct gctl_req *req __unused, struct g_class *mp,
-    struct g_geom *gp)
-{
-	struct g_logstor_softc *sc;
-	int exitval;
-
-	sc = gp->softc;
-	KASSERT(sc != NULL, ("%s: NULL sc", __func__));
-
-	exitval = 0;
-	LOG_MSG(LVL_DEBUG, "%s called for %s, sc=%p", __func__, gp->name,
-	    gp->softc);
-
-	if (sc != NULL) {
-#ifdef INVARIANTS
-		char *buf;
-		int error;
-		off_t off;
-		int isclean, count;
-		int n;
-
-		LOG_MSG(LVL_INFO, "INVARIANTS detected");
-		LOG_MSG(LVL_INFO, "Verifying allocation "
-		    "table for %s", sc->geom->name);
-		count = 0;
-		for (n = 0; n < sc->chunk_count; n++) {
-			if (sc->map[n].flags || LOGSTOR_MAP_ALLOCATED != 0)
-				count++;
-		}
-		LOG_MSG(LVL_INFO, "Device %s has %d allocated chunks",
-		    sc->geom->name, count);
-		n = off = count = 0;
-		isclean = 1;
-		if (logstor_valid_components(sc) != sc->n_components) {
-			/* This is a incomplete logstor device (not all
-			 * components have been found) */
-			LOG_MSG(LVL_ERROR, "Device %s is incomplete",
-			    sc->geom->name);
-			goto bailout;
-		}
-		error = g_access(sc->components[0].gcons, 1, 0, 0);
-		KASSERT(error == 0, ("%s: g_access failed (%d)", __func__,
-		    error));
-		/* Compare the whole on-disk allocation table with what's
-		 * currently in memory */
-		while (n < sc->chunk_count) {
-			buf = g_read_data(sc->components[0].gcons, off,
-			    sc->sectorsize, &error);
-			KASSERT(buf != NULL, ("g_read_data returned NULL (%d) "
-			    "for read at %jd", error, off));
-			if (bcmp(buf, &sc->map[n], sc->sectorsize) != 0) {
-				LOG_MSG(LVL_ERROR, "ERROR in allocation table, "
-				    "entry %d, offset %jd", n, off);
-				isclean = 0;
-				count++;
-			}
-			n += sc->me_per_sector;
-			off += sc->sectorsize;
-			g_free(buf);
-		}
-		error = g_access(sc->components[0].gcons, -1, 0, 0);
-		KASSERT(error == 0, ("%s: g_access failed (%d) on exit",
-		    __func__, error));
-		if (isclean != 1) {
-			LOG_MSG(LVL_ERROR, "ALLOCATION TABLE CORRUPTED FOR %s "
-			    "(%d sectors don't match, max %zu allocations)",
-			    sc->geom->name, count,
-			    count * sc->me_per_sector);
-		} else {
-			LOG_MSG(LVL_INFO, "Allocation table ok for %s",
-			    sc->geom->name);
-		}
-bailout:
-#endif
-		update_metadata(sc);
-		logstor_geom_destroy(sc, FALSE, FALSE);
-		exitval = EAGAIN;
-	} else
-		exitval = 0;
-	return (exitval);
 }
 
 /*
@@ -548,79 +390,6 @@ logstor_geom_destroy(struct g_logstor_softc *sc, boolean_t force,
 	g_wither_geom(gp, ENXIO);
 
 	return (0);
-}
-
-/*
- * Utility function: read metadata & decode. Wants topology lock to be
- * held.
- */
-static int
-read_metadata(struct g_consumer *cp, struct g_logstor_metadata *md)
-{
-	struct g_provider *pp;
-	char *buf;
-	int error;
-
-	g_topology_assert();
-	error = g_access(cp, 1, 0, 0);
-	if (error != 0)
-		return (error);
-	pp = cp->provider;
-	g_topology_unlock();
-	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
-	    &error);
-	g_topology_lock();
-	g_access(cp, -1, 0, 0);
-	if (buf == NULL)
-		return (error);
-
-	logstor_metadata_decode(buf, md);
-	g_free(buf);
-
-	return (0);
-}
-
-/**
- * Utility function: encode & write metadata. Assumes topology lock is
- * held.
- *
- * There is no useful way of recovering from errors in this function,
- * not involving panicking the kernel. If the metadata cannot be written
- * the most we can do is notify the operator and hope he spots it and
- * replaces the broken drive.
- */
-static void
-write_metadata(struct g_consumer *cp, struct g_logstor_metadata *md)
-{
-	struct g_provider *pp;
-	char *buf;
-	int error;
-
-	KASSERT(cp != NULL && md != NULL && cp->provider != NULL,
-	    ("Something's fishy in %s", __func__));
-	LOG_MSG(LVL_DEBUG, "Writing metadata on %s", cp->provider->name);
-	g_topology_assert();
-	error = g_access(cp, 0, 1, 0);
-	if (error != 0) {
-		LOG_MSG(LVL_ERROR, "g_access(0,1,0) failed for %s: %d",
-		    cp->provider->name, error);
-		return;
-	}
-	pp = cp->provider;
-
-	buf = malloc(pp->sectorsize, M_GLOGSTOR, M_WAITOK);
-	bzero(buf, pp->sectorsize);
-	logstor_metadata_encode(md, buf);
-	g_topology_unlock();
-	error = g_write_data(cp, pp->mediasize - pp->sectorsize, buf,
-	    pp->sectorsize);
-	g_topology_lock();
-	g_access(cp, 0, -1, 0);
-	free(buf, M_GLOGSTOR);
-
-	if (error != 0)
-		LOG_MSG(LVL_ERROR, "Error %d writing metadata to %s",
-		    error, cp->provider->name);
 }
 
 /*
@@ -730,59 +499,6 @@ g_logstor_orphan(struct g_consumer *cp)
 }
 
 /*
- * Called to notify geom when it's been opened, and for what intent
- */
-static int
-g_logstor_access(struct g_provider *pp, int dr, int dw, int de)
-{
-	struct g_consumer *c, *c2, *tmp;
-	struct g_logstor_softc *sc;
-	struct g_geom *gp;
-	int error;
-
-	KASSERT(pp != NULL, ("%s: NULL provider", __func__));
-	gp = pp->geom;
-	KASSERT(gp != NULL, ("%s: NULL geom", __func__));
-	sc = gp->softc;
-
-	/* Grab an exclusive bit to propagate on our consumers on first open */
-	if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0)
-		de++;
-	/* ... drop it on close */
-	if (pp->acr + dr == 0 && pp->acw + dw == 0 && pp->ace + de == 0) {
-		de--;
-		if (sc != NULL)
-			update_metadata(sc);
-	}
-
-	error = ENXIO;
-	LIST_FOREACH_SAFE(c, &gp->consumer, consumer, tmp) {
-		error = g_access(c, dr, dw, de);
-		if (error != 0)
-			goto fail;
-		if (c->acr == 0 && c->acw == 0 && c->ace == 0 &&
-		    c->flags & G_CF_ORPHAN) {
-			g_detach(c);
-			g_destroy_consumer(c);
-		}
-	}
-
-	if (sc != NULL && LIST_EMPTY(&gp->consumer))
-		logstor_geom_destroy(sc, TRUE, FALSE);
-
-	return (error);
-
-fail:
-	/* Backout earlier changes */
-	LIST_FOREACH(c2, &gp->consumer, consumer) {
-		if (c2 == c)
-			break;
-		g_access(c2, -dr, -dw, -de);
-	}
-	return (error);
-}
-
-/*
  * Generate XML dump of current state
  */
 static void
@@ -879,62 +595,7 @@ g_logstor_done(struct bio *bp)
 	}
 }
 
-/*
- * I/O starts here
- * Called in g_down thread
- */
-static void
-g_logstor_start(struct bio *bp)
-{
-	struct g_logstor_softc *sc;
-	struct g_provider *pp;
-	uint32_t (*logstor_access)(struct g_logstor_softc *sc, struct bio *bp);
-
-	pp = bp->bio_to;
-	sc = pp->geom->softc;
-	KASSERT(sc != NULL, ("%s: no softc (error=%d, device=%s)", __func__,
-	    bp->bio_to->error, bp->bio_to->name));
-
-	LOG_REQ(LVL_MOREDEBUG, bp, "%s", __func__);
-
-	switch (bp->bio_cmd) {
-	case BIO_READ:
-		logstor_access = logstor_read;
-		break;
-	case BIO_WRITE:
-		logstor_access = logstor_write;
-		break;
-	case BIO_DELETE:
-		logstor_delete(sc, bp);
-		return;
-	default:
-		g_io_deliver(bp, EOPNOTSUPP);
-		return;
-	}
-
-	LOG_MSG(LVL_DEBUG2, "BIO arrived, size=%ju", bp->bio_length);
-
-	KASSERT(bp->bio_offset % SECTOR_SIZE == 0, ("%s", __func__));
-	KASSERT(bp->bio_length % SECTOR_SIZE == 0, ("%s", __func__));
-	int sec_cnt = bp->bio_length / SECTOR_SIZE;
-
-	for (int i = 0; i < sec_cnt; ++i) {
-		struct bio *cb = g_clone_bio(bp);
-		if (cb == NULL) {
-			if (bp->bio_error == 0)
-				bp->bio_error = ENOMEM;
-			g_io_deliver(bp, bp->bio_error);
-			return;
-		}
-		cb->bio_to = sc->provider;
-		cb->bio_done = g_logstor_done;
-		cb->bio_offset = bp->bio_offset + i * SECTOR_SIZE;
-		cb->bio_length = SECTOR_SIZE;
-		cb->bio_data = bp->bio_data + i * SECTOR_SIZE;
-		logstor_access(sc, cb);
-	}
-}
-
+//=========================
 /*
  * The function that shouldn't be called.
  * When this is called, the stack is already garbled because of
@@ -946,10 +607,9 @@ g_logstor_start(struct bio *bp)
 static void
 invalid_call(void)
 {
-	panic("invalid_call() has just been called. Something's fishy here.");
+	panic("%s() has just been called. Something's fishy here.", __func__);
 }
 
-//=========================
 /*
  * Find a union geom.
  */
@@ -966,8 +626,8 @@ g_logstor_find_geom(struct g_class *mp, const char *name)
 }
 
 // there are 3 kinds of metadata in the system, the fbuf cache, segment summary block and superblock
-void
-logstor_update_metadata(struct g_logstor_softc *sc)
+static void
+md_update(struct g_logstor_softc *sc)
 {
 	fbuf_cache_flush(sc);
 	seg_sum_write(sc);
@@ -977,6 +637,52 @@ logstor_update_metadata(struct g_logstor_softc *sc)
 /*******************************
  *        logstor              *
  *******************************/
+/*
+ * The writelock is held while a commit operation is in progress.
+ * While held union device may not be used or in use.
+ * Returns == 0 if lock was successfully obtained.
+ */
+static inline int
+g_logstor_get_writelock(struct g_logstor_softc *sc)
+{
+
+	return (atomic_testandset_long(&sc->sc_flags, DOING_COMMIT_BITNUM)); // set bit DOING_COMMIT_BITNUM
+}
+
+static inline void
+g_logstor_rel_writelock(struct g_logstor_softc *sc)
+{
+	long ret __diagused; // is used only when KASSERT is defined
+
+	ret = atomic_testandclear_long(&sc->sc_flags, DOING_COMMIT_BITNUM); // clear bit DOING_COMMIT_BITNUM
+	KASSERT(ret != 0, ("UNION GEOM releasing unheld lock"));
+}
+
+/*
+ * Generally allow access unless a commit is in progress.
+ */
+static int
+g_logstor_access(struct g_provider *pp, int r, int w, int e)
+{
+	struct g_logstor_softc *sc;
+
+	sc = pp->geom->softc;
+	if (sc == NULL) {
+		if (r <= 0 && w <= 0 && e <= 0)
+			return (0);
+		return (ENXIO);
+	}
+	r += pp->acr;
+	w += pp->acw;
+	e += pp->ace;
+	if (g_logstor_get_writelock(sc) != 0) {
+		if ((pp->acr + pp->acw + pp->ace) > 0 && (r + w + e) == 0)
+			return (0);
+		return (EBUSY);
+	}
+	g_logstor_rel_writelock(sc);
+	return (0);
+}
 
 /*
  * Taste event (per-class callback)
@@ -1059,46 +765,46 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	return (gp);
 }
 
-uint32_t
-logstor_read(struct g_logstor_softc *sc, struct bio *bp)
+/*
+ * I/O starts here
+ * Called in g_down thread
+ */
+static void
+g_logstor_start(struct bio *bp)
 {
-	fbuf_clean_queue_check(sc);
-	uint32_t sa = _logstor_read(sc, bp);
-	return sa;
-}
+	struct g_logstor_softc *sc;
+	struct g_provider *pp;
+	uint32_t (*logstor_access_fp)(struct g_logstor_softc *sc, struct bio *bp);
 
-uint32_t
-logstor_write(struct g_logstor_softc *sc, struct bio *bp)
-{
-	fbuf_clean_queue_check(sc);
-	uint32_t sa = _logstor_write(sc, bp, 0, NULL);
-	return sa;
-}
+	pp = bp->bio_to;
+	sc = pp->geom->softc;
+	KASSERT(sc != NULL, ("%s: no softc (error=%d, device=%s)", __func__,
+	    bp->bio_to->error, bp->bio_to->name));
 
-// To enable TRIM, the following statement must be added
-// in "case BIO_GETATTR" of g_gate_start() of g_gate.c
-//	if (g_handleattr_int(pbp, "GEOM::candelete", 1))
-//		return;
-// and the command below must be executed before mounting the device
-//	tunefs -t enabled /dev/ggate0
-static int
-logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
-{
-	uint32_t ba;	// block address
-	int count;	// number of remaining sectors to process
+	LOG_REQ(LVL_MOREDEBUG, bp, "%s", __func__);
 
-	off_t offset = bp->bio_offset;
-	off_t length = bp->bio_length;
-	KASSERT((offset & (SECTOR_SIZE - 1)) == 0, ("%s", __func__));
-	KASSERT((length & (SECTOR_SIZE - 1)) == 0, ("%s", __func__));
-	ba = offset / SECTOR_SIZE;
-	count = length / SECTOR_SIZE;
-	KASSERT(ba + count <= sc->superblock.block_cnt_max, ("%s", __func__));
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+		logstor_access_fp = logstor_read;
+		break;
+	case BIO_WRITE:
+		logstor_access_fp = logstor_write;
+		break;
+	case BIO_DELETE:
+		logstor_delete(sc, bp);
+		return;
+	default:
+		g_io_deliver(bp, EOPNOTSUPP);
+		return;
+	}
 
-	for (int i = 0; i < count; ++i) {
-		fbuf_clean_queue_check(sc);
-		file_write_4byte(sc, sc->superblock.fd_cur, ba + i, SECTOR_DEL);
-#if 0
+	LOG_MSG(LVL_DEBUG2, "BIO arrived, size=%ju", bp->bio_length);
+
+	KASSERT(bp->bio_offset % SECTOR_SIZE == 0, ("%s", __func__));
+	KASSERT(bp->bio_length % SECTOR_SIZE == 0, ("%s", __func__));
+
+	int sec_cnt = bp->bio_length / SECTOR_SIZE;
+	for (int i = 0; i < sec_cnt; ++i) {
 		struct bio *cb = g_clone_bio(bp);
 		if (cb == NULL) {
 			if (bp->bio_error == 0)
@@ -1106,126 +812,20 @@ logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
 			g_io_deliver(bp, bp->bio_error);
 			return;
 		}
-		g_io_request(cb, struct g_consumer * cp);
-#endif
-	}
-
-	return (0);
-}
-
-static void
-g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp)
-{
-	int *nargs;
-	const char *geom_name;	/* geom to add a component to */
-
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "Error fetching argument '%s'", "nargs");
-		return;
-	}
-	if (*nargs != 1) {
-		gctl_error(req, "Invalid number of arguments");
-		return;
-	}
-
-	/* Find "our" geom */
-	geom_name = gctl_get_asciiparam(req, "arg0");
-	if (geom_name == NULL) {
-		gctl_error(req, "Error fetching argument '%s'", "geom_name (arg0)");
-		return;
-	}
-	struct g_geom *gp = g_logstor_find_geom(mp, geom_name);
-	if (gp == NULL) {
-		gctl_error(req, "Don't know anything about '%s'", geom_name);
-		return;
-	}
-	struct g_logstor_softc *sc = gp->softc;
-	// lock metadata
-	// move fd_cur to fd_prev
-	sc->superblock.fd_prev = sc->superblock.fd_cur;
-	// create new files fd_cur and fd_snap_new
-	// fc_cur is either 0 or 2 and fd_snap always follows fd_cur
-	sc->superblock.fd_cur = sc->superblock.fd_cur ^ 2;
-	sc->superblock.fd_snap_new = sc->superblock.fd_cur + 1;
-	sc->superblock.fd_root[sc->superblock.fd_cur] = SECTOR_NULL;
-	sc->superblock.fd_root[sc->superblock.fd_snap_new] = SECTOR_NULL;
-
-	is_sec_valid_fp = is_sec_valid_during_commit;
-	logstor_ba2sa_fp = logstor_ba2sa_during_commit;
-	// unlock metadata
-
-	uint32_t block_max = sc->superblock.block_cnt_max;
-	for (int ba = 0; ba < block_max; ++ba) {
-		uint32_t sa;
-
+		cb->bio_to = sc->provider;
+		cb->bio_done = g_logstor_done;
+		cb->bio_offset = bp->bio_offset + i * SECTOR_SIZE;
+		cb->bio_data = bp->bio_data + i * SECTOR_SIZE;
+		cb->bio_length = SECTOR_SIZE;
 		fbuf_clean_queue_check(sc);
-		sa = file_read_4byte(sc, sc->superblock.fd_prev, ba);
-		if (sa == SECTOR_NULL)
-			sa = file_read_4byte(sc, sc->superblock.fd_snap, ba);
-		else if (sa == SECTOR_DEL)
-			sa = SECTOR_NULL;
-
-		if (sa != SECTOR_NULL)
-			file_write_4byte(sc, sc->superblock.fd_snap_new, ba, sa);
+		logstor_access_fp(sc, cb);
 	}
-
-	// lock metadata
-	int fd_prev = sc->superblock.fd_prev;
-	int fd_snap = sc->superblock.fd_snap;
-	fbuf_cache_flush_and_invalidate_fd(sc, fd_prev, fd_snap);
-	sc->superblock.fd_root[fd_prev] = SECTOR_DEL;
-	sc->superblock.fd_root[fd_snap] = SECTOR_DEL;
-	// move fd_snap_new to fd_snap
-	sc->superblock.fd_snap = sc->superblock.fd_snap_new;
-	// delete fd_prev and fd_snap
-	sc->superblock.fd_prev = FD_INVALID;
-	sc->superblock.fd_snap_new = FD_INVALID;
-	sc->sb_modified = true;
-
-	seg_sum_write(sc);
-	superblock_write(sc);
-
-	is_sec_valid_fp = is_sec_valid_normal;
-	logstor_ba2sa_fp = logstor_ba2sa_normal;
-	//unlock metadata
 }
 
-static void
-g_logstor_ctl_revert(struct gctl_req *req, struct g_class *mp)
-{
-	int *nargs;
-	const char *geom_name;	/* geom to add a component to */
-
-	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
-	if (nargs == NULL) {
-		gctl_error(req, "Error fetching argument '%s'", "nargs");
-		return;
-	}
-	if (*nargs != 1) {
-		gctl_error(req, "Invalid number of arguments");
-		return;
-	}
-
-	/* Find "our" geom */
-	geom_name = gctl_get_asciiparam(req, "arg0");
-	if (geom_name == NULL) {
-		gctl_error(req, "Error fetching argument '%s'", "geom_name (arg0)");
-		return;
-	}
-	struct g_geom *gp = g_logstor_find_geom(mp, geom_name);
-	if (gp == NULL) {
-		gctl_error(req, "Don't know anything about '%s'", geom_name);
-		return;
-	}
-	struct g_logstor_softc *sc = gp->softc;
-	fbuf_cache_flush_and_invalidate_fd(sc, sc->superblock.fd_cur, FD_INVALID);
-	sc->superblock.fd_root[sc->superblock.fd_cur] = SECTOR_NULL;
-	sc->sb_modified = true;
-}
-
+// read one block
+// must call fbuf_clean_queue_check() before calling this function
 uint32_t
-_logstor_read(struct g_logstor_softc *sc, struct bio *bp)
+logstor_read(struct g_logstor_softc *sc, struct bio *bp)
 {
 	uint32_t ba;	// block address
 	uint32_t sa;	// sector address
@@ -1233,10 +833,10 @@ _logstor_read(struct g_logstor_softc *sc, struct bio *bp)
 	ba = bp->bio_offset / SECTOR_SIZE;
 	KASSERT(ba < sc->superblock.block_cnt_max, ("%s", __func__));
 
-	sa = logstor_ba2sa_fp(sc, ba);
+	sa = ba2sa_fp(sc, ba);
 #if defined(WYC)
-	logstor_ba2sa_normal();
-	logstor_ba2sa_during_commit();
+	ba2sa_normal();
+	ba2sa_during_commit();
 #endif
 	if (sa == SECTOR_NULL) {
 		bzero(bp->bio_data, SECTOR_SIZE);
@@ -1254,68 +854,11 @@ _logstor_read(struct g_logstor_softc *sc, struct bio *bp)
 	return sa;
 }
 
-// The common part of is_sec_valid
-static bool
-is_sec_valid_comm(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev, uint8_t fd[], int fd_cnt)
+// write one block
+uint32_t
+logstor_write(struct g_logstor_softc *sc, struct bio *bp)
 {
-	uint32_t sa_rev; // the sector address for ba_rev
-
-	KASSERT(ba_rev < BLOCK_MAX, ("%s", __func__));
-	for (int i = 0; i < fd_cnt; ++i) {
-		sa_rev = file_read_4byte(sc, fd[i], ba_rev);
-		if (sa == sa_rev)
-			return true;
-	}
-	return false;
-}
-#define NUM_OF_ELEMS(x) (sizeof(x)/sizeof(x[0]))
-
-// Is a sector with a reverse ba valid?
-// This function is called normally
-static bool
-is_sec_valid_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
-{
-	uint8_t fd[] = {
-	    sc->superblock.fd_cur,
-	    sc->superblock.fd_snap,
-	};
-
-	return is_sec_valid_comm(sc, sa, ba_rev, fd, NUM_OF_ELEMS(fd));
-}
-
-// Is a sector with a reverse ba valid?
-// This function is called during commit
-static bool
-is_sec_valid_during_commit(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
-{
-	uint8_t fd[] = {
-	    sc->superblock.fd_cur,
-	    sc->superblock.fd_prev,
-	    sc->superblock.fd_snap,
-	};
-
-	return is_sec_valid_comm(sc, sa, ba_rev, fd, NUM_OF_ELEMS(fd));
-}
-
-// Is a sector with a reverse ba valid?
-static bool
-is_sec_valid(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
-{
-	if (ba_rev < BLOCK_MAX) {
-		return is_sec_valid_fp(sc, sa, ba_rev);
-#if defined(WYC)
-		is_sec_valid_normal();
-		is_sec_valid_during_commit();
-#endif
-	} else if (IS_META_ADDR(ba_rev)) {
-		uint32_t sa_rev = ma2sa(sc, (union meta_addr)ba_rev);
-		return (sa == sa_rev);
-	} else if (ba_rev == BLOCK_INVALID) {
-		return false;
-	} else {
-		panic("");
-		return false;
-	}
+	return _logstor_write(sc, bp, 0, NULL);
 }
 
 /*
@@ -1325,6 +868,7 @@ Description:
 Return:
   the sector address where the data is written
 */
+// must call fbuf_clean_queue_check() before calling this function
 static uint32_t
 _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *data)
 {
@@ -1334,8 +878,8 @@ _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *da
 	KASSERT(sc->seg_allocp_sa >= SECTORS_PER_SEG, ("%s", __func__));
 	if (bp) {
 		ba = bp->bio_offset / SECTOR_SIZE;
-		KASSERT(ba < sc->superblock.block_cnt_max, ("%s", __func__));
 		data = bp->bio_data;
+		KASSERT(ba < sc->superblock.block_cnt_max, ("%s", __func__));
 	} else {
 		KASSERT(IS_META_ADDR(ba), ("%s", __func__));
 		KASSERT(data != NULL, ("%s", __func__));
@@ -1385,8 +929,264 @@ again:
 	goto again;
 }
 
+// To enable TRIM, the following statement must be added
+// in "case BIO_GETATTR" of g_gate_start() of g_gate.c
+//	if (g_handleattr_int(pbp, "GEOM::candelete", 1))
+//		return;
+// and the command below must be executed before mounting the device
+//	tunefs -t enabled /dev/ggate0
+static int
+logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
+{
+	uint32_t ba;	// block address
+	int count;	// number of remaining sectors to process
+
+	off_t offset = bp->bio_offset;
+	off_t length = bp->bio_length;
+	KASSERT((offset & (SECTOR_SIZE - 1)) == 0, ("%s", __func__));
+	KASSERT((length & (SECTOR_SIZE - 1)) == 0, ("%s", __func__));
+	ba = offset / SECTOR_SIZE;
+	count = length / SECTOR_SIZE;
+	KASSERT(ba + count <= sc->superblock.block_cnt_max, ("%s", __func__));
+
+	for (int i = 0; i < count; ++i) {
+		fbuf_clean_queue_check(sc);
+		file_write_4byte(sc, sc->superblock.fd_cur, ba + i, SECTOR_DEL);
+	}
+
+	return (0);
+}
+
+static void
+g_logstor_ctl_commit(struct gctl_req *req, struct g_class *mp)
+{
+	int *nargs;
+	const char *geom_name;	/* geom to add a component to */
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "Error fetching argument '%s'", "nargs");
+		return;
+	}
+	if (*nargs != 1) {
+		gctl_error(req, "Invalid number of arguments");
+		return;
+	}
+
+	/* Find "our" geom */
+	geom_name = gctl_get_asciiparam(req, "arg0");
+	if (geom_name == NULL) {
+		gctl_error(req, "Error fetching argument '%s'", "geom_name (arg0)");
+		return;
+	}
+	struct g_geom *gp = g_logstor_find_geom(mp, geom_name);
+	if (gp == NULL) {
+		gctl_error(req, "Don't know anything about '%s'", geom_name);
+		return;
+	}
+	struct g_logstor_softc *sc = gp->softc;
+	// lock metadata
+	// move fd_cur to fd_prev
+	sc->superblock.fd_prev = sc->superblock.fd_cur;
+	// create new files fd_cur and fd_snap_new
+	// fc_cur is either 0 or 2 and fd_snap always follows fd_cur
+	sc->superblock.fd_cur = sc->superblock.fd_cur ^ 2;
+	sc->superblock.fd_snap_new = sc->superblock.fd_cur + 1;
+	sc->superblock.fd_root[sc->superblock.fd_cur] = SECTOR_NULL;
+	sc->superblock.fd_root[sc->superblock.fd_snap_new] = SECTOR_NULL;
+
+	is_sec_valid_fp = is_sec_valid_during_commit;
+	ba2sa_fp = ba2sa_during_commit;
+	// unlock metadata
+
+	uint32_t block_max = sc->superblock.block_cnt_max;
+	for (int ba = 0; ba < block_max; ++ba) {
+		uint32_t sa;
+
+		fbuf_clean_queue_check(sc);
+		sa = file_read_4byte(sc, sc->superblock.fd_prev, ba);
+		if (sa == SECTOR_NULL)
+			sa = file_read_4byte(sc, sc->superblock.fd_snap, ba);
+		else if (sa == SECTOR_DEL)
+			sa = SECTOR_NULL;
+
+		if (sa != SECTOR_NULL)
+			file_write_4byte(sc, sc->superblock.fd_snap_new, ba, sa);
+	}
+
+	// lock metadata
+	int fd_prev = sc->superblock.fd_prev;
+	int fd_snap = sc->superblock.fd_snap;
+	fbuf_cache_flush_and_invalidate_fd(sc, fd_prev, fd_snap);
+	sc->superblock.fd_root[fd_prev] = SECTOR_DEL;
+	sc->superblock.fd_root[fd_snap] = SECTOR_DEL;
+	// move fd_snap_new to fd_snap
+	sc->superblock.fd_snap = sc->superblock.fd_snap_new;
+	// delete fd_prev and fd_snap
+	sc->superblock.fd_prev = FD_INVALID;
+	sc->superblock.fd_snap_new = FD_INVALID;
+	sc->sb_modified = true;
+
+	seg_sum_write(sc);
+	superblock_write(sc);
+
+	is_sec_valid_fp = is_sec_valid_normal;
+	ba2sa_fp = ba2sa_normal;
+	//unlock metadata
+}
+
+static void
+g_logstor_ctl_revert(struct gctl_req *req, struct g_class *mp)
+{
+	int *nargs;
+	const char *geom_name;	/* geom to add a component to */
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "Error fetching argument '%s'", "nargs");
+		return;
+	}
+	if (*nargs != 1) {
+		gctl_error(req, "Invalid number of arguments");
+		return;
+	}
+
+	/* Find "our" geom */
+	geom_name = gctl_get_asciiparam(req, "arg0");
+	if (geom_name == NULL) {
+		gctl_error(req, "Error fetching argument '%s'", "geom_name (arg0)");
+		return;
+	}
+	struct g_geom *gp = g_logstor_find_geom(mp, geom_name);
+	if (gp == NULL) {
+		gctl_error(req, "Don't know anything about '%s'", geom_name);
+		return;
+	}
+	struct g_logstor_softc *sc = gp->softc;
+	fbuf_cache_flush_and_invalidate_fd(sc, sc->superblock.fd_cur, FD_INVALID);
+	sc->superblock.fd_root[sc->superblock.fd_cur] = SECTOR_NULL;
+	sc->sb_modified = true;
+}
+
+/*
+ * Destroy a logstor device.
+ */
+static void
+g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp)
+{
+	int *nargs, *force, error, i;
+	struct g_geom *gp;
+	const char *name;
+	char param[16];
+
+	g_topology_assert();
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs <= 0) {
+		gctl_error(req, "Missing device(s).");
+		return;
+	}
+	force = gctl_get_paraml(req, "force", sizeof(*force));
+	if (force == NULL) {
+		gctl_error(req, "No 'force' argument.");
+		return;
+	}
+
+	for (i = 0; i < *nargs; i++) {
+		snprintf(param, sizeof(param), "arg%d", i);
+		name = gctl_get_asciiparam(req, param);
+		if (name == NULL) {
+			gctl_msg(req, EINVAL, "No '%s' argument.", param);
+			continue;
+		}
+		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+			name += strlen(_PATH_DEV);
+		gp = g_logstor_find_geom(mp, name);
+		if (gp == NULL) {
+			gctl_msg(req, EINVAL, "Device %s is invalid.", name);
+			continue;
+		}
+		struct g_logstor_softc *sc = gp->softc;
+		md_update(sc);
+		free(sc->fbufs, M_GLOGSTOR);
+
+		error = g_logstor_destroy(req, gp, *force);
+		if (error != 0)
+			gctl_msg(req, error, "Error %d: "
+			    "cannot destroy device %s.", error, gp->name);
+	}
+	gctl_post_messages(req);
+}
+
+// The common part of is_sec_valid
+static bool
+is_sec_valid_comm(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev, uint8_t fd[], int fd_cnt)
+{
+	uint32_t sa_rev; // the sector address for ba_rev
+
+	KASSERT(ba_rev < BLOCK_MAX, ("%s", __func__));
+	for (int i = 0; i < fd_cnt; ++i) {
+		sa_rev = file_read_4byte(sc, fd[i], ba_rev);
+		if (sa == sa_rev)
+			return true;
+	}
+	return false;
+}
+
+// Is a sector with a reverse ba valid?
+// This function is called normally
+static bool
+is_sec_valid_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
+{
+	uint8_t fd[] = {
+	    sc->superblock.fd_cur,
+	    sc->superblock.fd_snap,
+	};
+
+	return is_sec_valid_comm(sc, sa, ba_rev, fd, NUM_OF_ELEMS(fd));
+}
+
+// Is a sector with a reverse ba valid?
+// This function is called during commit
+static bool
+is_sec_valid_during_commit(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
+{
+	uint8_t fd[] = {
+	    sc->superblock.fd_cur,
+	    sc->superblock.fd_prev,
+	    sc->superblock.fd_snap,
+	};
+
+	return is_sec_valid_comm(sc, sa, ba_rev, fd, NUM_OF_ELEMS(fd));
+}
+
+// Is a sector with a reverse ba valid?
+static bool
+is_sec_valid(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
+{
+	if (ba_rev < BLOCK_MAX) {
+		return is_sec_valid_fp(sc, sa, ba_rev);
+#if defined(WYC)
+		is_sec_valid_normal();
+		is_sec_valid_during_commit();
+#endif
+	} else if (IS_META_ADDR(ba_rev)) {
+		uint32_t sa_rev = ma2sa(sc, (union meta_addr)ba_rev);
+		return (sa == sa_rev);
+	} else if (ba_rev == BLOCK_INVALID) {
+		return false;
+	} else {
+		panic("");
+		return false;
+	}
+}
+
 static uint32_t
-logstor_ba2sa_comm(struct g_logstor_softc *sc, uint32_t ba, uint8_t fd[], int fd_cnt)
+ba2sa_comm(struct g_logstor_softc *sc, uint32_t ba, uint8_t fd[], int fd_cnt)
 {
 	uint32_t sa;
 
@@ -1408,14 +1208,14 @@ Description:
     Block address to sector address translation in normal state
 */
 static uint32_t
-logstor_ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba)
+ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba)
 {
 	uint8_t fd[] = {
 	    sc->superblock.fd_cur,
 	    sc->superblock.fd_snap,
 	};
 
-	return logstor_ba2sa_comm(sc, ba, fd, NUM_OF_ELEMS(fd));
+	return ba2sa_comm(sc, ba, fd, NUM_OF_ELEMS(fd));
 }
 
 /*
@@ -1423,7 +1223,7 @@ Description:
     Block address to sector address translation in commit state
 */
 static uint32_t __unused
-logstor_ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba)
+ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba)
 {
 	uint8_t fd[] = {
 	    sc->superblock.fd_cur,
@@ -1431,37 +1231,7 @@ logstor_ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba)
 	    sc->superblock.fd_snap,
 	};
 
-	return logstor_ba2sa_comm(sc, ba, fd, NUM_OF_ELEMS(fd));
-}
-
-uint32_t
-logstor_get_block_cnt(struct g_logstor_softc *sc)
-{
-	return sc->superblock.block_cnt_max;
-}
-
-unsigned
-logstor_get_data_write_count(struct g_logstor_softc *sc)
-{
-	return sc->data_write_count;
-}
-
-unsigned
-logstor_get_other_write_count(struct g_logstor_softc *sc)
-{
-	return sc->other_write_count;
-}
-
-unsigned
-logstor_get_fbuf_hit(struct g_logstor_softc *sc)
-{
-	return sc->fbuf_hit;
-}
-
-unsigned
-logstor_get_fbuf_miss(struct g_logstor_softc *sc)
-{
-	return sc->fbuf_miss;
+	return ba2sa_comm(sc, ba, fd, NUM_OF_ELEMS(fd));
 }
 
 /*
@@ -1499,7 +1269,7 @@ superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t 
 
 	_Static_assert(sizeof(sb_gen) == sizeof(sb->sb_gen), "sb_gen");
 
-	// from read_metadata()
+	// from virstor's read_metadata()
 	g_topology_assert();
 	error = g_access(cp, 1, 0, 0);
 	if (error)
@@ -1544,7 +1314,7 @@ superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t 
 		error = EINVAL;
 		goto end;
 	}
-end:	// from read_metadata
+end:	// from virstor's read_metadata
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 
@@ -1918,7 +1688,7 @@ fbuf_clean_queue_check(struct g_logstor_softc *sc)
 	if (sc->fbuf_queue_len[QUEUE_LEAF_CLEAN] > FBUF_CLEAN_THRESHOLD)
 		return;
 
-	logstor_update_metadata(sc);
+	md_update(sc);
 
 	// move all parent nodes with child_cnt 0 to clean queue and last bucket
 	for (int i = QUEUE_IND1; i >= QUEUE_IND0; --i) {
@@ -2021,7 +1791,7 @@ fbuf_cache_flush_and_invalidate_fd(struct g_logstor_softc *sc, int fd1, int fd2)
 {
 	struct _fbuf *fbuf;
 
-	logstor_update_metadata(sc);
+	md_update(sc);
 
 	// invalidate fbufs with file descriptors fd1 or fd2
 	for (int i = 0; i < sc->fbuf_count; ++i)
