@@ -65,11 +65,12 @@ struct g_class g_union_class = {
 	.name = G_UNION_CLASS_NAME,
 	.version = G_VERSION,
 	.ctlreq = g_union_config,
-	.access = g_union_access,
-	.start = g_union_start,
-	.dumpconf = g_union_dumpconf,
-	.orphan = g_union_orphan,
 	.destroy_geom = g_union_destroy_geom,
+
+	.start = g_union_start,
+	.access = g_union_access,
+	.orphan = g_union_orphan,
+	.dumpconf = g_union_dumpconf,
 	.providergone = g_union_providergone,
 	.resize = g_union_resize,
 };
