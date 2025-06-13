@@ -43,8 +43,8 @@
 #include <core/geom.h>
 #include <misc/subr.h>
 
-#include <geom/logstor/g_logstor_md.h>
-#include <geom/logstor/g_logstor.h>
+//#include <geom/logstor/g_logstor.h>
+#include "../../../sys/geom/logstor/g_logstor.h"
 
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_LOGSTOR_VERSION;
@@ -132,10 +132,6 @@ logstor_main(struct gctl_req *req, unsigned flags)
 		logstor_dump(req);
 	else
 		gctl_error(req, "%s: Unknown command: %s.", __func__, name);
-
-	/* No CTASSERT in userland
-	CTASSERT(LOGSTOR_MAP_BLOCK_ENTRIES*LOGSTOR_MAP_ENTRY_SIZE == MAXPHYS);
-	*/
 }
 
 /*
@@ -179,8 +175,8 @@ logstor_label(struct gctl_req *req)
 	}
 	sector_cnt = media_size / SECTOR_SIZE;
 	sb = (struct logstor_superblock *)buf;
-	sb->sig = SIG_LOGSTOR;
-	sb->ver_major = VER_MAJOR;
+	sb->sig = G_LOGSTOR_MAGIC;
+	sb->ver_major = G_LOGSTOR_VERSION;
 	sb->ver_minor = VER_MINOR;
 	snprintf(sb->name, sizeof(sb->name), "%s%s", name, G_LOGSTOR_SUFFIX);
 	sb->sb_gen = arc4random();
