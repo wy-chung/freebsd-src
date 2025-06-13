@@ -177,7 +177,6 @@ logstor_label(struct gctl_req *req)
 	sb = (struct logstor_superblock *)buf;
 	sb->sig = G_LOGSTOR_MAGIC;
 	sb->ver_major = G_LOGSTOR_VERSION;
-	sb->ver_minor = VER_MINOR;
 	snprintf(sb->name, sizeof(sb->name), "%s%s", name, G_LOGSTOR_SUFFIX);
 	sb->sb_gen = arc4random();
 	seg_cnt = sector_cnt / SECTORS_PER_SEG;

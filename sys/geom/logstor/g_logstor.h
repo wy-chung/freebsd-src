@@ -31,7 +31,6 @@
 
 #define	G_LOGSTOR_MAGIC	0x4C4F4753	// "LOGS": Log-Structured Storage
 #define	G_LOGSTOR_VERSION	1
-#define	VER_MINOR	1
 #define G_LOGSTOR_SUFFIX	".logstor"
 
 #define	SECTOR_SIZE	0x1000	// 4K
