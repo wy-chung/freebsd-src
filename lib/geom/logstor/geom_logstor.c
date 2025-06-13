@@ -104,7 +104,6 @@ struct g_command class_commands[] = {
 static int verbose = 0;
 
 /* Helper functions' declarations */
-//static void logstor_clear(struct gctl_req *req);
 static void logstor_dump(struct gctl_req *req);
 static void logstor_label(struct gctl_req *req);
 
@@ -124,10 +123,6 @@ logstor_main(struct gctl_req *req, unsigned flags)
 	}
 	if (strcmp(name, "label") == 0)
 		logstor_label(req);
-#if 0
-	else if (strcmp(name, "clear") == 0)
-		logstor_clear(req);
-#endif
 	else if (strcmp(name, "dump") == 0)
 		logstor_dump(req);
 	else
@@ -154,7 +149,7 @@ logstor_label(struct gctl_req *req)
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs != 1) {
-		gctl_error(req, "Too few arguments (%d): expecting: name provider", nargs);
+		gctl_error(req, "nargs (%d): expecting: name provider", nargs);
 		return;
 	}
 	name = gctl_get_ascii(req, "arg0");
@@ -175,11 +170,12 @@ logstor_label(struct gctl_req *req)
 	}
 	sector_cnt = media_size / SECTOR_SIZE;
 	sb = (struct logstor_superblock *)buf;
-	sb->sig = G_LOGSTOR_MAGIC;
+	sb->magic = G_LOGSTOR_MAGIC;
 	sb->ver_major = G_LOGSTOR_VERSION;
 	snprintf(sb->name, sizeof(sb->name), "%s%s", name, G_LOGSTOR_SUFFIX);
 	sb->sb_gen = arc4random();
 	seg_cnt = sector_cnt / SECTORS_PER_SEG;
+	// the rest of the superblock is used to store the age of the segments
 	if (sizeof(struct logstor_superblock) + seg_cnt > SECTOR_SIZE) {
 		printf("%s: size of superblock %d seg_cnt %d\n",
 		    __func__, (int)sizeof(struct logstor_superblock), (int)seg_cnt);
@@ -201,7 +197,7 @@ logstor_label(struct gctl_req *req)
 	sb->fd_prev = FD_INVALID;	// mapping does not exist
 	sb->fd_snap_new = FD_INVALID;
 	sb->fd_root[0] = SECTOR_NULL;	// file 0 is all 0
-	// the root sector address for the files 1, 2 and 3
+	// the root sector address for files 1, 2 and 3
 	for (int i = 1; i < FD_COUNT; i++) {
 		sb->fd_root[i] = SECTOR_DEL;	// the file does not exit
 	}
@@ -209,15 +205,16 @@ logstor_label(struct gctl_req *req)
 	// write out super block
 	pwrite(dev_fd, sb, SECTOR_SIZE, 0);
 
-	// clear the rest of the supeblock's segment
+	// clear the rest of the superblock's segment
 	bzero(buf, SECTOR_SIZE);
-	for (int i = 1; i < SECTORS_PER_SEG; i++) {
+	for (int i = 1; i < SECTORS_PER_SEG; ++i) {
 		pwrite(dev_fd, buf, SECTOR_SIZE, i * SECTOR_SIZE);
 	}
+
+	// initialize all segment summary blocks
 	struct _seg_sum ss;
 	for (int i = 0; i < SECTORS_PER_SEG - 1; ++i)
 		ss.ss_rm[i] = BLOCK_INVALID;
-	// initialize all segment summary blocks
 	for (int i = SEG_DATA_START; i < seg_cnt; ++i)
 	{	uint32_t sa = sega2sa(i) + SEG_SUM_OFFSET;
 		pwrite(dev_fd, &ss, SECTOR_SIZE, sa);
@@ -225,106 +222,9 @@ logstor_label(struct gctl_req *req)
 	close(dev_fd);
 }
 
-#if 0
-/* Clears metadata on given provider(s) IF it's owned by us */
-static void
-logstor_clear(struct gctl_req *req)
-{
-	const char *name;
-	char param[32];
-	unsigned i;
-	int nargs, error;
-	int fd;
-
-	nargs = gctl_get_int(req, "nargs");
-	if (nargs < 1) {
-		gctl_error(req, "Too few arguments.");
-		return;
-	}
-	for (i = 0; i < (unsigned)nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_ascii(req, "%s", param);
-
-		error = g_metadata_clear(name, G_LOGSTOR_MAGIC);
-		if (error != 0) {
-			fprintf(stderr, "Can't clear metadata on %s: %s "
-			    "(do I own it?)\n", name, strerror(error));
-			gctl_error(req,
-			    "Not fully done (can't clear metadata).");
-			continue;
-		}
-		if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
-			fd = open(name, O_RDWR);
-		else {
-			sprintf(param, "%s%s", _PATH_DEV, name);
-			fd = open(param, O_RDWR);
-		}
-		if (fd < 0) {
-			gctl_error(req, "Cannot clear header sector for %s",
-			    name);
-			continue;
-		}
-		if (verbose)
-			printf("Metadata cleared on %s.\n", name);
-	}
-}
-
-/* Print some metadata information */
-static void
-logstor_metadata_dump(const struct g_logstor_metadata *md)
-{
-	printf("          Magic string: %s\n", md->md_magic);
-	printf("      Metadata version: %u\n", (u_int) md->md_version);
-	printf("           Device name: %s\n", md->md_name);
-	printf("             Device ID: %u\n", (u_int) md->md_id);
-	printf("        Provider index: %u\n", (u_int) md->no);
-	printf("      Active providers: %u\n", (u_int) md->md_count);
-	printf("    Hardcoded provider: %s\n",
-	    md->provider[0] != '\0' ? md->provider : "(not hardcoded)");
-	printf("          Virtual size: %u MB\n",
-	    (unsigned int)(md->md_virsize/(1024 * 1024)));
-	printf("            Chunk size: %u kB\n", md->md_chunk_size / 1024);
-	printf("    Chunks on provider: %u\n", md->chunk_count);
-	printf("           Chunks free: %u\n", md->chunk_count - md->chunk_next);
-	printf("       Reserved chunks: %u\n", md->chunk_reserved);
-}
-#endif
-
 /* Called by geom(8) via glogstor_main() to dump metadata information */
 static void
 logstor_dump(struct gctl_req *req __unused)
 {
-#if 0
-	struct g_logstor_metadata md;
-	u_char tmpmd[512];	/* temporary buffer */
-	const char *name;
-	char param[16];
-	int nargs, error, i;
-
-	assert(sizeof(tmpmd) >= sizeof(md));
-
-	nargs = gctl_get_int(req, "nargs");
-	if (nargs < 1) {
-		gctl_error(req, "Too few arguments.");
-		return;
-	}
-	for (i = 0; i < nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_ascii(req, "%s", param);
-
-		error = g_metadata_read(name, (u_char *) & tmpmd, sizeof(tmpmd),
-		    G_LOGSTOR_MAGIC);
-		if (error != 0) {
-			fprintf(stderr, "Can't read metadata from %s: %s.\n",
-			    name, strerror(error));
-			gctl_error(req,
-			    "Not fully done (error reading metadata).");
-			continue;
-		}
-		logstor_metadata_decode((u_char *) & tmpmd, &md);
-		printf("Metadata on %s:\n", name);
-		logstor_metadata_dump(&md);
-		printf("\n");
-	}
-#endif
+	printf("%s: not implemented yet\n", __func__);
 }

@@ -56,14 +56,12 @@ enum {
 #define META_INVALID	(BLOCK_MAX+1)
 #define BLOCK_INVALID	(BLOCK_MAX+1)
 
-
 struct logstor_superblock {
-	uint32_t	md_id;		/* Unique ID. */
-	uint32_t sig;		// signature
+	char	name[16];
+	uint32_t magic;		// signature
 	uint8_t  ver_major;
 	uint8_t  ver_minor;
 	uint16_t sb_gen;	// the generation number. Used for redo after system crash
-	char	name[16];
 	/*
 	   The segments are treated as circular buffer
 	 */
@@ -95,6 +93,7 @@ struct logstor_superblock {
 	uint8_t fd_snap;	// the file descriptor for snapshot mapping
 	uint8_t fd_cur;		// the file descriptor for current mapping
 	uint8_t fd_snap_new;	// the file descriptor for new snapshot mapping
+	uint8_t age[];	// the age of the segments
 };
 
 _Static_assert(sizeof(struct logstor_superblock) < SECTOR_SIZE,
