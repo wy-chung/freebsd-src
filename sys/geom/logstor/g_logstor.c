@@ -229,7 +229,7 @@ g_logstor_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 }
 
 /*
- * Clean up a union geom.
+ * Clean up a logstor geom.
  */
 static int
 g_logstor_destroy_geom(struct gctl_req *req, struct g_class *mp,
@@ -297,9 +297,6 @@ create_logstor_geom(struct g_class *mp, struct logstor_superblock *sb)
 	struct g_geom *gp;
 	struct g_logstor_softc *sc;
 
-	LOG_MSG(LVL_DEBUG, "Creating geom instance for %s (id=%u)",
-	    sb->name, sb->md_id);
-
 	gp = g_new_geomf(mp, "%s", sb->name);
 	gp->softc = NULL; /* to circumevent races that test softc */
 
@@ -310,12 +307,13 @@ create_logstor_geom(struct g_class *mp, struct logstor_superblock *sb)
 	gp->dumpconf = g_logstor_dumpconf;
 
 	sc = malloc(sizeof(*sc), M_GLOGSTOR, M_WAITOK | M_ZERO);
-	sc->geom = gp;
+	//bzero(sc, sizeof(*sc));
 	gp->softc = sc;
+	sc->geom = gp;
+
 	sc->is_sec_valid_fp = is_sec_valid_normal;
 	sc->ba2sa_fp = ba2sa_normal;
 
-	//bzero(sc, sizeof(*sc));
 	memcpy(&sc->superblock, sb, sizeof(*sb));
 	sc->sb_modified = false;
 
@@ -414,7 +412,7 @@ invalid_call(void)
 }
 
 /*
- * Find a union geom.
+ * Find a logstor geom.
  */
 static struct g_geom *
 g_logstor_find_geom(struct g_class *mp, const char *name)
@@ -442,7 +440,7 @@ md_update(struct g_logstor_softc *sc)
  *******************************/
 /*
  * The writelock is held while a commit operation is in progress.
- * While held union device may not be used or in use.
+ * While held logstor device may not be used or in use.
  * Returns == 0 if lock was successfully obtained.
  */
 static inline int
@@ -458,7 +456,7 @@ g_logstor_rel_writelock(struct g_logstor_softc *sc)
 	long ret __diagused; // is used only when KASSERT is defined
 
 	ret = atomic_testandclear_long(&sc->sc_flags, DOING_COMMIT_BITNUM); // clear bit DOING_COMMIT_BITNUM
-	KASSERT(ret != 0, ("UNION GEOM releasing unheld lock"));
+	KASSERT(ret != 0, ("LOGSTOR GEOM releasing unheld lock"));
 }
 
 /*
@@ -491,7 +489,7 @@ g_logstor_access(struct g_provider *pp, int r, int w, int e)
  * Taste event (per-class callback)
  * Examines a provider and creates geom instances if needed
  */
-static struct g_geom * //g_virstor_taste
+static struct g_geom * // from g_virstor_taste
 g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
 	struct logstor_superblock sb;
@@ -506,7 +504,7 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	LOG_MSG(LVL_DEBUG, "Tasting %s", pp->name);
 
 	/* We need a dummy geom to attach a consumer to the given provider */
-	gp = g_new_geomf(mp, "virstor:taste.helper");
+	gp = g_new_geomf(mp, "logstor:taste.helper");
 	gp->start = (void *)invalid_call;	/* XXX: hacked up so the        */
 	gp->access = (void *)invalid_call;	/* compiler doesn't complain.   */
 	gp->orphan = (void *)invalid_call;	/* I really want these to fail. */
@@ -542,28 +540,36 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (gp != NULL) { /* We found an existing geom instance; add to it */
 		LOG_MSG(LVL_INFO, "%s already exists", sb.name);
 		return (NULL);
-	} else { /* New geom instance needs to be created */
-		gp = create_logstor_geom(mp, &sb);
-		if (gp == NULL) {
-			LOG_MSG(LVL_ERROR, "Error creating new instance of "
-			    "class %s: %s", mp->name, sb.name);
-			LOG_MSG(LVL_DEBUG, "Error creating %s at %s",
-			    sb.name, pp->name);
-			return (NULL);
-		}
-		cp = g_new_consumer(gp);
-		error = g_attach(cp, pp);
-		if (error) {
-			g_destroy_consumer(cp);
-			g_destroy_geom(gp);
-			return (NULL);
-		}
-		sc = gp->softc;
-		sc->consumer = cp;
-		sc->provider = pp;
-		LOG_MSG(LVL_INFO, "Adding %s to %s (first found)", pp->name,
-		    sb.name);
 	}
+	/* New geom instance needs to be created */
+	gp = create_logstor_geom(mp, &sb);
+	if (gp == NULL) {
+		LOG_MSG(LVL_ERROR, "Error creating new instance of "
+		    "class %s: %s", mp->name, sb.name);
+		LOG_MSG(LVL_DEBUG, "Error creating %s at %s",
+		    sb.name, pp->name);
+		return (NULL);
+	}
+	cp = g_new_consumer(gp);
+	error = g_attach(cp, pp);
+	if (error) {
+		g_destroy_consumer(cp);
+		g_destroy_geom(gp);
+		return (NULL);
+	}
+	sc = gp->softc;
+	sc->consumer = cp;
+	sc->provider = pp;
+	sc->sb_sa = sb_sa;
+
+	struct g_provider *newpp;
+	newpp = g_new_providerf(gp, "%s", gp->name);
+	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
+	newpp->mediasize = sc->superblock.block_cnt_max * (off_t)SECTOR_SIZE;
+	newpp->sectorsize = SECTOR_SIZE;
+
+	LOG_MSG(LVL_INFO, "Adding %s to %s (first found)", pp->name,
+	    sb.name);
 
 	return (gp);
 }
@@ -1085,7 +1091,7 @@ superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t 
 	if (error) {
 		goto end;
 	}
-	if (sb->sig != G_LOGSTOR_MAGIC ||
+	if (sb->magic != G_LOGSTOR_MAGIC ||
 	    sb->seg_allocp >= sb->seg_cnt) {
 		error = EINVAL;
 		goto end;
@@ -1097,7 +1103,7 @@ superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t 
 		if (error) {
 			goto end;
 		}
-		if (sb->sig != G_LOGSTOR_MAGIC)
+		if (sb->magic != G_LOGSTOR_MAGIC)
 			break;
 		if (sb->sb_gen != (uint16_t)(sb_gen + 1)) // IMPORTANT type cast
 			break;
