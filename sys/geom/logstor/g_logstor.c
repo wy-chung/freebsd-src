@@ -52,7 +52,6 @@
 #include <geom/geom_dbg.h>
 
 #include <geom/logstor/g_logstor.h>
-#include <geom/logstor/g_logstor_md.h>
 
 FEATURE(g_logstor, "GEOM log virtual storage support");
 
@@ -1086,7 +1085,7 @@ superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t 
 	if (error) {
 		goto end;
 	}
-	if (sb->sig != SIG_LOGSTOR ||
+	if (sb->sig != G_LOGSTOR_MAGIC ||
 	    sb->seg_allocp >= sb->seg_cnt) {
 		error = EINVAL;
 		goto end;
@@ -1098,7 +1097,7 @@ superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t 
 		if (error) {
 			goto end;
 		}
-		if (sb->sig != SIG_LOGSTOR)
+		if (sb->sig != G_LOGSTOR_MAGIC)
 			break;
 		if (sb->sb_gen != (uint16_t)(sb_gen + 1)) // IMPORTANT type cast
 			break;

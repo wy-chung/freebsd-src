@@ -4,7 +4,4 @@ PACKAGE=geom
 
 GEOM_CLASS=	logstor
 
-SRCS+=	binstream.c
-SRCS+=	g_logstor_md.c
-
 .include <bsd.lib.mk>

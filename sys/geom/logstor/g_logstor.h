@@ -29,40 +29,34 @@
 #ifndef _G_LOGSTOR_H_
 #define _G_LOGSTOR_H_
 
-#define	G_LOGSTOR_CLASS_NAME	"LOGSTOR"
+#define	G_LOGSTOR_MAGIC	0x4C4F4753	// "LOGS": Log-Structured Storage
+#define	G_LOGSTOR_VERSION	1
+#define	VER_MINOR	1
 #define G_LOGSTOR_SUFFIX	".logstor"
 
-#define LOGSTOR_MAP_ALLOCATED 1
-struct logstor_map_entry {
-	uint16_t	flags;
-	uint16_t	provider_no;
-	uint32_t	provider_chunk;
-};
-
-#define	LOGSTOR_MAP_ENTRY_SIZE (sizeof(struct logstor_map_entry))
-#define	LOGSTOR_MAP_BLOCK_ENTRIES (maxphys / LOGSTOR_MAP_ENTRY_SIZE)
-/* Struct size is guarded by MPASS in main source */
-
 #define	SECTOR_SIZE	0x1000	// 4K
-
-#define	SIG_LOGSTOR	0x4C4F4753	// "LOGS": Log-Structured Storage
-#define	VER_MAJOR	0
-#define	VER_MINOR	1
-#define SEG_DATA_START	1	// the data segment starts here
-#define SEG_SUM_OFFSET	(SECTORS_PER_SEG - 1) // segment summary offset in segment
-#define	SEG_SIZE	0x400000		// 4M
-#define	SECTORS_PER_SEG	(SEG_SIZE/SECTOR_SIZE) // 1024
-#define BLOCKS_PER_SEG	(SEG_SIZE/SECTOR_SIZE - 1)
 #define FD_COUNT	4		// max number of metadata files supported
 #define FD_INVALID	FD_COUNT	// the valid file descriptor are 0 to 3
-#define BLOCK_MAX	0x40000000	// 1G
-#define BLOCK_INVALID	BLOCK_MAX
+#define	SEG_SIZE	0x400000		// 4M
+#define SEG_DATA_START	1	// the data segment starts here
+#define SEG_SUM_OFFSET	(SECTORS_PER_SEG - 1) // segment summary offset in segment
+#define	SECTORS_PER_SEG	(SEG_SIZE/SECTOR_SIZE) // 1024
+#define BLOCKS_PER_SEG	(SEG_SIZE/SECTOR_SIZE - 1)
 
 enum {
 	SECTOR_NULL,	// the metadata are all NULL
 	SECTOR_DEL,	// the file does not exist or don't look the mapping further, it is NULL
 	SECTOR_CACHE,	// the root sector of the file is still in the cache
 };
+/*
+  The max metadata file size is 1K*1K*4K=4G, each entry is 4 bytes
+  so the max block number is 4G/4 = 1G
+*/
+#define BLOCK_MAX	0x40000000	// 1G
+// the address [BLOCK_MAX..META_STAR) are invalid block/metadata address
+#define META_INVALID	(BLOCK_MAX+1)
+#define BLOCK_INVALID	(BLOCK_MAX+1)
+
 
 struct logstor_superblock {
 	uint32_t	md_id;		/* Unique ID. */
@@ -130,7 +124,10 @@ sega2sa(uint32_t sega)
 	return sega << 10;
 }
 
+//=====================
 #ifdef _KERNEL
+
+#define	G_LOGSTOR_CLASS_NAME	"LOGSTOR"
 
 #define	LOG_MSG(lvl, ...) \
     _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, (lvl), NULL, __VA_ARGS__)
@@ -155,31 +152,8 @@ sega2sa(uint32_t sega)
 /* superfluous debug info (large volumes of data) */
 #define	LVL_MOREDEBUG	15
 
-/* Component data */
-struct g_logstor_component {
-	struct g_consumer	*gcons;
-	struct g_logstor_softc	*sc;
-	unsigned int		 index;		/* Component index in array */
-	unsigned int		 chunk_count;
-	unsigned int		 chunk_next;
-	unsigned int		 chunk_reserved;
-	unsigned int		 flags;
-};
-
-/* "delayed BIOs" Queue element */
-struct g_logstor_bio_q {
-	struct bio		*bio;
-	STAILQ_ENTRY(g_logstor_bio_q) linkage;
-};
-
-/*
-  The max file size is 1K*1K*4K=4G, each entry is 4 bytes
-  so the max block number is 4G/4 = 1G
-*/
 #define	META_START	(((union meta_addr){.meta = 0xFF}).uint32)	// metadata block address start
 #define	IS_META_ADDR(x)	((x) >= META_START)
-// the address [BLOCK_MAX..META_STAR) are invalid block/metadata address
-#define META_INVALID	BLOCK_MAX
 
 #define FBUF_CLEAN_THRESHOLD	32
 #define FBUF_MIN	1564
