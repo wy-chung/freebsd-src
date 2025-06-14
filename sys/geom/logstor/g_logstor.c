@@ -81,7 +81,7 @@ struct g_class g_logstor_class = {
 	.destroy_geom = g_logstor_destroy_geom
 	/* The .dumpconf and the rest are only usable for a geom instance, so
 	 * they will be set when such instance is created. */
-#if 0 // init in create_logstor_geom()
+#if 0 // init in g_logstor_taste()
 	.start = g_logstor_start;
 	.access = g_logstor_access;
 	.orphan = g_logstor_orphan;
@@ -111,7 +111,6 @@ SYSCTL_UINT(_kern_geom_logstor, OID_AUTO, component_watermark, CTLFLAG_RWTUN,
     "Minimum number of free components before issuing administrative warning");
 
 //=========================
-static struct g_geom *create_logstor_geom(struct g_class *, struct logstor_superblock *);
 
 static struct g_geom *g_logstor_find_geom(struct g_class *, const char *);
 
@@ -289,71 +288,6 @@ g_logstor_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 }
 
 /*
- * Creates a new instance of this GEOM class, initialise softc
- */
-static struct g_geom *
-create_logstor_geom(struct g_class *mp, struct logstor_superblock *sb)
-{
-	struct g_geom *gp;
-	struct g_logstor_softc *sc;
-
-	gp = g_new_geomf(mp, "%s", sb->name);
-	gp->softc = NULL; /* to circumevent races that test softc */
-
-	gp->start = g_logstor_start;
-	gp->spoiled = g_logstor_orphan;
-	gp->orphan = g_logstor_orphan;
-	gp->access = g_logstor_access;
-	gp->dumpconf = g_logstor_dumpconf;
-
-	sc = malloc(sizeof(*sc), M_GLOGSTOR, M_WAITOK | M_ZERO);
-	//bzero(sc, sizeof(*sc));
-	gp->softc = sc;
-	sc->geom = gp;
-
-	sc->is_sec_valid_fp = is_sec_valid_normal;
-	sc->ba2sa_fp = ba2sa_normal;
-
-	memcpy(&sc->superblock, sb, sizeof(*sb));
-	sc->sb_modified = false;
-
-	// read the segment summary block
-	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
-	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
-	md_read(sc, &sc->seg_sum, sa);
-	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, ("%s", __func__));
-	sc->ss_modified = false;
-	sc->data_write_count = sc->other_write_count = 0;
-
-	fbuf_mod_init(sc);
-
-	LOG_MSG(LVL_ANNOUNCE, "Device %s created", sc->geom->name);
-
-	return (gp);
-#if 0
-	bzero(sc, sizeof(*sc));
-	int error __unused;
-
-	error = superblock_read(sc);
-	KASSERT(error == 0, ("%s", __func__));
-	sc->sb_modified = false;
-
-	// read the segment summary block
-	KASSERT(sc->superblock.seg_allocp >= SEG_DATA_START, ("%s", __func__));
-	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
-	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
-	md_read(sc, &sc->seg_sum, sa);
-	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, ("%s", __func__));
-	sc->ss_modified = false;
-	sc->data_write_count = sc->other_write_count = 0;
-
-	fbuf_mod_init(sc);
-
-	return 0;
-#endif
-}
-
-/*
  * Called when the consumer gets orphaned (?)
  */
 static void
@@ -492,12 +426,12 @@ g_logstor_access(struct g_provider *pp, int r, int w, int e)
 static struct g_geom * // from g_virstor_taste
 g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
-	struct logstor_superblock sb;
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_logstor_softc *sc;
-	int error;
+	struct logstor_superblock sb;
 	uint32_t sb_sa;
+	int error;
 
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	g_topology_assert();
@@ -542,25 +476,47 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		return (NULL);
 	}
 	/* New geom instance needs to be created */
-	gp = create_logstor_geom(mp, &sb);
-	if (gp == NULL) {
+	gp = g_new_geomf(mp, "%s", sb.name);
+	gp->softc = NULL; /* to circumevent races that test softc */
+
+	gp->start = g_logstor_start;
+	gp->spoiled = g_logstor_orphan;
+	gp->orphan = g_logstor_orphan;
+	gp->access = g_logstor_access;
+	gp->dumpconf = g_logstor_dumpconf;
+
+	cp = g_new_consumer(gp);
+	error = g_attach(cp, pp);
+	if (error) {
 		LOG_MSG(LVL_ERROR, "Error creating new instance of "
 		    "class %s: %s", mp->name, sb.name);
 		LOG_MSG(LVL_DEBUG, "Error creating %s at %s",
 		    sb.name, pp->name);
-		return (NULL);
-	}
-	cp = g_new_consumer(gp);
-	error = g_attach(cp, pp);
-	if (error) {
 		g_destroy_consumer(cp);
 		g_destroy_geom(gp);
 		return (NULL);
 	}
-	sc = gp->softc;
+	sc = malloc(sizeof(*sc), M_GLOGSTOR, M_WAITOK | M_ZERO);;
+	sc->geom = gp;
 	sc->consumer = cp;
 	sc->provider = pp;
+
+	memcpy(&sc->superblock, &sb, sizeof(sb));
+	sc->sb_modified = false;
 	sc->sb_sa = sb_sa;
+
+	// read the segment summary block
+	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
+	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
+	md_read(sc, &sc->seg_sum, sa);
+	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, ("%s", __func__));
+	sc->ss_modified = false;
+
+	fbuf_mod_init(sc);
+
+	sc->data_write_count = sc->other_write_count = 0;
+	sc->is_sec_valid_fp = is_sec_valid_normal;
+	sc->ba2sa_fp = ba2sa_normal;
 
 	struct g_provider *newpp;
 	newpp = g_new_providerf(gp, "%s", gp->name);
@@ -571,7 +527,29 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	LOG_MSG(LVL_INFO, "Adding %s to %s (first found)", pp->name,
 	    sb.name);
 
+	gp->softc = sc;
 	return (gp);
+#if 0
+	bzero(sc, sizeof(*sc));
+	int error __unused;
+
+	error = superblock_read(sc);
+	KASSERT(error == 0, ("%s", __func__));
+	sc->sb_modified = false;
+
+	// read the segment summary block
+	KASSERT(sc->superblock.seg_allocp >= SEG_DATA_START, ("%s", __func__));
+	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
+	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
+	md_read(sc, &sc->seg_sum, sa);
+	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, ("%s", __func__));
+	sc->ss_modified = false;
+	sc->data_write_count = sc->other_write_count = 0;
+
+	fbuf_mod_init(sc);
+
+	return 0;
+#endif
 }
 
 /*
@@ -1459,14 +1437,14 @@ fbuf_mod_init(struct g_logstor_softc *sc)
 	for (i = 0; i < QUEUE_CNT; ++i) {
 		fbuf_queue_init(sc, i);
 	}
-	// insert fbuf to both QUEUE_LEAF_CLEAN and hash queue
+	// insert fbuf to both QUEUE_LEAF_CLEAN and the last hash bucket
 	for (i = 0; i < fbuf_count; ++i) {
 		struct _fbuf *fbuf = &sc->fbufs[i];
 		fbuf->fc.is_sentinel = false;
 		fbuf->fc.accessed = false;
 		fbuf->fc.modified = false;
 		fbuf_queue_insert_tail(sc, QUEUE_LEAF_CLEAN, fbuf);
-		// insert fbuf to the last fbuf bucket
+		// insert fbuf to the last hash bucket
 		// this bucket is not used in hash search
 		// init parent, child_cnt and ma before inserting into FBUF_BUCKET_LAST
 		fbuf->parent = NULL;
