@@ -24,6 +24,7 @@ SUBDIR=	geom_bde \
 	geom_uzip \
 	geom_vinum \
 	geom_virstor \
+	geom_logstor \
 	geom_zero
 
 .if ${MK_CCD} != "no" || defined(ALL_MODULES)

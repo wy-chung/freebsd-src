@@ -25,8 +25,9 @@ nooptions	NUMA
 nooptions	MAC
 
 options 	GEOM_NOP		# Test class.
-options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_VIRSTOR	# Virtual storage.
+options 	GEOM_LOGSTOR	# Virtual storage.
+#options 	GEOM_UNION
 
 nodevice	spibus
 nodevice	spigen
