@@ -198,7 +198,7 @@ g_logstor_fini(struct g_class *mp __unused)
 /*
  * Config (per-class callback)
  */
-static void
+__attribute__((optnone)) static void
 g_logstor_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 {
 	uint32_t *version;
@@ -424,7 +424,8 @@ g_logstor_access(struct g_provider *pp, int r, int w, int e)
  * Taste event (per-class callback)
  * Examines a provider and creates geom instances if needed
  */
-static struct g_geom * // from g_virstor_taste
+// from g_virstor_taste
+__attribute__((optnone)) static struct g_geom *
 g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
 	struct g_geom *gp;
@@ -455,7 +456,7 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_destroy_geom(gp);
 
 	if (error) {
-		printf("%s(%d): error %d\n", __func__, __LINE__, error);
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
 		return (NULL);
 	}
 	/* Iterate all geoms this class already knows about to see if a new
@@ -1049,7 +1050,7 @@ seg_sum_write(struct g_logstor_softc *sc)
   in the next sector. When it reachs the end of segment 0, it wraps around
   to sector 0.
 */
-static int
+__attribute__((optnone)) static int
 superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t *sb_sa)
 {
 	int error;
@@ -1064,7 +1065,7 @@ superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t 
 	g_topology_assert();
 	error = g_access(cp, 1, 0, 0);
 	if (error) {
-		printf("%s(%d): error %d\n", __func__, __LINE__, error);
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
 		return (error);
 	}
 	g_topology_unlock();
@@ -1073,12 +1074,12 @@ superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t 
 	sb = (struct logstor_superblock *)buf[0];
 	error = _g_read_data(cp, 0, sb, SECTOR_SIZE);
 	if (error) {
-		printf("%s(%d): error %d\n", __func__, __LINE__, error);
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
 		goto end;
 	}
 	if (sb->magic != G_LOGSTOR_MAGIC ||
 	    sb->seg_allocp >= sb->seg_cnt) {
-		printf("%s(%d): error %d\n", __func__, __LINE__, error);
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
 		error = EINVAL;
 		goto end;
 	}
@@ -1096,19 +1097,19 @@ superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t 
 		sb_gen = sb->sb_gen;
 	}
 	if (i == SECTORS_PER_SEG) {
-		printf("%s(%d): error %d\n", __func__, __LINE__, error);
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
 		error = EINVAL;
 		goto end;
 	}
 	*sb_sa = (i - 1);
 	sb = (struct logstor_superblock *)buf[(i-1)%2]; // get the previous valid superblock
 	if (sb->seg_allocp >= sb->seg_cnt) {
-		printf("%s(%d): error %d\n", __func__, __LINE__, error);
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
 		error = EINVAL;
 		goto end;
 	}
 	if (sb->seg_allocp < SEG_DATA_START) {
-		printf("%s(%d): error %d\n", __func__, __LINE__, error);
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
 		error = EINVAL;
 		goto end;
 	}
