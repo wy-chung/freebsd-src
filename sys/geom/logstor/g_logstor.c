@@ -181,7 +181,7 @@ static bool is_sec_valid(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_re
 static void
 g_logstor_init(struct g_class *mp __unused)
 {
-
+	printf("%s called\n", __func__);
 	/* Init UMA zones, TAILQ's, other global vars */
 }
 
@@ -191,7 +191,7 @@ g_logstor_init(struct g_class *mp __unused)
 static void
 g_logstor_fini(struct g_class *mp __unused)
 {
-
+	printf("%s called\n", __func__);
 	/* Deinit UMA zones & global vars */
 }
 
@@ -277,10 +277,11 @@ g_logstor_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 		//G_UNION_DEBUG(1, "Device %s removed.", gp->name);
 	}
 	/* Close consumers */
-	if ((error = g_access(sc->consumer, -1, 0, -1)) != 0)
-		;
+	if ((error = g_access(sc->consumer, -1, 0, -1)) != 0) {
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
 		//G_UNION_DEBUG(2, "Error %d: device %s could not reset access "
 		//    "to %s.", error, gp->name, sc->sc_lowercp->provider->name);
+	}
 
 	g_wither_geom(gp, ENXIO);
 
@@ -453,9 +454,10 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 
-	if (error)
+	if (error) {
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
 		return (NULL);
-
+	}
 	/* Iterate all geoms this class already knows about to see if a new
 	 * geom instance of this class needs to be created (in case the provider
 	 * is first from a (possibly) multi-consumer geom) or it just needs
@@ -472,6 +474,7 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		break;
 	}
 	if (gp != NULL) { /* We found an existing geom instance; add to it */
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
 		LOG_MSG(LVL_INFO, "%s already exists", sb.name);
 		return (NULL);
 	}
@@ -488,6 +491,7 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
 	if (error) {
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
 		LOG_MSG(LVL_ERROR, "Error creating new instance of "
 		    "class %s: %s", mp->name, sb.name);
 		LOG_MSG(LVL_DEBUG, "Error creating %s at %s",
@@ -1059,18 +1063,22 @@ superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t 
 	// from virstor's read_metadata()
 	g_topology_assert();
 	error = g_access(cp, 1, 0, 0);
-	if (error)
+	if (error) {
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
 		return (error);
+	}
 	g_topology_unlock();
 
 	// get the superblock
 	sb = (struct logstor_superblock *)buf[0];
 	error = _g_read_data(cp, 0, sb, SECTOR_SIZE);
 	if (error) {
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
 		goto end;
 	}
 	if (sb->magic != G_LOGSTOR_MAGIC ||
 	    sb->seg_allocp >= sb->seg_cnt) {
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
 		error = EINVAL;
 		goto end;
 	}
@@ -1088,16 +1096,19 @@ superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t 
 		sb_gen = sb->sb_gen;
 	}
 	if (i == SECTORS_PER_SEG) {
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
 		error = EINVAL;
 		goto end;
 	}
 	*sb_sa = (i - 1);
 	sb = (struct logstor_superblock *)buf[(i-1)%2]; // get the previous valid superblock
 	if (sb->seg_allocp >= sb->seg_cnt) {
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
 		error = EINVAL;
 		goto end;
 	}
 	if (sb->seg_allocp < SEG_DATA_START) {
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
 		error = EINVAL;
 		goto end;
 	}

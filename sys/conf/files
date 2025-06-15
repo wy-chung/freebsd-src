@@ -3709,6 +3709,7 @@ geom/vinum/geom_vinum_events.c	optional geom_vinum
 geom/virstor/binstream.c	optional geom_virstor
 geom/virstor/g_virstor.c	optional geom_virstor
 geom/virstor/g_virstor_md.c	optional geom_virstor
+geom/logstor/g_logstor.c	optional geom_logstor
 geom/zero/g_zero.c		optional geom_zero
 fs/ext2fs/ext2_acl.c		optional ext2fs
 fs/ext2fs/ext2_alloc.c		optional ext2fs
