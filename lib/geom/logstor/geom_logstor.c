@@ -160,12 +160,12 @@ logstor_label(struct gctl_req *req)
 	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, name);
 	dev_fd = open(buf, O_RDWR);
 	if (dev_fd < 0) {
-		printf("%s open\n", __func__);
+		printf("error: %s open %s\n", __func__, buf);
 		return;
 	}
 	media_size = g_mediasize(dev_fd);
 	if (media_size < 0) {
-		printf("%s g_mediasize\n", __func__);
+		printf("error: %s g_mediasize\n", __func__);
 		return;
 	}
 	sector_cnt = media_size / SECTOR_SIZE;

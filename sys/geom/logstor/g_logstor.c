@@ -282,7 +282,7 @@ g_logstor_destroy(struct gctl_req *req, struct g_geom *gp, bool force)
 		//G_UNION_DEBUG(2, "Error %d: device %s could not reset access "
 		//    "to %s.", error, gp->name, sc->sc_lowercp->provider->name);
 	}
-
+	free(sc, M_GLOGSTOR);
 	g_wither_geom(gp, ENXIO);
 
 	return (0);
@@ -421,143 +421,6 @@ g_logstor_access(struct g_provider *pp, int r, int w, int e)
 }
 
 /*
- * Taste event (per-class callback)
- * Examines a provider and creates geom instances if needed
- */
-// from g_virstor_taste
-__attribute__((optnone)) static struct g_geom *
-g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
-{
-	struct g_geom *gp;
-	struct g_consumer *cp;
-	struct g_logstor_softc *sc;
-	struct logstor_superblock sb;
-	uint32_t sb_sa;
-	int error;
-
-	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
-	g_topology_assert();
-	LOG_MSG(LVL_DEBUG, "Tasting %s", pp->name);
-
-	/* We need a dummy geom to attach a consumer to the given provider */
-	gp = g_new_geomf(mp, "logstor:taste.helper");
-	gp->start = (void *)invalid_call;	/* XXX: hacked up so the        */
-	gp->access = (void *)invalid_call;	/* compiler doesn't complain.   */
-	gp->orphan = (void *)invalid_call;	/* I really want these to fail. */
-
-	cp = g_new_consumer(gp);
-	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
-	error = g_attach(cp, pp);
-	if (!error) {
-		error = superblock_read(cp, &sb, &sb_sa);
-		g_detach(cp);
-	}
-	g_destroy_consumer(cp);
-	g_destroy_geom(gp);
-
-	if (error) {
-		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
-		return (NULL);
-	}
-	/* Iterate all geoms this class already knows about to see if a new
-	 * geom instance of this class needs to be created (in case the provider
-	 * is first from a (possibly) multi-consumer geom) or it just needs
-	 * to be added to an existing instance. */
-	sc = NULL;
-	LIST_FOREACH(gp, &mp->geom, geom) {
-		sc = gp->softc;
-		if (sc == NULL)
-			continue;
-		if (strcmp(sb.name, sc->geom->name) != 0)
-			continue;
-		//if (md.md_id != sc->id)
-		//	continue;
-		break;
-	}
-	if (gp != NULL) { /* We found an existing geom instance; add to it */
-		printf("%s(%d): error %d\n", __func__, __LINE__, error);
-		LOG_MSG(LVL_INFO, "%s already exists", sb.name);
-		return (NULL);
-	}
-	/* New geom instance needs to be created */
-	gp = g_new_geomf(mp, "%s", sb.name);
-	gp->softc = NULL; /* to circumevent races that test softc */
-
-	gp->start = g_logstor_start;
-	gp->spoiled = g_logstor_orphan;
-	gp->orphan = g_logstor_orphan;
-	gp->access = g_logstor_access;
-	gp->dumpconf = g_logstor_dumpconf;
-
-	cp = g_new_consumer(gp);
-	error = g_attach(cp, pp);
-	if (error) {
-		printf("%s(%d): error %d\n", __func__, __LINE__, error);
-		LOG_MSG(LVL_ERROR, "Error creating new instance of "
-		    "class %s: %s", mp->name, sb.name);
-		LOG_MSG(LVL_DEBUG, "Error creating %s at %s",
-		    sb.name, pp->name);
-		g_destroy_consumer(cp);
-		g_destroy_geom(gp);
-		return (NULL);
-	}
-	sc = malloc(sizeof(*sc), M_GLOGSTOR, M_WAITOK | M_ZERO);;
-	sc->geom = gp;
-	sc->consumer = cp;
-	sc->provider = pp;
-
-	memcpy(&sc->superblock, &sb, sizeof(sb));
-	sc->sb_modified = false;
-	sc->sb_sa = sb_sa;
-
-	// read the segment summary block
-	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
-	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
-	md_read(sc, &sc->seg_sum, sa);
-	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, ("%s", __func__));
-	sc->ss_modified = false;
-
-	fbuf_mod_init(sc);
-
-	sc->data_write_count = sc->other_write_count = 0;
-	sc->is_sec_valid_fp = is_sec_valid_normal;
-	sc->ba2sa_fp = ba2sa_normal;
-
-	struct g_provider *newpp;
-	newpp = g_new_providerf(gp, "%s", gp->name);
-	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
-	newpp->mediasize = sc->superblock.block_cnt_max * (off_t)SECTOR_SIZE;
-	newpp->sectorsize = SECTOR_SIZE;
-
-	LOG_MSG(LVL_INFO, "Adding %s to %s (first found)", pp->name,
-	    sb.name);
-
-	gp->softc = sc;
-	return (gp);
-#if 0
-	bzero(sc, sizeof(*sc));
-	int error __unused;
-
-	error = superblock_read(sc);
-	KASSERT(error == 0, ("%s", __func__));
-	sc->sb_modified = false;
-
-	// read the segment summary block
-	KASSERT(sc->superblock.seg_allocp >= SEG_DATA_START, ("%s", __func__));
-	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
-	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
-	md_read(sc, &sc->seg_sum, sa);
-	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, ("%s", __func__));
-	sc->ss_modified = false;
-	sc->data_write_count = sc->other_write_count = 0;
-
-	fbuf_mod_init(sc);
-
-	return 0;
-#endif
-}
-
-/*
  * I/O starts here
  * Called in g_down thread
  */
@@ -604,7 +467,7 @@ g_logstor_start(struct bio *bp)
 			g_io_deliver(bp, bp->bio_error);
 			return;
 		}
-		cb->bio_to = sc->provider;
+		//cb->bio_to = sc->provider;
 		cb->bio_done = g_logstor_done;
 		cb->bio_offset = bp->bio_offset + i * SECTOR_SIZE;
 		cb->bio_data = bp->bio_data + i * SECTOR_SIZE;
@@ -612,6 +475,224 @@ g_logstor_start(struct bio *bp)
 		fbuf_clean_queue_check(sc);
 		logstor_access_fp(sc, cb);
 	}
+}
+
+/*
+ * Taste event (per-class callback)
+ * Examines a provider and creates geom instances if needed
+ */
+// from g_virstor_taste
+__attribute__((optnone)) static struct g_geom *
+g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
+{
+	struct g_geom *gp;
+	struct g_consumer *cp;
+	struct g_logstor_softc *sc;
+	struct logstor_superblock sb;
+	uint32_t sb_sa;
+	int error;
+
+	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
+	g_topology_assert();
+	LOG_MSG(LVL_DEBUG, "Tasting %s", pp->name);
+
+	/* We need a dummy geom to attach a consumer to the given provider */
+	gp = g_new_geomf(mp, "logstor:taste.helper");
+	gp->start = (void *)invalid_call;	/* XXX: hacked up so the        */
+	gp->access = (void *)invalid_call;	/* compiler doesn't complain.   */
+	gp->orphan = (void *)invalid_call;	/* I really want these to fail. */
+
+	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
+	error = g_attach(cp, pp);
+	if (!error) {
+		error = superblock_read(cp, &sb, &sb_sa);
+		g_detach(cp);
+	}
+	g_destroy_consumer(cp);
+	g_destroy_geom(gp);
+
+	if (error) { // ENXIO 6
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
+		return (NULL);
+	}
+	/* Iterate all geoms this class already knows about to see if a new
+	 * geom instance of this class needs to be created (in case the provider
+	 * is first from a (possibly) multi-consumer geom) or it just needs
+	 * to be added to an existing instance. */
+	sc = NULL;
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		sc = gp->softc;
+		if (sc == NULL)
+			continue;
+		if (strcmp(sb.name, sc->geom->name) != 0)
+			continue;
+		//if (md.md_id != sc->id)
+		//	continue;
+		break;
+	}
+	if (gp != NULL) { /* We found an existing geom instance; add to it */
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
+		LOG_MSG(LVL_INFO, "%s already exists", sb.name);
+		return (NULL);
+	}
+	/* New geom instance needs to be created */
+	gp = g_new_geomf(mp, "%s", sb.name);
+	gp->softc = NULL; /* to circumevent races that test softc */
+	gp->start = g_logstor_start;
+	gp->spoiled = g_logstor_orphan;
+	gp->orphan = g_logstor_orphan;
+	gp->access = g_logstor_access;
+	gp->dumpconf = g_logstor_dumpconf;
+
+	cp = g_new_consumer(gp);
+	error = g_attach(cp, pp);
+	if (error) {
+		printf("%s(%d): error %d\n", __func__, __LINE__, error);
+		LOG_MSG(LVL_ERROR, "Error creating new instance of "
+		    "class %s: %s", mp->name, sb.name);
+		LOG_MSG(LVL_DEBUG, "Error creating %s at %s",
+		    sb.name, pp->name);
+
+		g_destroy_consumer(cp);
+		g_destroy_geom(gp);
+		return (NULL);
+	}
+	sc = malloc(sizeof(*sc), M_GLOGSTOR, M_WAITOK | M_ZERO);;
+	sc->geom = gp;
+	sc->consumer = cp;
+
+	memcpy(&sc->superblock, &sb, sizeof(sb));
+	sc->sb_modified = false;
+	sc->sb_sa = sb_sa;
+
+	// read the segment summary block
+	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
+	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
+	md_read(sc, &sc->seg_sum, sa);
+	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, ("%s", __func__));
+	sc->ss_modified = false;
+
+	fbuf_mod_init(sc);
+
+	sc->data_write_count = sc->other_write_count = 0;
+	sc->is_sec_valid_fp = is_sec_valid_normal;
+	sc->ba2sa_fp = ba2sa_normal;
+	gp->softc = sc;
+
+	struct g_provider *newpp;
+	newpp = g_new_providerf(gp, "%s", gp->name);
+	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
+	newpp->mediasize = sc->superblock.block_cnt_max * (off_t)SECTOR_SIZE;
+	newpp->sectorsize = SECTOR_SIZE;
+	g_error_provider(newpp, 0);
+
+	LOG_MSG(LVL_INFO, "Adding %s to %s (first found)", pp->name,
+	    sb.name);
+
+	return (gp);
+#if 0
+	bzero(sc, sizeof(*sc));
+	int error __unused;
+
+	error = superblock_read(sc);
+	KASSERT(error == 0, ("%s", __func__));
+	sc->sb_modified = false;
+
+	// read the segment summary block
+	KASSERT(sc->superblock.seg_allocp >= SEG_DATA_START, ("%s", __func__));
+	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
+	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
+	md_read(sc, &sc->seg_sum, sa);
+	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, ("%s", __func__));
+	sc->ss_modified = false;
+	sc->data_write_count = sc->other_write_count = 0;
+
+	fbuf_mod_init(sc);
+
+	return 0;
+#endif
+}
+
+/*
+  Segment 0 is used to store superblock so there are SECTORS_PER_SEG sectors
+  for storing superblock. Each time the superblock is synced, it is stored
+  in the next sector. When it reachs the end of segment 0, it wraps around
+  to sector 0.
+*/
+__attribute__((optnone)) static int
+superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t *sb_sa)
+{
+	int error;
+	int i;
+	uint16_t sb_gen;
+	struct logstor_superblock *sb;
+	char buf[2][SECTOR_SIZE];
+
+	_Static_assert(sizeof(sb_gen) == sizeof(sb->sb_gen), "sb_gen");
+
+	// from virstor's read_metadata()
+	g_topology_assert();
+	error = g_access(cp, 1, 0, 0);
+	if (error) { // ENXIO 6
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
+		return (error);
+	}
+	g_topology_unlock();
+
+	// get the superblock
+	sb = (struct logstor_superblock *)buf[0];
+	error = _g_read_data(cp, 0, sb, SECTOR_SIZE);
+	if (error) {
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
+		goto end;
+	}
+	if (sb->magic != G_LOGSTOR_MAGIC ||
+	    sb->seg_allocp >= sb->seg_cnt) {
+		printf("%s() #%d: not logstor\n", __func__, __LINE__);
+		error = EINVAL;
+		goto end;
+	}
+	sb_gen = sb->sb_gen;
+	for (i = 1 ; i < SECTORS_PER_SEG; i++) {
+		sb = (struct logstor_superblock *)buf[i%2];
+		error = _g_read_data(cp, i * SECTOR_SIZE, sb, SECTOR_SIZE);
+		if (error) {
+			goto end;
+		}
+		if (sb->magic != G_LOGSTOR_MAGIC)
+			break;
+		if (sb->sb_gen != (uint16_t)(sb_gen + 1)) // IMPORTANT type cast
+			break;
+		sb_gen = sb->sb_gen;
+	}
+	if (i == SECTORS_PER_SEG) {
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
+		error = EINVAL;
+		goto end;
+	}
+	*sb_sa = (i - 1);
+	sb = (struct logstor_superblock *)buf[(i-1)%2]; // get the previous valid superblock
+	if (sb->seg_allocp >= sb->seg_cnt) {
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
+		error = EINVAL;
+		goto end;
+	}
+	if (sb->seg_allocp < SEG_DATA_START) {
+		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
+		error = EINVAL;
+		goto end;
+	}
+end:	// from virstor's read_metadata
+	g_topology_lock();
+	g_access(cp, -1, 0, 0);
+
+	if (!error) {
+		for (i = 0; i < FD_COUNT; ++i)
+			KASSERT(sb->fd_root[i] != SECTOR_CACHE, ("%s", __func__));
+		memcpy(sbp, sb, sizeof(*sb));
+	}
+	return error;
 }
 
 // read one block
@@ -1044,88 +1125,6 @@ seg_sum_write(struct g_logstor_softc *sc)
 	sc->other_write_count++; // the write for the segment summary
 }
 
-/*
-  Segment 0 is used to store superblock so there are SECTORS_PER_SEG sectors
-  for storing superblock. Each time the superblock is synced, it is stored
-  in the next sector. When it reachs the end of segment 0, it wraps around
-  to sector 0.
-*/
-__attribute__((optnone)) static int
-superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t *sb_sa)
-{
-	int error;
-	int i;
-	uint16_t sb_gen;
-	struct logstor_superblock *sb;
-	char buf[2][SECTOR_SIZE];
-
-	_Static_assert(sizeof(sb_gen) == sizeof(sb->sb_gen), "sb_gen");
-
-	// from virstor's read_metadata()
-	g_topology_assert();
-	error = g_access(cp, 1, 0, 0);
-	if (error) {
-		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
-		return (error);
-	}
-	g_topology_unlock();
-
-	// get the superblock
-	sb = (struct logstor_superblock *)buf[0];
-	error = _g_read_data(cp, 0, sb, SECTOR_SIZE);
-	if (error) {
-		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
-		goto end;
-	}
-	if (sb->magic != G_LOGSTOR_MAGIC ||
-	    sb->seg_allocp >= sb->seg_cnt) {
-		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
-		error = EINVAL;
-		goto end;
-	}
-	sb_gen = sb->sb_gen;
-	for (i = 1 ; i < SECTORS_PER_SEG; i++) {
-		sb = (struct logstor_superblock *)buf[i%2];
-		error = _g_read_data(cp, i * SECTOR_SIZE, sb, SECTOR_SIZE);
-		if (error) {
-			goto end;
-		}
-		if (sb->magic != G_LOGSTOR_MAGIC)
-			break;
-		if (sb->sb_gen != (uint16_t)(sb_gen + 1)) // IMPORTANT type cast
-			break;
-		sb_gen = sb->sb_gen;
-	}
-	if (i == SECTORS_PER_SEG) {
-		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
-		error = EINVAL;
-		goto end;
-	}
-	*sb_sa = (i - 1);
-	sb = (struct logstor_superblock *)buf[(i-1)%2]; // get the previous valid superblock
-	if (sb->seg_allocp >= sb->seg_cnt) {
-		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
-		error = EINVAL;
-		goto end;
-	}
-	if (sb->seg_allocp < SEG_DATA_START) {
-		printf("%s() #%d: error %d\n", __func__, __LINE__, error);
-		error = EINVAL;
-		goto end;
-	}
-end:	// from virstor's read_metadata
-	g_topology_lock();
-	g_access(cp, -1, 0, 0);
-
-	if (!error) {
-		for (i = 0; i < FD_COUNT; ++i)
-			if (sb->fd_root[i] == SECTOR_CACHE)
-				sb->fd_root[i] = SECTOR_NULL;
-		memcpy(sbp, sb, sizeof(*sb));
-	}
-	return error;
-}
-
 static void
 superblock_write(struct g_logstor_softc *sc)
 {
@@ -1148,7 +1147,7 @@ superblock_write(struct g_logstor_softc *sc)
 	sc->other_write_count++;
 }
 
-static int
+__attribute__((optnone)) static int
 _g_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
 {
 	struct bio *bp;
