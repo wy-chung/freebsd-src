@@ -939,7 +939,7 @@ g_detach(struct g_consumer *cp)
  * "cp" change the access counters by the relative amounts dc[rwe] ?"
  */
 
-int
+__attribute__((optnone)) int
 g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 {
 	struct g_provider *pp;
