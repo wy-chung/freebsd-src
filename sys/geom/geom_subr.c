@@ -939,7 +939,8 @@ g_detach(struct g_consumer *cp)
  * "cp" change the access counters by the relative amounts dc[rwe] ?"
  */
 
-__attribute__((optnone)) int
+__attribute__((optnone))
+int
 g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 {
 	struct g_provider *pp;
@@ -1148,6 +1149,7 @@ g_std_access(struct g_provider *pp,
         return (0);
 }
 
+__attribute__((optnone))
 void
 g_std_done(struct bio *bp)
 {
