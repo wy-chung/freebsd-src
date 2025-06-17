@@ -58,6 +58,9 @@ FEATURE(g_logstor, "GEOM log virtual storage support");
 /* Declare malloc(9) label */
 static MALLOC_DEFINE(M_GLOGSTOR, "glogstor", "GEOM_LOGSTOR Data");
 
+#pragma GCC optimize ("O0")
+#define MY_ASSERT(x) KASSERT(x, ("%s %d", __func__, __LINE__))
+
 #define DOING_COMMIT	0x00000001	/* a commit command is in progress */
 #define DOING_COMMIT_BITNUM	 0	/* a commit command is in progress */
 #define NUM_OF_ELEMS(x) (sizeof(x)/sizeof(x[0]))
@@ -198,7 +201,8 @@ g_logstor_fini(struct g_class *mp __unused)
 /*
  * Config (per-class callback)
  */
-__attribute__((optnone)) static void
+__attribute__((optnone))
+static void
 g_logstor_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 {
 	uint32_t *version;
@@ -313,6 +317,7 @@ g_logstor_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
  * Can't use standard handler (g_std_done) because one requested IO may
  * fork into additional data IOs
  */
+__attribute__((optnone))
 static void
 g_logstor_done(struct bio *bp)
 {
@@ -424,15 +429,14 @@ g_logstor_access(struct g_provider *pp, int r, int w, int e)
  * I/O starts here
  * Called in g_down thread
  */
+__attribute__((optnone))
 static void
 g_logstor_start(struct bio *bp)
 {
 	struct g_logstor_softc *sc;
-	struct g_provider *pp;
 	uint32_t (*logstor_access_fp)(struct g_logstor_softc *sc, struct bio *bp);
 
-	pp = bp->bio_to;
-	sc = pp->geom->softc;
+	sc = bp->bio_to->geom->softc;
 	KASSERT(sc != NULL, ("%s: no softc (error=%d, device=%s)", __func__,
 	    bp->bio_to->error, bp->bio_to->name));
 
@@ -446,9 +450,10 @@ g_logstor_start(struct bio *bp)
 		logstor_access_fp = logstor_write;
 		break;
 	case BIO_DELETE:
-		logstor_delete(sc, bp);
-		return;
+		//logstor_delete(sc, bp);
+		//return;
 	default:
+		printf("%s: cmd %d not implemented\n", __func__, bp->bio_cmd);
 		g_io_deliver(bp, EOPNOTSUPP);
 		return;
 	}
@@ -460,20 +465,25 @@ g_logstor_start(struct bio *bp)
 
 	int sec_cnt = bp->bio_length / SECTOR_SIZE;
 	for (int i = 0; i < sec_cnt; ++i) {
-		struct bio *cb = g_clone_bio(bp);
-		if (cb == NULL) {
+		struct bio *cbp = g_clone_bio(bp);
+		if (cbp == NULL) {
 			if (bp->bio_error == 0)
 				bp->bio_error = ENOMEM;
 			g_io_deliver(bp, bp->bio_error);
 			return;
 		}
-		//cb->bio_to = sc->provider;
-		cb->bio_done = g_logstor_done;
-		cb->bio_offset = bp->bio_offset + i * SECTOR_SIZE;
-		cb->bio_data = bp->bio_data + i * SECTOR_SIZE;
-		cb->bio_length = SECTOR_SIZE;
+		//cbp->bio_to = sc->provider;
+		//cbp->bio_done = g_logstor_done;
+		cbp->bio_done = g_std_done;
+		cbp->bio_offset = bp->bio_offset + i * SECTOR_SIZE;
+		cbp->bio_data = bp->bio_data + i * SECTOR_SIZE;
+		cbp->bio_length = SECTOR_SIZE;
 		fbuf_clean_queue_check(sc);
-		logstor_access_fp(sc, cb);
+		logstor_access_fp(sc, cbp);
+#if defined(WYC)
+		logstor_read();
+		logstor_write();
+#endif
 	}
 }
 
@@ -482,7 +492,8 @@ g_logstor_start(struct bio *bp)
  * Examines a provider and creates geom instances if needed
  */
 // from g_virstor_taste
-__attribute__((optnone)) static struct g_geom *
+__attribute__((optnone))
+static struct g_geom *
 g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
 	struct g_geom *gp;
@@ -620,7 +631,8 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
   in the next sector. When it reachs the end of segment 0, it wraps around
   to sector 0.
 */
-__attribute__((optnone)) static int
+__attribute__((optnone))
+static int
 superblock_read(struct g_consumer *cp, struct logstor_superblock *sbp, uint32_t *sb_sa)
 {
 	int error;
@@ -715,10 +727,8 @@ logstor_read(struct g_logstor_softc *sc, struct bio *bp)
 		bzero(bp->bio_data, SECTOR_SIZE);
 		bp->bio_error = 0;
 		bp->bio_completed = SECTOR_SIZE;
-		g_logstor_done(bp);
-#if defined(WYC)
+		//g_logstor_done(bp);
 		g_std_done(bp);
-#endif
 	} else {
 		KASSERT(sa >= SECTORS_PER_SEG, ("%s", __func__));
 		bp->bio_offset = sa * SECTOR_SIZE;
@@ -742,6 +752,7 @@ Return:
   the sector address where the data is written
 */
 // must call fbuf_clean_queue_check() before calling this function
+__attribute__((optnone))
 static uint32_t
 _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *data)
 {
@@ -753,7 +764,7 @@ _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *da
 		ba = bp->bio_offset / SECTOR_SIZE;
 		data = bp->bio_data;
 		KASSERT(ba < sc->superblock.block_cnt_max, ("%s", __func__));
-	} else {
+	} else { // metadata
 		KASSERT(IS_META_ADDR(ba), ("%s", __func__));
 		KASSERT(data != NULL, ("%s", __func__));
 	}
@@ -1110,6 +1121,7 @@ ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba)
 /*
   write out the segment summary
 */
+__attribute__((optnone))
 static void
 seg_sum_write(struct g_logstor_softc *sc)
 {
@@ -1125,6 +1137,7 @@ seg_sum_write(struct g_logstor_softc *sc)
 	sc->other_write_count++; // the write for the segment summary
 }
 
+__attribute__((optnone))
 static void
 superblock_write(struct g_logstor_softc *sc)
 {
@@ -1147,7 +1160,8 @@ superblock_write(struct g_logstor_softc *sc)
 	sc->other_write_count++;
 }
 
-__attribute__((optnone)) static int
+__attribute__((optnone))
+static int
 _g_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
 {
 	struct bio *bp;
@@ -1172,6 +1186,7 @@ _g_read_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
 	return (errorc);
 }
 
+__attribute__((optnone))
 static void
 md_read(struct g_logstor_softc *sc, void *buf, uint32_t sa)
 {
@@ -1182,6 +1197,7 @@ md_read(struct g_logstor_softc *sc, void *buf, uint32_t sa)
 	KASSERT(rc == 0, ("%s", __func__));
 }
 
+__attribute__((optnone))
 static void
 md_write(struct g_logstor_softc *sc, void *buf, uint32_t sa)
 {
@@ -1200,6 +1216,7 @@ Output:
   Store the segment address into @seg_sum->sega
   Initialize @seg_sum->sum.alloc_p to 0
 */
+__attribute__((optnone))
 static void
 seg_alloc(struct g_logstor_softc *sc)
 {
@@ -1233,6 +1250,7 @@ Parameters:
 Return:
 	The sector address of the @ba
 */
+__attribute__((optnone))
 static uint32_t
 file_read_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba)
 {
@@ -1270,6 +1288,7 @@ Parameters:
 	%ba: block address
 	%sa: sector address
 */
+__attribute__((optnone))
 static void
 file_write_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba, uint32_t sa)
 {
@@ -1308,6 +1327,7 @@ Parameters:
 Return:
 	the address of the file buffer data
 */
+__attribute__((optnone))
 static struct _fbuf *
 file_access_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba, uint32_t *off_4byte)
 {
@@ -1477,6 +1497,7 @@ is_queue_empty(struct _fbuf_sentinel *sentinel)
 	return false;
 }
 
+__attribute__((optnone))
 static void
 fbuf_clean_queue_check(struct g_logstor_softc *sc)
 {
@@ -1488,99 +1509,83 @@ fbuf_clean_queue_check(struct g_logstor_softc *sc)
 
 	md_update(sc);
 
-	// move all parent nodes with child_cnt 0 to clean queue and last bucket
+	// move all internal nodes with child_cnt 0 to clean queue and last bucket
 	for (int i = QUEUE_IND1; i >= QUEUE_IND0; --i) {
 		queue_sentinel = &sc->fbuf_queue[i];
 		fbuf = queue_sentinel->fc.queue_next;
 		while (fbuf != (struct _fbuf *)queue_sentinel) {
 			KASSERT(fbuf->queue_which == i, ("%s", __func__));
-			struct _fbuf *fbuf_next = fbuf->fc.queue_next;
+			struct _fbuf *next = fbuf->fc.queue_next;
 			if (fbuf->child_cnt == 0) {
 				fbuf_queue_remove(sc, fbuf);
 				fbuf->fc.accessed = false; // so that it can be replaced faster
 				fbuf_queue_insert_tail(sc, QUEUE_LEAF_CLEAN, fbuf);
 				if (fbuf->parent) {
-					KASSERT(i == QUEUE_IND1, ("%s", __func__));
+					KASSERT(i != QUEUE_IND0, ("%s", __func__));
 					struct _fbuf *parent = fbuf->parent;
+					fbuf->parent = NULL;
 					--parent->child_cnt;
 					KASSERT(parent->child_cnt <= SECTOR_SIZE/4, ("%s", __func__));
-					fbuf->parent = NULL;
 				}
 				// move it to the last bucket so that it cannot be searched
 				// fbufs on the last bucket will have the metadata address META_INVALID
 				fbuf_bucket_remove(sc, fbuf);
-				KASSERT(fbuf->parent == NULL, ("%s", __func__));
-				KASSERT(fbuf->child_cnt == 0, ("%s", __func__));
 				fbuf->ma.uint32 = META_INVALID;
 				fbuf_bucket_insert_head(sc, FBUF_BUCKET_LAST, fbuf);
 			}
-			fbuf = fbuf_next;
+			fbuf = next;
 		}
 	}
 }
 
 // write back all the dirty fbufs to disk
+__attribute__((optnone))
 static void
 fbuf_cache_flush(struct g_logstor_softc *sc)
 {
-	int	i;
 	struct _fbuf *fbuf;
-	struct _fbuf *clean_next, *dirty_next, *dirty_prev;
-	struct _fbuf_sentinel *queue_sentinel;
+	struct _fbuf *clean_first, *dirty_first, *dirty_last;
 	struct _fbuf_sentinel *dirty_sentinel;
 	struct _fbuf_sentinel *clean_sentinel;
 
-	// write back all the dirty leaf nodes to disk
-	queue_sentinel = &sc->fbuf_queue[QUEUE_LEAF_DIRTY];
-	fbuf = queue_sentinel->fc.queue_next;
-	while (fbuf != (struct _fbuf *)queue_sentinel) {
-		KASSERT(fbuf->queue_which == QUEUE_LEAF_DIRTY, ("%s", __func__));
-		KASSERT(IS_META_ADDR(fbuf->ma.uint32), ("%s", __func__));
-		KASSERT(fbuf->fc.modified, ("%s", __func__));
-		// for dirty leaf nodes it's always dirty
-		fbuf_write(sc, fbuf);
-		fbuf = fbuf->fc.queue_next;
-	}
-
-	// write back all the modified internal nodes to disk
-	for (i = QUEUE_IND1; i >= 0; --i) {
-		queue_sentinel = &sc->fbuf_queue[i];
+	// write back all the modified nodes to disk
+	for (int i = QUEUE_LEAF_DIRTY; i >= 0; --i) {
+		struct _fbuf_sentinel *queue_sentinel = &sc->fbuf_queue[i];
 		fbuf = queue_sentinel->fc.queue_next;
 		while (fbuf != (struct _fbuf *)queue_sentinel) {
-			KASSERT(fbuf->queue_which == i, ("%s", __func__));
-			KASSERT(IS_META_ADDR(fbuf->ma.uint32), ("%s", __func__));
-			// for non-leaf nodes the fbuf might not be modified
+			MY_ASSERT(fbuf->queue_which == i);
+			MY_ASSERT(IS_META_ADDR(fbuf->ma.uint32));
+			// QUEUE_LEAF_DIRTY nodes are always dirty
+			MY_ASSERT(i != QUEUE_LEAF_DIRTY || fbuf->fc.modified);
 			if (__predict_true(fbuf->fc.modified))
 				fbuf_write(sc, fbuf);
 			fbuf = fbuf->fc.queue_next;
 		}
 	}
-
+	// move all fbufs in the dirty leaf queue to clean leaf queue
 	dirty_sentinel = &sc->fbuf_queue[QUEUE_LEAF_DIRTY];
 	if (is_queue_empty(dirty_sentinel))
 		return;
 
-	dirty_next = dirty_sentinel->fc.queue_next;
-	dirty_prev = dirty_sentinel->fc.queue_prev;
+	dirty_first = dirty_sentinel->fc.queue_next;
+	dirty_last = dirty_sentinel->fc.queue_prev;
 
-	// set queue_which to QUEUE_LEAF_CLEAN for all fbufs on QUEUE_LEAF_DIRTY
+	// set queue_which to QUEUE_LEAF_CLEAN for all fbufs on dirty leaf queue
 	fbuf = dirty_sentinel->fc.queue_next;
 	while (fbuf != (struct _fbuf *)dirty_sentinel) {
 		fbuf->queue_which = QUEUE_LEAF_CLEAN;
 		fbuf = fbuf->fc.queue_next;
 	}
-
-	// move all fbufs in QUEUE_LEAF_DIRTY to QUEUE_LEAF_CLEAN
+	// insert dirty leaf queue to the head of clean leaf queue
 	clean_sentinel = &sc->fbuf_queue[QUEUE_LEAF_CLEAN];
-	clean_next = clean_sentinel->fc.queue_next;
-	clean_sentinel->fc.queue_next = dirty_next;
-	dirty_next->fc.queue_prev = (struct _fbuf *)clean_sentinel;
-	dirty_prev->fc.queue_next = clean_next;
-	clean_next->fc.queue_prev = dirty_prev;
+	clean_first = clean_sentinel->fc.queue_next;
+	clean_sentinel->fc.queue_next = dirty_first;
+	dirty_first->fc.queue_prev = (struct _fbuf *)clean_sentinel;
+	dirty_last->fc.queue_next = clean_first;
+	clean_first->fc.queue_prev = dirty_last;
 	sc->fbuf_queue_len[QUEUE_LEAF_CLEAN] += sc->fbuf_queue_len[QUEUE_LEAF_DIRTY];
 
 	fbuf_queue_init(sc, QUEUE_LEAF_DIRTY);
-	// don't need to change clean queue's head
 }
 
 // flush the cache and invalid fbufs with file descriptors fd1 or fd2
@@ -1763,6 +1768,7 @@ fbuf_search(struct g_logstor_softc *sc, union meta_addr ma)
 Description:
   using the second chance replace policy to choose a fbuf in QUEUE_LEAF_CLEAN
 */
+__attribute__((optnone))
 struct _fbuf *
 fbuf_alloc(struct g_logstor_softc *sc, union meta_addr ma, int depth)
 {
@@ -1813,6 +1819,7 @@ again:
 Description:
     Read or write the file buffer with metadata address @ma
 */
+__attribute__((optnone))
 static struct _fbuf *
 fbuf_access(struct g_logstor_softc *sc, union meta_addr ma)
 {
@@ -1862,8 +1869,6 @@ fbuf_access(struct g_logstor_softc *sc, union meta_addr ma)
 			}
 		} else {
 			KASSERT(fbuf->parent == parent, ("%s", __func__));
-			KASSERT(fbuf->sa == sa ||
-				(i == 0 && sa == SECTOR_CACHE), ("%s", __func__));
 		}
 		if (i == ma.depth) // reach the intended depth
 			break;
@@ -1878,6 +1883,7 @@ end:
 	return fbuf;
 }
 
+__attribute__((optnone))
 static void
 fbuf_write(struct g_logstor_softc *sc, struct _fbuf *fbuf)
 {

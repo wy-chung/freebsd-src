@@ -868,6 +868,7 @@ g_io_schedule_up(struct thread *tp __unused)
 	}
 }
 
+__attribute__((optnone))
 void *
 g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error)
 {
