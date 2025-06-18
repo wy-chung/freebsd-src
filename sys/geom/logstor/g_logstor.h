@@ -235,11 +235,11 @@ struct g_logstor_softc {
 	bool (*is_sec_valid_fp)(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
 	uint32_t (*ba2sa_fp)(struct g_logstor_softc *sc, uint32_t ba);
 
-	struct g_geom		*geom;
 	struct g_provider	*provider;
+	struct g_geom		*geom;
 	struct g_consumer	*consumer;
 	uint64_t sc_flags;
-	uint32_t seg_allocp_start;// the starting segment for _logstor_write
+	uint32_t seg_allocp_start; // record the starting segment for free sector search
 	uint32_t seg_allocp_sa;	// the sector address of the segment for allocation
 	struct _seg_sum seg_sum;// segment summary for the hot segment
 	uint32_t sb_sa; 	// superblock's sector address
