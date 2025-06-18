@@ -323,7 +323,7 @@ g_logstor_done(struct bio *bp)
 {
 	struct bio *bp2;
 
-	KASSERT(bp->bio_completed == SECTOR_SIZE, ("%s", __func__));
+	MY_ASSERT(bp->bio_completed == SECTOR_SIZE);
 	bp2 = bp->bio_parent;
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
@@ -331,7 +331,7 @@ g_logstor_done(struct bio *bp)
 	g_destroy_bio(bp);
 	bp2->bio_inbed++;
 	if (bp2->bio_completed == bp2->bio_length) {
-		KASSERT(bp2->bio_children == bp2->bio_inbed, ("%s", __func__));
+		MY_ASSERT(bp2->bio_children == bp2->bio_inbed);
 		g_io_deliver(bp2, bp2->bio_error);
 	}
 }
@@ -460,31 +460,26 @@ g_logstor_start(struct bio *bp)
 
 	LOG_MSG(LVL_DEBUG2, "BIO arrived, size=%ju", bp->bio_length);
 
-	KASSERT(bp->bio_offset % SECTOR_SIZE == 0, ("%s", __func__));
-	KASSERT(bp->bio_length % SECTOR_SIZE == 0, ("%s", __func__));
+	MY_ASSERT(bp->bio_offset % SECTOR_SIZE == 0);
+	MY_ASSERT(bp->bio_length % SECTOR_SIZE == 0);
 
-	int sec_cnt = bp->bio_length / SECTOR_SIZE;
-	for (int i = 0; i < sec_cnt; ++i) {
-		struct bio *cbp = g_clone_bio(bp);
-		if (cbp == NULL) {
-			if (bp->bio_error == 0)
-				bp->bio_error = ENOMEM;
-			g_io_deliver(bp, bp->bio_error);
-			return;
-		}
-		//cbp->bio_to = sc->provider;
-		//cbp->bio_done = g_logstor_done;
-		cbp->bio_done = g_std_done;
-		cbp->bio_offset = bp->bio_offset + i * SECTOR_SIZE;
-		cbp->bio_data = bp->bio_data + i * SECTOR_SIZE;
-		cbp->bio_length = SECTOR_SIZE;
-		fbuf_clean_queue_check(sc);
-		logstor_access_fp(sc, cbp);
-#if defined(WYC)
-		logstor_read();
-		logstor_write();
-#endif
+	struct bio *cbp = g_clone_bio(bp);
+	if (cbp == NULL) {
+		if (bp->bio_error == 0)
+			bp->bio_error = ENOMEM;
+		g_io_deliver(bp, bp->bio_error);
+		return;
 	}
+	//cbp->bio_to = sc->provider;
+	//cbp->bio_done = g_logstor_done;
+	cbp->bio_done = g_std_done;
+	cbp->bio_length = SECTOR_SIZE;
+	fbuf_clean_queue_check(sc);
+	logstor_access_fp(sc, cbp);
+#if defined(WYC)
+	logstor_read();
+	logstor_write();
+#endif
 }
 
 /*
@@ -581,7 +576,7 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
 	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
 	md_read(sc, &sc->seg_sum, sa);
-	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, ("%s", __func__));
+	MY_ASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET);
 	sc->ss_modified = false;
 
 	fbuf_mod_init(sc);
@@ -607,15 +602,15 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	int error __unused;
 
 	error = superblock_read(sc);
-	KASSERT(error == 0, ("%s", __func__));
+	MY_ASSERT(error == 0);
 	sc->sb_modified = false;
 
 	// read the segment summary block
-	KASSERT(sc->superblock.seg_allocp >= SEG_DATA_START, ("%s", __func__));
+	MY_ASSERT(sc->superblock.seg_allocp >= SEG_DATA_START);
 	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
 	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
 	md_read(sc, &sc->seg_sum, sa);
-	KASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET, ("%s", __func__));
+	MY_ASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET);
 	sc->ss_modified = false;
 	sc->data_write_count = sc->other_write_count = 0;
 
@@ -701,7 +696,7 @@ end:	// from virstor's read_metadata
 
 	if (!error) {
 		for (i = 0; i < FD_COUNT; ++i)
-			KASSERT(sb->fd_root[i] != SECTOR_CACHE, ("%s", __func__));
+			MY_ASSERT(sb->fd_root[i] != SECTOR_CACHE);
 		memcpy(sbp, sb, sizeof(*sb));
 	}
 	return error;
@@ -716,7 +711,7 @@ logstor_read(struct g_logstor_softc *sc, struct bio *bp)
 	uint32_t sa;	// sector address
 
 	ba = bp->bio_offset / SECTOR_SIZE;
-	KASSERT(ba < sc->superblock.block_cnt_max, ("%s", __func__));
+	MY_ASSERT(ba < sc->superblock.block_cnt_max);
 
 	sa = sc->ba2sa_fp(sc, ba);
 #if defined(WYC)
@@ -730,7 +725,7 @@ logstor_read(struct g_logstor_softc *sc, struct bio *bp)
 		//g_logstor_done(bp);
 		g_std_done(bp);
 	} else {
-		KASSERT(sa >= SECTORS_PER_SEG, ("%s", __func__));
+		MY_ASSERT(sa >= SECTORS_PER_SEG);
 		bp->bio_offset = sa * SECTOR_SIZE;
 		g_io_request(bp, sc->consumer);
 	}
@@ -759,14 +754,14 @@ _logstor_write(struct g_logstor_softc *sc, struct bio *bp, uint32_t ba, void *da
 	static bool is_called = false;
 	struct _seg_sum *seg_sum = &sc->seg_sum;
 
-	KASSERT(sc->seg_allocp_sa >= SECTORS_PER_SEG, ("%s", __func__));
+	MY_ASSERT(sc->seg_allocp_sa >= SECTORS_PER_SEG);
 	if (bp) {
 		ba = bp->bio_offset / SECTOR_SIZE;
 		data = bp->bio_data;
-		KASSERT(ba < sc->superblock.block_cnt_max, ("%s", __func__));
+		MY_ASSERT(ba < sc->superblock.block_cnt_max);
 	} else { // metadata
-		KASSERT(IS_META_ADDR(ba), ("%s", __func__));
-		KASSERT(data != NULL, ("%s", __func__));
+		MY_ASSERT(IS_META_ADDR(ba));
+		MY_ASSERT(data != NULL);
 	}
 	if (is_called) // recursive call is not allowed
 		panic("%s", __func__);
@@ -827,11 +822,11 @@ logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
 
 	off_t offset = bp->bio_offset;
 	off_t length = bp->bio_length;
-	KASSERT((offset & (SECTOR_SIZE - 1)) == 0, ("%s", __func__));
-	KASSERT((length & (SECTOR_SIZE - 1)) == 0, ("%s", __func__));
+	MY_ASSERT((offset & (SECTOR_SIZE - 1)) == 0);
+	MY_ASSERT((length & (SECTOR_SIZE - 1)) == 0);
 	ba = offset / SECTOR_SIZE;
 	count = length / SECTOR_SIZE;
-	KASSERT(ba + count <= sc->superblock.block_cnt_max, ("%s", __func__));
+	MY_ASSERT(ba + count <= sc->superblock.block_cnt_max);
 
 	for (int i = 0; i < count; ++i) {
 		fbuf_clean_queue_check(sc);
@@ -1012,7 +1007,7 @@ is_sec_valid_comm(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev, uint
 {
 	uint32_t sa_rev; // the sector address for ba_rev
 
-	KASSERT(ba_rev < BLOCK_MAX, ("%s", __func__));
+	MY_ASSERT(ba_rev < BLOCK_MAX);
 	for (int i = 0; i < fd_cnt; ++i) {
 		sa_rev = file_read_4byte(sc, fd[i], ba_rev);
 		if (sa == sa_rev)
@@ -1074,7 +1069,7 @@ ba2sa_comm(struct g_logstor_softc *sc, uint32_t ba, uint8_t fd[], int fd_cnt)
 {
 	uint32_t sa;
 
-	KASSERT(ba < BLOCK_MAX, ("%s", __func__));
+	MY_ASSERT(ba < BLOCK_MAX);
 	for (int i = 0; i < fd_cnt; ++i) {
 		sa = file_read_4byte(sc, fd[i], ba);
 		if (sa == SECTOR_DEL) { // don't need to check further
@@ -1130,7 +1125,7 @@ seg_sum_write(struct g_logstor_softc *sc)
 	if (!sc->ss_modified)
 		return;
 	// segment summary is at the end of a segment
-	KASSERT(sc->seg_allocp_sa >= SECTORS_PER_SEG, ("%s", __func__));
+	MY_ASSERT(sc->seg_allocp_sa >= SECTORS_PER_SEG);
 	sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
 	md_write(sc, (void *)&sc->seg_sum, sa);
 	sc->ss_modified = false;
@@ -1148,7 +1143,7 @@ superblock_write(struct g_logstor_softc *sc)
 	//	return;
 
 	for (int i = 0; i < 4; ++i) {
-		KASSERT(sc->superblock.fd_root[i] != SECTOR_CACHE, ("%s", __func__));
+		MY_ASSERT(sc->superblock.fd_root[i] != SECTOR_CACHE);
 	}
 	sc->superblock.sb_gen++;
 	if (++sc->sb_sa == SECTORS_PER_SEG)
@@ -1192,9 +1187,9 @@ md_read(struct g_logstor_softc *sc, void *buf, uint32_t sa)
 {
 	int rc __diagused;
 
-	KASSERT(sa < sc->superblock.seg_cnt * SECTORS_PER_SEG, ("%s", __func__));
+	MY_ASSERT(sa < sc->superblock.seg_cnt * SECTORS_PER_SEG);
 	rc = _g_read_data(sc->consumer, sa * SECTOR_SIZE, buf, SECTOR_SIZE);
-	KASSERT(rc == 0, ("%s", __func__));
+	MY_ASSERT(rc == 0);
 }
 
 __attribute__((optnone))
@@ -1203,9 +1198,9 @@ md_write(struct g_logstor_softc *sc, void *buf, uint32_t sa)
 {
 	int rc __diagused;
 
-	KASSERT(sa < sc->superblock.seg_cnt * SECTORS_PER_SEG, ("%s", __func__));
+	MY_ASSERT(sa < sc->superblock.seg_cnt * SECTORS_PER_SEG);
 	rc = g_write_data(sc->consumer, sa * SECTOR_SIZE, buf, SECTOR_SIZE);
-	KASSERT(rc == 0, ("%s", __func__));
+	MY_ASSERT(rc == 0);
 }
 
 /*
@@ -1223,7 +1218,7 @@ seg_alloc(struct g_logstor_softc *sc)
 	// write the previous segment summary to disk if it has been modified
 	seg_sum_write(sc);
 
-	KASSERT(sc->superblock.seg_allocp < sc->superblock.seg_cnt, ("%s", __func__));
+	MY_ASSERT(sc->superblock.seg_allocp < sc->superblock.seg_cnt);
 	if (++sc->superblock.seg_allocp == sc->superblock.seg_cnt)
 		sc->superblock.seg_allocp = SEG_DATA_START;
 	if (sc->superblock.seg_allocp == sc->seg_allocp_start)
@@ -1258,12 +1253,12 @@ file_read_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba)
 	uint32_t sa;
 	struct _fbuf *fbuf;
 
-	KASSERT(fd < FD_COUNT, ("%s", __func__));
+	MY_ASSERT(fd < FD_COUNT);
 
 	// the initialized reverse map in the segment summary is BLOCK_MAX
 	// so it is possible that a caller might pass a ba that is BLOCK_MAX
 	if (ba >= BLOCK_MAX) {
-		KASSERT(ba == BLOCK_INVALID, ("%s", __func__));
+		MY_ASSERT(ba == BLOCK_INVALID);
 		return SECTOR_NULL;
 	}
 	// this file is all 0
@@ -1295,23 +1290,23 @@ file_write_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba, uint32_t s
 	struct _fbuf *fbuf;
 	uint32_t off_4byte;	// the offset in 4 bytes within the file buffer data
 
-	KASSERT(fd < FD_COUNT, ("%s", __func__));
-	KASSERT(ba < BLOCK_MAX, ("%s", __func__));
-	KASSERT(sc->superblock.fd_root[fd] != SECTOR_DEL, ("%s", __func__));
+	MY_ASSERT(fd < FD_COUNT);
+	MY_ASSERT(ba < BLOCK_MAX);
+	MY_ASSERT(sc->superblock.fd_root[fd] != SECTOR_DEL);
 
 	fbuf = file_access_4byte(sc, fd, ba, &off_4byte);
-	KASSERT(fbuf != NULL, ("%s", __func__));
+	MY_ASSERT(fbuf != NULL);
 	fbuf->data[off_4byte] = sa;
 	if (!fbuf->fc.modified) {
 		// move to QUEUE_LEAF_DIRTY
-		KASSERT(fbuf->queue_which == QUEUE_LEAF_CLEAN, ("%s", __func__));
+		MY_ASSERT(fbuf->queue_which == QUEUE_LEAF_CLEAN);
 		fbuf->fc.modified = true;
 		if (fbuf == sc->fbuf_allocp)
 			sc->fbuf_allocp = fbuf->fc.queue_next;
 		fbuf_queue_remove(sc, fbuf);
 		fbuf_queue_insert_tail(sc, QUEUE_LEAF_DIRTY, fbuf);
 	} else
-		KASSERT(fbuf->queue_which == QUEUE_LEAF_DIRTY, ("%s", __func__));
+		MY_ASSERT(fbuf->queue_which == QUEUE_LEAF_DIRTY);
 }
 
 /*
@@ -1363,7 +1358,7 @@ ma_index_get(union meta_addr ma, unsigned depth)
 static union meta_addr
 ma_index_set(union meta_addr ma, unsigned depth, unsigned index)
 {
-	KASSERT(index < 1024, ("%s", __func__));
+	MY_ASSERT(index < 1024);
 
 	switch (depth) {
 	case 0:
@@ -1432,7 +1427,7 @@ ma2sa(struct g_logstor_softc *sc, union meta_addr ma)
 
 			pma = ma2pma(ma, &pindex);
 			parent = fbuf_access(sc, pma);
-			KASSERT(parent != NULL, ("%s", __func__));
+			MY_ASSERT(parent != NULL);
 			sa = parent->data[pindex];
 		}
 		break;
@@ -1460,7 +1455,7 @@ fbuf_mod_init(struct g_logstor_softc *sc)
 		fbuf_count = FBUF_MAX;
 	sc->fbuf_count = fbuf_count;
 	sc->fbufs = malloc(fbuf_count * sizeof(*sc->fbufs), M_GLOGSTOR, M_WAITOK);
-	KASSERT(sc->fbufs != NULL, ("%s", __func__));
+	MY_ASSERT(sc->fbufs != NULL);
 
 	for (i = 0; i < FBUF_BUCKET_CNT; ++i) {
 		fbuf_bucket_init(sc, i);
@@ -1491,7 +1486,7 @@ static inline bool
 is_queue_empty(struct _fbuf_sentinel *sentinel)
 {
 	if (sentinel->fc.queue_next == (struct _fbuf *)sentinel) {
-		KASSERT(sentinel->fc.queue_prev == (struct _fbuf *)sentinel, ("%s", __func__));
+		MY_ASSERT(sentinel->fc.queue_prev == (struct _fbuf *)sentinel);
 		return true;
 	}
 	return false;
@@ -1514,18 +1509,18 @@ fbuf_clean_queue_check(struct g_logstor_softc *sc)
 		queue_sentinel = &sc->fbuf_queue[i];
 		fbuf = queue_sentinel->fc.queue_next;
 		while (fbuf != (struct _fbuf *)queue_sentinel) {
-			KASSERT(fbuf->queue_which == i, ("%s", __func__));
+			MY_ASSERT(fbuf->queue_which == i);
 			struct _fbuf *next = fbuf->fc.queue_next;
 			if (fbuf->child_cnt == 0) {
 				fbuf_queue_remove(sc, fbuf);
 				fbuf->fc.accessed = false; // so that it can be replaced faster
 				fbuf_queue_insert_tail(sc, QUEUE_LEAF_CLEAN, fbuf);
 				if (fbuf->parent) {
-					KASSERT(i != QUEUE_IND0, ("%s", __func__));
+					MY_ASSERT(i != QUEUE_IND0);
 					struct _fbuf *parent = fbuf->parent;
 					fbuf->parent = NULL;
 					--parent->child_cnt;
-					KASSERT(parent->child_cnt <= SECTOR_SIZE/4, ("%s", __func__));
+					MY_ASSERT(parent->child_cnt <= SECTOR_SIZE/4);
 				}
 				// move it to the last bucket so that it cannot be searched
 				// fbufs on the last bucket will have the metadata address META_INVALID
@@ -1600,16 +1595,16 @@ fbuf_cache_flush_and_invalidate_fd(struct g_logstor_softc *sc, int fd1, int fd2)
 	for (int i = 0; i < sc->fbuf_count; ++i)
 	{
 		fbuf = &sc->fbufs[i];
-		KASSERT(!fbuf->fc.modified, ("%s", __func__));
+		MY_ASSERT(!fbuf->fc.modified);
 		if (fbuf->ma.uint32 == META_INVALID) {
 			// the fbufs with metadata address META_INVALID are
 			// linked in bucket FBUF_BUCKET_LAST
-			KASSERT(fbuf->bucket_which == FBUF_BUCKET_LAST, ("%s", __func__));
+			MY_ASSERT(fbuf->bucket_which == FBUF_BUCKET_LAST);
 			continue;
 		}
 		// move fbufs with fd equals to fd1 or fd2 to the last bucket
 		if (fbuf->ma.fd == fd1 || fbuf->ma.fd == fd2) {
-			KASSERT(fbuf->bucket_which != FBUF_BUCKET_LAST, ("%s", __func__));
+			MY_ASSERT(fbuf->bucket_which != FBUF_BUCKET_LAST);
 			fbuf_bucket_remove(sc, fbuf);
 			// init parent, child_cnt and ma before inserting to bucket FBUF_BUCKET_LAST
 			fbuf->parent = NULL;
@@ -1619,7 +1614,7 @@ fbuf_cache_flush_and_invalidate_fd(struct g_logstor_softc *sc, int fd1, int fd2)
 			fbuf->fc.accessed = false; // so it will be recycled sooner
 			if (fbuf->queue_which != QUEUE_LEAF_CLEAN) {
 				// it is an internal node, move it to QUEUE_LEAF_CLEAN
-				KASSERT(fbuf->queue_which != QUEUE_LEAF_DIRTY, ("%s", __func__));
+				MY_ASSERT(fbuf->queue_which != QUEUE_LEAF_DIRTY);
 				fbuf_queue_remove(sc, fbuf);
 				fbuf_queue_insert_tail(sc, QUEUE_LEAF_CLEAN, fbuf);
 			}
@@ -1632,7 +1627,7 @@ fbuf_queue_init(struct g_logstor_softc *sc, int which)
 {
 	struct _fbuf_sentinel *queue_head;
 
-	KASSERT(which < QUEUE_CNT, ("%s", __func__));
+	MY_ASSERT(which < QUEUE_CNT);
 	sc->fbuf_queue_len[which] = 0;
 	queue_head = &sc->fbuf_queue[which];
 	queue_head->fc.queue_next = (struct _fbuf *)queue_head;
@@ -1648,12 +1643,12 @@ fbuf_queue_insert_tail(struct g_logstor_softc *sc, int which, struct _fbuf *fbuf
 	struct _fbuf_sentinel *queue_head;
 	struct _fbuf *prev;
 
-	KASSERT(which < QUEUE_CNT, ("%s", __func__));
-	KASSERT(which != QUEUE_LEAF_CLEAN || !fbuf->fc.modified, ("%s", __func__));
+	MY_ASSERT(which < QUEUE_CNT);
+	MY_ASSERT(which != QUEUE_LEAF_CLEAN || !fbuf->fc.modified);
 	fbuf->queue_which = which;
 	queue_head = &sc->fbuf_queue[which];
 	prev = queue_head->fc.queue_prev;
-	KASSERT(prev->fc.is_sentinel || prev->queue_which == which, ("%s", __func__));
+	MY_ASSERT(prev->fc.is_sentinel || prev->queue_which == which);
 	queue_head->fc.queue_prev = fbuf;
 	fbuf->fc.queue_next = (struct _fbuf *)queue_head;
 	fbuf->fc.queue_prev = prev;
@@ -1668,11 +1663,11 @@ fbuf_queue_remove(struct g_logstor_softc *sc, struct _fbuf *fbuf)
 	struct _fbuf *next;
 	int which = fbuf->queue_which;
 
-	KASSERT(fbuf != (struct _fbuf *)&sc->fbuf_queue[which], ("%s", __func__));
+	MY_ASSERT(fbuf != (struct _fbuf *)&sc->fbuf_queue[which]);
 	prev = fbuf->fc.queue_prev;
 	next = fbuf->fc.queue_next;
-	KASSERT(prev->fc.is_sentinel || prev->queue_which == which, ("%s", __func__));
-	KASSERT(next->fc.is_sentinel || next->queue_which == which, ("%s", __func__));
+	MY_ASSERT(prev->fc.is_sentinel || prev->queue_which == which);
+	MY_ASSERT(next->fc.is_sentinel || next->queue_which == which);
 	prev->fc.queue_next = next;
 	next->fc.queue_prev = prev;
 	--sc->fbuf_queue_len[which];
@@ -1724,7 +1719,7 @@ fbuf_bucket_remove(struct g_logstor_softc *sc __unused, struct _fbuf *fbuf)
 	struct _fbuf *prev;
 	struct _fbuf *next;
 
-	KASSERT(!fbuf->fc.is_sentinel, ("%s", __func__));
+	MY_ASSERT(!fbuf->fc.is_sentinel);
 	prev = fbuf->bucket_prev;
 	next = fbuf->bucket_next;
 	if (prev->fc.is_sentinel)
@@ -1788,12 +1783,12 @@ again:
 	if (fbuf == (struct _fbuf *)queue_sentinel) {
 		fbuf->fc.accessed = true;
 		fbuf = fbuf->fc.queue_next;
-		KASSERT(fbuf != (struct _fbuf *)queue_sentinel, ("%s", __func__));
+		MY_ASSERT(fbuf != (struct _fbuf *)queue_sentinel);
 		goto again;
 	}
 
-	KASSERT(!fbuf->fc.modified, ("%s", __func__));
-	KASSERT(fbuf->child_cnt == 0, ("%s", __func__));
+	MY_ASSERT(!fbuf->fc.modified);
+	MY_ASSERT(fbuf->child_cnt == 0);
 	sc->fbuf_allocp = fbuf->fc.queue_next;
 	if (depth != META_LEAF_DEPTH) {
 		// for fbuf allocated for internal nodes insert it immediately
@@ -1809,8 +1804,8 @@ again:
 		// parent with child_cnt == 0 will stay in its queue
 		// it will only be moved to QUEUE_LEAF_CLEAN in fbuf_clean_queue_check()
 		--parent->child_cnt;
-		KASSERT(parent->child_cnt <= SECTOR_SIZE/4, ("%s", __func__));
-		KASSERT(parent->queue_which == parent->ma.depth, ("%s", __func__));
+		MY_ASSERT(parent->child_cnt <= SECTOR_SIZE/4);
+		MY_ASSERT(parent->queue_which == parent->ma.depth);
 	}
 	return fbuf;
 }
@@ -1829,12 +1824,12 @@ fbuf_access(struct g_logstor_softc *sc, union meta_addr ma)
 	struct _fbuf *parent;	// parent buffer
 	struct _fbuf *fbuf;
 
-	KASSERT(IS_META_ADDR(ma.uint32), ("%s", __func__));
-	KASSERT(ma.depth <= META_LEAF_DEPTH, ("%s", __func__));
+	MY_ASSERT(IS_META_ADDR(ma.uint32));
+	MY_ASSERT(ma.depth <= META_LEAF_DEPTH);
 
 	// get the root sector address of the file %ma.fd
 	sa = sc->superblock.fd_root[ma.fd];
-	KASSERT(sa != SECTOR_DEL, ("%s", __func__));
+	MY_ASSERT(sa != SECTOR_DEL);
 
 	fbuf = fbuf_search(sc, ma);
 	if (fbuf != NULL) // cache hit
@@ -1855,20 +1850,20 @@ fbuf_access(struct g_logstor_softc *sc, union meta_addr ma)
 				// parent with child_cnt == 0 will stay in its queue
 				// it will only be moved to QUEUE_LEAF_CLEAN in fbuf_clean_queue_check()
 				++parent->child_cnt;
-				KASSERT(parent->child_cnt <= SECTOR_SIZE/4, ("%s", __func__));
+				MY_ASSERT(parent->child_cnt <= SECTOR_SIZE/4);
 			} else {
-				KASSERT(i == 0, ("%s", __func__));
+				MY_ASSERT(i == 0);
 			}
 			if (sa == SECTOR_NULL) {
 				bzero(fbuf->data, sizeof(fbuf->data));
 				if (i == 0)
 					sc->superblock.fd_root[ma.fd] = SECTOR_CACHE;
 			} else {
-				KASSERT(sa >= SECTORS_PER_SEG, ("%s", __func__));
+				MY_ASSERT(sa >= SECTORS_PER_SEG);
 				md_read(sc, fbuf->data, sa);
 			}
 		} else {
-			KASSERT(fbuf->parent == parent, ("%s", __func__));
+			MY_ASSERT(fbuf->parent == parent);
 		}
 		if (i == ma.depth) // reach the intended depth
 			break;
@@ -1891,20 +1886,20 @@ fbuf_write(struct g_logstor_softc *sc, struct _fbuf *fbuf)
 	unsigned pindex;	// the index in parent indirect block
 	uint32_t sa;		// sector address
 
-	KASSERT(fbuf->fc.modified, ("%s", __func__));
+	MY_ASSERT(fbuf->fc.modified);
 	sa = _logstor_write(sc, NULL, fbuf->ma.uint32, fbuf->data);
 	fbuf->fc.modified = false;
 
 	// update the sector address of this fbuf in its parent's fbuf
 	parent = fbuf->parent;
 	if (parent) {
-		KASSERT(fbuf->ma.depth != 0, ("%s", __func__));
-		KASSERT(parent->ma.depth == fbuf->ma.depth - 1, ("%s", __func__));
+		MY_ASSERT(fbuf->ma.depth != 0);
+		MY_ASSERT(parent->ma.depth == fbuf->ma.depth - 1);
 		pindex = ma_index_get(fbuf->ma, fbuf->ma.depth - 1);
 		parent->data[pindex] = sa;
 		parent->fc.modified = true;
 	} else {
-		KASSERT(fbuf->ma.depth == 0, ("%s", __func__));
+		MY_ASSERT(fbuf->ma.depth == 0);
 		// store the root sector address to the corresponding file table in super block
 		sc->superblock.fd_root[fbuf->ma.fd] = sa;
 		sc->sb_modified = true;
