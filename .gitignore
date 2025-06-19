@@ -31,3 +31,4 @@ tags
 
 #wyc
 .vscode
+*.out
