@@ -580,7 +580,7 @@ nvdimm_spa_dev_fini(struct nvdimm_spa_dev *dev)
 
 	if (dev->spa_g != NULL) {
 		g_topology_lock();
-		nvdimm_spa_g_destroy_geom(NULL, dev->spa_g->class, dev->spa_g);
+		nvdimm_spa_g_destroy_geom(NULL, dev->spa_g->class_of, dev->spa_g);
 		g_topology_unlock();
 	}
 	if (dev->spa_dev != NULL) {

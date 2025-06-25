@@ -664,7 +664,7 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 	sbuf_printf(sb, "major minor  #blocks  name rio rmerge rsect "
 	    "ruse wio wmerge wsect wuse running use aveq\n");
 
-	LIST_FOREACH(cp, &g_classes, class) {
+	LIST_FOREACH(cp, &g_classes, class_entry) {
 		if (strcmp(cp->name, "DISK") == 0 ||
 		    strcmp(cp->name, "PART") == 0)
 			LIST_FOREACH(gp, &cp->geom, geom) {
