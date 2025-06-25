@@ -453,7 +453,7 @@ gctl_get_class(struct gctl_req *req, char const *arg)
 		gctl_error(req, "Missing %s argument", arg);
 		return (NULL);
 	}
-	LIST_FOREACH(mp, &g_classes, class) {
+	LIST_FOREACH(mp, &g_classes, class_entry) {
 		if (!strcmp(p, mp->name))
 			return (mp);
 	}

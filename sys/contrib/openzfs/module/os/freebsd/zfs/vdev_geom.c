@@ -600,7 +600,7 @@ vdev_geom_read_pool_label(const char *name,
 	*configs = NULL;
 	*count = 0;
 	pool_guid = 0;
-	LIST_FOREACH(mp, &g_classes, class) {
+	LIST_FOREACH(mp, &g_classes, class_entry) {
 		if (mp == &zfs_vdev_class)
 			continue;
 		LIST_FOREACH(gp, &mp->geom, geom) {
@@ -716,7 +716,7 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 	cp = NULL;
 	best_pp = NULL;
 	best_match = NO_MATCH;
-	LIST_FOREACH(mp, &g_classes, class) {
+	LIST_FOREACH(mp, &g_classes, class_entry) {
 		if (mp == &zfs_vdev_class)
 			continue;
 		LIST_FOREACH(gp, &mp->geom, geom) {

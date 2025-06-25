@@ -144,7 +144,7 @@ g_load_class(void *arg, int flag)
 	g_trace(G_T_TOPOLOGY, "g_load_class(%s)", mp->name);
 	KASSERT(mp->name != NULL && *mp->name != '\0',
 	    ("GEOM class has no name"));
-	LIST_FOREACH(mp2, &g_classes, class) {
+	LIST_FOREACH(mp2, &g_classes, class_entry) {
 		if (mp2 == mp) {
 			printf("The GEOM class %s is already loaded.\n",
 			    mp2->name);
@@ -161,12 +161,12 @@ g_load_class(void *arg, int flag)
 	}
 
 	LIST_INIT(&mp->geom);
-	LIST_INSERT_HEAD(&g_classes, mp, class);
+	LIST_INSERT_HEAD(&g_classes, mp, class_entry);
 	if (mp->init != NULL)
 		mp->init(mp);
 	if (mp->taste == NULL)
 		return;
-	LIST_FOREACH(mp2, &g_classes, class) {
+	LIST_FOREACH(mp2, &g_classes, class_entry) {
 		if (mp == mp2)
 			continue;
 		LIST_FOREACH(gp, &mp2->geom, geom) {
@@ -240,7 +240,7 @@ retry:
 	G_VALID_CLASS(mp);
 	if (mp->fini != NULL)
 		mp->fini(mp);
-	LIST_REMOVE(mp, class);
+	LIST_REMOVE(mp, class_entry);
 	g_topology_unlock();
 
 	return (0);
@@ -322,7 +322,7 @@ g_retaste_event(void *arg, int flag)
 	}
 	g_trace(G_T_TOPOLOGY, "g_retaste(%s)", mp->name);
 
-	LIST_FOREACH(mp2, &g_classes, class) {
+	LIST_FOREACH(mp2, &g_classes, class_entry) {
 		LIST_FOREACH(gp, &mp2->geom, geom) {
 			LIST_FOREACH(pp, &gp->provider, provider) {
 				if (pp->acr || pp->acw || pp->ace)
@@ -488,7 +488,7 @@ g_wither_washer(void)
 	struct g_consumer *cp, *cp2;
 
 	g_topology_assert();
-	LIST_FOREACH(mp, &g_classes, class) {
+	LIST_FOREACH(mp, &g_classes, class_entry) {
 		LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
 			LIST_FOREACH_SAFE(pp, &gp->provider, provider, pp2) {
 				if (!(pp->flags & G_PF_WITHER))
@@ -582,7 +582,7 @@ g_new_provider_event(void *arg, int flag)
 	}
 	if (g_notaste)
 		return;
-	LIST_FOREACH(mp, &g_classes, class) {
+	LIST_FOREACH(mp, &g_classes, class_entry) {
 		if (mp->taste == NULL)
 			continue;
 		LIST_FOREACH(cp, &pp->consumers, consumers)
@@ -725,7 +725,7 @@ g_resize_provider_event(void *arg, int flag)
 	 * After resizing, the previously invalid GEOM class metadata
 	 * might become valid.  This means we should retaste.
 	 */
-	LIST_FOREACH(mp, &g_classes, class) {
+	LIST_FOREACH(mp, &g_classes, class_entry) {
 		if (mp->taste == NULL)
 			continue;
 		LIST_FOREACH(cp, &pp->consumers, consumers)
@@ -768,7 +768,7 @@ g_provider_by_name(char const *arg)
 		arg += sizeof(_PATH_DEV) - 1;
 
 	wpp = NULL;
-	LIST_FOREACH(mp, &g_classes, class) { // class is a field in mp
+	LIST_FOREACH(mp, &g_classes, class_entry) { // class is a field in mp
 		LIST_FOREACH(gp, &mp->geom, geom) { // geom is a field in gp
 			LIST_FOREACH(pp, &gp->provider, provider) { // provider is a field in pp
 				if (strcmp(arg, pp->name) != 0)
@@ -1365,7 +1365,7 @@ g_valid_obj(void const *ptr)
 #endif
 		g_topology_assert();
 
-	LIST_FOREACH(mp, &g_classes, class) {
+	LIST_FOREACH(mp, &g_classes, class_entry) {
 		if (ptr == mp)
 			return (1);
 		LIST_FOREACH(gp, &mp->geom, geom) {
@@ -1568,7 +1568,7 @@ DB_SHOW_COMMAND(geom, db_show_geom)
 
 	if (!have_addr) {
 		/* No address given, print the entire topology. */
-		LIST_FOREACH(mp, &g_classes, class) {
+		LIST_FOREACH(mp, &g_classes, class_entry) {
 			db_show_geom_class(mp);
 			db_printf("\n");
 			if (db_pager_quit)

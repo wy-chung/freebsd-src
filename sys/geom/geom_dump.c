@@ -104,7 +104,7 @@ g_confdot(void *p, int flag )
 	sb = p;
 	g_topology_assert();
 	sbuf_cat(sb, "digraph geom {\n");
-	LIST_FOREACH(mp, &g_classes, class)
+	LIST_FOREACH(mp, &g_classes, class_entry)
 		g_confdot_class(sb, mp);
 	sbuf_cat(sb, "}\n");
 	sbuf_finish(sb);
@@ -149,7 +149,7 @@ g_conftxt(void *p, int flag)
 	KASSERT(flag != EV_CANCEL, ("g_conftxt was cancelled"));
 	sb = p;
 	g_topology_assert();
-	LIST_FOREACH(mp, &g_classes, class) {
+	LIST_FOREACH(mp, &g_classes, class_entry) {
 		if (!strcmp(mp->name, G_DISK_CLASS_NAME) || !strcmp(mp->name, "MD"))
 			g_conftxt_class(sb, mp);
 	}
@@ -307,7 +307,7 @@ g_conf_specific(struct sbuf *sb, struct g_geom **gps)
 
 	g_topology_assert();
 	sbuf_cat(sb, "<mesh>\n");
-	LIST_FOREACH(mp2, &g_classes, class) {
+	LIST_FOREACH(mp2, &g_classes, class_entry) {
 		g_conf_class(sb, mp2, gps);
 		if (sbuf_error(sb))
 			break;

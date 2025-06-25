@@ -116,7 +116,7 @@ struct g_class {
 	/*
 	 * The remaining elements are private
 	 */
-	LIST_ENTRY(g_class)	class;	// the list entry for @g_classes queue
+	LIST_ENTRY(g_class)	class_entry;	// the list entry for @g_classes queue
 	LIST_HEAD(,g_geom)	geom;	// a list of geom instances of this class
 };
 
