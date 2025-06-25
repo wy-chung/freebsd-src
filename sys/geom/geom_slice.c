@@ -541,8 +541,8 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 	gp->spoiled = g_slice_spoiled;
 	if (gp->dumpconf == NULL)
 		gp->dumpconf = g_slice_dumpconf;
-	if (gp->class->destroy_geom == NULL)
-		gp->class->destroy_geom = g_slice_destroy_geom;
+	if (gp->class_of->destroy_geom == NULL)
+		gp->class_of->destroy_geom = g_slice_destroy_geom;
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);

@@ -772,7 +772,7 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		pp = gctl_get_provider(req, param);
 		if (pp == NULL)
 			return;
-		if (pp->geom->class != mp) {
+		if (pp->geom->class_of != mp) {
 			G_NOP_DEBUG(1, "Provider %s is invalid.", pp->name);
 			gctl_error(req, "Provider %s is invalid.", pp->name);
 			return;
@@ -881,7 +881,7 @@ g_nop_ctl_reset(struct gctl_req *req, struct g_class *mp)
 		pp = gctl_get_provider(req, param);
 		if (pp == NULL)
 			return;
-		if (pp->geom->class != mp) {
+		if (pp->geom->class_of != mp) {
 			G_NOP_DEBUG(1, "Provider %s is invalid.", pp->name);
 			gctl_error(req, "Provider %s is invalid.", pp->name);
 			return;

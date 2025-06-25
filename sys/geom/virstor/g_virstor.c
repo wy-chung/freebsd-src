@@ -467,7 +467,7 @@ update_metadata(struct g_virstor_softc *sc)
 	    sc->geom->name);
 	/* Update metadata on components */
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__,
-	    sc->geom->class->name, sc->geom->name);
+	    sc->geom->class_of->name, sc->geom->name);
 	g_topology_assert();
 	for (n = 0; n < sc->n_components; n++) {
 		read_metadata(sc->components[n].gcons, &md);

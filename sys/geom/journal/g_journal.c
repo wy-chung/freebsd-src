@@ -2474,7 +2474,7 @@ g_journal_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	GJ_DEBUG(2, "Tasting %s.", pp->name);
-	if (pp->geom->class == mp)
+	if (pp->geom->class_of == mp)
 		return (NULL);
 
 	gp = g_new_geomf(mp, "journal:taste");

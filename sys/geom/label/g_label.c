@@ -396,7 +396,7 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (pp->sectorsize == 0)
 		return (NULL);
 
-	if (strcmp(pp->geom->class->name, mp->name) == 0)
+	if (strcmp(pp->geom->class_of->name, mp->name) == 0)
 		return (NULL);
 
 	gp = g_new_geomf(mp, "label:taste");

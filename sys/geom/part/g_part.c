@@ -2301,7 +2301,7 @@ g_part_start(struct bio *bp)
 			 * we allow dumping there as well.
 			 */
 			if ((bp->bio_from == NULL ||
-			    bp->bio_from->geom->class != &g_part_class) &&
+			    bp->bio_from->geom->class_of != &g_part_class) &&
 			    G_PART_DUMPTO(table, entry) == 0) {
 				g_io_deliver(bp, ENODEV);
 				printf("GEOM_PART: Partition '%s' not suitable"

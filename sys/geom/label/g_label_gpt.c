@@ -108,7 +108,7 @@ g_label_gpt_taste(struct g_consumer *cp, char *label, size_t size)
 	label[0] = '\0';
 
 	/* We taste only partitions handled by GPART */
-	if (strncmp(pp->geom->class->name, PART_CLASS_NAME, sizeof(PART_CLASS_NAME)))
+	if (strncmp(pp->geom->class_of->name, PART_CLASS_NAME, sizeof(PART_CLASS_NAME)))
 		return;
 	/* and only GPT */
 	if (strncmp(tp->gpt_scheme->name, SCHEME_NAME, sizeof(SCHEME_NAME)))
@@ -141,7 +141,7 @@ g_label_gpt_uuid_taste(struct g_consumer *cp, char *label, size_t size)
 	label[0] = '\0';
 
 	/* We taste only partitions handled by GPART */
-	if (strncmp(pp->geom->class->name, PART_CLASS_NAME, sizeof(PART_CLASS_NAME)))
+	if (strncmp(pp->geom->class_of->name, PART_CLASS_NAME, sizeof(PART_CLASS_NAME)))
 		return;
 	/* and only GPT */
 	if (strncmp(tp->gpt_scheme->name, SCHEME_NAME, sizeof(SCHEME_NAME)))

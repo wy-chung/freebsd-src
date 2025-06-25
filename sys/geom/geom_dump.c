@@ -73,7 +73,7 @@ g_confdot_geom(struct sbuf *sb, struct g_geom *gp)
 	struct g_provider *pp;
 
 	sbuf_printf(sb, "z%p [shape=box,label=\"%s\\n%s\\nr#%d\"];\n",
-	    gp, gp->class->name, gp->name, gp->rank);
+	    gp, gp->class_of->name, gp->name, gp->rank);
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		g_confdot_consumer(sb, cp);
 		sbuf_printf(sb, "z%p -> z%p;\n", gp, cp);
@@ -119,7 +119,7 @@ g_conftxt_geom(struct sbuf *sb, struct g_geom *gp, int level)
 	if (gp->flags & G_GEOM_WITHER)
 		return;
 	LIST_FOREACH(pp, &gp->provider, provider) {
-		sbuf_printf(sb, "%d %s %s %ju %u", level, gp->class->name,
+		sbuf_printf(sb, "%d %s %s %ju %u", level, gp->class_of->name,
 		    pp->name, (uintmax_t)pp->mediasize, pp->sectorsize);
 		if (gp->dumpconf != NULL)
 			gp->dumpconf(sb, NULL, gp, NULL, pp);
@@ -249,7 +249,7 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp)
 	struct g_provider *pp;
 
 	sbuf_printf(sb, "    <geom id=\"%p\">\n", gp);
-	sbuf_printf(sb, "      <class ref=\"%p\"/>\n", gp->class);
+	sbuf_printf(sb, "      <class ref=\"%p\"/>\n", gp->class_of);
 	sbuf_cat(sb, "      <name>");
 	g_conf_cat_escaped(sb, gp->name);
 	sbuf_cat(sb, "</name>\n");

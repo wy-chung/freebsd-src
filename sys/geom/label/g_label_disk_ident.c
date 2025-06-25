@@ -50,7 +50,7 @@ g_label_disk_ident_taste(struct g_consumer *cp, char *label, size_t size)
 	g_topology_assert_not();
 	label[0] = '\0';
 
-	cls = cp->provider->geom->class;
+	cls = cp->provider->geom->class_of;
 
 	/* 
 	 * Get the GEOM::ident string, and construct a label in the format

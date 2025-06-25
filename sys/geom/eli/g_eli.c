@@ -405,7 +405,7 @@ g_eli_resize(struct g_consumer *cp)
 
 		sector = NULL;
 
-		error = g_eli_read_metadata_offset(cp->geom->class, pp,
+		error = g_eli_read_metadata_offset(cp->geom->class_of, pp,
 		    sc->sc_provsize - pp->sectorsize, &md);
 		if (error != 0) {
 			G_ELI_DEBUG(0, "Cannot read metadata from %s (error=%d).",

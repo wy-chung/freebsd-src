@@ -116,7 +116,7 @@ struct g_class {
 	/*
 	 * The remaining elements are private
 	 */
-	LIST_ENTRY(g_class)	class;
+	LIST_ENTRY(g_class)	class;	// the list entry for @g_classes queue
 	LIST_HEAD(,g_geom)	geom;	// a list of geom instances of this class
 };
 
@@ -134,7 +134,7 @@ struct g_class {
 #define	G_GEOM_ACCESS_WAIT	0x08
 struct g_geom {
 	char			*name;
-	struct g_class		*class;
+	struct g_class		*class_of;	// the geom class of this geom instance
 	LIST_ENTRY(g_geom)	geom;	// LIST_ENTRY for geoms in a class
 	LIST_HEAD(,g_consumer)	consumer;
 	LIST_HEAD(,g_provider)	provider;

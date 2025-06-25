@@ -496,7 +496,7 @@ g_union_ctl_reset(struct gctl_req *req, struct g_class *mp, bool verbose)
 			continue;
 		}
 		gp = pp->geom;
-		if (gp->class != mp) {
+		if (gp->class_of != mp) {
 			gctl_msg(req, EINVAL, "Provider %s is invalid.",
 			    pp->name);
 			continue;
@@ -552,7 +552,7 @@ g_union_ctl_revert(struct gctl_req *req, struct g_class *mp, bool verbose)
 			continue;
 		}
 		gp = pp->geom;
-		if (gp->class != mp) {
+		if (gp->class_of != mp) {
 			gctl_msg(req, EINVAL, "Provider %s is invalid.",
 			    pp->name);
 			continue;
@@ -649,7 +649,7 @@ g_union_ctl_commit(struct gctl_req *req, struct g_class *mp, bool verbose)
 			continue;
 		}
 		gp = pp->geom;
-		if (gp->class != mp) {
+		if (gp->class_of != mp) {
 			gctl_msg(req, EINVAL, "Provider %s is invalid.",
 			    pp->name);
 			continue;
