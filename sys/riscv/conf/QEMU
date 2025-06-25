@@ -10,8 +10,9 @@ options 	ROOTDEVNAME=\"ufs:/dev/vtbd0\"
 
 #makeoptions	DEBUG="-g -O1"	# debug symbols and optimization
 options KDB
+#options	KDB_TRACE	# Print a stack trace of the current thread on the console for a panic.
 options DDB
-options	GDB			# compile in support for the remote debugger
+options	GDB		# compile in support for the remote debugger
 
 options	INVARIANT_SUPPORT   # A prerequisite for INVARIANTS
 #options	INVARIANTS
@@ -25,9 +26,11 @@ nooptions	NUMA
 nooptions	MAC
 
 options 	GEOM_NOP		# Test class.
-options 	GEOM_VIRSTOR	# Virtual storage.
-options 	GEOM_LOGSTOR	# Virtual storage.
-#options 	GEOM_UNION
+options 	GEOM_MIRROR		# Disk mirroring.
+options 	GEOM_CONCAT		# Disk concatenation.
+#options 	GEOM_VIRSTOR	# Virtual storage.
+#options 	GEOM_LOGSTOR	# Virtual log storage.
+#options 	GEOM_UNION		# this option does not exist yet
 
 nodevice	spibus
 nodevice	spigen

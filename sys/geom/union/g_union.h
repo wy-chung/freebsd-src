@@ -35,7 +35,7 @@
  * Special flag to instruct gunion to passthrough the underlying provider's
  * physical path
  */
-#define G_UNION_PHYSPATH_PASSTHROUGH "\255"
+#define G_UNION_PHYSPATH_PASSTHROUGH "\255"	// not referenced
 
 #ifdef _KERNEL
 #define	G_UNION_DEBUG(lvl, ...) \

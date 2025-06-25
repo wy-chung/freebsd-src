@@ -36,7 +36,7 @@
  * Special flag to instruct gnop to passthrough the underlying provider's
  * physical path
  */
-#define G_NOP_PHYSPATH_PASSTHROUGH "\255"
+#define G_NOP_PHYSPATH_PASSTHROUGH "\255" // it is 173 in decimal (2 *8^2+ 5 *8^1+ 5 *8^0)
 
 #ifdef _KERNEL
 #define	G_NOP_DEBUG(lvl, ...) \
@@ -50,17 +50,17 @@ struct g_nop_delay;
 TAILQ_HEAD(g_nop_delay_head, g_nop_delay);
 
 struct g_nop_softc {
-	int			 sc_error;	// the error number returned to upper layer when fail is injected
+	int			 sc_error;	// EIO the error number returned to upper layer when fail is injected
 	off_t			 sc_offset;
-	off_t			 sc_explicitsize;
+	off_t			 sc_explicitsize; // the size specified in create
 	off_t			 sc_stripesize;
 	off_t			 sc_stripeoffset;
-	u_int			 sc_rfailprob;
-	u_int			 sc_wfailprob;
-	u_int			 sc_delaymsec;
-	u_int			 sc_rdelayprob;
-	u_int			 sc_wdelayprob;
-	u_int			 sc_count_until_fail;
+	u_int			 sc_rfailprob;	// default 0
+	u_int			 sc_wfailprob;	// default 0
+	u_int			 sc_delaymsec;	// default 1
+	u_int			 sc_rdelayprob;	// default 0
+	u_int			 sc_wdelayprob;	// default 0
+	u_int			 sc_count_until_fail; // default 0
 	uintmax_t		 sc_reads;
 	uintmax_t		 sc_writes;
 	uintmax_t		 sc_deletes;

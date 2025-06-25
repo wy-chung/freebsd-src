@@ -421,21 +421,21 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	}
 	gp = g_new_geomf(mp, "%s", name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
-	sc->sc_offset = offset;
+	sc->sc_offset = offset;	// default 0
 	sc->sc_explicitsize = explicitsize;
-	sc->sc_stripesize = stripesize;
-	sc->sc_stripeoffset = stripeoffset;
-	if (physpath && strcmp(physpath, G_NOP_PHYSPATH_PASSTHROUGH)) { // strcmp return 0 when equal
+	sc->sc_stripesize = stripesize;		// default 0
+	sc->sc_stripeoffset = stripeoffset;	// default 0
+	if (physpath && strcmp(physpath, G_NOP_PHYSPATH_PASSTHROUGH) != 0) {
 		sc->sc_physpath = strndup(physpath, MAXPATHLEN, M_GEOM);
 	} else
 		sc->sc_physpath = NULL;	// <==
-	sc->sc_error = ioerror;		// EIO		5
-	sc->sc_count_until_fail = count_until_fail;
-	sc->sc_rfailprob = rfailprob;
-	sc->sc_wfailprob = wfailprob;
-	sc->sc_delaymsec = delaymsec;
-	sc->sc_rdelayprob = rdelayprob;
-	sc->sc_wdelayprob = wdelayprob;
+	sc->sc_error = ioerror;		// default EIO 5
+	sc->sc_count_until_fail = count_until_fail;	// default 0
+	sc->sc_rfailprob = rfailprob;	// default 0
+	sc->sc_wfailprob = wfailprob;	// default 0
+	sc->sc_delaymsec = delaymsec;	// default 1
+	sc->sc_rdelayprob = rdelayprob;	// default 0
+	sc->sc_wdelayprob = wdelayprob;	// default 0
 	sc->sc_reads = 0;
 	sc->sc_writes = 0;
 	sc->sc_deletes = 0;
@@ -457,9 +457,9 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	newpp->sectorsize = secsize;
 	newpp->stripesize = stripesize;
 	newpp->stripeoffset = stripeoffset;
-	LIST_FOREACH(gap, &pp->aliases, ga_next)
+	LIST_FOREACH(gap, &pp->aliases, ga_next) {
 		g_provider_add_alias(newpp, "%s%s", gap->ga_alias, G_NOP_SUFFIX);
-
+	}
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
@@ -901,7 +901,7 @@ g_nop_ctl_reset(struct gctl_req *req, struct g_class *mp)
 	}
 }
 
-static void
+static void // .ctlreq
 g_nop_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 {
 	uint32_t *version;

@@ -135,10 +135,10 @@ struct g_class {
 struct g_geom {
 	char			*name;
 	struct g_class		*class;
-	LIST_ENTRY(g_geom)	geom;
+	LIST_ENTRY(g_geom)	geom;	// LIST_ENTRY for geoms in a class
 	LIST_HEAD(,g_consumer)	consumer;
 	LIST_HEAD(,g_provider)	provider;
-	TAILQ_ENTRY(g_geom)	geoms;	/* XXX: better name */
+	TAILQ_ENTRY(g_geom)	geoms;	/* XXX: better name */ // TAILQ_ENTRY for @geoms in geom_subr.c#71
 	int			rank;
 	g_start_t		*start;
 	g_spoiled_t		*spoiled;
