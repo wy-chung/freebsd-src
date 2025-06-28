@@ -7,3 +7,45 @@ ident QEMU
 
 options 	HZ=100
 options 	ROOTDEVNAME=\"ufs:/dev/vtbd0\"
+
+# the following is added by WYC
+#makeoptions	DEBUG="-g -O1"	# debug symbols and optimization
+options KDB
+#options	KDB_TRACE	# Print a stack trace of the current thread on the console for a panic.
+options DDB
+options	GDB		# compile in support for the remote debugger
+
+options	INVARIANT_SUPPORT   # A prerequisite for INVARIANTS
+#options	INVARIANTS
+#options	WITNESS
+#options	WITNESS_SKIPSPIN
+#options 	DIAGNOSTIC
+#options	KDB_UNATTENDED
+
+nooptions	NUMA
+#nooptions	KTRACE
+nooptions	MAC
+
+options 	GEOM_NOP		# Test class.
+options 	GEOM_MIRROR		# Disk mirroring.
+options 	GEOM_CONCAT		# Disk concatenation.
+#options 	GEOM_VIRSTOR	# Virtual storage.
+#options 	GEOM_LOGSTOR	# Virtual log storage.
+#options 	GEOM_UNION		# this option does not exist yet
+
+nodevice	spibus
+nodevice	spigen
+nodevice	iicbus
+nodevice	iicoc
+
+nooptions 	USB_DEBUG		# enable debug msgs
+nodevice	ohci			# OHCI USB interface
+nodevice	uhci			# UHCI USB interface
+nodevice	ehci			# EHCI USB interface (USB 2.0)
+nodevice	xhci			# XHCI USB interface (USB 3.0)
+nodevice	usb			# USB Bus (required)
+nodevice	usbhid			# USB HID Transport
+nodevice	hkbd			# Keyboard
+nodevice	ukbd			# Keyboard
+nodevice	umass			# Disks/Mass storage - Requires scbus and da
+nodevice	uart_lowrisc
