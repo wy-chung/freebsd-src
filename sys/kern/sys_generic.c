@@ -653,6 +653,7 @@ struct ioctl_args {
 };
 #endif
 /* ARGSUSED */
+__attribute__((optnone))
 int
 sys_ioctl(struct thread *td, struct ioctl_args *uap)
 {
@@ -723,6 +724,7 @@ out:
 	return (error);
 }
 
+__attribute__((optnone))
 int
 kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 {

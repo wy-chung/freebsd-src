@@ -23,4 +23,3 @@ GEOM_CLASSES+=	shsec
 GEOM_CLASSES+=	stripe
 GEOM_CLASSES+=	union
 GEOM_CLASSES+=	virstor
-GEOM_CLASSES+=	logstor

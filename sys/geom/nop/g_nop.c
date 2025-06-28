@@ -62,6 +62,8 @@ static g_orphan_t g_nop_orphan;
 static g_provgone_t g_nop_providergone;
 static g_resize_t g_nop_resize;
 static g_start_t g_nop_start;
+static g_init_t g_nop_init; //wyc
+static g_fini_t g_nop_fini; //wyc
 #endif
 struct g_class g_nop_class = {
 	.name = G_NOP_CLASS_NAME,
@@ -74,6 +76,8 @@ struct g_class g_nop_class = {
 	.providergone = g_nop_providergone,
 	.resize = g_nop_resize,
 	.start = g_nop_start,
+	.init = g_nop_init, //wyc
+	.fini = g_nop_fini, //wyc
 };
 
 struct g_nop_delay {
@@ -81,6 +85,18 @@ struct g_nop_delay {
 	struct bio			*dl_bio;
 	TAILQ_ENTRY(g_nop_delay)	 dl_next;
 };
+
+//wyc
+static void g_nop_init(struct g_class *mp)
+{
+	printf("%s called\n", __func__);
+}
+
+//wyc
+static void g_nop_fini(struct g_class *mp)
+{
+	printf("%s called\n", __func__);
+}
 
 static bool
 g_nop_verify_nprefix(const char *name)

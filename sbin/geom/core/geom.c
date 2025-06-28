@@ -648,10 +648,10 @@ get_class(int *argc, char ***argv)
 #ifndef STATIC_GEOM_CLASSES
 	load_library();
 #else
-	if (!strcasecmp(class_name, "part")) {
+	if (strcasecmp(class_name, "part") == 0) {
 		version = &gpart_version;
 		class_commands = gpart_class_commands;
-	} else if (!strcasecmp(class_name, "label")) {
+	} else if (strcasecmp(class_name, "label") == 0) {
 		version = &glabel_version;
 		class_commands = glabel_class_commands;
 	}
