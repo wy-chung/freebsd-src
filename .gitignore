@@ -29,3 +29,5 @@ tags
 .clangd
 .ccls-cache
 /src.conf
+
+.vscode
