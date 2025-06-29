@@ -375,10 +375,8 @@ g_new_geom(struct g_class *mp, const char *name, int len)
 
 	g_topology_assert();
 	G_VALID_CLASS(mp);
-	gp = g_malloc(sizeof *gp, M_WAITOK | M_ZERO);
-	gp->name = g_malloc(len + 1, M_WAITOK | M_ZERO);
-	//gp = g_malloc(sizeof *gp + len + 1, M_WAITOK | M_ZERO);
-	//gp->name = (char *)(gp + 1);	// follows immediately after gp
+	gp = g_malloc(sizeof *gp + len + 1, M_WAITOK | M_ZERO);
+	gp->name = (char *)(gp + 1);	// follows immediately after gp
 	strcpy(gp->name, name);
 	gp->class = mp;
 	gp->rank = 1;
@@ -433,7 +431,6 @@ g_destroy_geom(struct g_geom *gp)
 	g_cancel_event(gp);
 	LIST_REMOVE(gp, geom);
 	TAILQ_REMOVE(&geoms, gp, geoms);
-	g_free(gp->name);
 	g_free(gp);
 }
 
