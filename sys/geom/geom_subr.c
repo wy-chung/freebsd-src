@@ -368,8 +368,8 @@ g_retaste(struct g_class *mp)
 	return (error);
 }
 
-struct g_geom *
-g_new_geom(struct g_class *mp, const char *name, int len)
+static struct g_geom *
+_g_new_geom(struct g_class *mp, const char *name, int len)
 {
 	struct g_geom *gp;
 
@@ -398,6 +398,12 @@ g_new_geom(struct g_class *mp, const char *name, int len)
 }
 
 struct g_geom *
+g_new_geom(struct g_class *mp, const char *name)
+{
+	return _g_new_geom(mp, name, strlen(name));
+}
+
+struct g_geom *
 g_new_geomf(struct g_class *mp, const char *fmt, ...)
 {
 	struct g_geom *gp;
@@ -409,7 +415,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	sbuf_vprintf(sb, fmt, ap);
 	va_end(ap);
 	sbuf_finish(sb);
-	gp = g_new_geom(mp, sbuf_data(sb), sbuf_len(sb));
+	gp = _g_new_geom(mp, sbuf_data(sb), sbuf_len(sb));
 	sbuf_delete(sb);
 
 	return (gp);
@@ -604,8 +610,8 @@ g_new_provider_event(void *arg, int flag)
 	}
 }
 
-struct g_provider *
-g_new_provider(struct g_geom *gp, const char *name, int len)
+static struct g_provider *
+_g_new_provider(struct g_geom *gp, const char *name, int len)
 {
 	struct g_provider *pp;
 
@@ -636,6 +642,12 @@ g_new_provider(struct g_geom *gp, const char *name, int len)
 }
 
 struct g_provider *
+g_new_provider(struct g_geom *gp, const char *name)
+{
+	return _g_new_provider(gp, name, strlen(name));
+}
+
+struct g_provider *
 g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 {
 	struct g_provider *pp;
@@ -647,7 +659,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	sbuf_vprintf(sb, fmt, ap);
 	va_end(ap);
 	sbuf_finish(sb);
-	pp = g_new_provider(gp, sbuf_data(sb), sbuf_len(sb));
+	pp = _g_new_provider(gp, sbuf_data(sb), sbuf_len(sb));
 	sbuf_delete(sb);
 	return (pp);
 }
