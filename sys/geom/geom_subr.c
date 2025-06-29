@@ -369,29 +369,23 @@ g_retaste(struct g_class *mp)
 }
 
 struct g_geom *
-g_new_geomf(struct g_class *mp, const char *fmt, ...)
+g_new_geom(struct g_class *mp, const char *name, int len)
 {
 	struct g_geom *gp;
-	va_list ap;
-	struct sbuf *sb;
 
 	g_topology_assert();
 	G_VALID_CLASS(mp);
-	sb = sbuf_new_auto();
-	va_start(ap, fmt);
-	sbuf_vprintf(sb, fmt, ap);
-	va_end(ap);
-	sbuf_finish(sb);
-	gp = g_malloc(sizeof(*gp), M_WAITOK | M_ZERO);
-	gp->name = g_malloc(sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
+	gp = g_malloc(sizeof *gp, M_WAITOK | M_ZERO);
+	gp->name = g_malloc(len + 1, M_WAITOK | M_ZERO);
+	//gp = g_malloc(sizeof *gp + len + 1, M_WAITOK | M_ZERO);
+	//gp->name = (char *)(gp + 1);	// follows immediately after gp
+	strcpy(gp->name, name);
 	gp->class = mp;
 	gp->rank = 1;
 	LIST_INIT(&gp->consumer);
 	LIST_INIT(&gp->provider);
 	LIST_INSERT_HEAD(&mp->geom, gp, geom);
 	TAILQ_INSERT_HEAD(&geoms, gp, geoms);
-	strcpy(gp->name, sbuf_data(sb));
-	sbuf_delete(sb);
 	/* Fill in defaults from class */
 	gp->start = mp->start;
 	gp->spoiled = mp->spoiled;
@@ -402,6 +396,24 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	gp->orphan = mp->orphan;
 	gp->ioctl = mp->ioctl;
 	gp->resize = mp->resize;
+	return (gp);
+}
+
+struct g_geom *
+g_new_geomf(struct g_class *mp, const char *fmt, ...)
+{
+	struct g_geom *gp;
+	va_list ap;
+	struct sbuf *sb;
+
+	sb = sbuf_new_auto();
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	gp = g_new_geom(mp, sbuf_data(sb), sbuf_len(sb));
+	sbuf_delete(sb);
+
 	return (gp);
 }
 
@@ -596,11 +608,9 @@ g_new_provider_event(void *arg, int flag)
 }
 
 struct g_provider *
-g_new_providerf(struct g_geom *gp, const char *fmt, ...)
+g_new_provider(struct g_geom *gp, const char *name, int len)
 {
 	struct g_provider *pp;
-	struct sbuf *sb;
-	va_list ap;
 
 	g_topology_assert();
 	G_VALID_GEOM(gp);
@@ -613,15 +623,10 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	KASSERT(!(gp->flags & G_GEOM_WITHER),
 	    ("new provider on WITHERing geom(%s) (class %s)",
 	    gp->name, gp->class->name));
-	sb = sbuf_new_auto();
-	va_start(ap, fmt);
-	sbuf_vprintf(sb, fmt, ap);
-	va_end(ap);
-	sbuf_finish(sb);
-	pp = g_malloc(sizeof(*pp) + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
+
+	pp = g_malloc(sizeof *pp + len + 1, M_WAITOK | M_ZERO);
 	pp->name = (char *)(pp + 1);
-	strcpy(pp->name, sbuf_data(sb));
-	sbuf_delete(sb);
+	strcpy(pp->name, name);
 	LIST_INIT(&pp->consumers);
 	LIST_INIT(&pp->aliases);
 	pp->error = ENXIO;
@@ -630,6 +635,23 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
 	g_post_event(g_new_provider_event, pp, M_WAITOK, pp, gp, NULL);
+	return (pp);
+}
+
+struct g_provider *
+g_new_providerf(struct g_geom *gp, const char *fmt, ...)
+{
+	struct g_provider *pp;
+	struct sbuf *sb;
+	va_list ap;
+
+	sb = sbuf_new_auto();
+	va_start(ap, fmt);
+	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
+	sbuf_finish(sb);
+	pp = g_new_provider(gp, sbuf_data(sb), sbuf_len(sb));
+	sbuf_delete(sb);
 	return (pp);
 }
 
