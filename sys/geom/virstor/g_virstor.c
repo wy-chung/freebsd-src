@@ -166,7 +166,7 @@ g_virstor_fini(struct g_class *mp __unused)
  * Config (per-class callback)
  */
 static void
-g_virstor_config(struct gctl_req *req, struct g_class *cp, char const *verb)
+g_virstor_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 {
 	uint32_t *version;
 
@@ -184,11 +184,11 @@ g_virstor_config(struct gctl_req *req, struct g_class *cp, char const *verb)
 
 	g_topology_unlock();
 	if (strcmp(verb, "add") == 0)
-		virstor_ctl_add(req, cp);
+		virstor_ctl_add(req, mp);
 	else if (strcmp(verb, "stop") == 0 || strcmp(verb, "destroy") == 0)
-		virstor_ctl_stop(req, cp);
+		virstor_ctl_stop(req, mp);
 	else if (strcmp(verb, "remove") == 0)
-		virstor_ctl_remove(req, cp);
+		virstor_ctl_remove(req, mp);
 	else
 		gctl_error(req, "unknown verb: '%s'", verb);
 	g_topology_lock();
@@ -198,7 +198,7 @@ g_virstor_config(struct gctl_req *req, struct g_class *cp, char const *verb)
  * "stop" verb from userland
  */
 static void
-virstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
+virstor_ctl_stop(struct gctl_req *req, struct g_class *mp)
 {
 	int *force, *nargs;
 	int i;
@@ -232,7 +232,7 @@ virstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
 			g_topology_unlock();
 			return;
 		}
-		sc = virstor_find_geom(cp, name);
+		sc = virstor_find_geom(mp, name);
 		if (sc == NULL) {
 			gctl_error(req, "Don't know anything about '%s'", name);
 			g_topology_unlock();
@@ -516,7 +516,7 @@ fill_metadata(struct g_virstor_softc *sc, struct g_virstor_metadata *md,
  * Can only be done if the component is unallocated.
  */
 static void
-virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
+virstor_ctl_remove(struct gctl_req *req, struct g_class *mp)
 {
 	/* As this is executed in parallel to I/O, operations on virstor
 	 * structures must be as atomic as possible. */
@@ -542,7 +542,7 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 		    "geom_name (arg0)");
 		return;
 	}
-	sc = virstor_find_geom(cp, geom_name);
+	sc = virstor_find_geom(mp, geom_name);
 	if (sc == NULL) {
 		gctl_error(req, "Don't know anything about '%s'", geom_name);
 		return;
