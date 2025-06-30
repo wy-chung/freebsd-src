@@ -538,11 +538,11 @@ g_new_consumer(struct g_geom *gp)
 	g_topology_assert();
 	G_VALID_GEOM(gp);
 	KASSERT(!(gp->flags & G_GEOM_WITHER),
-	    ("g_new_consumer on WITHERing geom(%s) (class %s)",
-	    gp->name, gp->class->name));
+	    ("%s on WITHERing geom(%s) (class %s)",
+	    gp->name, gp->class->name, __func__));
 	KASSERT(gp->orphan != NULL,
-	    ("g_new_consumer on geom(%s) (class %s) without orphan",
-	    gp->name, gp->class->name));
+	    ("%s on geom(%s) (class %s) without orphan",
+	    gp->name, gp->class->name, __func__));
 
 	cp = g_malloc(sizeof(*cp), M_WAITOK | M_ZERO);
 	cp->geom = gp;
@@ -790,7 +790,7 @@ g_resize_provider(struct g_provider *pp, off_t size)
 struct g_provider *
 g_provider_by_name(char const *arg)
 {
-	struct g_class *cp;
+	struct g_class *mp;
 	struct g_geom *gp;
 	struct g_provider *pp, *wpp;
 
@@ -798,8 +798,8 @@ g_provider_by_name(char const *arg)
 		arg += sizeof(_PATH_DEV) - 1;
 
 	wpp = NULL;
-	LIST_FOREACH(cp, &g_classes, class) {
-		LIST_FOREACH(gp, &cp->geom, geom) {
+	LIST_FOREACH(mp, &g_classes, class) {
+		LIST_FOREACH(gp, &mp->geom, geom) {
 			LIST_FOREACH(pp, &gp->provider, provider) {
 				if (strcmp(arg, pp->name) != 0)
 					continue;

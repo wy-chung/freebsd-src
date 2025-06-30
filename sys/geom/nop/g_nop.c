@@ -417,13 +417,13 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 			return (EEXIST);
 		}
 	}
-	gp = g_new_geomf(mp, "%s", name);
+	gp = g_new_geom(mp, name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	sc->sc_offset = offset;
 	sc->sc_explicitsize = explicitsize;
 	sc->sc_stripesize = stripesize;
 	sc->sc_stripeoffset = stripeoffset;
-	if (physpath && strcmp(physpath, G_NOP_PHYSPATH_PASSTHROUGH)) {
+	if (physpath && strcmp(physpath, G_NOP_PHYSPATH_PASSTHROUGH) != 0) {
 		sc->sc_physpath = strndup(physpath, MAXPATHLEN, M_GEOM);
 	} else
 		sc->sc_physpath = NULL;
@@ -449,15 +449,15 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	mtx_init(&sc->sc_lock, "gnop lock", NULL, MTX_DEF);
 	gp->softc = sc;
 
-	newpp = g_new_providerf(gp, "%s", gp->name);
+	newpp = g_new_provider(gp, gp->name);
 	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	newpp->mediasize = size;
 	newpp->sectorsize = secsize;
 	newpp->stripesize = stripesize;
 	newpp->stripeoffset = stripeoffset;
-	LIST_FOREACH(gap, &pp->aliases, ga_next)
+	LIST_FOREACH(gap, &pp->aliases, ga_next) {
 		g_provider_add_alias(newpp, "%s%s", gap->ga_alias, G_NOP_SUFFIX);
-
+	}
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
@@ -899,7 +899,7 @@ g_nop_ctl_reset(struct gctl_req *req, struct g_class *mp)
 	}
 }
 
-static void
+static void // g_nop_class.ctlreq
 g_nop_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 {
 	uint32_t *version;
