@@ -446,16 +446,16 @@ struct g_class *
 gctl_get_class(struct gctl_req *req, char const *arg)
 {
 	char const *p;
-	struct g_class *cp;
+	struct g_class *mp;
 
 	p = gctl_get_asciiparam(req, arg);
 	if (p == NULL) {
 		gctl_error(req, "Missing %s argument", arg);
 		return (NULL);
 	}
-	LIST_FOREACH(cp, &g_classes, class) {
-		if (!strcmp(p, cp->name))
-			return (cp);
+	LIST_FOREACH(mp, &g_classes, class) {
+		if (!strcmp(p, mp->name))
+			return (mp);
 	}
 	gctl_error(req, "Class not found: \"%s\"", p);
 	return (NULL);
