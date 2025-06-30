@@ -1153,7 +1153,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	pp->mediasize = sc->sc_mediasize;
 	pp->sectorsize = sc->sc_sectorsize;
 	LIST_FOREACH(gap, &bpp->aliases, ga_next)
-		g_provider_add_alias(pp, "%s%s", gap->ga_alias, G_ELI_SUFFIX);
+		g_provider_add_aliasf(pp, "%s%s", gap->ga_alias, G_ELI_SUFFIX);
 
 	g_error_provider(pp, 0);
 
