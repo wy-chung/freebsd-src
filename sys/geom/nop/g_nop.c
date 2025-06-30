@@ -456,7 +456,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	newpp->stripesize = stripesize;
 	newpp->stripeoffset = stripeoffset;
 	LIST_FOREACH(gap, &pp->aliases, ga_next) {
-		g_provider_add_alias(newpp, "%s%s", gap->ga_alias, G_NOP_SUFFIX);
+		g_provider_add_aliasf(newpp, "%s%s", gap->ga_alias, G_NOP_SUFFIX);
 	}
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
