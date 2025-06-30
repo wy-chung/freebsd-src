@@ -730,7 +730,7 @@ g_disk_create(void *arg, int flag)
 	gp->softc = sc;
 	pp = g_new_providerf(gp, "%s", gp->name);
 	LIST_FOREACH(dap, &dp->d_aliases, da_next)
-		g_provider_add_alias(pp, "%s%d", dap->da_alias, dp->d_unit);
+		g_provider_add_aliasf(pp, "%s%d", dap->da_alias, dp->d_unit);
 	devstat_remove_entry(pp->stat);
 	pp->stat = NULL;
 	dp->d_devstat->id = pp;
