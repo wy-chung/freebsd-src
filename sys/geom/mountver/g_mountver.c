@@ -308,7 +308,7 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	newpp->sectorsize = pp->sectorsize;
 	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	LIST_FOREACH(gap, &pp->aliases, ga_next)
-		g_provider_add_alias(newpp, "%s%s", gap->ga_alias, G_MOUNTVER_SUFFIX);
+		g_provider_add_aliasf(newpp, "%s%s", gap->ga_alias, G_MOUNTVER_SUFFIX);
 
 	if ((pp->flags & G_PF_ACCEPT_UNMAPPED) != 0) {
 		G_MOUNTVER_DEBUG(0, "Unmapped supported for %s.", gp->name);

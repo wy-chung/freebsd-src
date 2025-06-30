@@ -539,10 +539,10 @@ g_new_consumer(struct g_geom *gp)
 	G_VALID_GEOM(gp);
 	KASSERT(!(gp->flags & G_GEOM_WITHER),
 	    ("%s on WITHERing geom(%s) (class %s)",
-	    gp->name, gp->class->name, __func__));
+	    __func__, gp->name, gp->class->name));
 	KASSERT(gp->orphan != NULL,
 	    ("%s on geom(%s) (class %s) without orphan",
-	    gp->name, gp->class->name, __func__));
+	    __func__, gp->name, gp->class->name));
 
 	cp = g_malloc(sizeof(*cp), M_WAITOK | M_ZERO);
 	cp->geom = gp;
@@ -664,11 +664,34 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	return (pp);
 }
 
+static void
+_g_provider_add_alias(struct g_provider *pp, const char *alias, int len)
+{
+	struct g_geom_alias *gap;
+
+	LIST_FOREACH(gap, &pp->aliases, ga_next) {
+		if (strcmp(gap->ga_alias, alias) != 0)
+			continue;
+		/* Don't re-add the same alias. */
+		return;
+	}
+
+	gap = g_malloc(sizeof(*gap) + len + 1, M_WAITOK | M_ZERO);
+	memcpy((char *)(gap + 1), alias, len);
+	gap->ga_alias = (const char *)(gap + 1);
+	LIST_INSERT_HEAD(&pp->aliases, gap, ga_next);
+}
+
 void
-g_provider_add_alias(struct g_provider *pp, const char *fmt, ...)
+g_provider_add_alias(struct g_provider *pp, const char *alias)
+{
+	_g_provider_add_alias(pp, alias, strlen(alias));
+}
+
+void
+g_provider_add_aliasf(struct g_provider *pp, const char *fmt, ...)
 {
 	struct sbuf *sb;
-	struct g_geom_alias *gap;
 	va_list ap;
 
 	/*
@@ -679,20 +702,8 @@ g_provider_add_alias(struct g_provider *pp, const char *fmt, ...)
 	sbuf_vprintf(sb, fmt, ap);
 	va_end(ap);
 	sbuf_finish(sb);
-
-	LIST_FOREACH(gap, &pp->aliases, ga_next) {
-		if (strcmp(gap->ga_alias, sbuf_data(sb)) != 0)
-			continue;
-		/* Don't re-add the same alias. */
-		sbuf_delete(sb);
-		return;
-	}
-
-	gap = g_malloc(sizeof(*gap) + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
-	memcpy((char *)(gap + 1), sbuf_data(sb), sbuf_len(sb));
+	_g_provider_add_alias(pp, sbuf_data(sb), sbuf_len(sb));
 	sbuf_delete(sb);
-	gap->ga_alias = (const char *)(gap + 1);
-	LIST_INSERT_HEAD(&pp->aliases, gap, ga_next);
 }
 
 void

@@ -75,7 +75,7 @@ CODE {
 		sb = sbuf_new_auto();
 		G_PART_FULLNAME(table, entry, sb, pfx);
 		sbuf_finish(sb);
-		g_provider_add_alias(pp, "%s", sbuf_data(sb));
+		g_provider_add_aliasf(pp, "%s", sbuf_data(sb));
 		sbuf_delete(sb);
 	}
 

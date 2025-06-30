@@ -272,10 +272,10 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	newpp->mediasize = size;
 	newpp->sectorsize = secsize;
 	LIST_FOREACH(gap, &upperpp->aliases, ga_next)
-		g_provider_add_alias(newpp, "%s%s", gap->ga_alias,
+		g_provider_add_aliasf(newpp, "%s%s", gap->ga_alias,
 		    G_UNION_SUFFIX);
 	LIST_FOREACH(gap, &lowerpp->aliases, ga_next)
-		g_provider_add_alias(newpp, "%s%s", gap->ga_alias,
+		g_provider_add_aliasf(newpp, "%s%s", gap->ga_alias,
 		    G_UNION_SUFFIX);
 	lowercp = g_new_consumer(gp);
 	lowercp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;

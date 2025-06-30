@@ -910,7 +910,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	pp2->stripesize = pp->stripesize;
 	pp2->stripeoffset = pp->stripeoffset;
 	LIST_FOREACH(gap, &pp->aliases, ga_next)
-		g_provider_add_alias(pp2, GUZ_DEV_NAME("%s"), gap->ga_alias);
+		g_provider_add_aliasf(pp2, GUZ_DEV_NAME("%s"), gap->ga_alias);
 	g_error_provider(pp2, 0);
 	g_access(cp, -1, 0, 0);
 
