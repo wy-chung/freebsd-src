@@ -256,7 +256,7 @@ virstor_ctl_stop(struct gctl_req *req, struct g_class *mp)
  * .taste function for new components.
  */
 static void
-virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
+virstor_ctl_add(struct gctl_req *req, struct g_class *mp)
 {
 	/* Note: while this is going on, I/O is being done on
 	 * the g_up and g_down threads. The idea is to make changes
@@ -292,7 +292,7 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 		gctl_error(req, "Error fetching argument '%s'", "geom_name (arg0)");
 		return;
 	}
-	sc = virstor_find_geom(cp, geom_name);
+	sc = virstor_find_geom(mp, geom_name);
 	if (sc == NULL) {
 		gctl_error(req, "Don't know anything about '%s'", geom_name);
 		return;
@@ -435,11 +435,11 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
  * Find a geom handled by the class
  */
 static struct g_virstor_softc *
-virstor_find_geom(const struct g_class *cp, const char *name)
+virstor_find_geom(const struct g_class *mp, const char *name)
 {
 	struct g_geom *gp;
 
-	LIST_FOREACH(gp, &cp->geom, geom) {
+	LIST_FOREACH(gp, &mp->geom, geom) {
 		if (strcmp(name, gp->name) == 0)
 			return (gp->softc);
 	}
