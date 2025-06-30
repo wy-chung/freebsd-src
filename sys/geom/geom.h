@@ -60,9 +60,9 @@ struct disk_zone_args;
 struct thread;
 
 typedef int g_config_t (struct g_configargs *ca);
-typedef void g_ctl_req_t (struct gctl_req *, struct g_class *cp, char const *verb);
-typedef int g_ctl_create_geom_t (struct gctl_req *, struct g_class *cp, struct g_provider *pp);
-typedef int g_ctl_destroy_geom_t (struct gctl_req *, struct g_class *cp, struct g_geom *gp);
+typedef void g_ctl_req_t (struct gctl_req *, struct g_class *mp, char const *verb);
+typedef int g_ctl_create_geom_t (struct gctl_req *, struct g_class *mp, struct g_provider *pp);
+typedef int g_ctl_destroy_geom_t (struct gctl_req *, struct g_class *mp, struct g_geom *gp);
 typedef int g_ctl_config_geom_t (struct gctl_req *, struct g_geom *gp, const char *verb);
 typedef void g_init_t (struct g_class *mp);
 typedef void g_fini_t (struct g_class *mp);
@@ -127,6 +127,10 @@ struct g_class {
 /*
  * The g_geom is an instance of a g_class.
  */
+#define	G_GEOM_WITHER		0x01
+#define	G_GEOM_VOLATILE_BIO	0x02
+#define	G_GEOM_IN_ACCESS	0x04
+#define	G_GEOM_ACCESS_WAIT	0x08
 struct g_geom {
 	char			*name;
 	struct g_class		*class;
@@ -148,10 +152,6 @@ struct g_geom {
 	void			*spare1;
 	void			*softc;
 	unsigned		flags;
-#define	G_GEOM_WITHER		0x01
-#define	G_GEOM_VOLATILE_BIO	0x02
-#define	G_GEOM_IN_ACCESS	0x04
-#define	G_GEOM_ACCESS_WAIT	0x08
 };
 
 /*
@@ -171,6 +171,10 @@ struct g_bioq {
  * can be attached to one g_provider.
  */
 
+#define G_CF_SPOILED		0x1
+#define G_CF_ORPHAN		0x4
+#define G_CF_DIRECT_SEND	0x10
+#define G_CF_DIRECT_RECEIVE	0x20
 struct g_consumer {
 	struct g_geom		*geom;
 	LIST_ENTRY(g_consumer)	consumer;
@@ -178,10 +182,6 @@ struct g_consumer {
 	LIST_ENTRY(g_consumer)	consumers;	/* XXX: better name */
 	int			acr, acw, ace;
 	int			flags;
-#define G_CF_SPOILED		0x1
-#define G_CF_ORPHAN		0x4
-#define G_CF_DIRECT_SEND	0x10
-#define G_CF_DIRECT_RECEIVE	0x20
 	struct devstat		*stat;
 	u_int			nstart, nend;
 
@@ -202,6 +202,11 @@ struct g_geom_alias {
 /*
  * A g_provider is a "logical disk".
  */
+#define G_PF_WITHER		0x2
+#define G_PF_ORPHAN		0x4
+#define	G_PF_ACCEPT_UNMAPPED	0x8
+#define G_PF_DIRECT_SEND	0x10
+#define G_PF_DIRECT_RECEIVE	0x20
 struct g_provider {
 	char			*name;
 	LIST_ENTRY(g_provider)	provider;
@@ -218,11 +223,6 @@ struct g_provider {
 	u_int			spare1;
 	u_int			spare2;
 	u_int			flags;
-#define G_PF_WITHER		0x2
-#define G_PF_ORPHAN		0x4
-#define	G_PF_ACCEPT_UNMAPPED	0x8
-#define G_PF_DIRECT_SEND	0x10
-#define G_PF_DIRECT_RECEIVE	0x20
 	LIST_HEAD(,g_geom_alias) aliases;
 
 	/* Two fields for the implementing class to use */
