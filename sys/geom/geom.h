@@ -296,7 +296,8 @@ struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...)
 struct g_provider * g_new_provider (struct g_geom *gp, const char *name);
 struct g_provider * g_new_providerf(struct g_geom *gp, const char *fmt, ...)
     __printflike(2, 3);
-void g_provider_add_alias(struct g_provider *pp, const char *fmt, ...)
+void g_provider_add_alias(struct g_provider *pp, const char *alias);
+void g_provider_add_aliasf(struct g_provider *pp, const char *fmt, ...)
     __printflike(2, 3);
 void g_resize_provider(struct g_provider *pp, off_t size);
 int g_retaste(struct g_class *mp);

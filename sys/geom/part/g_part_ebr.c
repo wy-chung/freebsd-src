@@ -290,10 +290,10 @@ g_part_ebr_add_alias(struct g_part_table *table, struct g_provider *pp,
 {
 	struct g_part_ebr_entry *entry;
 
-	g_provider_add_alias(pp, "%s%s" EBRNAMFMT, pfx, g_part_separator,
+	g_provider_add_aliasf(pp, "%s%s" EBRNAMFMT, pfx, g_part_separator,
 	    baseentry->gpe_index);
 	entry = (struct g_part_ebr_entry *)baseentry;
-	g_provider_add_alias(pp, "%.*s%u", (int)strlen(pfx) - 1, pfx,
+	g_provider_add_aliasf(pp, "%.*s%u", (int)strlen(pfx) - 1, pfx,
 	    entry->ebr_compat_idx);
 }
 
@@ -307,7 +307,7 @@ g_part_ebr_new_provider(struct g_part_table *table, struct g_geom *gp,
 	pp = g_new_providerf(gp, "%s%s" EBRNAMFMT, pfx, g_part_separator,
 	    baseentry->gpe_index);
 	entry = (struct g_part_ebr_entry *)baseentry;
-	g_provider_add_alias(pp, "%.*s%u", (int)strlen(pfx) - 1, pfx,
+	g_provider_add_aliasf(pp, "%.*s%u", (int)strlen(pfx) - 1, pfx,
 	    entry->ebr_compat_idx);
 	return (pp);
 }
