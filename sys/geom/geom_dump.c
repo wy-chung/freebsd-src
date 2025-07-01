@@ -305,7 +305,7 @@ g_conf_specific(struct sbuf *sb, struct g_geom **gps)
 
 	g_topology_assert();
 	sbuf_cat(sb, "<mesh>\n");
-	LIST_FOREACH(mp2, &g_classes, class) {
+	LIST_FOREACH(mp2, &g_classes, class) {	// g_classes is a list of geom class
 		g_conf_class(sb, mp2, gps);
 		if (sbuf_error(sb))
 			break;
