@@ -68,7 +68,7 @@
 SDT_PROVIDER_DEFINE(geom);
 
 struct class_list_head g_classes = LIST_HEAD_INITIALIZER(g_classes);
-static struct g_tailq_head geoms = TAILQ_HEAD_INITIALIZER(geoms);
+static TAILQ_HEAD(, g_geom) geoms = TAILQ_HEAD_INITIALIZER(geoms);
 char *g_wait_event, *g_wait_up, *g_wait_down;
 
 struct g_hh00 {
@@ -377,7 +377,7 @@ _g_new_geom(struct g_class *mp, const char *name, int len)
 	G_VALID_CLASS(mp);
 	gp = g_malloc(sizeof *gp + len + 1, M_WAITOK | M_ZERO);
 	gp->name = (char *)(gp + 1);	// follows immediately after gp
-	strcpy(gp->name, name);
+	memcpy(gp->name, name, len);
 	gp->class = mp;
 	gp->rank = 1;
 	LIST_INIT(&gp->consumer);
@@ -629,7 +629,7 @@ _g_new_provider(struct g_geom *gp, const char *name, int len)
 
 	pp = g_malloc(sizeof *pp + len + 1, M_WAITOK | M_ZERO);
 	pp->name = (char *)(pp + 1);
-	strcpy(pp->name, name);
+	memcpy(pp->name, name, len);
 	LIST_INIT(&pp->consumers);
 	LIST_INIT(&pp->aliases);
 	pp->error = ENXIO;
