@@ -1336,9 +1336,9 @@ g_multipath_find_geom(struct g_class *mp, const char *name)
 		if (sc == NULL || sc->sc_stopping)
 			continue;
 		if (strcmp(gp->name, name) == 0)
-			return (gp);
+			break;
 	}
-	return (NULL);
+	return (gp);
 }
 
 static void
