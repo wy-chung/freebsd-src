@@ -793,18 +793,6 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	}
 }
 
-static struct g_geom *
-g_nop_find_geom(struct g_class *mp, const char *name)
-{
-	struct g_geom *gp;
-
-	LIST_FOREACH(gp, &mp->geom, geom) {
-		if (strcmp(gp->name, name) == 0)
-			return (gp);
-	}
-	return (NULL);
-}
-
 static void
 g_nop_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 {
@@ -839,7 +827,7 @@ g_nop_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 		}
 		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 			name += strlen(_PATH_DEV);
-		gp = g_nop_find_geom(mp, name);
+		gp = g_find_geom(mp, name);
 		if (gp == NULL) {
 			G_NOP_DEBUG(1, "Device %s is invalid.", name);
 			gctl_error(req, "Device %s is invalid.", name);
