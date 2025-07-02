@@ -368,6 +368,18 @@ g_retaste(struct g_class *mp)
 	return (error);
 }
 
+struct g_geom *
+g_find_geom(struct g_class *mp, const char *name)
+{
+	struct g_geom *gp;
+
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		if (strcmp(gp->name, name) == 0)
+			break;
+	}
+	return (gp);
+}
+
 static struct g_geom *
 _g_new_geom(struct g_class *mp, const char *name, int len)
 {
