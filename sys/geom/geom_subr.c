@@ -922,7 +922,7 @@ redo_rank(struct g_geom *gp)
 		TAILQ_REMOVE(&geoms, gp1, geoms);
 		TAILQ_INSERT_TAIL(&geoms, gp1, geoms);
 	}
-	return (0);
+	return (ESUCCESS);
 }
 
 int

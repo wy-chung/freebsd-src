@@ -432,9 +432,9 @@ g_mountver_find_geom(struct g_class *mp, const char *name)
 
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		if (strcmp(gp->name, name) == 0)
-			return (gp);
+			break;
 	}
-	return (NULL);
+	return (gp);
 }
 
 static void

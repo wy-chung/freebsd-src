@@ -511,10 +511,10 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 }
 
 static struct g_geom*
-g_part_find_geom(const char *name)
+g_part_find_geom(struct g_class *mp, const char *name)
 {
 	struct g_geom *gp;
-	LIST_FOREACH(gp, &g_part_class.geom, geom) {
+	LIST_FOREACH(gp, &mp->geom, geom) {
 		if ((gp->flags & G_GEOM_WITHER) == 0 &&
 		    strcmp(name, gp->name) == 0)
 			break;
@@ -533,7 +533,7 @@ g_part_parm_geom(struct gctl_req *req, const char *name, struct g_geom **v)
 		return (ENOATTR);
 	if (strncmp(gname, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
 		gname += sizeof(_PATH_DEV) - 1;
-	gp = g_part_find_geom(gname);
+	gp = g_part_find_geom(&g_part_class, gname);
 	if (gp == NULL) {
 		gctl_error(req, "%d %s '%s'", EINVAL, name, gname);
 		return (EINVAL);
@@ -980,7 +980,7 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	g_topology_assert();
 
 	/* Check that there isn't already a g_part geom on the provider. */
-	gp = g_part_find_geom(pp->name);
+	gp = g_part_find_geom(&g_part_class, pp->name);
 	if (gp != NULL) {
 		null = gp->softc;
 		if (null->gpt_scheme != &g_part_null_scheme) {
