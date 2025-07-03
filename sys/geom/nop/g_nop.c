@@ -55,13 +55,14 @@ static int g_nop_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
 static void g_nop_config(struct gctl_req *req, struct g_class *mp,
     const char *verb);
+#if !defined(WYC)
 static g_access_t g_nop_access;
 static g_dumpconf_t g_nop_dumpconf;
 static g_orphan_t g_nop_orphan;
 static g_provgone_t g_nop_providergone;
 static g_resize_t g_nop_resize;
 static g_start_t g_nop_start;
-
+#endif
 struct g_class g_nop_class = {
 	.name = G_NOP_CLASS_NAME,
 	.version = G_VERSION,
