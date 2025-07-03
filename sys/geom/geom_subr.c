@@ -465,9 +465,10 @@ g_wither_geom(struct g_geom *gp, int error)
 	g_trace(G_T_TOPOLOGY, "g_wither_geom(%p(%s))", gp, gp->name);
 	if (!(gp->flags & G_GEOM_WITHER)) {
 		gp->flags |= G_GEOM_WITHER;
-		LIST_FOREACH(pp, &gp->provider, provider)
+		LIST_FOREACH(pp, &gp->provider, provider) {
 			if (!(pp->flags & G_PF_ORPHAN))
 				g_orphan_provider(pp, error);
+		}
 	}
 	g_do_wither();
 }

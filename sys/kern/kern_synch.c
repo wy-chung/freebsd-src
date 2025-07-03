@@ -344,15 +344,15 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
  * Make all threads sleeping on the specified identifier runnable.
  */
 void
-wakeup(const void *ident)
+wakeup(const void *wchan)
 {
 	int wakeup_swapper;
 
-	sleepq_lock(ident);
-	wakeup_swapper = sleepq_broadcast(ident, SLEEPQ_SLEEP, 0, 0);
-	sleepq_release(ident);
+	sleepq_lock(wchan);
+	wakeup_swapper = sleepq_broadcast(wchan, SLEEPQ_SLEEP, 0, 0);
+	sleepq_release(wchan);
 	if (wakeup_swapper) {
-		KASSERT(ident != &proc0,
+		KASSERT(wchan != &proc0,
 		    ("wakeup and wakeup_swapper and proc0"));
 		kick_proc0();
 	}
@@ -364,23 +364,23 @@ wakeup(const void *ident)
  * swapped out.
  */
 void
-wakeup_one(const void *ident)
+wakeup_one(const void *wchan)
 {
 	int wakeup_swapper;
 
-	sleepq_lock(ident);
-	wakeup_swapper = sleepq_signal(ident, SLEEPQ_SLEEP | SLEEPQ_DROP, 0, 0);
+	sleepq_lock(wchan);
+	wakeup_swapper = sleepq_signal(wchan, SLEEPQ_SLEEP | SLEEPQ_DROP, 0, 0);
 	if (wakeup_swapper)
 		kick_proc0();
 }
 
 void
-wakeup_any(const void *ident)
+wakeup_any(const void *wchan)
 {
 	int wakeup_swapper;
 
-	sleepq_lock(ident);
-	wakeup_swapper = sleepq_signal(ident, SLEEPQ_SLEEP | SLEEPQ_UNFAIR |
+	sleepq_lock(wchan);
+	wakeup_swapper = sleepq_signal(wchan, SLEEPQ_SLEEP | SLEEPQ_UNFAIR |
 	    SLEEPQ_DROP, 0, 0);
 	if (wakeup_swapper)
 		kick_proc0();
