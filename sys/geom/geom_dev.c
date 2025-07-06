@@ -69,13 +69,13 @@ struct g_dev_softc {
 #define	SC_A_OPEN	(1 << 30)
 #define	SC_A_ACTIVE	(SC_A_OPEN - 1)
 };
-
+#if !defined(WYC)
 static d_open_t		g_dev_open;
 static d_close_t	g_dev_close;
 static d_strategy_t	g_dev_strategy;
 static d_ioctl_t	g_dev_ioctl;
 static d_kqfilter_t	g_dev_kqfilter;
-
+#endif
 static void		gdev_filter_detach(struct knote *kn);
 static int		gdev_filter_vnode(struct knote *kn, long hint);
 
@@ -92,7 +92,7 @@ static struct cdevsw g_dev_cdevsw = {
 	.d_read =	physread,
 	.d_write =	physwrite,
 	.d_ioctl =	g_dev_ioctl,
-	.d_strategy =	g_dev_strategy,
+	.d_strategy =	g_dev_strategy, // starting point of the read, write, ... operations
 	.d_name =	"g_dev",
 	.d_flags =	D_DISK | D_TRACKCLOSE,
 	.d_kqfilter =	g_dev_kqfilter,
@@ -754,7 +754,7 @@ g_dev_done(struct bio *bp2)
 }
 
 static void
-g_dev_strategy(struct bio *bp)
+g_dev_strategy(struct bio *bp) // g_dev_cdevsw.d_strategy
 {
 	struct g_consumer *cp;
 	struct bio *bp2;
