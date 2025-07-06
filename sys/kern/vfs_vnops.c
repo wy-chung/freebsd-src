@@ -95,7 +95,7 @@
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
-
+#if !defined(WYC)
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
 static fo_rdwr_t	vn_io_fault;
@@ -107,7 +107,7 @@ static fo_close_t	vn_closefile;
 static fo_mmap_t	vn_mmap;
 static fo_fallocate_t	vn_fallocate;
 static fo_fspacectl_t	vn_fspacectl;
-
+#endif
 const struct fileops vnops = {
 	.fo_read = vn_io_fault,
 	.fo_write = vn_io_fault,
