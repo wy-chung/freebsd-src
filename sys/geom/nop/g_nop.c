@@ -193,6 +193,8 @@ g_nop_pass_timeout(void *data)
 	g_free(data);
 }
 
+// < g_io_request < g_io_getattr < g_dev_ioctl
+// < g_io_request < g_dev_strategy < physio
 static void
 g_nop_start(struct bio *bp)
 {
