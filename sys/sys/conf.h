@@ -206,7 +206,7 @@ struct cdevsw {
 	d_ioctl_t		*d_ioctl;
 	d_poll_t		*d_poll;
 	d_mmap_t		*d_mmap;
-	d_strategy_t		*d_strategy;
+	d_strategy_t		*d_strategy; // starting point of the read, write, ... operations
 	void			*d_spare0;
 	d_kqfilter_t		*d_kqfilter;
 	d_purge_t		*d_purge;

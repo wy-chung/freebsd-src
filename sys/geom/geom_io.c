@@ -490,7 +490,7 @@ g_io_check(struct bio *bp)
 }
 
 void
-g_io_request(struct bio *bp, struct g_consumer *cp)
+g_io_request(struct bio *bp, struct g_consumer *cp) // < g_dev_strategy
 {
 	struct g_provider *pp;
 	int direct, error, first;
@@ -585,6 +585,9 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 			return;
 		}
 		bp->bio_to->geom->start(bp);
+#if defined(WYC)
+		g_nop_start();
+#endif
 	} else {
 		g_bioq_lock(&g_bio_run_down);
 		first = TAILQ_EMPTY(&g_bio_run_down.bio_queue);

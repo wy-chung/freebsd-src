@@ -132,7 +132,7 @@ struct g_class {
 #define	G_GEOM_IN_ACCESS	0x04
 #define	G_GEOM_ACCESS_WAIT	0x08
 struct g_geom {
-	char			*name;
+	char			*name;	// follows immediately after this structure
 	struct g_class		*class;
 	LIST_ENTRY(g_geom)	geom;
 	LIST_HEAD(,g_consumer)	consumer;
@@ -208,7 +208,7 @@ struct g_geom_alias {
 #define G_PF_DIRECT_SEND	0x10
 #define G_PF_DIRECT_RECEIVE	0x20
 struct g_provider {
-	char			*name;
+	char			*name;	// follows immediately after this structure
 	LIST_ENTRY(g_provider)	provider;
 	struct g_geom		*geom;
 	LIST_HEAD(,g_consumer)	consumers;
