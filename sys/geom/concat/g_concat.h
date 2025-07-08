@@ -91,7 +91,7 @@ struct g_concat_metadata {
 static __inline void
 concat_metadata_encode(const struct g_concat_metadata *md, u_char *data)
 {
-
+#if 0
 	bcopy(md->md_magic, data, sizeof(md->md_magic));
 	le32enc(data + 16, md->md_version);
 	bcopy(md->md_name, data + 20, sizeof(md->md_name));
@@ -100,11 +100,23 @@ concat_metadata_encode(const struct g_concat_metadata *md, u_char *data)
 	le16enc(data + 42, md->md_all);
 	bcopy(md->md_provider, data + 44, sizeof(md->md_provider));
 	le64enc(data + 60, md->md_provsize);
+#else
+	struct g_concat_metadata *mddst = (struct g_concat_metadata *)data;
+
+	bcopy(md->md_magic, mddst->md_magic, sizeof(md->md_magic));
+	mddst->md_version = htole32(md->md_version);
+	bcopy(md->md_name, mddst->md_name, sizeof(md->md_name));
+	mddst->md_id = htole32(md->md_id);
+	mddst->md_no = htole16(md->md_no);
+	mddst->md_all = htole16(md->md_all);
+	bcopy(md->md_provider, mddst->md_provider, sizeof(md->md_provider));
+	mddst->md_provsize = htole64(md->md_provsize);
+#endif
 }
 static __inline void
 concat_metadata_decode(const u_char *data, struct g_concat_metadata *md)
 {
-
+#if 0
 	bcopy(data, md->md_magic, sizeof(md->md_magic));
 	md->md_version = le32dec(data + 16);
 	bcopy(data + 20, md->md_name, sizeof(md->md_name));
@@ -113,5 +125,17 @@ concat_metadata_decode(const u_char *data, struct g_concat_metadata *md)
 	md->md_all = le16dec(data + 42);
 	bcopy(data + 44, md->md_provider, sizeof(md->md_provider));
 	md->md_provsize = le64dec(data + 60);
+#else
+	const struct g_concat_metadata *mdsrc = (const struct g_concat_metadata *)data;
+
+	bcopy(mdsrc->md_magic, md->md_magic, sizeof(md->md_magic));
+	md->md_version = le32toh(mdsrc->md_version);
+	bcopy(mdsrc->md_name, md->md_name, sizeof(md->md_name));
+	md->md_id = le32toh(mdsrc->md_id);
+	md->md_no = le16toh(mdsrc->md_no);
+	md->md_all = le16toh(mdsrc->md_all);
+	bcopy(mdsrc->md_provider, md->md_provider, sizeof(md->md_provider));
+	md->md_provsize = le64toh(mdsrc->md_provsize);
+#endif
 }
 #endif	/* _G_CONCAT_H_ */
