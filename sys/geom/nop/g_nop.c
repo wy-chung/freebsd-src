@@ -206,7 +206,7 @@ g_nop_start(struct bio *bp)
 
 	failprob = delayprob = delaytime = 0;
 
-	gp = bp->bio_to->geom;
+	gp = bp->bio_to->geom; // bio_to is provider
 	sc = gp->softc;
 
 	G_NOP_LOGREQ(bp, "Request received.");
@@ -240,11 +240,11 @@ g_nop_start(struct bio *bp)
 	case BIO_GETATTR:
 		sc->sc_getattrs++;
 		if (sc->sc_physpath &&
-		    g_handleattr_str(bp, "GEOM::physpath", sc->sc_physpath))
+		    g_handleattr_str(bp, "GEOM::physpath", sc->sc_physpath)) {
 			;
-		else if (strcmp(bp->bio_attribute, "GEOM::kerneldump") == 0)
+		} else if (strcmp(bp->bio_attribute, "GEOM::kerneldump") == 0) {
 			g_nop_kerneldump(bp, sc);
-		else
+		} else
 			/*
 			 * Fallthrough to forwarding the GETATTR down to the
 			 * lower level device.
@@ -289,6 +289,7 @@ g_nop_start(struct bio *bp)
 	cbp->bio_done = g_std_done;
 	cbp->bio_offset = bp->bio_offset + sc->sc_offset;
 	pp = LIST_FIRST(&gp->provider);
+	MY_ASSERT(pp == bp->bio_to);
 	KASSERT(pp != NULL, ("NULL pp"));
 	cbp->bio_to = pp;
 
@@ -684,7 +685,7 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 		    wdelayprob == -1 ? 0 : (u_int)wdelayprob,
 		    (off_t)offset, (off_t)size, (u_int)secsize,
 		    (off_t)stripesize, (off_t)stripeoffset,
-		    physpath) != 0) {
+		    physpath) != ESUCCESS) {
 			return;
 		}
 	}
