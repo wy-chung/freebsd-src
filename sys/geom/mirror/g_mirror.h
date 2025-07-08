@@ -233,8 +233,9 @@ int g_mirror_read_metadata(struct g_consumer *cp, struct g_mirror_metadata *md);
 void g_mirror_fill_metadata(struct g_mirror_softc *sc,
     struct g_mirror_disk *disk, struct g_mirror_metadata *md);
 void g_mirror_update_metadata(struct g_mirror_disk *disk);
-
+ #if !defined(WYC)
 g_ctl_req_t g_mirror_config;
+ #endif
 #endif	/* _KERNEL */
 
 struct g_mirror_metadata {

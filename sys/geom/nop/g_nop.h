@@ -50,14 +50,14 @@ struct g_nop_delay;
 TAILQ_HEAD(g_nop_delay_head, g_nop_delay);
 
 struct g_nop_softc {
-	int			 sc_error;
+	int			 sc_error;	// EIO
 	off_t			 sc_offset;
 	off_t			 sc_explicitsize;
 	off_t			 sc_stripesize;
 	off_t			 sc_stripeoffset;
 	u_int			 sc_rfailprob;
 	u_int			 sc_wfailprob;
-	u_int			 sc_delaymsec;
+	u_int			 sc_delaymsec;	// 1
 	u_int			 sc_rdelayprob;
 	u_int			 sc_wdelayprob;
 	u_int			 sc_count_until_fail;

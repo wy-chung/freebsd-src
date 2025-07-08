@@ -115,6 +115,7 @@
 #define	le32toh(x)	((uint32_t)(x))
 #define	le64toh(x)	((uint64_t)(x))
 #else /* _BYTE_ORDER != _LITTLE_ENDIAN */
+ #if !defined(WYC)
 #define	htobe16(x)	((uint16_t)(x))
 #define	htobe32(x)	((uint32_t)(x))
 #define	htobe64(x)	((uint64_t)(x))
@@ -128,6 +129,7 @@
 #define	le16toh(x)	__bswap16((x))
 #define	le32toh(x)	__bswap32((x))
 #define	le64toh(x)	__bswap64((x))
+ #endif
 #endif /* _BYTE_ORDER == _LITTLE_ENDIAN */
 
 #endif /* _SYS__ENDIAN_H_ */
