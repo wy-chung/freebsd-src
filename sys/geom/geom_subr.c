@@ -816,7 +816,8 @@ g_provider_by_name(char const *arg)
 {
 	struct g_class *mp;
 	struct g_geom *gp;
-	struct g_provider *pp, *wpp;
+	struct g_provider *pp;
+	struct g_provider *wpp; // wither provider
 
 	if (strncmp(arg, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
 		arg += sizeof(_PATH_DEV) - 1;
@@ -1092,12 +1093,16 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 #endif
 	gp->flags |= G_GEOM_IN_ACCESS;
 	error = gp->access(pp, dcr, dcw, dce);
+#if defined(WYC)
+	g_nop_access();
+	g_concat_access();
+#endif
 	KASSERT(dcr > 0 || dcw > 0 || dce > 0 || error == 0,
 	    ("Geom provider %s::%s dcr=%d dcw=%d dce=%d error=%d failed "
 	    "closing ->access()", gp->class->name, pp->name, dcr, dcw,
 	    dce, error));
 
-	g_topology_assert();
+	g_topology_assert(); // make sure the topology is still there after calling provider's access function
 	gp->flags &= ~G_GEOM_IN_ACCESS;
 	KASSERT(cp->acr == sr && cp->acw == sw && cp->ace == se,
 	    ("Access counts changed during geom->access"));
@@ -1106,7 +1111,7 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 		wakeup(gp);
 	}
 
-	if (!error) {
+	if (!error) { // the error from calling provider's access function
 		/*
 		 * If we open first write, spoil any partner consumers.
 		 * If we close last write and provider is not errored,
@@ -1383,16 +1388,16 @@ g_compare_names(const char *namea, const char *nameb)
 	int deva, devb;
 
 	if (strcmp(namea, nameb) == 0)
-		return (1);
+		return (true);
 	deva = g_get_device_prefix_len(namea);
 	if (deva == 0)
-		return (0);
+		return (false);
 	devb = g_get_device_prefix_len(nameb);
 	if (devb == 0)
-		return (0);
+		return (false);
 	if (strcmp(namea + deva, nameb + devb) == 0)
-		return (1);
-	return (0);
+		return (true);
+	return (false);
 }
 
 #if defined(DIAGNOSTIC) || defined(DDB)

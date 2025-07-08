@@ -905,7 +905,7 @@ g_concat_ctl_create(struct gctl_req *req, struct g_class *mp)
 			sbuf_printf(sb, " %s", name);
 			continue;
 		}
-		if (g_concat_add_disk(sc, pp, no - 1) != 0) {
+		if (g_concat_add_disk(sc, pp, no - 1) != ESUCCESS) {
 			G_CONCAT_DEBUG(1, "Disk %u (%s) not attached to %s.",
 			    no, pp->name, gp->name);
 			sbuf_printf(sb, " %s", pp->name);
