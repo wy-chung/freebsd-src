@@ -498,7 +498,6 @@ static int
 g_concat_read_metadata(struct g_consumer *cp, struct g_concat_metadata *md)
 {
 	struct g_provider *pp;
-	u_char *buf;
 	int error;
 
 	g_topology_assert();
@@ -507,17 +506,16 @@ g_concat_read_metadata(struct g_consumer *cp, struct g_concat_metadata *md)
 	if (error != 0)
 		return (error);
 	pp = cp->provider;
+	u_char buf[pp->sectorsize];
 	g_topology_unlock();
-	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
-	    &error);
+	error = g_read_datab(cp, pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
-	if (buf == NULL)
+	if (error)
 		return (error);
 
 	/* Decode metadata. */
 	concat_metadata_decode(buf, md);
-	g_free(buf);
 
 	return (0);
 }
