@@ -88,10 +88,11 @@ struct g_concat_metadata {
 	char		md_provider[16]; /* Hardcoded provider. */
 	uint64_t	md_provsize;	/* Provider's size. */
 };
+
 static __inline void
 concat_metadata_encode(const struct g_concat_metadata *md, u_char *data)
 {
-#if 0
+#if 1
 	bcopy(md->md_magic, data, sizeof(md->md_magic));
 	le32enc(data + 16, md->md_version);
 	bcopy(md->md_name, data + 20, sizeof(md->md_name));
@@ -100,7 +101,7 @@ concat_metadata_encode(const struct g_concat_metadata *md, u_char *data)
 	le16enc(data + 42, md->md_all);
 	bcopy(md->md_provider, data + 44, sizeof(md->md_provider));
 	le64enc(data + 60, md->md_provsize);
-#else
+#else // the else part does not work
 	struct g_concat_metadata *mddst = (struct g_concat_metadata *)data;
 
 	bcopy(md->md_magic, mddst->md_magic, sizeof(md->md_magic));
@@ -113,10 +114,11 @@ concat_metadata_encode(const struct g_concat_metadata *md, u_char *data)
 	mddst->md_provsize = htole64(md->md_provsize);
 #endif
 }
+
 static __inline void
 concat_metadata_decode(const u_char *data, struct g_concat_metadata *md)
 {
-#if 0
+#if 1
 	bcopy(data, md->md_magic, sizeof(md->md_magic));
 	md->md_version = le32dec(data + 16);
 	bcopy(data + 20, md->md_name, sizeof(md->md_name));
@@ -125,7 +127,7 @@ concat_metadata_decode(const u_char *data, struct g_concat_metadata *md)
 	md->md_all = le16dec(data + 42);
 	bcopy(data + 44, md->md_provider, sizeof(md->md_provider));
 	md->md_provsize = le64dec(data + 60);
-#else
+#else // the else part does not work
 	const struct g_concat_metadata *mdsrc = (const struct g_concat_metadata *)data;
 
 	bcopy(mdsrc->md_magic, md->md_magic, sizeof(md->md_magic));
