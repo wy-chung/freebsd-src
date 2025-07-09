@@ -816,8 +816,7 @@ g_provider_by_name(char const *arg)
 {
 	struct g_class *mp;
 	struct g_geom *gp;
-	struct g_provider *pp;
-	struct g_provider *wpp; // wither provider
+	struct g_provider *pp, *wpp; // wither provider
 
 	if (strncmp(arg, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
 		arg += sizeof(_PATH_DEV) - 1;
