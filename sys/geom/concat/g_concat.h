@@ -59,7 +59,7 @@ struct g_concat_disk {
 	off_t			 d_start;
 	off_t			 d_end;
 	int			 d_candelete;
-	int			 d_removed;
+	bool			 d_removed;
 	bool			 d_hardcoded;
 };
 

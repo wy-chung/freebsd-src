@@ -871,11 +871,10 @@ g_io_schedule_up(struct thread *tp __unused)
 	}
 }
 
-void *
-g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error)
+int
+g_read_datab(struct g_consumer *cp, off_t offset, void *buf, off_t length)
 {
 	struct bio *bp;
-	void *ptr;
 	int errorc;
 
 	KASSERT(length > 0 && length >= cp->provider->sectorsize &&
@@ -887,15 +886,25 @@ g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error)
 	bp->bio_done = NULL;
 	bp->bio_offset = offset;
 	bp->bio_length = length;
-	ptr = g_malloc(length, M_WAITOK);
-	bp->bio_data = ptr;
+	bp->bio_data = buf;
 	g_io_request(bp, cp);
 	errorc = biowait(bp, "gread");
 	if (errorc == 0 && bp->bio_completed != length)
 		errorc = EIO;
+	g_destroy_bio(bp);
+	return (errorc);
+}
+
+void *
+g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error)
+{
+	void *ptr;
+	int errorc;
+
+	ptr = g_malloc(length, M_WAITOK);
+	errorc = g_read_datab(cp, offset, ptr, length);
 	if (error != NULL)
 		*error = errorc;
-	g_destroy_bio(bp);
 	if (errorc) {
 		g_free(ptr);
 		ptr = NULL;
