@@ -56,11 +56,11 @@ SYSCTL_UINT(_kern_geom_concat, OID_AUTO, debug, CTLFLAG_RWTUN, &g_concat_debug, 
 static int g_concat_destroy(struct g_concat_softc *sc, boolean_t force);
 static int g_concat_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
-
+#if !defined(WYC)
 static g_taste_t g_concat_taste;
 static g_ctl_req_t g_concat_config;
 static g_dumpconf_t g_concat_dumpconf;
-
+#endif
 struct g_class g_concat_class = {
 	.name = G_CONCAT_CLASS_NAME,
 	.version = G_VERSION,
@@ -129,7 +129,7 @@ g_concat_remove_disk(struct g_concat_disk *disk)
 	if (!disk->d_removed) {
 		G_CONCAT_DEBUG(0, "Disk %s removed from %s.",
 		    cp->provider->name, sc->sc_name);
-		disk->d_removed = 1;
+		disk->d_removed = true;
 	}
 
 	if (sc->sc_provider != NULL) {
@@ -529,7 +529,7 @@ static int
 g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 {
 	struct g_concat_disk *disk;
-	struct g_consumer *cp, *fcp;
+	struct g_consumer *cp, *fcp; // first consumer
 	struct g_geom *gp;
 	int error;
 
@@ -604,7 +604,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	disk->d_softc = sc;
 	disk->d_start = 0;	/* not yet */
 	disk->d_end = 0;	/* not yet */
-	disk->d_removed = 0;
+	disk->d_removed = false;
 
 	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, sc->sc_name);
 
@@ -753,7 +753,7 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	G_CONCAT_DEBUG(3, "Tasting %s.", pp->name);
 
-	gp = g_new_geomf(mp, "concat:taste");
+	gp = g_new_geom(mp, "concat:taste");
 	gp->start = g_concat_start;
 	gp->access = g_concat_access;
 	gp->orphan = g_concat_orphan;
@@ -1164,7 +1164,7 @@ g_concat_ctl_append(struct gctl_req *req, struct g_class *mp)
 	disk->d_start = TAILQ_LAST(&sc->sc_disks, g_concat_disks)->d_end;
 	disk->d_end = disk->d_start + cp->provider->mediasize;
 	disk->d_candelete = disk_candelete;
-	disk->d_removed = 0;
+	disk->d_removed = false;
 	disk->d_hardcoded = *hardcode;
 	cp->private = disk;
 	TAILQ_INSERT_TAIL(&sc->sc_disks, disk, d_next);
