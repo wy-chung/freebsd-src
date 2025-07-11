@@ -58,7 +58,7 @@ struct g_concat_disk {
 	struct g_concat_softc	*d_softc;
 	off_t			 d_start;
 	off_t			 d_end;
-	int			 d_candelete;
+	bool			 d_candelete;
 	bool			 d_removed;
 	bool			 d_hardcoded;
 };
@@ -66,7 +66,7 @@ struct g_concat_disk {
 struct g_concat_softc {
 	u_int		 sc_type;	/* provider type */
 	struct g_geom	*sc_geom;
-	struct g_provider *sc_provider;
+	struct g_provider *sc_provider; // == LIST_FIRST(&sc_geom->provider)
 	uint32_t	 sc_id;		/* concat unique ID */
 
 	uint16_t	 sc_ndisks;
@@ -87,7 +87,7 @@ struct g_concat_metadata {
 	uint16_t	md_all;		/* Number of all disks. */
 	char		md_provider[16]; /* Hardcoded provider. */
 	uint64_t	md_provsize;	/* Provider's size. */
-};
+} __attribute__((packed));
 
 static __inline void
 concat_metadata_encode(const struct g_concat_metadata *md, u_char *data)
