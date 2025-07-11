@@ -675,7 +675,11 @@ free_large(void *addr, size_t size)
  *	the allocation fails.
  */
 void *
+#if defined(WYC)
+malloc(size_t size, struct malloc_type *mtp, int flags)
+#else
 (malloc)(size_t size, struct malloc_type *mtp, int flags)
+#endif
 {
 	int indx;
 	caddr_t va;
