@@ -462,10 +462,12 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 		start = disk->d_end;
 		error = g_access(disk->d_consumer, 1, 0, 0);
 		if (error == 0) {
+			int disk_candelete;
 			error = g_getattr("GEOM::candelete", disk->d_consumer,
-			    &disk->d_candelete);
+			    &disk_candelete);
 			if (error != 0)
-				disk->d_candelete = 0;
+				disk_candelete = 0;
+			disk->d_candelete = disk_candelete;
 			(void)g_access(disk->d_consumer, -1, 0, 0);
 		} else
 			G_CONCAT_DEBUG(1, "Failed to access disk %s, error %d.",
@@ -506,7 +508,7 @@ g_concat_read_metadata(struct g_consumer *cp, struct g_concat_metadata *md)
 	if (error != 0)
 		return (error);
 	pp = cp->provider;
-	u_char buf[pp->sectorsize];
+	u_char buf[pp->sectorsize] __attribute__ ((aligned));
 	g_topology_unlock();
 	error = g_read_datab(cp, pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
 	g_topology_lock();
@@ -540,7 +542,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 		sx_sunlock(&sc->sc_disks_lock);
 		return (EINVAL);
 	}
-
+	// find the nth disk (n starts from 0)
 	for (disk = TAILQ_FIRST(&sc->sc_disks); no > 0; no--) {
 		disk = TAILQ_NEXT(disk, d_next);
 	}
@@ -566,10 +568,11 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	if (fcp != NULL && (fcp->acr > 0 || fcp->acw > 0 || fcp->ace > 0)) {
 		error = g_access(cp, fcp->acr, fcp->acw, fcp->ace);
 		if (error != 0) {
-			sx_sunlock(&sc->sc_disks_lock);
-			g_detach(cp);
-			g_destroy_consumer(cp);
-			return (error);
+			goto fail1;
+			//sx_sunlock(&sc->sc_disks_lock);
+			//g_detach(cp);
+			//g_destroy_consumer(cp);
+			//return (error);
 		}
 	}
 	if (sc->sc_type == G_CONCAT_TYPE_AUTOMATIC) {
@@ -583,13 +586,14 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 		sx_slock(&sc->sc_disks_lock);
 
 		if (error != 0)
-			goto fail;
+			goto fail0;
 
 		if (strcmp(md.md_magic, G_CONCAT_MAGIC) != 0 ||
 		    strcmp(md.md_name, sc->sc_name) != 0 ||
 		    md.md_id != sc->sc_id) {
 			G_CONCAT_DEBUG(0, "Metadata on %s changed.", pp->name);
-			goto fail;
+			error = EINVAL; //wyctodo should we set error to something?
+			goto fail0;
 		}
 
 		disk->d_hardcoded = md.md_provider[0] != '\0';
@@ -610,10 +614,11 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	sx_sunlock(&sc->sc_disks_lock); // need lock for check_and_run
 
 	return (0);
-fail:
-	sx_sunlock(&sc->sc_disks_lock);
+fail0:
 	if (fcp != NULL && (fcp->acr > 0 || fcp->acw > 0 || fcp->ace > 0))
 		g_access(cp, -fcp->acr, -fcp->acw, -fcp->ace);
+fail1:
+	sx_sunlock(&sc->sc_disks_lock);
 	g_detach(cp);
 	g_destroy_consumer(cp);
 	return (error);
@@ -644,7 +649,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 			return (NULL);
 		}
 	}
-	gp = g_new_geomf(mp, "%s", md->md_name);
+	gp = g_new_geom(mp, md->md_name);
 	sc = malloc(sizeof(*sc), M_CONCAT, M_WAITOK | M_ZERO);
 	gp->start = g_concat_start;
 	gp->spoiled = g_concat_orphan;
@@ -794,7 +799,7 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	/*
 	 * Let's check if device already exists.
 	 */
-	sc = NULL;
+	//wyctodo sc = NULL;
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
@@ -1011,7 +1016,7 @@ g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 	struct g_concat_disk *disk;
 	struct g_concat_metadata md;
 	struct g_provider *pp;
-	u_char *sector;
+	//wyctodo u_char *sector;
 	int error;
 
 	bzero(&md, sizeof(md));
@@ -1029,7 +1034,9 @@ g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 			    sizeof(md.md_provider));
 		md.md_provsize = disk->d_consumer->provider->mediasize;
 
-		sector = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+		//sector = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+		u_char sector[pp->sectorsize] __attribute__ ((aligned));
+		bzero(sector, pp->sectorsize);
 		concat_metadata_encode(&md, sector);
 		error = g_access(disk->d_consumer, 0, 1, 0);
 		if (error == 0) {
@@ -1038,7 +1045,7 @@ g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 			    pp->sectorsize);
 			(void)g_access(disk->d_consumer, 0, -1, 0);
 		}
-		g_free(sector);
+		//g_free(sector);
 		if (error != 0)
 			gctl_error(req, "Cannot store metadata on %s: %d",
 			    pp->name, error);
