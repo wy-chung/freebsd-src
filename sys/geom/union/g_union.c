@@ -51,6 +51,7 @@ SYSCTL_UINT(_kern_geom_union, OID_AUTO, debug, CTLFLAG_RW, &g_union_debug, 0,
 
 static void g_union_config(struct gctl_req *req, struct g_class *mp,
     const char *verb);
+#if !defined(WYC)
 static g_access_t g_union_access;
 static g_start_t g_union_start;
 static g_dumpconf_t g_union_dumpconf;
@@ -59,7 +60,7 @@ static int g_union_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
 static g_provgone_t g_union_providergone;
 static g_resize_t g_union_resize;
-
+#endif
 struct g_class g_union_class = {
 	.name = G_UNION_CLASS_NAME,
 	.version = G_VERSION,
@@ -271,12 +272,14 @@ g_union_ctl_create(struct gctl_req *req, struct g_class *mp, bool verbose)
 	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	newpp->mediasize = size;
 	newpp->sectorsize = secsize;
-	LIST_FOREACH(gap, &upperpp->aliases, ga_next)
+	LIST_FOREACH(gap, &upperpp->aliases, ga_next) {
 		g_provider_add_aliasf(newpp, "%s%s", gap->ga_alias,
 		    G_UNION_SUFFIX);
-	LIST_FOREACH(gap, &lowerpp->aliases, ga_next)
+	}
+	LIST_FOREACH(gap, &lowerpp->aliases, ga_next) {
 		g_provider_add_aliasf(newpp, "%s%s", gap->ga_alias,
 		    G_UNION_SUFFIX);
+	}
 	lowercp = g_new_consumer(gp);
 	lowercp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	if ((error = g_attach(lowercp, lowerpp)) != 0) {
@@ -883,7 +886,7 @@ g_union_doio(struct g_union_wip *wip)
 	struct g_union_wip *activewip;
 	struct bio *cbp, *firstbp;
 	off_t rdlen, len2rd, offset;
-	int iocnt, needstoblock;
+	int iocnt;
 	char *level;
 
 	/*
@@ -906,7 +909,7 @@ g_union_doio(struct g_union_wip *wip)
 		if (wip->wip_end < activewip->wip_start ||
 		    wip->wip_start > activewip->wip_end)
 			continue;
-		needstoblock = 1;
+		bool needstoblock = true;
 		if (wip->wip_bp->bio_cmd == BIO_WRITE)
 			if (activewip->wip_bp->bio_cmd == BIO_WRITE)
 				sc->sc_writeblockwrite += 1;
@@ -917,7 +920,7 @@ g_union_doio(struct g_union_wip *wip)
 				sc->sc_writeblockread += 1;
 			else {
 				sc->sc_readcurrentread += 1;
-				needstoblock = 0;
+				needstoblock = false;
 			}
 		/* Put request on a waiting list if necessary */
 		if (needstoblock) {
@@ -938,7 +941,7 @@ g_union_doio(struct g_union_wip *wip)
 		TAILQ_REMOVE(&sc->sc_wiplist, wip, wip_next);
 		G_WUNLOCK(sc);
 		KASSERT(TAILQ_FIRST(&wip->wip_waiting) == NULL,
-		    ("g_union_doio: non-empty work-in-progress waiting queue"));
+		    ("%s: non-empty work-in-progress waiting queue", __func__));
 		g_io_deliver(wip->wip_bp, ENOMEM);
 		g_free(wip);
 		return;

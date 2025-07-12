@@ -58,14 +58,14 @@ FEATURE(g_virstor, "GEOM virtual storage support");
 
 /* Declare malloc(9) label */
 static MALLOC_DEFINE(M_GVIRSTOR, "gvirstor", "GEOM_VIRSTOR Data");
-
+#if !defined(WYC)
 /* GEOM class methods */
 static g_init_t g_virstor_init;
 static g_fini_t g_virstor_fini;
 static g_taste_t g_virstor_taste;
 static g_ctl_req_t g_virstor_config;
 static g_ctl_destroy_geom_t g_virstor_destroy_geom;
-
+#endif
 /* Declare & initialize class structure ("geom class") */
 struct g_class g_virstor_class = {
 	.name =		G_VIRSTOR_CLASS_NAME,
@@ -590,7 +590,7 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		    M_GVIRSTOR, M_WAITOK | M_ZERO);
 		bcopy(sc->components, newcomp, found * sizeof(*sc->components));
 		bcopy(&sc->components[found + 1], newcomp + found,
-		    found * sizeof(*sc->components));
+		    (sc->n_components - found) * sizeof(*sc->components)); //wyc bug??
 		if ((sc->components[j].flags & VIRSTOR_PROVIDER_ALLOCATED) != 0) {
 			LOG_MSG(LVL_ERROR, "Allocated provider %s cannot be "
 			    "removed from %s",
@@ -772,7 +772,7 @@ g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	LOG_MSG(LVL_DEBUG, "Tasting %s", pp->name);
 
 	/* We need a dummy geom to attach a consumer to the given provider */
-	gp = g_new_geomf(mp, "virstor:taste.helper");
+	gp = g_new_geom(mp, "virstor:taste.helper");
 	gp->start = (void *)invalid_call;	/* XXX: hacked up so the        */
 	gp->access = (void *)invalid_call;	/* compiler doesn't complain.   */
 	gp->orphan = (void *)invalid_call;	/* I really want these to fail. */
@@ -980,7 +980,6 @@ static int
 read_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 {
 	struct g_provider *pp;
-	char *buf;
 	int error;
 
 	g_topology_assert();
@@ -989,15 +988,15 @@ read_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 		return (error);
 	pp = cp->provider;
 	g_topology_unlock();
-	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
-	    &error);
+	char buf[pp->sectorsize] __attribute__((aligned));
+	error = g_read_datab(cp, pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
-	if (buf == NULL)
+	if (error)
 		return (error);
 
 	virstor_metadata_decode(buf, md);
-	g_free(buf);
+	//g_free(buf);
 
 	return (0);
 }
