@@ -872,13 +872,13 @@ g_io_schedule_up(struct thread *tp __unused)
 }
 
 int
-g_read_datab(struct g_consumer *cp, off_t offset, void *buf, off_t length)
+g_read_datab(struct g_consumer *cp, off_t offset, void *buf, off_t length) //wyctodo
 {
 	struct bio *bp;
 	int errorc;
 
 	KASSERT(length > 0 && length >= cp->provider->sectorsize &&
-	    length <= maxphys, ("g_read_data(): invalid length %jd",
+	    length <= maxphys, ("%s(): invalid length %jd", __func__,
 	    (intmax_t)length));
 
 	bp = g_alloc_bio();
