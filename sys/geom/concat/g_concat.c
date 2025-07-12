@@ -453,6 +453,7 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE |
 	    G_PF_ACCEPT_UNMAPPED;
 	start = 0;
+	sectorsize = 1;
 	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		dp = disk->d_consumer->provider;
 		disk->d_start = start;
@@ -472,10 +473,10 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 		} else
 			G_CONCAT_DEBUG(1, "Failed to access disk %s, error %d.",
 			    dp->name, error);
-		if (disk == TAILQ_FIRST(&sc->sc_disks))
-			sectorsize = dp->sectorsize;
-		else
-			sectorsize = lcm(sectorsize, dp->sectorsize);
+		//if (disk == TAILQ_FIRST(&sc->sc_disks))
+		//	sectorsize = dp->sectorsize;
+		//else
+			sectorsize = lcm(dp->sectorsize, sectorsize);
 
 		/* A provider underneath us doesn't support unmapped */
 		if ((dp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
@@ -508,7 +509,7 @@ g_concat_read_metadata(struct g_consumer *cp, struct g_concat_metadata *md)
 	if (error != 0)
 		return (error);
 	pp = cp->provider;
-	u_char buf[pp->sectorsize] __attribute__ ((aligned));
+	u_char buf[pp->sectorsize] __attribute__((aligned));
 	g_topology_unlock();
 	error = g_read_datab(cp, pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
 	g_topology_lock();
@@ -814,6 +815,7 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	}
 	if (gp != NULL) {
 		G_CONCAT_DEBUG(1, "Adding disk %s to %s.", pp->name, gp->name);
+		MY_ASSERT(sc->sc_ndisks == md.md_all);
 		error = g_concat_add_disk(sc, pp, md.md_no);
 		if (error != 0) {
 			G_CONCAT_DEBUG(0,
@@ -1035,7 +1037,7 @@ g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 		md.md_provsize = disk->d_consumer->provider->mediasize;
 
 		//sector = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
-		u_char sector[pp->sectorsize] __attribute__ ((aligned));
+		u_char sector[pp->sectorsize] __attribute__((aligned));
 		bzero(sector, pp->sectorsize);
 		concat_metadata_encode(&md, sector);
 		error = g_access(disk->d_consumer, 0, 1, 0);
