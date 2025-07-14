@@ -368,7 +368,7 @@ g_retaste(struct g_class *mp)
 	return (error);
 }
 
-struct g_geom *
+struct g_geom * //wyc
 g_find_geom(struct g_class *mp, const char *name)
 {
 	struct g_geom *gp;
