@@ -590,7 +590,7 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		    M_GVIRSTOR, M_WAITOK | M_ZERO);
 		bcopy(sc->components, newcomp, found * sizeof(*sc->components));
 		bcopy(&sc->components[found + 1], newcomp + found,
-		    (sc->n_components - found) * sizeof(*sc->components)); //wyc bug??
+		    (sc->n_components - (found + 1)) * sizeof(*sc->components));
 		if ((sc->components[j].flags & VIRSTOR_PROVIDER_ALLOCATED) != 0) {
 			LOG_MSG(LVL_ERROR, "Allocated provider %s cannot be "
 			    "removed from %s",
@@ -750,7 +750,7 @@ bailout:
 		virstor_geom_destroy(sc, FALSE, FALSE);
 		exitval = EAGAIN;
 	} else
-		exitval = 0;
+		exitval = ESUCCESS;
 	return (exitval);
 }
 
@@ -1014,7 +1014,6 @@ static void
 write_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 {
 	struct g_provider *pp;
-	char *buf;
 	int error;
 
 	KASSERT(cp != NULL && md != NULL && cp->provider != NULL,
@@ -1029,7 +1028,7 @@ write_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 	}
 	pp = cp->provider;
 
-	buf = malloc(pp->sectorsize, M_GVIRSTOR, M_WAITOK);
+	char buf[pp->sectorsize];
 	bzero(buf, pp->sectorsize);
 	virstor_metadata_encode(md, buf);
 	g_topology_unlock();
@@ -1037,7 +1036,7 @@ write_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 	    pp->sectorsize);
 	g_topology_lock();
 	g_access(cp, 0, -1, 0);
-	free(buf, M_GVIRSTOR);
+	//free(buf, M_GVIRSTOR);
 
 	if (error != 0)
 		LOG_MSG(LVL_ERROR, "Error %d writing metadata to %s",
@@ -1218,7 +1217,7 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 	sc->map = malloc(sc->map_size, M_GVIRSTOR, M_WAITOK);
 	KASSERT(sc->map != NULL, ("%s: Memory allocation error (%zu bytes) for %s",
 	    __func__, sc->map_size, sc->provider->name));
-	sc->map_sectors = sc->map_size / sc->sectorsize;
+	//wyc sc->map_sectors = sc->map_size / sc->sectorsize;
 
 	count = 0;
 	for (n = 0; n < sc->n_components; n++)
