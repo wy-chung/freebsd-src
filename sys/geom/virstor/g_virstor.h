@@ -81,7 +81,7 @@ struct g_virstor_component {
 /* Internal geom instance data */
 struct g_virstor_softc {
 	struct g_geom		*geom;
-	struct g_provider	*provider;
+	struct g_provider	*provider; // == LIST_FIST(gp->provider)
 	struct g_virstor_component *components;
 	u_int			 n_components;
 	u_int			 curr_component; /* Component currently used */
@@ -92,7 +92,7 @@ struct g_virstor_softc {
 	size_t			 chunk_count;	/* governs map_size */
 	struct virstor_map_entry *map;
 	size_t			 map_size;	/* (in bytes) */
-	size_t			 map_sectors;	/* Size of map in sectors */
+	//size_t			 map_sectors;	/* Size of map in sectors */
 	size_t			 me_per_sector;	/* # map entries in a sector */
 	STAILQ_HEAD(, g_virstor_bio_q)	 delayed_bio_q;	/* Queue of delayed BIOs */
 	struct mtx		 delayed_bio_q_mtx;
