@@ -590,7 +590,7 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		    M_GVIRSTOR, M_WAITOK | M_ZERO);
 		bcopy(sc->components, newcomp, found * sizeof(*sc->components));
 		bcopy(&sc->components[found + 1], newcomp + found,
-		    (sc->n_components - (found + 1)) * sizeof(*sc->components));
+		    (sc->n_components - (found + 1)) * sizeof(*sc->components)); //wyc bug??
 		if ((sc->components[j].flags & VIRSTOR_PROVIDER_ALLOCATED) != 0) {
 			LOG_MSG(LVL_ERROR, "Allocated provider %s cannot be "
 			    "removed from %s",
@@ -980,6 +980,7 @@ static int
 read_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 {
 	struct g_provider *pp;
+	char *buf;
 	int error;
 
 	g_topology_assert();
@@ -988,15 +989,15 @@ read_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 		return (error);
 	pp = cp->provider;
 	g_topology_unlock();
-	char buf[pp->sectorsize] __attribute__((aligned));
-	error = g_read_datab(cp, pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
+	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
+	    &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
-	if (error)
+	if (buf == NULL)
 		return (error);
 
 	virstor_metadata_decode(buf, md);
-	//g_free(buf);
+	g_free(buf);
 
 	return (0);
 }
@@ -1014,6 +1015,7 @@ static void
 write_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 {
 	struct g_provider *pp;
+	char *buf;
 	int error;
 
 	KASSERT(cp != NULL && md != NULL && cp->provider != NULL,
@@ -1028,7 +1030,7 @@ write_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 	}
 	pp = cp->provider;
 
-	char buf[pp->sectorsize];
+	buf = malloc(pp->sectorsize, M_GVIRSTOR, M_WAITOK);
 	bzero(buf, pp->sectorsize);
 	virstor_metadata_encode(md, buf);
 	g_topology_unlock();
@@ -1036,7 +1038,7 @@ write_metadata(struct g_consumer *cp, struct g_virstor_metadata *md)
 	    pp->sectorsize);
 	g_topology_lock();
 	g_access(cp, 0, -1, 0);
-	//free(buf, M_GVIRSTOR);
+	free(buf, M_GVIRSTOR);
 
 	if (error != 0)
 		LOG_MSG(LVL_ERROR, "Error %d writing metadata to %s",
