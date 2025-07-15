@@ -56,8 +56,8 @@
 #include <machine/stdarg.h>
 
 static TAILQ_HEAD(, g_event) g_events = TAILQ_HEAD_INITIALIZER(g_events);
-static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
 static u_int g_pending_events;
+static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
 static struct mtx g_eventlock;
 static int g_wither_work;
 

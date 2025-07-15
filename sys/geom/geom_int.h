@@ -35,6 +35,8 @@
  * SUCH DAMAGE.
  */
 
+LIST_HEAD(class_list_head, g_class);
+
 extern int g_collectstats;
 #define G_STATS_PROVIDERS	1	/* Collect I/O stats for providers */
 #define G_STATS_CONSUMERS	2	/* Collect I/O stats for consumers */
@@ -53,7 +55,6 @@ void g_run_events(void);
 void g_do_wither(void);
 
 /* geom_subr.c */
-LIST_HEAD(class_list_head, g_class);
 extern struct class_list_head g_classes;
 extern char *g_wait_event, *g_wait_up, *g_wait_down;
 void g_wither_washer(void);
