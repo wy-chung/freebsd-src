@@ -501,6 +501,7 @@ static int
 g_concat_read_metadata(struct g_consumer *cp, struct g_concat_metadata *md)
 {
 	struct g_provider *pp;
+	u_char *buf;
 	int error;
 
 	g_topology_assert();
@@ -509,16 +510,17 @@ g_concat_read_metadata(struct g_consumer *cp, struct g_concat_metadata *md)
 	if (error != 0)
 		return (error);
 	pp = cp->provider;
-	u_char buf[pp->sectorsize] __attribute__((aligned));
 	g_topology_unlock();
-	error = g_read_datab(cp, pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
+	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
+	    &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
-	if (error)
+	if (buf == NULL)
 		return (error);
 
 	/* Decode metadata. */
 	concat_metadata_decode(buf, md);
+	g_free(buf);
 
 	return (0);
 }
@@ -1018,7 +1020,7 @@ g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 	struct g_concat_disk *disk;
 	struct g_concat_metadata md;
 	struct g_provider *pp;
-	//wyctodo u_char *sector;
+	u_char *sector;
 	int error;
 
 	bzero(&md, sizeof(md));
@@ -1036,9 +1038,7 @@ g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 			    sizeof(md.md_provider));
 		md.md_provsize = disk->d_consumer->provider->mediasize;
 
-		//sector = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
-		u_char sector[pp->sectorsize] __attribute__((aligned));
-		bzero(sector, pp->sectorsize);
+		sector = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
 		concat_metadata_encode(&md, sector);
 		error = g_access(disk->d_consumer, 0, 1, 0);
 		if (error == 0) {
@@ -1047,7 +1047,7 @@ g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 			    pp->sectorsize);
 			(void)g_access(disk->d_consumer, 0, -1, 0);
 		}
-		//g_free(sector);
+		g_free(sector);
 		if (error != 0)
 			gctl_error(req, "Cannot store metadata on %s: %d",
 			    pp->name, error);
