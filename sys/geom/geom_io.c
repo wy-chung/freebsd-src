@@ -871,8 +871,9 @@ g_io_schedule_up(struct thread *tp __unused)
 	}
 }
 
-// DON'T pass a buffer on stack to this function because the kernel stack is very small
+// DON'T allocate a buffer on the stack because the kernel stack is very small
 // The size of the kenel stack is only 16KB
+// The %buf here should only accept a buffer from malloc
 int
 g_read_datab(struct g_consumer *cp, off_t offset, void *buf, off_t length) //wyctodo
 {
