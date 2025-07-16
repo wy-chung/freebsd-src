@@ -128,7 +128,7 @@ g_concat_remove_disk(struct g_concat_disk *disk)
 
 	if (!disk->d_removed) {
 		G_CONCAT_DEBUG(0, "Disk %s removed from %s.",
-		    cp->provider->name, sc->sc_name);
+		    cp->provider->name, sc->sc_geom->name);
 		disk->d_removed = true;
 	}
 
@@ -449,7 +449,7 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 	if (g_concat_nvalid(sc) != sc->sc_ndisks)
 		return;
 
-	pp = g_new_providerf(sc->sc_geom, "concat/%s", sc->sc_name);
+	pp = g_new_providerf(sc->sc_geom, "concat/%s", sc->sc_geom->name);
 	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE |
 	    G_PF_ACCEPT_UNMAPPED;
 	start = 0;
@@ -592,7 +592,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 			goto fail0;
 
 		if (strcmp(md.md_magic, G_CONCAT_MAGIC) != 0 ||
-		    strcmp(md.md_name, sc->sc_name) != 0 ||
+		    strcmp(md.md_name, sc->sc_geom->name) != 0 ||
 		    md.md_id != sc->sc_id) {
 			G_CONCAT_DEBUG(0, "Metadata on %s changed.", pp->name);
 			error = EINVAL; //wyctodo should we set error to something?
@@ -611,7 +611,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	disk->d_end = 0;	/* not yet */
 	disk->d_removed = false;
 
-	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, sc->sc_name);
+	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, sc->sc_geom->name);
 
 	g_concat_check_and_run(sc);
 	sx_sunlock(&sc->sc_disks_lock); // need lock for check_and_run
@@ -646,7 +646,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	/* Check for duplicate unit */
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
-		if (sc != NULL && strcmp(sc->sc_name, md->md_name) == 0) {
+		if (sc != NULL && strcmp(sc->sc_geom->name, md->md_name) == 0) {
 			G_CONCAT_DEBUG(0, "Device %s already configured.",
 			    gp->name);
 			return (NULL);
@@ -675,7 +675,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	sc->sc_geom = gp;
 	sc->sc_provider = NULL;
 
-	G_CONCAT_DEBUG(0, "Device %s created (id=%u).", sc->sc_name, sc->sc_id);
+	G_CONCAT_DEBUG(0, "Device %s created (id=%u).", sc->sc_geom->name, sc->sc_id);
 
 	return (gp);
 }
@@ -809,7 +809,7 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			continue;
 		if (sc->sc_type != G_CONCAT_TYPE_AUTOMATIC)
 			continue;
-		if (strcmp(md.md_name, sc->sc_name) != 0)
+		if (strcmp(md.md_name, sc->sc_geom->name) != 0)
 			continue;
 		if (md.md_id != sc->sc_id)
 			continue;
@@ -941,7 +941,8 @@ g_concat_find_device(struct g_class *mp, const char *name)
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
-		if (strcmp(sc->sc_name, name) == 0)
+		MY_ASSERT(sc->sc_geom == gp);
+		if (strcmp(sc->sc_geom->name, name) == 0)
 			return (sc);
 	}
 	return (NULL);
@@ -988,7 +989,7 @@ g_concat_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 		error = g_concat_destroy(sc, *force);
 		if (error != 0) {
 			gctl_error(req, "Cannot destroy device %s (error=%d).",
-			    sc->sc_name, error);
+			    sc->sc_geom->name, error);
 			return;
 		}
 	}
@@ -1026,7 +1027,7 @@ g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 	bzero(&md, sizeof(md));
 	strlcpy(md.md_magic, G_CONCAT_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_CONCAT_VERSION;
-	strlcpy(md.md_name, sc->sc_name, sizeof(md.md_name));
+	strlcpy(md.md_name, sc->sc_geom->name, sizeof(md.md_name));
 	md.md_id = sc->sc_id;
 	md.md_all = sc->sc_ndisks;
 	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
