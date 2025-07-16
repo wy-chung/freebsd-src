@@ -75,7 +75,7 @@ struct g_concat_softc {
 	struct mtx	 sc_completion_lock; /* synchronizes cross-boundary IOs */
 	struct sx	 sc_disks_lock; /* synchronizes modification of sc_disks */
 };
-#define	sc_name	sc_geom->name
+//#define	sc_name	sc_geom->name
 #endif	/* _KERNEL */
 
 struct g_concat_metadata {
