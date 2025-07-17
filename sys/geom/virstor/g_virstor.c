@@ -182,7 +182,7 @@ g_virstor_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 		return;
 	}
 
-	g_topology_unlock();
+	//g_topology_unlock();
 	if (strcmp(verb, "add") == 0)
 		virstor_ctl_add(req, mp);
 	else if (strcmp(verb, "stop") == 0 || strcmp(verb, "destroy") == 0)
@@ -191,7 +191,7 @@ g_virstor_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 		virstor_ctl_remove(req, mp);
 	else
 		gctl_error(req, "unknown verb: '%s'", verb);
-	g_topology_lock();
+	//g_topology_lock();
 }
 
 /*
@@ -218,7 +218,7 @@ virstor_ctl_stop(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
-	g_topology_lock();
+	//g_topology_lock();
 	for (i = 0; i < *nargs; i++) {
 		char param[8];
 		const char *name;
@@ -229,13 +229,13 @@ virstor_ctl_stop(struct gctl_req *req, struct g_class *mp)
 		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
 			gctl_error(req, "No 'arg%d' argument", i);
-			g_topology_unlock();
+			//g_topology_unlock();
 			return;
 		}
 		sc = virstor_find_geom(mp, name);
 		if (sc == NULL) {
 			gctl_error(req, "Don't know anything about '%s'", name);
-			g_topology_unlock();
+			//g_topology_unlock();
 			return;
 		}
 
@@ -247,7 +247,7 @@ virstor_ctl_stop(struct gctl_req *req, struct g_class *mp)
 			    sc->geom->name, error);
 		}
 	}
-	g_topology_unlock();
+	//g_topology_unlock();
 }
 
 /*
@@ -307,7 +307,7 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *mp)
 
 	fcp = sc->components[0].gcons;
 	added = 0;
-	g_topology_lock();
+	//g_topology_lock();
 	for (i = 1; i < *nargs; i++) {
 		struct g_virstor_metadata md;
 		char aname[8];
@@ -325,13 +325,13 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *mp)
 				    " %u components)", added);
 				update_metadata(sc);
 			}
-			g_topology_unlock();
+			//g_topology_unlock();
 			return;
 		}
 		cp = g_new_consumer(sc->geom);
 		if (cp == NULL) {
 			gctl_error(req, "Cannot create consumer");
-			g_topology_unlock();
+			//g_topology_unlock();
 			return;
 		}
 		error = g_attach(cp, pp);
@@ -339,7 +339,7 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Cannot attach a consumer to %s",
 			    pp->name);
 			g_destroy_consumer(cp);
-			g_topology_unlock();
+			//g_topology_unlock();
 			return;
 		}
 		if (fcp->acr != 0 || fcp->acw != 0 || fcp->ace != 0) {
@@ -348,7 +348,7 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *mp)
 				gctl_error(req, "Access request failed for %s",
 				    pp->name);
 				g_destroy_consumer(cp);
-				g_topology_unlock();
+				//g_topology_unlock();
 				return;
 			}
 		}
@@ -356,7 +356,7 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Sector size doesn't fit for %s",
 			    pp->name);
 			g_destroy_consumer(cp);
-			g_topology_unlock();
+			//g_topology_unlock();
 			return;
 		}
 		for (j = 0; j < sc->n_components; j++) {
@@ -365,7 +365,7 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *mp)
 				gctl_error(req, "Component %s already in %s",
 				    pp->name, sc->geom->name);
 				g_destroy_consumer(cp);
-				g_topology_unlock();
+				//g_topology_unlock();
 				return;
 			}
 		}
@@ -386,7 +386,7 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Provider too small: %s",
 			    cp->provider->name);
 			g_destroy_consumer(cp);
-			g_topology_unlock();
+			//g_topology_unlock();
 			return;
 		}
 		fill_metadata(sc, &md, nc, *hardcode);
@@ -401,7 +401,7 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *mp)
 	 * while others are not, there will be trouble on next .taste() iff
 	 * a non-updated component is detected first */
 	update_metadata(sc);
-	g_topology_unlock();
+	//g_topology_unlock();
 	LOG_MSG(LVL_INFO, "Added %d component(s) to %s", added,
 	    sc->geom->name);
 	/* Fire off BIOs previously queued because there wasn't any
@@ -616,14 +616,14 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		sc->n_components--;
 		/* End critical section */
 
-		g_topology_lock();
+		//g_topology_lock();
 		if (clear_metadata(&compbak[found]) != 0) {
 			LOG_MSG(LVL_WARNING, "Trouble ahead: cannot clear "
 			    "metadata on %s", prov_name);
 		}
 		g_detach(compbak[found].gcons);
 		g_destroy_consumer(compbak[found].gcons);
-		g_topology_unlock();
+		//g_topology_unlock();
 
 		free(compbak, M_GVIRSTOR);
 
@@ -634,9 +634,9 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *mp)
 	 * power failure in the middle of it and some components are updated
 	 * while others are not, there will be trouble on next .taste() iff
 	 * a non-updated component is detected first */
-	g_topology_lock();
+	//g_topology_lock();
 	update_metadata(sc);
-	g_topology_unlock();
+	//g_topology_unlock();
 	LOG_MSG(LVL_INFO, "Removed %d component(s) from %s", removed,
 	    sc->geom->name);
 }
@@ -1289,8 +1289,8 @@ virstor_check_and_run(struct g_virstor_softc *sc)
 		index = sc->n_components - 1;
 
 	if (index >= sc->n_components - g_virstor_component_watermark - 1) {
-		LOG_MSG(LVL_WARNING, "Device %s running out of components "
-		    "(%d/%u: %s)", sc->geom->name,
+		LOG_MSG(LVL_WARNING, "%s: Device %s running out of components "
+		    "(%d/%u: %s)", __func__, sc->geom->name,
 		    index+1,
 		    sc->n_components,
 		    sc->components[index].gcons->provider->name);
@@ -1793,8 +1793,8 @@ allocate_chunk(struct g_virstor_softc *sc, struct g_virstor_component **comp,
 
 		*comp = &sc->components[comp_no];
 		if (comp_no >= sc->n_components - g_virstor_component_watermark-1)
-			LOG_MSG(LVL_WARNING, "Device %s running out of components "
-			    "(switching to %u/%u: %s)", sc->geom->name,
+			LOG_MSG(LVL_WARNING, "%s: Device %s running out of components "
+			    "(switching to %u/%u: %s)", __func__, sc->geom->name,
 			    comp_no+1, sc->n_components,
 			    (*comp)->gcons->provider->name);
 		/* Take care not to overwrite reserved chunks */
