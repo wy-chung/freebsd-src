@@ -29,7 +29,7 @@ nooptions	MAC
 options 	GEOM_NOP		# Test class.
 options 	GEOM_MIRROR		# Disk mirroring.
 options 	GEOM_CONCAT		# Disk concatenation.
-#options 	GEOM_VIRSTOR	# Virtual storage.
+options 	GEOM_VIRSTOR	# Virtual storage.
 #options 	GEOM_LOGSTOR	# Virtual log storage.
 #options 	GEOM_UNION		# this option does not exist yet
 
