@@ -117,7 +117,7 @@ extern const int osreldate;
 
 extern const void *zero_region;	/* address space maps to a zeroed page	*/
 
-extern int unmapped_buf_allowed;
+extern int unmapped_buf_allowed; // defined in pmap.c
 
 #ifdef __LP64__
 #define	IOSIZE_MAX		iosize_max()
