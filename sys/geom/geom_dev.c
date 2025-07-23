@@ -97,14 +97,14 @@ static struct cdevsw g_dev_cdevsw = {
 	.d_flags =	D_DISK | D_TRACKCLOSE,
 	.d_kqfilter =	g_dev_kqfilter,
 };
-
+#if !defined(WYC)
 static g_init_t g_dev_init;
 static g_fini_t g_dev_fini;
 static g_taste_t g_dev_taste;
 static g_orphan_t g_dev_orphan;
 static g_attrchanged_t g_dev_attrchanged;
 static g_resize_t g_dev_resize;
-
+#endif
 static struct g_class g_dev_class	= {
 	.name = "DEV",
 	.version = G_VERSION,
