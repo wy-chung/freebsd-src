@@ -464,8 +464,9 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 		error = g_access(disk->d_consumer, 1, 0, 0);
 		if (error == 0) {
 			int disk_candelete;
-			error = g_getattr("GEOM::candelete", disk->d_consumer,
-			    &disk_candelete);
+			//g_getattr();
+			error = g_getattr__("GEOM::candelete", disk->d_consumer,
+			    &disk_candelete, sizeof(disk_candelete));
 			if (error != 0)
 				disk_candelete = 0;
 			disk->d_candelete = disk_candelete;
@@ -564,15 +565,16 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	error = g_attach(cp, pp);
 	if (error != 0) {
 		sx_sunlock(&sc->sc_disks_lock);
-		g_destroy_consumer(cp);
-		return (error);
+		goto fail2;
+		//g_destroy_consumer(cp);
+		//return (error);
 	}
 
 	if (fcp != NULL && (fcp->acr > 0 || fcp->acw > 0 || fcp->ace > 0)) {
 		error = g_access(cp, fcp->acr, fcp->acw, fcp->ace);
 		if (error != 0) {
+			sx_sunlock(&sc->sc_disks_lock);
 			goto fail1;
-			//sx_sunlock(&sc->sc_disks_lock);
 			//g_detach(cp);
 			//g_destroy_consumer(cp);
 			//return (error);
@@ -595,7 +597,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 		    strcmp(md.md_name, sc->sc_geom->name) != 0 ||
 		    md.md_id != sc->sc_id) {
 			G_CONCAT_DEBUG(0, "Metadata on %s changed.", pp->name);
-			error = EINVAL; //wyctodo should we set error to something?
+			error = EINVAL; //wycpull should set error to something?
 			goto fail0;
 		}
 
@@ -607,8 +609,8 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	cp->private = disk;
 	disk->d_consumer = cp;
 	disk->d_softc = sc;
-	disk->d_start = 0;	/* not yet */
-	disk->d_end = 0;	/* not yet */
+	disk->d_start = 0;	/* set in g_concat_check_and_run */
+	disk->d_end = 0;	/* set in g_concat_check_and_run */
 	disk->d_removed = false;
 
 	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, sc->sc_geom->name);
@@ -616,13 +618,14 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	g_concat_check_and_run(sc);
 	sx_sunlock(&sc->sc_disks_lock); // need lock for check_and_run
 
-	return (0);
+	return (ESUCCESS);
 fail0:
+	sx_sunlock(&sc->sc_disks_lock);
 	if (fcp != NULL && (fcp->acr > 0 || fcp->acw > 0 || fcp->ace > 0))
 		g_access(cp, -fcp->acr, -fcp->acw, -fcp->ace);
 fail1:
-	sx_sunlock(&sc->sc_disks_lock);
 	g_detach(cp);
+fail2:
 	g_destroy_consumer(cp);
 	return (error);
 }
@@ -647,6 +650,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc != NULL && strcmp(sc->sc_geom->name, md->md_name) == 0) {
+			MY_ASSERT(sc->sc_geom == gp);
 			G_CONCAT_DEBUG(0, "Device %s already configured.",
 			    gp->name);
 			return (NULL);
@@ -802,7 +806,7 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	/*
 	 * Let's check if device already exists.
 	 */
-	//wyctodo sc = NULL;
+	//wycpull sc = NULL;
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)

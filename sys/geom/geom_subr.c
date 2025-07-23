@@ -368,7 +368,7 @@ g_retaste(struct g_class *mp)
 	return (error);
 }
 
-static struct g_geom *
+static struct g_geom * //wycpull
 _g_new_geom(struct g_class *mp, const char *name, int len)
 {
 	struct g_geom *gp;
@@ -623,7 +623,7 @@ g_new_provider_event(void *arg, int flag)
 	}
 }
 
-static struct g_provider *
+static struct g_provider * //wycpull
 _g_new_provider(struct g_geom *gp, const char *name, int len)
 {
 	struct g_provider *pp;
