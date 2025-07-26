@@ -526,6 +526,49 @@ g_concat_read_metadata(struct g_consumer *cp, struct g_concat_metadata *md)
 	return (0);
 }
 
+static void
+g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
+{
+	u_int no = 0;
+	struct g_concat_disk *disk;
+	struct g_concat_metadata md;
+	struct g_provider *pp;
+	u_char *sector;
+	int error;
+
+	bzero(&md, sizeof(md));
+	strlcpy(md.md_magic, G_CONCAT_MAGIC, sizeof(md.md_magic));
+	md.md_version = G_CONCAT_VERSION;
+	strlcpy(md.md_name, sc->sc_geom->name, sizeof(md.md_name));
+	md.md_id = sc->sc_id;
+	md.md_all = sc->sc_ndisks;
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		pp = disk->d_consumer->provider;
+
+		md.md_no = no;
+		if (disk->d_hardcoded)
+			strlcpy(md.md_provider, pp->name,
+			    sizeof(md.md_provider));
+		md.md_provsize = disk->d_consumer->provider->mediasize;
+
+		sector = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
+		concat_metadata_encode(&md, sector);
+		error = g_access(disk->d_consumer, 0, 1, 0);
+		if (error == 0) {
+			error = g_write_data(disk->d_consumer,
+			    pp->mediasize - pp->sectorsize, sector,
+			    pp->sectorsize);
+			(void)g_access(disk->d_consumer, 0, -1, 0);
+		}
+		g_free(sector);
+		if (error != 0)
+			gctl_error(req, "Cannot store metadata on %s: %d",
+			    pp->name, error);
+
+		no++;
+	}
+}
+
 /*
  * Add disk to given device.
  */
@@ -594,7 +637,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 			goto fail0;
 
 		if (strcmp(md.md_magic, G_CONCAT_MAGIC) != 0 ||
-		    strcmp(md.md_name, sc->sc_geom->name) != 0 ||
+		    strcmp(md.md_name, gp->name) != 0 ||
 		    md.md_id != sc->sc_id) {
 			G_CONCAT_DEBUG(0, "Metadata on %s changed.", pp->name);
 			error = EINVAL; //wycpull should set error to something?
@@ -613,7 +656,7 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 	disk->d_end = 0;	/* set in g_concat_check_and_run */
 	disk->d_removed = false;
 
-	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, sc->sc_geom->name);
+	G_CONCAT_DEBUG(0, "Disk %s attached to %s.", pp->name, gp->name);
 
 	g_concat_check_and_run(sc);
 	sx_sunlock(&sc->sc_disks_lock); // need lock for check_and_run
@@ -649,7 +692,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	/* Check for duplicate unit */
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
-		if (sc != NULL && strcmp(sc->sc_geom->name, md->md_name) == 0) {
+		if (sc != NULL && strcmp(gp->name, md->md_name) == 0) {
 			MY_ASSERT(sc->sc_geom == gp);
 			G_CONCAT_DEBUG(0, "Device %s already configured.",
 			    gp->name);
@@ -679,7 +722,7 @@ g_concat_create(struct g_class *mp, const struct g_concat_metadata *md,
 	sc->sc_geom = gp;
 	sc->sc_provider = NULL;
 
-	G_CONCAT_DEBUG(0, "Device %s created (id=%u).", sc->sc_geom->name, sc->sc_id);
+	G_CONCAT_DEBUG(0, "Device %s created (id=%u).", gp->name, sc->sc_id);
 
 	return (gp);
 }
@@ -806,28 +849,25 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	/*
 	 * Let's check if device already exists.
 	 */
-	//wycpull sc = NULL;
+	//wyc sc = NULL;
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
 			continue;
 		if (sc->sc_type != G_CONCAT_TYPE_AUTOMATIC)
 			continue;
-		if (strcmp(md.md_name, sc->sc_geom->name) != 0)
+		if (strcmp(md.md_name, gp->name) != 0)
 			continue;
 		if (md.md_id != sc->sc_id)
 			continue;
 		break;
 	}
+	bool gp_created = false;
 	if (gp != NULL) {
-		G_CONCAT_DEBUG(1, "Adding disk %s to %s.", pp->name, gp->name);
 		MY_ASSERT(sc->sc_ndisks == md.md_all);
-		error = g_concat_add_disk(sc, pp, md.md_no);
-		if (error != 0) {
-			G_CONCAT_DEBUG(0,
-			    "Cannot add disk %s to %s (error=%d).", pp->name,
-			    gp->name, error);
-			return (NULL);
+		if (sc->sc_ndisks != md.md_all) {
+			error = EINVAL;
+			goto fail;
 		}
 	} else {
 		gp = g_concat_create(mp, &md, G_CONCAT_TYPE_AUTOMATIC);
@@ -836,16 +876,19 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			    md.md_name);
 			return (NULL);
 		}
+		gp_created = true;
 		sc = gp->softc;
-		G_CONCAT_DEBUG(1, "Adding disk %s to %s.", pp->name, gp->name);
-		error = g_concat_add_disk(sc, pp, md.md_no);
-		if (error != 0) {
-			G_CONCAT_DEBUG(0,
-			    "Cannot add disk %s to %s (error=%d).", pp->name,
-			    gp->name, error);
+	}
+	G_CONCAT_DEBUG(1, "Adding disk %s to %s.", pp->name, gp->name);
+	error = g_concat_add_disk(sc, pp, md.md_no);
+	if (error != 0) {
+fail:
+		G_CONCAT_DEBUG(0,
+		    "Cannot add disk %s to %s (error=%d).", pp->name,
+		    gp->name, error);
+		if (gp_created)
 			g_concat_destroy(sc, 1);
-			return (NULL);
-		}
+		return (NULL);
 	}
 
 	return (gp);
@@ -946,7 +989,7 @@ g_concat_find_device(struct g_class *mp, const char *name)
 		if (sc == NULL)
 			continue;
 		MY_ASSERT(sc->sc_geom == gp);
-		if (strcmp(sc->sc_geom->name, name) == 0)
+		if (strcmp(gp->name, name) == 0)
 			return (sc);
 	}
 	return (NULL);
@@ -1016,49 +1059,6 @@ g_concat_find_disk(struct g_concat_softc *sc, const char *name)
 			return (disk);
 	}
 	return (NULL);
-}
-
-static void
-g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
-{
-	u_int no = 0;
-	struct g_concat_disk *disk;
-	struct g_concat_metadata md;
-	struct g_provider *pp;
-	u_char *sector;
-	int error;
-
-	bzero(&md, sizeof(md));
-	strlcpy(md.md_magic, G_CONCAT_MAGIC, sizeof(md.md_magic));
-	md.md_version = G_CONCAT_VERSION;
-	strlcpy(md.md_name, sc->sc_geom->name, sizeof(md.md_name));
-	md.md_id = sc->sc_id;
-	md.md_all = sc->sc_ndisks;
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		pp = disk->d_consumer->provider;
-
-		md.md_no = no;
-		if (disk->d_hardcoded)
-			strlcpy(md.md_provider, pp->name,
-			    sizeof(md.md_provider));
-		md.md_provsize = disk->d_consumer->provider->mediasize;
-
-		sector = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
-		concat_metadata_encode(&md, sector);
-		error = g_access(disk->d_consumer, 0, 1, 0);
-		if (error == 0) {
-			error = g_write_data(disk->d_consumer,
-			    pp->mediasize - pp->sectorsize, sector,
-			    pp->sectorsize);
-			(void)g_access(disk->d_consumer, 0, -1, 0);
-		}
-		g_free(sector);
-		if (error != 0)
-			gctl_error(req, "Cannot store metadata on %s: %d",
-			    pp->name, error);
-
-		no++;
-	}
 }
 
 static void
