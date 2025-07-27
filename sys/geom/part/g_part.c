@@ -552,8 +552,9 @@ g_part_parm_provider(struct gctl_req *req, const char *name,
 	pname = gctl_get_asciiparam(req, name);
 	if (pname == NULL)
 		return (ENOATTR);
-	if (strncmp(pname, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
-		pname += sizeof(_PATH_DEV) - 1;
+//wycpull this will be checked in g_provider_by_name
+//	if (strncmp(pname, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+//		pname += sizeof(_PATH_DEV) - 1;
 	pp = g_provider_by_name(pname);
 	if (pp == NULL) {
 		gctl_error(req, "%d %s '%s'", EINVAL, name, pname);

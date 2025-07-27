@@ -774,9 +774,9 @@ g_raid_open_consumer(struct g_raid_softc *sc, const char *name)
 	struct g_provider *pp;
 
 	g_topology_assert();
-
-	if (strncmp(name, _PATH_DEV, 5) == 0)
-		name += 5;
+//wycpull this will be checked in g_provider_by_name
+//	if (strncmp(name, _PATH_DEV, 5) == 0)
+//		name += 5;
 	pp = g_provider_by_name(name);
 	if (pp == NULL)
 		return (NULL);
