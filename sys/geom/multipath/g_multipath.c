@@ -950,7 +950,6 @@ g_multipath_ctl_add_name(struct gctl_req *req, struct g_class *mp,
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	const char *mpname;
-	static const char devpf[6] = _PATH_DEV;
 	int error;
 
 	g_topology_assert();
@@ -966,9 +965,9 @@ g_multipath_ctl_add_name(struct gctl_req *req, struct g_class *mp,
 		return;
 	}
 	sc = gp->softc;
-
-	if (strncmp(name, devpf, 5) == 0)
-		name += 5;
+//wycpull this will be donw in g_provider_by_name
+//	if (strncmp(name, devpf, 5) == 0)
+//		name += 5;
 	pp = g_provider_by_name(name);
 	if (pp == NULL) {
 		gctl_error(req, "Provider %s is invalid", name);
