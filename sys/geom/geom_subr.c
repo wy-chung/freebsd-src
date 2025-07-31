@@ -1172,7 +1172,7 @@ g_handleattr(struct bio *bp, const char *attribute, const void *val, int len)
 {
 	int error = 0;
 
-	if (strcmp(bp->bio_attribute, attribute))
+	if (strcmp(bp->bio_attribute, attribute) != 0)
 		return (0);
 	if (len == 0) {
 		bzero(bp->bio_data, bp->bio_length);
@@ -1184,7 +1184,7 @@ g_handleattr(struct bio *bp, const char *attribute, const void *val, int len)
 			error = EFAULT;
 		}
 	} else if (bp->bio_length == len) {
-		bcopy(val, bp->bio_data, len);
+		bcopy(val, bp->bio_data, len); // from, to
 	} else {
 		printf("%s: %s %s bio_length %jd len %d -> EFAULT\n", __func__,
 		    bp->bio_to->name, attribute, (intmax_t)bp->bio_length, len);
@@ -1193,7 +1193,7 @@ g_handleattr(struct bio *bp, const char *attribute, const void *val, int len)
 	if (error == 0)
 		bp->bio_completed = bp->bio_length;
 	g_io_deliver(bp, error);
-	return (1);
+	return (1); // EPERM
 }
 
 int
