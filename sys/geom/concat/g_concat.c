@@ -353,20 +353,20 @@ g_concat_start(struct bio *bp)
 	case BIO_SPEEDUP:
 	case BIO_FLUSH:
 		g_concat_passdown(sc, bp);
-		goto end;
+		goto exit;
 	case BIO_GETATTR:
 		if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
 			g_concat_kernel_dump(bp);
-			goto end;
+			goto exit;
 		} else if (strcmp("GEOM::candelete", bp->bio_attribute) == 0) {
 			g_concat_candelete(bp);
-			goto end;
+			goto exit;
 		}
 		/* To which provider it should be delivered? */
 		/* FALLTHROUGH */
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
-		goto end;
+		goto exit;
 	}
 
 	offset = bp->bio_offset;
@@ -396,7 +396,7 @@ g_concat_start(struct bio *bp)
 			if (bp->bio_error == 0)
 				bp->bio_error = ENOMEM;
 			g_io_deliver(bp, bp->bio_error);
-			goto end;
+			goto exit;
 		}
 		bioq_insert_tail(&queue, cbp);
 		/*
@@ -417,7 +417,7 @@ g_concat_start(struct bio *bp)
 		} else
 			cbp->bio_data = addr;
 		addr += len;
-		cbp->bio_to = disk->d_consumer->provider;
+		//wycpush cbp->bio_to = disk->d_consumer->provider;
 		cbp->bio_caller1 = disk;
 
 		if (length == 0)
@@ -432,7 +432,7 @@ g_concat_start(struct bio *bp)
 		cbp->bio_caller1 = NULL;
 		g_io_request(cbp, disk->d_consumer);
 	}
-end:
+exit:
 	sx_sunlock(&sc->sc_disks_lock);
 }
 
@@ -454,7 +454,7 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE |
 	    G_PF_ACCEPT_UNMAPPED;
 	start = 0;
-	sectorsize = 1;
+	sectorsize = 1; //wycpush
 	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		dp = disk->d_consumer->provider;
 		disk->d_start = start;

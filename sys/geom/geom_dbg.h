@@ -29,8 +29,6 @@
 
 #ifdef _KERNEL
 
-#define MY_ASSERT(x)	do if (!(x)) panic("%s %d %s\n", __FILE__, __LINE__, __func__); while(0)
-
 #define _GEOM_DEBUG(classname, ctrlvar, loglvl, biop, formatstr, ...)	\
 do {									\
 	const int __control = (ctrlvar);				\
