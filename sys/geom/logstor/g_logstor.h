@@ -46,6 +46,9 @@
     _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, 2, (bp), __VA_ARGS__)
 #endif	/* _KERNEL */
 
+#define IS_POWER_OF_2(n) ((n) > 0 && ((n) & ((n) - 1)) == 0)
+
 #define	SECTOR_SIZE	0x1000	// 4K
+_Static_assert(IS_POWER_OF_2(SECTOR_SIZE) && SECTOR_SIZE <= PAGE_SIZE);
 
 #endif	/* _G_LOGSTOR_H_ */
