@@ -99,17 +99,18 @@ enum {
 
 struct _superblock {
 	uint32_t magic;
-	uint16_t version;
-	uint16_t sb_gen;	// the generation number. Used for redo after system crash
+	uint32_t version;
 	/*
 	   The segments are treated as circular buffer
 	 */
 	uint32_t seg_cnt;	// total number of segments
-	uint32_t seg_allocp;	// allocate this segment
-	uint32_t sector_cnt_free;
 	// since the max meta file size is 4G (1K*1K*4K) and the entry size is 4
-	// block_cnt_max must be < (4G/4)
-	uint32_t block_cnt_max;	// max number of blocks supported
+	// block_max must be < (4G/4)
+	uint32_t block_max;	// max block number for the virtual disk
+
+	uint32_t sb_gen;	// the generation number. Used for redo after system crash
+	uint32_t seg_allocp;	// allocate this segment
+	uint32_t sectors_free;
 	/*
 	   The files for forward mapping
 
@@ -187,6 +188,9 @@ struct _fbuf_comm {
 };
 
 struct _fbuf_sentinel {
+	// if this is a sentinel for bucket queue
+	// fc.queue_next is actually fc.bucket_next
+	// fc.queue_prev is actually fc.bucket_prev
 	struct _fbuf_comm fc;
 };
 
@@ -196,6 +200,8 @@ struct _fbuf_sentinel {
 */
 struct _fbuf { // file buffer
 	struct _fbuf_comm fc;
+	// for bucket sentinel bucket_next is stored in fc.queue_next
+	// for bucket sentinel bucket_prev is stored in fc.queue_prev
 	struct _fbuf *bucket_next;
 	struct _fbuf *bucket_prev;
 	struct _fbuf *parent;
@@ -231,6 +237,9 @@ _Static_assert(sizeof(struct _seg_sum) == SECTOR_SIZE,
 	logstor soft control
 */
 struct g_logstor_softc {
+	struct _superblock superblock; // one of the metadata for logstor
+	struct _seg_sum seg_sum;// segment summary for the current segment
+
 	struct g_geom	*sc_geom;
 
 	bool (*is_sec_valid_fp)(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
@@ -238,7 +247,6 @@ struct g_logstor_softc {
 
 	uint32_t seg_allocp_start;// the starting segment for _logstor_write
 	uint32_t seg_allocp_sa;	// the sector address of the segment for allocation
-	struct _seg_sum seg_sum;// segment summary for the current segment
 	uint32_t sb_sa; 	// superblock's sector address
 	bool sb_modified;	// is the super block modified
 	bool ss_modified;	// is segment summary modified
@@ -259,8 +267,6 @@ struct g_logstor_softc {
 	unsigned other_write_count;	// other write to disk, such as metadata write and segment cleaning
 	unsigned fbuf_hit;
 	unsigned fbuf_miss;
-
-	struct _superblock superblock;
 };
 
 /*
@@ -308,10 +314,10 @@ disk_init(struct g_logstor_softc *sc, struct g_provider *pp)
 	    seg_cnt * BLOCKS_PER_SEG - SB_CNT -
 	    (sector_cnt / (SECTOR_SIZE / 4)) * FD_COUNT * 4;
 	MY_ASSERT(max_block < 0x40000000); // 1G
-	sb->block_cnt_max = max_block;
+	sb->block_max = max_block;
 #if defined(MY_DEBUG)
-	printf("%s: sector_cnt %u block_cnt_max %u\n",
-	    __func__, sector_cnt, sb->block_cnt_max);
+	printf("%s: sector_cnt %u block_max %u\n",
+	    __func__, sector_cnt, sb->block_max);
 #endif
 	sb->seg_allocp = 0;	// start allocate from here
 
@@ -374,7 +380,7 @@ static void fbuf_queue_init(struct g_logstor_softc *sc, int which);
 static void fbuf_queue_insert_tail(struct g_logstor_softc *sc, int which, struct _fbuf *fbuf);
 static void fbuf_queue_remove(struct g_logstor_softc *sc, struct _fbuf *fbuf);
 static struct _fbuf *fbuf_search(struct g_logstor_softc *sc, union meta_addr ma);
-static void fbuf_hash_insert_head(struct g_logstor_softc *sc, struct _fbuf *fbuf);
+static void fbuf_hash_insert_head(struct g_logstor_softc *sc, struct _fbuf *fbuf, union meta_addr ma);
 static void fbuf_bucket_init(struct g_logstor_softc *sc, int which);
 static void fbuf_bucket_insert_head(struct g_logstor_softc *sc, int which, struct _fbuf *fbuf);
 static void fbuf_bucket_remove(struct _fbuf *fbuf);
@@ -451,7 +457,7 @@ int logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data __unused
 	MY_ASSERT((length & (SECTOR_SIZE - 1)) == 0);
 	ba = offset / SECTOR_SIZE;
 	size = length / SECTOR_SIZE;
-	MY_ASSERT(ba < sc->superblock.block_cnt_max);
+	MY_ASSERT(ba < sc->superblock.block_max);
 
 	for (i = 0; i < size; ++i) {
 		fbuf_clean_queue_check(sc);
@@ -479,7 +485,7 @@ logstor_commit(struct g_logstor_softc *sc)
 	sc->ba2sa_fp = ba2sa_during_commit;
 	// unlock metadata
 
-	uint32_t block_max = sc->superblock.block_cnt_max;
+	uint32_t block_max = sc->superblock.block_max;
 	for (int ba = 0; ba < block_max; ++ba) {
 		uint32_t sa;
 
@@ -624,7 +630,7 @@ _logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 	ma.uint32 = ba;
 #endif
 	MY_ASSERT(IS_META_ADDR(ba) ? data != NULL : data == NULL);
-	MY_ASSERT(ba < sc->superblock.block_cnt_max || IS_META_ADDR(ba));
+	MY_ASSERT(ba < sc->superblock.block_max || IS_META_ADDR(ba));
 	if (is_called) // recursive call is not allowed
 		MY_PANIC();
 	is_called = true;
@@ -644,8 +650,9 @@ again:
 		if (is_sec_valid(sc, sa, ba_rev))
 			continue;
 
-		if (IS_META_ADDR(ba))
+		if (IS_META_ADDR(ba)) {
 			md_write(sc, data, sa);
+		}
 		seg_sum->ss_rm[i] = ba;		// record reverse mapping
 		sc->ss_modified = true;
 		seg_sum->ss_allocp = i + 1;	// advnace the alloc pointer
@@ -679,7 +686,7 @@ ba2sa_comm(struct g_logstor_softc *sc, uint32_t ba, uint8_t fd[], int fd_cnt)
 {
 	uint32_t sa;
 
-	MY_ASSERT(ba < sc->superblock.block_cnt_max);
+	MY_ASSERT(ba < sc->superblock.block_max);
 	for (int i = 0; i < fd_cnt; ++i) {
 		sa = file_read_4byte(sc, fd[i], ba);
 		if (sa == SECTOR_DEL) { // don't need to check further
@@ -729,7 +736,7 @@ logstor_get_block_cnt(void)
 {
 	struct g_logstor_softc *sc = &softc;
 
-	return sc->superblock.block_cnt_max;
+	return sc->superblock.block_max;
 }
 
 /*
@@ -1113,7 +1120,7 @@ fbuf_mod_init(struct g_logstor_softc *sc)
 	int fbuf_count;
 	int i;
 
-	//fbuf_count = sc.superblock.block_cnt_max / (SECTOR_SIZE / 4);
+	//fbuf_count = sc.superblock.block_max / (SECTOR_SIZE / 4);
 	fbuf_count = FBUF_MIN;
 	if (fbuf_count < FBUF_MIN)
 		fbuf_count = FBUF_MIN;
@@ -1355,13 +1362,14 @@ fbuf_queue_remove(struct g_logstor_softc *sc, struct _fbuf *fbuf)
 
 // insert to the head of the hashed bucket
 static void
-fbuf_hash_insert_head(struct g_logstor_softc *sc, struct _fbuf *fbuf)
+fbuf_hash_insert_head(struct g_logstor_softc *sc, struct _fbuf *fbuf, union meta_addr ma)
 {
 	unsigned hash;
 
+	fbuf->ma = ma;
 	// the bucket FBUF_BUCKET_LAST is reserved for storing unused fbufs
 	// so %hash will be [0..FBUF_BUCKET_LAST)
-	hash = fbuf->ma.uint32 % FBUF_BUCKET_LAST;
+	hash = ma.uint32 % FBUF_BUCKET_LAST;
 	fbuf_bucket_insert_head(sc, hash, fbuf);
 }
 
@@ -1489,8 +1497,7 @@ again:
 		fbuf_queue_insert_tail(sc, d2q[depth], fbuf);
 	}
 	fbuf_bucket_remove(fbuf);
-	fbuf->ma = ma;
-	fbuf_hash_insert_head(sc, fbuf);
+	fbuf_hash_insert_head(sc, fbuf, ma);
 	parent = fbuf->parent;
 	if (parent) {
 		// parent with child_cnt == 0 will stay in its queue
@@ -1855,23 +1862,6 @@ fail:
 }
 
 static void
-g_logstor_candelete(struct bio *bp)
-{
-	struct g_logstor_softc *sc;
-	struct g_logstor_disk *disk;
-	int val;
-
-	sc = bp->bio_to->geom->softc;
-	sx_assert(&sc->sc_disks_lock, SX_LOCKED);
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (!disk->d_removed && disk->d_candelete)
-			break;
-	}
-	val = disk != NULL;
-	g_handleattr(bp, "GEOM::candelete", &val, sizeof(val));
-}
-
-static void
 g_logstor_kernel_dump(struct bio *bp)
 {
 	struct g_logstor_softc *sc;
@@ -2037,17 +2027,18 @@ g_logstor_start(struct bio *bp)
 	case BIO_FLUSH:
 		g_logstor_passdown(sc, bp);
 		goto exit;
+	//case BIO_DELETE:
+	//	break;
 	case BIO_GETATTR:
 		if (strcmp("GEOM::candelete", bp->bio_attribute) == 0) {
-			g_logstor_candelete(bp);
+			int val = false;
+			g_handleattr(bp, "GEOM::candelete", &val, sizeof(val));
 			goto exit;
 		} else if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
 			printf("kerneldump not supported\n");
 		}
 		/* To which provider it should be delivered? */
 		/* FALLTHROUGH */
-	//case BIO_DELETE:
-	//	break;
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
 		goto exit;
@@ -2363,9 +2354,7 @@ g_logstor_create(struct g_class *mp, const struct g_logstor_metadata *md,
     u_int type)
 {
 	struct g_logstor_softc *sc;
-	struct g_logstor_disk *disk;
 	struct g_geom *gp;
-	u_int no;
 
 	G_LOGSTOR_DEBUG(1, "Creating device %s (id=%u).", md->md_name,
 	    md->md_id);
@@ -2393,12 +2382,6 @@ g_logstor_create(struct g_class *mp, const struct g_logstor_metadata *md,
 	gp->dumpconf = g_logstor_dumpconf;
 
 	sc->sc_id = md->md_id;
-	sc->sc_ndisks = md->md_all;
-	TAILQ_INIT(&sc->sc_disks);
-	for (no = 0; no < sc->sc_ndisks; no++) {
-		disk = malloc(sizeof(*disk), M_LOGSTOR, M_WAITOK | M_ZERO);
-		TAILQ_INSERT_TAIL(&sc->sc_disks, disk, d_next);
-	}
 	sc->sc_type = type;
 	mtx_init(&sc->sc_completion_lock, "glogstor lock", NULL, MTX_DEF);
 	sx_init(&sc->sc_disks_lock, "glogstor append lock");
@@ -2499,13 +2482,15 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (error == 0) {
-		error = g_logstor_read_metadata(cp, &md);
+		struct _superblock
+		error = superblock_read(cp, &md);
 		g_detach(cp);
 	}
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
-	if (error != 0)
+	if (error != 0) {
 		return (NULL);
+	}
 	gp = NULL;
 
 	if (strcmp(md.md_magic, G_LOGSTOR_MAGIC) != 0)
@@ -2536,7 +2521,7 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	 */
 	//wyc sc = NULL;
 	LIST_FOREACH(gp, &mp->geom, geom) {
-		sc = gp->softc;
+		struct g_logstor_softc *sc = gp->softc;
 		if (sc == NULL)
 			continue;
 		if (sc->sc_type != G_LOGSTOR_TYPE_AUTOMATIC)
@@ -2598,11 +2583,11 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "nargs");
 		return;
 	}
-	if (*nargs != 1) {
-		gctl_error(req, "Only accept 1 parameter.");
+	if (*nargs != 2) {
+		gctl_error(req, "Only accept 2 parameters.");
 		return;
 	}
-
+	disk_init()
 	bzero(&md, sizeof(md));
 	strlcpy(md.md_magic, G_LOGSTOR_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_LOGSTOR_VERSION;
@@ -2617,14 +2602,6 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp)
 	md.md_all = *nargs - 1;
 	/* This field is not important here. */
 	md.md_provsize = 0;
-
-	/* Check all providers are valid */
-	for (no = 1; no < *nargs; no++) {
-		snprintf(param, sizeof(param), "arg%u", no);
-		pp = gctl_get_provider(req, param);
-		if (pp == NULL)
-			return;
-	}
 
 	gp = g_logstor_create(mp, &md, G_LOGSTOR_TYPE_MANUAL);
 	if (gp == NULL) {

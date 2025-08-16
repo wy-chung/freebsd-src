@@ -40,6 +40,9 @@
 #define	G_LOGSTOR_VERSION	0
 
 #ifdef _KERNEL
+#define	G_CONCAT_TYPE_MANUAL	0
+#define	G_CONCAT_TYPE_AUTOMATIC	1
+
 #define G_LOGSTOR_DEBUG(lvl, ...) \
     _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, (lvl), NULL, __VA_ARGS__)
 #define G_LOGSTOR_LOGREQ(bp, ...) \
