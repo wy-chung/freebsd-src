@@ -109,8 +109,8 @@ struct _superblock {
 	 */
 	uint32_t seg_cnt;	// total number of segments
 	// since the max meta file size is 4G (1K*1K*4K) and the entry size is 4
-	// block_max must be < (4G/4)
-	uint32_t block_max;	// max block number for the virtual disk
+	// block_cnt must be < (4G/4)
+	uint32_t block_cnt;	// max block number for the virtual disk
 
 	uint32_t sb_gen;	// the generation number. Used for redo after system crash
 	uint32_t seg_allocp;	// allocate this segment
@@ -118,14 +118,14 @@ struct _superblock {
 	/*
 	   The files for forward mapping
 
-	   New mapping is written to %fd_cur. When commit command is issued
+	   New mapping is written to %fd_cur. When snapshot command is issued
 	   %fd_cur is movied to %fd_prev, %fd_prev and %fd_snap are merged to %fd_snap_new
-	   After the commit command is complete, %fd_snap_new is movied to %fd_snap
+	   After the snapshot command is complete, %fd_snap_new is movied to %fd_snap
 	   and %fd_prev is deleted.
 
 	   So the actual mapping in normal state is
 	       %fd_cur || %fd_snap
-	   and during commit it is
+	   and during snapshot it is
 	       %fd_cur || %fd_prev || %fd_snap
 
 	   The first mapping that is not null is used.
@@ -293,14 +293,47 @@ Return:
 static int
 disk_init(struct g_provider *pp)
 {
-	int32_t seg_cnt;
-	uint32_t sector_cnt;
-	struct _superblock *sb;
-	struct _seg_sum *seg_sum;
 	char *buf;
+	struct _superblock *sb;
+	uint32_t sector_cnt;
+	uint32_t seg_cnt;
+	struct _seg_sum *seg_sum;
 	struct g_consumer *cp;
 	int error;
-	uint32_t block_max;
+	uint32_t block_cnt;
+
+	buf = malloc(SECTOR_SIZE, M_LOGSTOR, M_WAITOK | M_ZERO);
+	sb = (struct _superblock *)buf;
+	sector_cnt = pp->mediasize / SECTOR_SIZE;
+	sb->magic = G_LOGSTOR_MAGIC;
+	sb->version = G_LOGSTOR_VERSION;
+	sb->sb_gen = arc4random();
+	sb->seg_cnt = sector_cnt / SECTORS_PER_SEG;
+	if (sizeof(struct _superblock) > SECTOR_SIZE) {
+		printf("%s: size of superblock %d must be less than %d\n",
+		    __func__, (int)sizeof(struct _superblock), SEG_SIZE);
+		MY_PANIC();
+	}
+	seg_cnt = sb->seg_cnt;
+	block_cnt = sb->seg_cnt * BLOCKS_PER_SEG - SB_CNT -
+	    (sector_cnt / (SECTOR_SIZE / 4)) * FD_COUNT * 4;
+	MY_ASSERT(block_cnt < 0x40000000); // 1G
+#if defined(MY_DEBUG)
+	printf("%s: sector_cnt %u block_cnt %u\n",
+	    __func__, sector_cnt, block_cnt);
+#endif
+	sb->seg_allocp = 0;	// start allocate from here
+
+	sb->fd_cur = 0;			// current mapping is file 0
+	sb->fd_snap = 1;		// the snapshot mapping is file 1
+	sb->fd_prev = FD_INVALID;	// mapping does not exist
+	sb->fd_snap_new = FD_INVALID;
+	sb->fh[0].root = SECTOR_NULL;	// file 0 is all 0
+	// the root sector address for the files 1, 2 and 3
+	for (int i = 1; i < FD_COUNT; i++) {
+		sb->fh[i].root = SECTOR_DEL;	// the file does not exit
+	}
+	memset(buf + sizeof(*sb), 0, sizeof(buf) - sizeof(*sb));
 
 	struct g_geom *gp = g_new_geom(mp, "logstor:init");
 	gp->start = g_logstor_start;
@@ -312,41 +345,6 @@ disk_init(struct g_provider *pp)
 	if (error) {
 		goto fail0;
 	}
-	buf = malloc(SECTOR_SIZE, M_LOGSTOR, M_WAITOK | M_ZERO);
-	sb = (struct _superblock *)buf;
-	sector_cnt = pp->mediasize / SECTOR_SIZE;
-	sb->magic = G_LOGSTOR_MAGIC;
-	sb->version = G_LOGSTOR_VERSION;
-	sb->sb_gen = arc4random();
-	sb->seg_cnt = sector_cnt / SECTORS_PER_SEG;
-	if (sizeof(struct _superblock) + sb->seg_cnt > SECTOR_SIZE) {
-		printf("%s: size of superblock %d seg_cnt %d\n",
-		    __func__, (int)sizeof(struct _superblock), (int)sb->seg_cnt);
-		printf("    the size of the disk must be less than %lld\n",
-		    (SECTOR_SIZE - sizeof(struct _superblock)) * (long long)SEG_SIZE);
-		MY_PANIC();
-	}
-	seg_cnt = sb->seg_cnt;
-	block_max = seg_cnt * BLOCKS_PER_SEG - SB_CNT -
-	    (sector_cnt / (SECTOR_SIZE / 4)) * FD_COUNT * 4;
-	MY_ASSERT(block_max < 0x40000000); // 1G
-#if defined(MY_DEBUG)
-	printf("%s: sector_cnt %u block_max %u\n",
-	    __func__, sector_cnt, block_max);
-#endif
-	sb->seg_allocp = 0;	// start allocate from here
-
-	sb->fd_cur = 0;			// current mapping is file 0
-	sb->fd_snap = 1;
-	sb->fd_prev = FD_INVALID;	// mapping does not exist
-	sb->fd_snap_new = FD_INVALID;
-	sb->fh[0].root = SECTOR_NULL;	// file 0 is all 0
-	// the root sector address for the files 1, 2 and 3
-	for (int i = 1; i < FD_COUNT; i++) {
-		sb->fh[i].root = SECTOR_DEL;	// the file does not exit
-	}
-	memset(buf + sizeof(*sb), 0, sizeof(buf) - sizeof(*sb));
-
 	g_topology_assert();
 	error = g_access(cp, 0, 0, 1);
 	if (error) {
@@ -380,22 +378,22 @@ disk_init(struct g_provider *pp)
 
 	// write out the rest of the segment summary blocks
 	seg_sum->ss_allocp = 0;
-	for (int i = 1; i < seg_cnt; ++i) {
+	for (int i = 1; i < sb->seg_cnt; ++i) {
 		uint32_t sa = sega2sa(i) + SEG_SUM_OFFSET;
 		error = g_write_data(cp, (off_t)sa * SECTOR_SIZE, seg_sum, SECTOR_SIZE);
 		if (error)
 			goto fail2;
 	}
-	sb->block_max = block_max;
+	sb->block_cnt = block_cnt;
 fail2:
 	(void)g_access(cp, 0, 0, -1);
 fail1:
-	free(buf);
 	g_detach(cp);
 fail0:
+	free(buf);
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
-	return sb->block_max;
+	return sb->block_cnt;
 }
 
 /*******************************
@@ -435,9 +433,9 @@ static union meta_addr ma2pma(union meta_addr ma, unsigned *pindex_out);
 static uint32_t ma2sa(struct g_logstor_softc *sc, union meta_addr ma);
 
 static uint32_t ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba);
-static uint32_t ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba);
+static uint32_t ba2sa_during_snapshot(struct g_logstor_softc *sc, uint32_t ba);
 static bool is_sec_valid_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
-static bool is_sec_valid_during_commit(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
+static bool is_sec_valid_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
 #if defined(MY_DEBUG)
 static void logstor_check(struct g_logstor_softc *sc);
 #endif
@@ -498,7 +496,7 @@ int logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data __unused
 	MY_ASSERT((length & (SECTOR_SIZE - 1)) == 0);
 	ba = offset / SECTOR_SIZE;
 	size = length / SECTOR_SIZE;
-	MY_ASSERT(ba < sc->superblock.block_max);
+	MY_ASSERT(ba < sc->superblock.block_cnt);
 
 	for (i = 0; i < size; ++i) {
 		fbuf_clean_queue_check(sc);
@@ -509,7 +507,7 @@ int logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data __unused
 }
 
 void
-logstor_commit(struct g_logstor_softc *sc)
+logstor_snapshot(struct g_logstor_softc *sc)
 {
 
 	// lock metadata
@@ -522,12 +520,12 @@ logstor_commit(struct g_logstor_softc *sc)
 	sc->superblock.fh[sc->superblock.fd_cur].root = SECTOR_NULL;
 	sc->superblock.fh[sc->superblock.fd_snap_new].root = SECTOR_NULL;
 
-	sc->is_sec_valid_fp = is_sec_valid_during_commit;
-	sc->ba2sa_fp = ba2sa_during_commit;
+	sc->is_sec_valid_fp = is_sec_valid_during_snapshot;
+	sc->ba2sa_fp = ba2sa_during_snapshot;
 	// unlock metadata
 
-	uint32_t block_max = sc->superblock.block_max;
-	for (int ba = 0; ba < block_max; ++ba) {
+	uint32_t block_cnt = sc->superblock.block_cnt;
+	for (int ba = 0; ba < block_cnt; ++ba) {
 		uint32_t sa;
 
 		fbuf_clean_queue_check(sc);
@@ -563,7 +561,7 @@ logstor_commit(struct g_logstor_softc *sc)
 }
 
 void
-logstor_revert(struct g_logstor_softc *sc)
+logstor_rollback(struct g_logstor_softc *sc)
 {
 
 	fbuf_cache_flush_and_invalidate_fd(sc, sc->superblock.fd_cur, FD_INVALID);
@@ -578,7 +576,7 @@ logstor_read(struct g_logstor_softc *sc, unsigned ba)
 	sa = sc->ba2sa_fp(sc, ba);
 #if defined(WYC)
 	ba2sa_normal();
-	ba2sa_during_commit();
+	ba2sa_during_snapshot();
 #endif
 	return sa;
 }
@@ -613,9 +611,9 @@ is_sec_valid_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 }
 
 // Is a sector with a reverse ba valid?
-// This function is called during commit
+// This function is called during snapshot
 static bool
-is_sec_valid_during_commit(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
+is_sec_valid_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 {
 	uint8_t fd[] = {
 	    sc->superblock.fd_cur,
@@ -638,7 +636,7 @@ is_sec_valid(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 		return sc->is_sec_valid_fp(sc, sa, ba_rev);
 #if defined(WYC)
 		is_sec_valid_normal();
-		is_sec_valid_during_commit();
+		is_sec_valid_during_snapshot();
 #endif
 	} else if (IS_META_ADDR(ba_rev)) {
 		uint32_t sa_rev = ma2sa(sc, (union meta_addr)ba_rev);
@@ -671,7 +669,7 @@ _logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 	ma.uint32 = ba;
 #endif
 	MY_ASSERT(IS_META_ADDR(ba) ? data != NULL : data == NULL);
-	MY_ASSERT(ba < sc->superblock.block_max || IS_META_ADDR(ba));
+	MY_ASSERT(ba < sc->superblock.block_cnt || IS_META_ADDR(ba));
 	if (is_called) // recursive call is not allowed
 		MY_PANIC();
 	is_called = true;
@@ -729,7 +727,7 @@ ba2sa_comm(struct g_logstor_softc *sc, uint32_t ba, uint8_t fd[], int fd_cnt)
 {
 	uint32_t sa;
 
-	MY_ASSERT(ba < sc->superblock.block_max);
+	MY_ASSERT(ba < sc->superblock.block_cnt);
 	for (int i = 0; i < fd_cnt; ++i) {
 		sa = file_read_4byte(sc, fd[i], ba);
 		if (sa == SECTOR_DEL) { // don't need to check further
@@ -760,10 +758,10 @@ ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba)
 
 /*
 Description:
-    Block address to sector address translation in commit state
+    Block address to sector address translation in snapshot state
 */
 static uint32_t __unused
-ba2sa_during_commit(struct g_logstor_softc *sc, uint32_t ba)
+ba2sa_during_snapshot(struct g_logstor_softc *sc, uint32_t ba)
 {
 	uint8_t fd[] = {
 	    sc->superblock.fd_cur,
@@ -779,7 +777,7 @@ logstor_get_block_cnt(void)
 {
 	struct g_logstor_softc *sc = &softc;
 
-	return sc->superblock.block_max;
+	return sc->superblock.block_cnt;
 }
 
 /*
@@ -1175,7 +1173,7 @@ fbuf_mod_init(struct g_logstor_softc *sc)
 	int fbuf_count;
 	int i;
 
-	//fbuf_count = sc.superblock.block_max / (SECTOR_SIZE / 4);
+	//fbuf_count = sc.superblock.block_cnt / (SECTOR_SIZE / 4);
 	fbuf_count = FBUF_MIN;
 	if (fbuf_count < FBUF_MIN)
 		fbuf_count = FBUF_MIN;
@@ -1787,7 +1785,7 @@ logstor_check(struct g_logstor_softc *sc)
 		uint32_t sa = sc->ba2sa_fp(sc, ba);
 #if defined(WYC)
 		ba2sa_normal();
-		ba2sa_during_commit();
+		ba2sa_during_snapshot();
 #endif
 		if (sa != SECTOR_NULL) {
 			uint32_t ba_exp = sa2ba(sc, sa);
@@ -2282,7 +2280,7 @@ g_logstor_write_metadata(struct gctl_req *req, struct g_logstor_softc *sc)
 }
 
 static struct g_geom *
-g_logstor_create(struct g_class *mp, struct g_provider *pp, uint32_t block_max)
+g_logstor_create(struct g_class *mp, struct g_provider *pp, uint32_t block_cnt)
 {
 	struct g_logstor_softc *sc;
 	struct g_geom *gp;
@@ -2323,7 +2321,7 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp, uint32_t block_max)
 	gp->softc = sc;
 	struct g_provider *newpp = g_new_provider(gp, gp->name);
 	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
-	newpp->mediasize = (off_t)block_max * SECTOR_SIZE;
+	newpp->mediasize = (off_t)block_cnt * SECTOR_SIZE;
 	newpp->sectorsize = SECTOR_SIZE;
 
 	struct g_consumer *cp = g_new_consumer(gp);
@@ -2449,7 +2447,7 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		gp = NULL;
 		goto fail;
 
-	gp = g_logstor_create(mp, name, sb->block_max);
+	gp = g_logstor_create(mp, name, sb->block_cnt);
 	if (gp == NULL) {
 		G_LOGSTOR_DEBUG(0, "Cannot create device %s.",
 		    sb->name);
@@ -2502,10 +2500,10 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp)
 	if (pp == NULL)
 		return;
 	
-	uint32_t block_max = disk_init(pp);
-	if (block_max == 0)
+	uint32_t block_cnt = disk_init(pp);
+	if (block_cnt == 0)
 		return;
-	struct g_geom *gp = g_logstor_create(mp, pp, block_max);
+	struct g_geom *gp = g_logstor_create(mp, pp, block_cnt);
 	if (gp == NULL) {
 		gctl_error(req, "Can't configure %s.", md.md_name);
 		return;
