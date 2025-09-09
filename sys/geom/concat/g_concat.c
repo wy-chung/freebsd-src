@@ -42,6 +42,8 @@
 #include <geom/geom_dbg.h>
 #include <geom/concat/g_concat.h>
 
+#define MY_ASSERT(x)	do if (!(x)) panic("%s %d %s", __FILE__, __LINE__, __func__); while(0)
+
 FEATURE(geom_concat, "GEOM concatenation support");
 
 static MALLOC_DEFINE(M_CONCAT, "concat_data", "GEOM_CONCAT Data");
@@ -467,7 +469,7 @@ g_concat_check_and_run(struct g_concat_softc *sc)
 			int disk_candelete;
 #if !defined(WYC)
 			error = g_getattr("GEOM::candelete", disk->d_consumer,
-			    &disk->d_candelete);
+			    &disk_candelete);
 #else
 			error = g_getattr__("GEOM::candelete", disk->d_consumer,
 			    &disk_candelete, sizeof(disk_candelete));

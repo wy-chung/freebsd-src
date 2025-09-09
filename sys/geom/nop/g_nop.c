@@ -43,6 +43,8 @@
 #include <geom/geom_dbg.h>
 #include <geom/nop/g_nop.h>
 
+#define MY_ASSERT(x)	do if (!(x)) panic("%s %d %s", __FILE__, __LINE__, __func__); while(0)
+
 SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, nop, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_NOP stuff");
