@@ -3604,6 +3604,7 @@ geom/bde/g_bde_lock.c		optional geom_bde
 geom/bde/g_bde_work.c		optional geom_bde
 geom/cache/g_cache.c		optional geom_cache
 geom/concat/g_concat.c		optional geom_concat
+geom/logstor/g_logstor.c	optional geom_logstor
 geom/eli/g_eli.c		optional geom_eli
 geom/eli/g_eli_crypto.c		optional geom_eli
 geom/eli/g_eli_ctl.c		optional geom_eli
