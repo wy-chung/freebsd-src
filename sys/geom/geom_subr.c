@@ -1173,7 +1173,7 @@ g_handleattr(struct bio *bp, const char *attribute, const void *val, int len)
 	int error = 0;
 
 	if (strcmp(bp->bio_attribute, attribute) != 0)
-		return (0);
+		return (false);
 	if (len == 0) {
 		bzero(bp->bio_data, bp->bio_length);
 		if (strlcpy(bp->bio_data, val, bp->bio_length) >=
@@ -1193,7 +1193,7 @@ g_handleattr(struct bio *bp, const char *attribute, const void *val, int len)
 	if (error == 0)
 		bp->bio_completed = bp->bio_length;
 	g_io_deliver(bp, error);
-	return (1); // EPERM
+	return (true);
 }
 
 int
