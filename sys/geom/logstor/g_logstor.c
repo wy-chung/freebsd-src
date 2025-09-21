@@ -2297,8 +2297,6 @@ g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 	struct g_logstor_softc *sc;
 	int *force, *nargs, error;
 	const char *name;
-	char param[16];
-	u_int i;
 
 	g_topology_assert();
 
@@ -2307,8 +2305,8 @@ g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "nargs");
 		return;
 	}
-	if (*nargs <= 0) {
-		gctl_error(req, "Missing device(s).");
+	if (*nargs != 1) {
+		gctl_error(req, "Wrong number of argument");
 		return;
 	}
 	force = gctl_get_paraml(req, "force", sizeof(*force));
@@ -2317,25 +2315,86 @@ g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 
-	for (i = 0; i < (u_int)*nargs; i++) {
-		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-		if (name == NULL) {
-			gctl_error(req, "No 'arg%u' argument.", i);
-			return;
-		}
-		sc = g_logstor_find_device(mp, name);
-		if (sc == NULL) {
-			gctl_error(req, "No such device: %s.", name);
-			return;
-		}
-		error = g_logstor_destroy(sc, *force);
-		if (error != 0) {
-			gctl_error(req, "Cannot destroy device %s (error=%d).",
-			    sc->sc_geom->name, error);
-			return;
-		}
+	name = gctl_get_asciiparam(req, "arg0");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg0' argument.");
+		return;
 	}
+	sc = g_logstor_find_device(mp, name);
+	if (sc == NULL) {
+		gctl_error(req, "No such device: %s.", name);
+		return;
+	}
+	error = g_logstor_destroy(sc, *force);
+	if (error != 0) {
+		gctl_error(req, "Cannot destroy device %s (error=%d).",
+		    sc->sc_geom->name, error);
+		return;
+	}
+}
+
+static void
+g_logstor_ctl_snapshot(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_logstor_softc *sc;
+	int *nargs;
+	const char *name;
+
+	g_topology_assert();
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs != 1) {
+		gctl_error(req, "Wrong number of argument");
+		return;
+	}
+
+	name = gctl_get_asciiparam(req, "arg0");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg0' argument.");
+		return;
+	}
+	sc = g_logstor_find_device(mp, name);
+	if (sc == NULL) {
+		gctl_error(req, "No such device: %s.", name);
+		return;
+	}
+	logstor_snapshot(sc);
+}
+
+static void
+g_logstor_ctl_rollback(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_logstor_softc *sc;
+	int *nargs;
+	const char *name;
+
+	g_topology_assert();
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs != 1) {
+		gctl_error(req, "Wrong number of argument");
+		return;
+	}
+
+	name = gctl_get_asciiparam(req, "arg0");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg0' argument.");
+		return;
+	}
+	sc = g_logstor_find_device(mp, name);
+	if (sc == NULL) {
+		gctl_error(req, "No such device: %s.", name);
+		return;
+	}
+	logstor_rollback(sc);
 }
 
 static void
@@ -2358,10 +2417,13 @@ g_logstor_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	if (strcmp(verb, "create") == 0) {
 		g_logstor_ctl_create(req, mp);
 		return;
-	} else if (strcmp(verb, "destroy") == 0 ||
-	    strcmp(verb, "stop") == 0) {
+	} else if (strcmp(verb, "destroy") == 0 || strcmp(verb, "stop") == 0) {
 		g_logstor_ctl_destroy(req, mp);
 		return;
+	} else if (strcmp(verb, "snapshot") == 0) {
+		g_logstor_ctl_snapshot(req, mp);
+	} else if (strcmp(verb, "rollback") == 0) {
+		g_logstor_ctl_rollback(req, mp);
 	}
 	gctl_error(req, "Unknown verb.");
 }
