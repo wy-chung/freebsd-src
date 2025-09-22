@@ -245,7 +245,7 @@ struct g_logstor_softc {
 
 	struct g_geom	*sc_geom;
 
-	bool (*is_sec_valid_fp)(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
+	bool (*is_sec_inuse_fp)(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
 	uint32_t (*ba2sa_fp)(struct g_logstor_softc *sc, uint32_t ba);
 
 	uint32_t seg_allocp_start;// the starting segment for _logstor_write
@@ -275,6 +275,7 @@ struct g_logstor_softc {
 static void g_logstor_start(struct bio *bp);
 static int g_logstor_access(struct g_provider *pp, int dr, int dw, int de);
 static void g_logstor_orphan(struct g_consumer *cp);
+static uint32_t _logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data);
 
 /*
 Description:
@@ -432,8 +433,8 @@ static uint32_t ma2sa(struct g_logstor_softc *sc, union meta_addr ma);
 
 static uint32_t ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba);
 static uint32_t ba2sa_during_snapshot(struct g_logstor_softc *sc, uint32_t ba);
-static bool is_sec_valid_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
-static bool is_sec_valid_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
+static bool is_sec_inuse_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
+static bool is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
 #if defined(MY_DEBUG)
 static void logstor_check(struct g_logstor_softc *sc);
 #endif
@@ -455,23 +456,29 @@ logstor_close(struct g_logstor_softc *sc)
 //		return;
 // and the command below must be executed before mounting the device
 //	tunefs -t enabled /dev/ggate0
-static int logstor_delete(struct g_logstor_softc *sc, off_t offset, void *data __unused, off_t length)
+static int logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
 {
+#if 1
+	printf("%s: BIO_DELETE not implemented yet\n", __func__);
+	g_io_deliver(bp, EOPNOTSUPP);
+#else
+	off_t offset = bp->bio_offset;
+	off_t length = bp->bio_length;
 	uint32_t ba;	// block address
-	int size;	// number of remaining sectors to process
+	int count;	// number of remaining sectors to process
 	int i;
 
 	MY_ASSERT((offset & (SECTOR_SIZE - 1)) == 0);
 	MY_ASSERT((length & (SECTOR_SIZE - 1)) == 0);
 	ba = offset / SECTOR_SIZE;
-	size = length / SECTOR_SIZE;
+	count = length / SECTOR_SIZE;
 	MY_ASSERT(ba < sc->superblock.block_cnt);
 
-	for (i = 0; i < size; ++i) {
-		fbuf_clean_queue_check(sc);
+	fbuf_clean_queue_check(sc);
+	for (i = 0; i < count; ++i) {
 		file_write_4byte(sc, sc->superblock.fd_cur, ba + i, SECTOR_DEL);
 	}
-
+#endif
 	return (0);
 }
 
@@ -489,7 +496,7 @@ logstor_snapshot(struct g_logstor_softc *sc)
 	sc->superblock.fh[sc->superblock.fd_cur].root = SECTOR_NULL;
 	sc->superblock.fh[sc->superblock.fd_snap_new].root = SECTOR_NULL;
 
-	sc->is_sec_valid_fp = is_sec_valid_during_snapshot;
+	sc->is_sec_inuse_fp = is_sec_inuse_during_snapshot;
 	sc->ba2sa_fp = ba2sa_during_snapshot;
 	// unlock metadata
 
@@ -525,7 +532,7 @@ logstor_snapshot(struct g_logstor_softc *sc)
 	seg_sum_write(sc);
 	superblock_write(sc);
 
-	sc->is_sec_valid_fp = is_sec_valid_normal;
+	sc->is_sec_inuse_fp = is_sec_inuse_normal;
 	sc->ba2sa_fp = ba2sa_normal;
 	//unlock metadata
 }
@@ -551,16 +558,22 @@ logstor_read(struct g_logstor_softc *sc, unsigned ba)
 	return sa;
 }
 
-// The common part of is_sec_valid
+static uint32_t
+logstor_write(struct g_logstor_softc *sc, uint32_t ba)
+{
+	return _logstor_write(sc, ba, NULL);
+}
+
+// The common part of is_sec_inuse
 static bool
-is_sec_valid_comm(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev, uint8_t fd[], int fd_cnt)
+is_sec_inuse_comm(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev, uint8_t fd[], int fd_cnt)
 {
 	uint32_t sa_rev; // the sector address for ba_rev
 
 	MY_ASSERT(ba_rev < BLOCK_MAX);
 	for (int i = 0; i < fd_cnt; ++i) {
 		sa_rev = file_read_4byte(sc, fd[i], ba_rev);
-		if (sa == sa_rev)
+		if (sa_rev == sa)
 			return true;
 	}
 	return false;
@@ -570,20 +583,20 @@ is_sec_valid_comm(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev, uint
 // Is a sector with a reverse ba valid?
 // This function is called normally
 static bool
-is_sec_valid_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
+is_sec_inuse_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 {
 	uint8_t fd[] = {
 	    sc->superblock.fd_cur,
 	    sc->superblock.fd_snap,
 	};
 
-	return is_sec_valid_comm(sc, sa, ba_rev, fd, NUM_OF_ELEMS(fd));
+	return is_sec_inuse_comm(sc, sa, ba_rev, fd, NUM_OF_ELEMS(fd));
 }
 
 // Is a sector with a reverse ba valid?
 // This function is called during snapshot
 static bool
-is_sec_valid_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
+is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 {
 	uint8_t fd[] = {
 	    sc->superblock.fd_cur,
@@ -591,26 +604,26 @@ is_sec_valid_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t b
 	    sc->superblock.fd_snap,
 	};
 
-	return is_sec_valid_comm(sc, sa, ba_rev, fd, NUM_OF_ELEMS(fd));
+	return is_sec_inuse_comm(sc, sa, ba_rev, fd, NUM_OF_ELEMS(fd));
 }
 
 // Is a sector with a reverse ba valid?
 static bool
-is_sec_valid(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
+is_sec_inuse(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 {
 #if defined(MY_DEBUG)
 	union meta_addr ma_rev __unused;
 	ma_rev.uint32 = ba_rev;
 #endif
 	if (ba_rev < BLOCK_MAX) {
-		return sc->is_sec_valid_fp(sc, sa, ba_rev);
+		return sc->is_sec_inuse_fp(sc, sa, ba_rev);
 #if defined(WYC)
-		is_sec_valid_normal();
-		is_sec_valid_during_snapshot();
+		is_sec_inuse_normal();
+		is_sec_inuse_during_snapshot();
 #endif
 	} else if (IS_META_ADDR(ba_rev)) {
 		uint32_t sa_rev = ma2sa(sc, (union meta_addr)ba_rev);
-		return (sa == sa_rev);
+		return (sa_rev == sa);
 	} else if (ba_rev == BLOCK_INVALID) {
 		return false;
 	} else {
@@ -656,7 +669,7 @@ again:
 #if defined(MY_DEBUG)
 		ma_rev.uint32 = ba_rev;
 #endif
-		if (is_sec_valid(sc, sa, ba_rev))
+		if (is_sec_inuse(sc, sa, ba_rev))
 			continue;
 
 		if (IS_META_ADDR(ba)) {
@@ -666,7 +679,7 @@ again:
 			++sc->other_write_count;
 		}
 		seg_sum->ss_rm[i] = ba;		// record reverse mapping
-		sc->ss_modified = true;
+		sc->ss_modified = true;		// segment summary modified
 		seg_sum->ss_allocp = i + 1;	// advnace the alloc pointer
 		if (seg_sum->ss_allocp == SEG_SUM_OFFSET)
 			seg_alloc(sc);
@@ -683,12 +696,6 @@ again:
 	}
 	seg_alloc(sc);
 	goto again;
-}
-
-static uint32_t
-logstor_write(struct g_logstor_softc *sc, uint32_t ba)
-{
-	return _logstor_write(sc, ba, NULL);
 }
 
 static uint32_t
@@ -1952,12 +1959,13 @@ g_logstor_start(struct bio *bp)
 	case BIO_WRITE:
 		logstor_access = logstor_write;
 		break;
+	case BIO_DELETE:
+		logstor_delete(sc, bp);
+		goto exit;
 	case BIO_SPEEDUP:
 	case BIO_FLUSH:
 		g_logstor_passdown(sc, bp);
 		goto exit;
-	//case BIO_DELETE:
-	//	break;
 	case BIO_GETATTR:
 		if (strcmp("GEOM::candelete", bp->bio_attribute) == 0) {
 			int val = false;
@@ -1996,6 +2004,7 @@ g_logstor_start(struct bio *bp)
 			goto exit;
 		}
 		bioq_insert_tail(&queue, cbp);
+		fbuf_clean_queue_check(sc);
 		uint32_t sa = logstor_access(sc, ba_start + i);
 #if defined(WYC)
 		logstor_read();
@@ -2060,7 +2069,7 @@ logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_sa)
 	fbuf_mod_init(sc);
 
 	sc->data_write_count = sc->other_write_count = 0;
-	sc->is_sec_valid_fp = is_sec_valid_normal;
+	sc->is_sec_inuse_fp = is_sec_inuse_normal;
 	sc->ba2sa_fp = ba2sa_normal;
 #if defined(MY_DEBUG)
 	logstor_check(sc);
