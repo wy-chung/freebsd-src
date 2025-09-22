@@ -493,6 +493,7 @@ logstor_snapshot(struct g_logstor_softc *sc)
 	sc->ba2sa_fp = ba2sa_during_snapshot;
 	// unlock metadata
 
+	// merge fd_prev and fd_snap to fd_snap_new
 	uint32_t block_cnt = sc->superblock.block_cnt;
 	for (int ba = 0; ba < block_cnt; ++ba) {
 		uint32_t sa;
@@ -2092,20 +2093,18 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp, struct _superblock *
 	}
 	gp = g_new_geom(mp, name);
 	sc = malloc(sizeof(*sc), M_LOGSTOR, M_WAITOK | M_ZERO);
+	sc->sc_geom = gp;
 	gp->start = g_logstor_start;
 	gp->spoiled = g_logstor_orphan;
 	gp->orphan = g_logstor_orphan;
 	gp->access = g_logstor_access;
 	gp->dumpconf = g_logstor_dumpconf;
 
-	sc->sc_geom = gp;
-	//sc->sc_provider = NULL;
-
-	gp->softc = sc;
 	struct g_provider *newpp = g_new_provider(gp, gp->name);
 	newpp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
-	newpp->mediasize = (off_t)sb->block_cnt * SECTOR_SIZE;
+	newpp->flags |= (pp->flags & G_PF_ACCEPT_UNMAPPED);
 	newpp->sectorsize = SECTOR_SIZE;
+	newpp->mediasize = (off_t)sb->block_cnt * SECTOR_SIZE;
 
 	struct g_consumer *cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
@@ -2115,10 +2114,9 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp, struct _superblock *
 		//    error, lowerpp->name);
 		goto fail;
 	}
-	
-	newpp->flags |= (pp->flags & G_PF_ACCEPT_UNMAPPED);
-	g_error_provider(newpp, 0);
 	logstor_init(sc, sb, sb_sa);
+	g_error_provider(newpp, 0);
+	gp->softc = sc;
 	G_LOGSTOR_DEBUG(0, "Device %s created.", gp->name);
 
 	return (gp);
@@ -2133,10 +2131,9 @@ fail:
 static int
 g_logstor_destroy(struct g_logstor_softc *sc, boolean_t force)
 {
-	struct g_provider *pp;
-	struct g_consumer *cp, *cp1;
 	struct g_geom *gp;
-	//struct g_logstor_disk *disk;
+	struct g_provider *pp;
+	struct g_consumer *cp;
 
 	g_topology_assert();
 
@@ -2144,6 +2141,7 @@ g_logstor_destroy(struct g_logstor_softc *sc, boolean_t force)
 		return (ENXIO);
 
 	gp = sc->sc_geom;
+	gp->softc = NULL;
 	pp = LIST_FIRST(&gp->provider);
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
@@ -2156,23 +2154,14 @@ g_logstor_destroy(struct g_logstor_softc *sc, boolean_t force)
 			return (EBUSY);
 		}
 	}
-
-	LIST_FOREACH_SAFE(cp, &gp->consumer, consumer, cp1) {
-		//g_logstor_remove_disk(cp->private);
-		if (cp1 == NULL)
-			return (0);	/* Recursion happened. */
-	}
-	if (!LIST_EMPTY(&gp->consumer))
-		return (EINPROGRESS);
-
-	gp->softc = NULL;
-	//KASSERT(sc->sc_provider == NULL, ("Provider still exists? (device=%s)",
-	//    gp->name));
-	//while ((disk = TAILQ_FIRST(&sc->sc_disks)) != NULL) {
-	//	TAILQ_REMOVE(&sc->sc_disks, disk, d_next);
-	//	free(disk, M_LOGSTOR);
-	//}
+	G_LOGSTOR_DEBUG(0, "Device %s deactivated.", sc->sc_geom->name);
+	g_wither_provider(pp, ENXIO);
+	logstor_close(sc);
 	free(sc, M_LOGSTOR);
+
+	cp = LIST_FIRST(&gp->consumer);
+	g_detach(cp);
+	g_destroy_consumer(cp);
 
 	G_LOGSTOR_DEBUG(0, "Device %s destroyed.", gp->name);
 	g_wither_geom(gp, ENXIO);
@@ -2228,6 +2217,7 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		goto fail;
 	}
 	gp = g_logstor_create(mp, pp, sb, sb_sa);
+	free(sb, M_LOGSTOR);
 	if (gp == NULL) {
 		G_LOGSTOR_DEBUG(0, "Cannot create device %s.",
 		    sb->name);
@@ -2240,6 +2230,26 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 fail:
 	free(sb, M_LOGSTOR);
 	return (gp);
+}
+
+static struct g_logstor_softc *
+g_logstor_find_device(struct g_class *mp, const char *name)
+{
+	struct g_logstor_softc *sc;
+	struct g_geom *gp;
+
+	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		name += strlen(_PATH_DEV);
+
+	LIST_FOREACH(gp, &mp->geom, geom) {
+		sc = gp->softc;
+		if (sc == NULL)
+			continue;
+		MY_ASSERT(sc->sc_geom == gp);
+		if (strcmp(gp->name, name) == 0)
+			return (sc);
+	}
+	return (NULL);
 }
 
 static void
@@ -2264,31 +2274,12 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp)
 	if (sb == NULL)
 		return;
 	struct g_geom *gp = g_logstor_create(mp, pp, sb, sb_sa);
+	free(sb, M_LOGSTOR);
 	if (gp == NULL) {
 		gctl_error(req, "Can't configure %s.", pp->name);
 		return;
 	}
 	free(sb, M_LOGSTOR);
-}
-
-static struct g_logstor_softc *
-g_logstor_find_device(struct g_class *mp, const char *name)
-{
-	struct g_logstor_softc *sc;
-	struct g_geom *gp;
-
-	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-		name += strlen(_PATH_DEV);
-
-	LIST_FOREACH(gp, &mp->geom, geom) {
-		sc = gp->softc;
-		if (sc == NULL)
-			continue;
-		MY_ASSERT(sc->sc_geom == gp);
-		if (strcmp(gp->name, name) == 0)
-			return (sc);
-	}
-	return (NULL);
 }
 
 static void
@@ -2306,7 +2297,7 @@ g_logstor_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*nargs != 1) {
-		gctl_error(req, "Wrong number of argument");
+		gctl_error(req, "Only accept 1 parameter.");
 		return;
 	}
 	force = gctl_get_paraml(req, "force", sizeof(*force));
@@ -2348,7 +2339,7 @@ g_logstor_ctl_snapshot(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*nargs != 1) {
-		gctl_error(req, "Wrong number of argument");
+		gctl_error(req, "Only accept 1 parameter.");
 		return;
 	}
 
@@ -2380,7 +2371,7 @@ g_logstor_ctl_rollback(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (*nargs != 1) {
-		gctl_error(req, "Wrong number of argument");
+		gctl_error(req, "Only accept 1 parameter.");
 		return;
 	}
 
@@ -2416,16 +2407,14 @@ g_logstor_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 
 	if (strcmp(verb, "create") == 0) {
 		g_logstor_ctl_create(req, mp);
-		return;
 	} else if (strcmp(verb, "destroy") == 0 || strcmp(verb, "stop") == 0) {
 		g_logstor_ctl_destroy(req, mp);
-		return;
 	} else if (strcmp(verb, "snapshot") == 0) {
 		g_logstor_ctl_snapshot(req, mp);
 	} else if (strcmp(verb, "rollback") == 0) {
 		g_logstor_ctl_rollback(req, mp);
-	}
-	gctl_error(req, "Unknown verb.");
+	} else
+		gctl_error(req, "Unknown verb.");
 }
 
 static void
@@ -2469,9 +2458,9 @@ g_logstor_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, "%s<Status>Total=%u, Online=%u</Status>\n",
 		    indent, sc->sc_ndisks, g_logstor_nvalid(sc));
 		sbuf_printf(sb, "%s<State>", indent);
-		if (sc->sc_provider != NULL && sc->sc_provider->error == 0)
-			sbuf_cat(sb, "UP");
-		else
+		//if (sc->sc_provider != NULL && sc->sc_provider->error == 0)
+		//	sbuf_cat(sb, "UP");
+		//else
 			sbuf_cat(sb, "DOWN");
 		sbuf_cat(sb, "</State>\n");
 	}
