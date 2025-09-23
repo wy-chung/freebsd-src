@@ -245,7 +245,7 @@ struct g_logstor_softc {
 
 	struct g_geom	*sc_geom;
 
-	bool (*is_sec_inuse_fp)(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
+	bool (*is_sec_inuse_fp)(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa);
 	uint32_t (*ba2sa_fp)(struct g_logstor_softc *sc, uint32_t ba);
 
 	uint32_t seg_allocp_start;// the starting segment for _logstor_write
@@ -566,7 +566,7 @@ logstor_write(struct g_logstor_softc *sc, uint32_t ba)
 
 // The common part of is_sec_inuse
 static bool
-is_sec_inuse_comm(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev, uint8_t fd[], int fd_cnt)
+is_sec_inuse_comm(uint8_t fd[], int fd_cnt, struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
 {
 	uint32_t sa_rev; // the sector address for ba_rev
 
@@ -583,20 +583,20 @@ is_sec_inuse_comm(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev, uint
 // Is a sector with a reverse ba valid?
 // This function is called normally
 static bool
-is_sec_inuse_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
+is_sec_inuse_normal(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
 {
 	uint8_t fd[] = {
 	    sc->superblock.fd_cur,
 	    sc->superblock.fd_snap,
 	};
 
-	return is_sec_inuse_comm(sc, sa, ba_rev, fd, NUM_OF_ELEMS(fd));
+	return is_sec_inuse_comm(fd, NUM_OF_ELEMS(fd), sc, ba_rev, sa);
 }
 
 // Is a sector with a reverse ba valid?
 // This function is called during snapshot
 static bool
-is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
+is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
 {
 	uint8_t fd[] = {
 	    sc->superblock.fd_cur,
@@ -604,19 +604,19 @@ is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t b
 	    sc->superblock.fd_snap,
 	};
 
-	return is_sec_inuse_comm(sc, sa, ba_rev, fd, NUM_OF_ELEMS(fd));
+	return is_sec_inuse_comm(fd, NUM_OF_ELEMS(fd), sc, ba_rev, sa);
 }
 
 // Is a sector with a reverse ba valid?
 static bool
-is_sec_inuse(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
+is_sec_inuse(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
 {
 #if defined(MY_DEBUG)
 	union meta_addr ma_rev __unused;
 	ma_rev.uint32 = ba_rev;
 #endif
 	if (ba_rev < BLOCK_MAX) {
-		return sc->is_sec_inuse_fp(sc, sa, ba_rev);
+		return sc->is_sec_inuse_fp(sc, ba_rev, sa);
 #if defined(WYC)
 		is_sec_inuse_normal();
 		is_sec_inuse_during_snapshot();
@@ -669,7 +669,7 @@ again:
 #if defined(MY_DEBUG)
 		ma_rev.uint32 = ba_rev;
 #endif
-		if (is_sec_inuse(sc, sa, ba_rev))
+		if (is_sec_inuse(sc, ba_rev, sa))
 			continue;
 
 		if (IS_META_ADDR(ba)) {
