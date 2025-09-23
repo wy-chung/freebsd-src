@@ -248,7 +248,7 @@ struct g_logstor_softc {
 	bool (*is_sec_inuse_fp)(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa);
 	uint32_t (*ba2sa_fp)(struct g_logstor_softc *sc, uint32_t ba);
 
-	uint32_t seg_allocp_start;// the starting segment for _logstor_write
+	uint32_t seg_allocp_start;// the starting segment for logstor_write
 	uint32_t seg_allocp_sa;	// the sector address of the segment for allocation
 	uint32_t sb_sa; 	// superblock's sector address
 	bool sb_modified;	// is the super block modified
@@ -272,10 +272,70 @@ struct g_logstor_softc {
 	unsigned fbuf_miss;
 };
 
-static void g_logstor_start(struct bio *bp);
-static int g_logstor_access(struct g_provider *pp, int dr, int dw, int de);
-static void g_logstor_orphan(struct g_consumer *cp);
-static uint32_t _logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data);
+/*******************************
+ *        logstor              *
+ *******************************/
+static uint32_t logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data);
+static uint32_t sec_write_alloc(struct g_logstor_softc *sc, uint32_t ba);
+
+static void seg_alloc(struct g_logstor_softc *sc);
+static void seg_sum_write(struct g_logstor_softc *sc);
+
+static struct _superblock *superblock_read(struct g_consumer *cp, uint32_t *sb_sa);
+static void superblock_write(struct g_logstor_softc *sc);
+
+static struct _fbuf *file_access_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t offset, uint32_t *off_4byte);
+static uint32_t file_read_4byte(struct g_logstor_softc *sc, uint8_t fh, uint32_t ba);
+static void file_write_4byte(struct g_logstor_softc *sc, uint8_t fh, uint32_t ba, uint32_t sa);
+
+static void fbuf_mod_init(struct g_logstor_softc *sc);
+static void fbuf_mod_fini(struct g_logstor_softc *sc);
+static void fbuf_queue_init(struct g_logstor_softc *sc, int which);
+static void fbuf_queue_insert_tail(struct g_logstor_softc *sc, int which, struct _fbuf *fbuf);
+static void fbuf_queue_remove(struct g_logstor_softc *sc, struct _fbuf *fbuf);
+static struct _fbuf *fbuf_search(struct g_logstor_softc *sc, union meta_addr ma);
+static void fbuf_hash_insert_head(struct g_logstor_softc *sc, struct _fbuf *fbuf, union meta_addr ma);
+static void fbuf_bucket_init(struct g_logstor_softc *sc, int which);
+static void fbuf_bucket_insert_head(struct g_logstor_softc *sc, int which, struct _fbuf *fbuf);
+static void fbuf_bucket_remove(struct _fbuf *fbuf);
+static void fbuf_write(struct g_logstor_softc *sc, struct _fbuf *fbuf);
+static struct _fbuf *fbuf_alloc(struct g_logstor_softc *sc, union meta_addr ma, int depth);
+static struct _fbuf *fbuf_access(struct g_logstor_softc *sc, union meta_addr ma);
+static void fbuf_cache_flush(struct g_logstor_softc *sc);
+static void fbuf_cache_flush_and_invalidate_fd(struct g_logstor_softc *sc, int fd1, int fd2);
+static void fbuf_clean_queue_check(struct g_logstor_softc *sc);
+
+static union meta_addr ma2pma(union meta_addr ma, unsigned *pindex_out);
+static uint32_t ma2sa(struct g_logstor_softc *sc, union meta_addr ma);
+
+static uint32_t ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba);
+static uint32_t ba2sa_during_snapshot(struct g_logstor_softc *sc, uint32_t ba);
+static bool is_sec_inuse_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
+static bool is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
+#if defined(MY_DEBUG)
+static void logstor_check(struct g_logstor_softc *sc);
+#endif
+static void md_read(struct g_consumer *cp, void *buf, uint32_t sa);
+static void md_write(struct g_consumer *cp, void *buf, uint32_t sa);
+
+static void
+invalid_g_start(struct bio *bp __unused)
+{
+	panic("%s: something is wrong here.", __func__);
+}
+
+static int
+invalid_g_access(struct g_provider *gp __unused, int dr __unused, int dw __unused, int de __unused)
+{
+	panic("%s: something is wrong here.", __func__);
+	return 1;
+}
+
+static void
+invalid_g_orphan(struct g_consumer *gc __unused)
+{
+	panic("%s: something is wrong here.", __func__);
+}
 
 /*
 Description:
@@ -330,9 +390,9 @@ disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)
 	memset((char *)sb + sizeof(*sb), 0, SECTOR_SIZE - sizeof(*sb));
 
 	struct g_geom *gp = g_new_geom(mp, "logstor:init");
-	gp->start = g_logstor_start;
-	gp->access = g_logstor_access;
-	gp->orphan = g_logstor_orphan;
+	gp->start = invalid_g_start;
+	gp->access = invalid_g_access;
+	gp->orphan = invalid_g_orphan;
 	cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
@@ -395,51 +455,31 @@ fail0:
 	return sb;
 }
 
-/*******************************
- *        logstor              *
- *******************************/
-static uint32_t logstor_read(struct g_logstor_softc *sc, uint32_t ba);
-static uint32_t logstor_write(struct g_logstor_softc *sc, uint32_t ba);
+static void
+logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_sa)
+{
+	memcpy(&sc->superblock, sb, sizeof(sc->superblock));
+	sc->sb_sa = sb_sa;
+	sc->sb_modified = false;
 
-static void seg_alloc(struct g_logstor_softc *sc);
-static void seg_sum_write(struct g_logstor_softc *sc);
+	// the following is copied from logstor_open()
+	// read the segment summary block
+	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
+	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
+	struct g_consumer *cp = LIST_FIRST(&sc->sc_geom->consumer);
+	md_read(cp, &sc->seg_sum, sa);
+	MY_ASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET);
+	sc->ss_modified = false;
 
-static struct _superblock *superblock_read(struct g_consumer *cp, uint32_t *sb_sa);
-static void superblock_write(struct g_logstor_softc *sc);
+	fbuf_mod_init(sc);
 
-static struct _fbuf *file_access_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t offset, uint32_t *off_4byte);
-static uint32_t file_read_4byte(struct g_logstor_softc *sc, uint8_t fh, uint32_t ba);
-static void file_write_4byte(struct g_logstor_softc *sc, uint8_t fh, uint32_t ba, uint32_t sa);
-
-static void fbuf_mod_init(struct g_logstor_softc *sc);
-static void fbuf_mod_fini(struct g_logstor_softc *sc);
-static void fbuf_queue_init(struct g_logstor_softc *sc, int which);
-static void fbuf_queue_insert_tail(struct g_logstor_softc *sc, int which, struct _fbuf *fbuf);
-static void fbuf_queue_remove(struct g_logstor_softc *sc, struct _fbuf *fbuf);
-static struct _fbuf *fbuf_search(struct g_logstor_softc *sc, union meta_addr ma);
-static void fbuf_hash_insert_head(struct g_logstor_softc *sc, struct _fbuf *fbuf, union meta_addr ma);
-static void fbuf_bucket_init(struct g_logstor_softc *sc, int which);
-static void fbuf_bucket_insert_head(struct g_logstor_softc *sc, int which, struct _fbuf *fbuf);
-static void fbuf_bucket_remove(struct _fbuf *fbuf);
-static void fbuf_write(struct g_logstor_softc *sc, struct _fbuf *fbuf);
-static struct _fbuf *fbuf_alloc(struct g_logstor_softc *sc, union meta_addr ma, int depth);
-static struct _fbuf *fbuf_access(struct g_logstor_softc *sc, union meta_addr ma);
-static void fbuf_cache_flush(struct g_logstor_softc *sc);
-static void fbuf_cache_flush_and_invalidate_fd(struct g_logstor_softc *sc, int fd1, int fd2);
-static void fbuf_clean_queue_check(struct g_logstor_softc *sc);
-
-static union meta_addr ma2pma(union meta_addr ma, unsigned *pindex_out);
-static uint32_t ma2sa(struct g_logstor_softc *sc, union meta_addr ma);
-
-static uint32_t ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba);
-static uint32_t ba2sa_during_snapshot(struct g_logstor_softc *sc, uint32_t ba);
-static bool is_sec_inuse_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
-static bool is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
+	sc->data_write_count = sc->other_write_count = 0;
+	sc->is_sec_inuse_fp = is_sec_inuse_normal;
+	sc->ba2sa_fp = ba2sa_normal;
 #if defined(MY_DEBUG)
-static void logstor_check(struct g_logstor_softc *sc);
+	logstor_check(sc);
 #endif
-static void md_read(struct g_consumer *cp, void *buf, uint32_t sa);
-static void md_write(struct g_consumer *cp, void *buf, uint32_t sa);
+}
 
 static void
 logstor_close(struct g_logstor_softc *sc)
@@ -545,23 +585,12 @@ static logstor_rollback(struct g_logstor_softc *sc)
 	sc->superblock.fh[sc->superblock.fd_cur].root = SECTOR_NULL;
 }
 
-uint32_t
-logstor_read(struct g_logstor_softc *sc, unsigned ba)
-{
-	uint32_t sa;	// sector address
-
-	sa = sc->ba2sa_fp(sc, ba);
-#if defined(WYC)
-	ba2sa_normal();
-	ba2sa_during_snapshot();
-#endif
-	return sa;
-}
-
+// allocate a sector for writing
 static uint32_t
-logstor_write(struct g_logstor_softc *sc, uint32_t ba)
+sec_write_alloc(struct g_logstor_softc *sc, uint32_t ba)
 {
-	return _logstor_write(sc, ba, NULL);
+	uint32_t sa =logstor_write(sc, ba, NULL);
+	return sa;
 }
 
 // The common part of is_sec_inuse
@@ -634,13 +663,13 @@ is_sec_inuse(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
 
 /*
 Description:
-  write data/metadata block to disk
+  write metadata block to disk
 
 Return:
-  the sector address where the data is written
+  the sector address where the data/metadata is written
 */
 static uint32_t
-_logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
+logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 {
 	static bool is_called = false;
 	int i;
@@ -1611,7 +1640,7 @@ fbuf_write(struct g_logstor_softc *sc, struct _fbuf *fbuf)
 	uint32_t sa;		// sector address
 
 	MY_ASSERT(fbuf->fc.modified);
-	sa = _logstor_write(sc, fbuf->ma.uint32, fbuf->data);
+	sa = logstor_write(sc, fbuf->ma.uint32, fbuf->data);
 #if defined(MY_DEBUG)
 	fbuf->sa = sa;
 #endif
@@ -1766,15 +1795,18 @@ logstor_check(struct g_logstor_softc *sc)
 
 
 //==============================================
-
+static void g_logstor_start(struct bio *bp);
+static int g_logstor_access(struct g_provider *pp, int dr, int dw, int de);
+static void g_logstor_orphan(struct g_consumer *cp);
 static int g_logstor_destroy(struct g_logstor_softc *sc, boolean_t force);
 static int g_logstor_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
 #if !defined(WYC)
-static g_taste_t g_logstor_taste;
 static g_ctl_req_t g_logstor_config;
+static g_taste_t g_logstor_taste;
 static g_dumpconf_t g_logstor_dumpconf;
 #endif
+
 struct g_class g_logstor_class = {
 	.name = G_LOGSTOR_CLASS_NAME,
 	.version = G_VERSION,
@@ -1935,10 +1967,7 @@ g_logstor_passdown(struct g_logstor_softc *sc, struct bio *bp)
 static void
 g_logstor_start(struct bio *bp)
 {
-	struct bio_queue_head queue;
-	struct bio *cbp;
-	char *addr;
-	uint32_t (*logstor_access)(struct g_logstor_softc *sc, unsigned ba);
+	uint32_t (*get_sa_fp)(struct g_logstor_softc *sc, unsigned ba);
 
 	struct g_provider *pp = bp->bio_to;
 	struct g_logstor_softc *sc = pp->geom->softc;
@@ -1954,10 +1983,10 @@ g_logstor_start(struct bio *bp)
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
-		logstor_access = logstor_read;
+		get_sa_fp = sc->ba2sa_fp;
 		break;
 	case BIO_WRITE:
-		logstor_access = logstor_write;
+		get_sa_fp = sec_write_alloc;
 		break;
 	case BIO_DELETE:
 		logstor_delete(sc, bp);
@@ -1981,6 +2010,9 @@ g_logstor_start(struct bio *bp)
 		goto exit;
 	}
 
+	struct bio_queue_head queue;
+	struct bio *cbp;
+	char *addr;
 	off_t offset = bp->bio_offset;
 	off_t length = bp->bio_length;
 	MY_ASSERT(offset % SECTOR_SIZE == 0);
@@ -1991,6 +2023,7 @@ g_logstor_start(struct bio *bp)
 	else
 		addr = bp->bio_data;
 
+	fbuf_clean_queue_check(sc);
 	bioq_init(&queue);
 	uint32_t ba_start = offset / SECTOR_SIZE;
 	for (int i = 0; i < length / SECTOR_SIZE; ++i) {
@@ -2004,11 +2037,11 @@ g_logstor_start(struct bio *bp)
 			goto exit;
 		}
 		bioq_insert_tail(&queue, cbp);
-		fbuf_clean_queue_check(sc);
-		uint32_t sa = logstor_access(sc, ba_start + i);
+		uint32_t sa = get_sa_fp(sc, ba_start + i);
 #if defined(WYC)
-		logstor_read();
-		logstor_write();
+		ba2sa_during_snapshot();
+		ba2sa_normal();
+		sec_write_alloc();
 #endif
 		/*
 		 * Fill in the component buf structure.
@@ -2048,32 +2081,6 @@ g_logstor_start(struct bio *bp)
 	}
 exit:
 	;
-}
-
-static void
-logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_sa)
-{
-	memcpy(&sc->superblock, sb, sizeof(sc->superblock));
-	sc->sb_sa = sb_sa;
-	sc->sb_modified = false;
-
-	// the following is copied from logstor_open()
-	// read the segment summary block
-	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
-	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
-	struct g_consumer *cp = LIST_FIRST(&sc->sc_geom->consumer);
-	md_read(cp, &sc->seg_sum, sa);
-	MY_ASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET);
-	sc->ss_modified = false;
-
-	fbuf_mod_init(sc);
-
-	sc->data_write_count = sc->other_write_count = 0;
-	sc->is_sec_inuse_fp = is_sec_inuse_normal;
-	sc->ba2sa_fp = ba2sa_normal;
-#if defined(MY_DEBUG)
-	logstor_check(sc);
-#endif
 }
 
 static struct g_geom *
