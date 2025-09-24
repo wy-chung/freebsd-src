@@ -313,7 +313,7 @@ g_concat_passdown(struct g_concat_softc *sc, struct bio *bp)
 		bioq_insert_tail(&queue, cbp);
 		cbp->bio_done = g_concat_done;
 		cbp->bio_caller1 = disk->d_consumer;
-		cbp->bio_to = disk->d_consumer->provider;
+		//wycpush cbp->bio_to = disk->d_consumer->provider;
 	}
 	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		G_CONCAT_LOGREQ(cbp, "Sending request.");
