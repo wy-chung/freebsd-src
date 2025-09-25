@@ -241,16 +241,16 @@ _Static_assert(sizeof(struct _seg_sum) == SECTOR_SIZE,
 */
 struct g_logstor_softc {
 	struct g_geom	*sc_geom;
+	bool (*is_sec_inuse_fp)(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa);
+	uint32_t (*ba2sa_fp)(struct g_logstor_softc *sc, uint32_t ba);
+
 	struct _superblock superblock;
 	struct _seg_sum seg_sum;// segment summary for the current segment
 	uint32_t sb_sa; 	// superblock's sector address
 	bool sb_modified;	// is the super block modified
 	bool ss_modified;	// is segment summary modified
 
-	bool (*is_sec_inuse_fp)(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa);
-	uint32_t (*ba2sa_fp)(struct g_logstor_softc *sc, uint32_t ba);
-
-	uint32_t seg_allocp_start;// the starting segment for logstor_write
+	uint32_t seg_allocp_start;// the starting segment for doing logstor_write
 	uint32_t seg_allocp_sa;	// the sector address of the segment for allocation
 
 	int fbuf_count;
@@ -455,6 +455,148 @@ fail0:
 	return sb;
 }
 
+// The common part of is_sec_inuse
+static bool
+is_sec_inuse_comm(uint8_t fd[], int fd_cnt, struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
+{
+	uint32_t sa_rev; // the sector address for ba_rev
+
+	MY_ASSERT(ba_rev < BLOCK_MAX);
+	for (int i = 0; i < fd_cnt; ++i) {
+		sa_rev = file_read_4byte(sc, fd[i], ba_rev);
+		if (sa_rev == sa)
+			return true;
+	}
+	return false;
+}
+#define NUM_OF_ELEMS(x) (sizeof(x)/sizeof(x[0]))
+
+// Is a sector with a reverse ba valid?
+// This function is called normally
+static bool
+is_sec_inuse_normal(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
+{
+	uint8_t fd[] = {
+	    sc->superblock.fd_cur,
+	    sc->superblock.fd_snap,
+	};
+
+	return is_sec_inuse_comm(fd, NUM_OF_ELEMS(fd), sc, ba_rev, sa);
+}
+
+// Is a sector with a reverse ba valid?
+// This function is called during snapshot
+static bool
+is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
+{
+	uint8_t fd[] = {
+	    sc->superblock.fd_cur,
+	    sc->superblock.fd_prev,
+	    sc->superblock.fd_snap,
+	};
+
+	return is_sec_inuse_comm(fd, NUM_OF_ELEMS(fd), sc, ba_rev, sa);
+}
+
+// Is a sector with a reverse ba valid?
+static bool
+is_sec_inuse(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
+{
+#if defined(MY_DEBUG)
+	union meta_addr ma_rev __unused;
+	ma_rev.uint32 = ba_rev;
+#endif
+	if (ba_rev < BLOCK_MAX) {
+		return sc->is_sec_inuse_fp(sc, ba_rev, sa);
+#if defined(WYC)
+		is_sec_inuse_normal();
+		is_sec_inuse_during_snapshot();
+#endif
+	} else if (IS_META_ADDR(ba_rev)) {
+		uint32_t sa_rev = ma2sa(sc, (union meta_addr)ba_rev);
+		return (sa_rev == sa);
+	} else if (ba_rev == BLOCK_INVALID) {
+		return false;
+	} else {
+		MY_PANIC();
+		return false;
+	}
+}
+
+// allocate a sector for writing
+static uint32_t
+sec_alloc_for_write(struct g_logstor_softc *sc, uint32_t ba)
+{
+	uint32_t sa =logstor_write(sc, ba, NULL);
+	return sa;
+}
+
+/*
+Description:
+  write metadata block to disk
+
+Return:
+  the sector address where the data/metadata is written
+*/
+static uint32_t
+logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
+{
+	static bool is_called = false;
+	int i;
+	struct _seg_sum *seg_sum = &sc->seg_sum;
+#if defined(MY_DEBUG)
+	union meta_addr ma __unused;
+	union meta_addr ma_rev __unused;
+
+	ma.uint32 = ba;
+#endif
+	MY_ASSERT(IS_META_ADDR(ba) ? data != NULL : data == NULL);
+	MY_ASSERT(ba < sc->superblock.block_cnt || IS_META_ADDR(ba));
+	if (is_called) // recursive call is not allowed
+		MY_PANIC();
+	is_called = true;
+
+	// record the starting segment
+	// if the search for free sector rolls over to the starting segment
+	// it means that there is no free sector in this disk
+	sc->seg_allocp_start = sc->superblock.seg_allocp;
+again:
+	for (i = seg_sum->ss_allocp; i < SEG_SUM_OFFSET; ++i)
+	{
+		uint32_t sa = sc->seg_allocp_sa + i;
+		uint32_t ba_rev = seg_sum->ss_rm[i]; // ba from the reverse map
+#if defined(MY_DEBUG)
+		ma_rev.uint32 = ba_rev;
+#endif
+		if (is_sec_inuse(sc, ba_rev, sa))
+			continue;
+
+		if (IS_META_ADDR(ba)) {
+			struct g_consumer *cp;
+			cp = LIST_FIRST(&sc->sc_geom->consumer);
+			md_write(cp, data, sa);
+			++sc->other_write_count;
+		}
+		seg_sum->ss_rm[i] = ba;		// record reverse mapping
+		sc->ss_modified = true;		// segment summary modified
+		seg_sum->ss_allocp = i + 1;	// advnace the alloc pointer
+		if (seg_sum->ss_allocp == SEG_SUM_OFFSET)
+			seg_alloc(sc);
+
+		if (!IS_META_ADDR(ba)) {
+			++sc->data_write_count;
+			// record the forward mapping for the %ba
+			// the forward mapping must be recorded after
+			// the segment summary block write
+			file_write_4byte(sc, sc->superblock.fd_cur, ba, sa);
+		}
+		is_called = false;
+		return sa;
+	}
+	seg_alloc(sc);
+	goto again;
+}
+
 static void
 logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_sa)
 {
@@ -488,43 +630,6 @@ logstor_close(struct g_logstor_softc *sc)
 	fbuf_mod_fini(sc);
 	seg_sum_write(sc);
 	superblock_write(sc);
-}
-
-// To enable TRIM, the following statement must be added
-// in "case BIO_GETATTR" of g_gate_start() of g_gate.c
-//	if (g_handleattr_int(pbp, "GEOM::candelete", 1))
-//		return;
-// and the command below must be executed before mounting the device
-//	tunefs -t enabled /dev/ggate0
-static void
-logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
-{
-#if 1
-	printf("%s: BIO_DELETE not implemented yet\n", __func__);
-	g_io_deliver(bp, EOPNOTSUPP);
-#else
-	off_t offset = bp->bio_offset;
-	off_t length = bp->bio_length;
-	uint32_t ba;	// block address
-	int count;	// number of remaining sectors to process
-	int i;
-
-	MY_ASSERT((offset & (SECTOR_SIZE - 1)) == 0);
-	MY_ASSERT((length & (SECTOR_SIZE - 1)) == 0);
-	ba = offset / SECTOR_SIZE;
-	count = length / SECTOR_SIZE;
-	MY_ASSERT(ba < sc->superblock.block_cnt);
-
-	fbuf_clean_queue_check(sc);
-	for (i = 0; i < count; ++i) {
-		uint32_t sa = file_read_4byte(sc, sc->superblock.fd_cur, ba + i);
-		if (sa != SECTOR_NULL && sa != SECTOR_DEL) {
-			--sc->superblock.fh[sc->superblock.fd_cur].written;
-			sc->sb_modified = true;
-		}
-		file_write_4byte(sc, sc->superblock.fd_cur, ba + i, SECTOR_DEL);
-	}
-#endif
 }
 
 static void
@@ -594,146 +699,41 @@ static logstor_rollback(struct g_logstor_softc *sc)
 	sc->sb_modified = true;
 }
 
-// allocate a sector for writing
-static uint32_t
-sec_alloc_for_write(struct g_logstor_softc *sc, uint32_t ba)
+// To enable TRIM, the following statement must be added
+// in "case BIO_GETATTR" of g_gate_start() of g_gate.c
+//	if (g_handleattr_int(pbp, "GEOM::candelete", 1))
+//		return;
+// and the command below must be executed before mounting the device
+//	tunefs -t enabled /dev/ggate0
+static void
+logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
 {
-	uint32_t sa =logstor_write(sc, ba, NULL);
-	return sa;
-}
-
-// The common part of is_sec_inuse
-static bool
-is_sec_inuse_comm(uint8_t fd[], int fd_cnt, struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
-{
-	uint32_t sa_rev; // the sector address for ba_rev
-
-	MY_ASSERT(ba_rev < BLOCK_MAX);
-	for (int i = 0; i < fd_cnt; ++i) {
-		sa_rev = file_read_4byte(sc, fd[i], ba_rev);
-		if (sa_rev == sa)
-			return true;
-	}
-	return false;
-}
-#define NUM_OF_ELEMS(x) (sizeof(x)/sizeof(x[0]))
-
-// Is a sector with a reverse ba valid?
-// This function is called normally
-static bool
-is_sec_inuse_normal(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
-{
-	uint8_t fd[] = {
-	    sc->superblock.fd_cur,
-	    sc->superblock.fd_snap,
-	};
-
-	return is_sec_inuse_comm(fd, NUM_OF_ELEMS(fd), sc, ba_rev, sa);
-}
-
-// Is a sector with a reverse ba valid?
-// This function is called during snapshot
-static bool
-is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
-{
-	uint8_t fd[] = {
-	    sc->superblock.fd_cur,
-	    sc->superblock.fd_prev,
-	    sc->superblock.fd_snap,
-	};
-
-	return is_sec_inuse_comm(fd, NUM_OF_ELEMS(fd), sc, ba_rev, sa);
-}
-
-// Is a sector with a reverse ba valid?
-static bool
-is_sec_inuse(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
-{
-#if defined(MY_DEBUG)
-	union meta_addr ma_rev __unused;
-	ma_rev.uint32 = ba_rev;
-#endif
-	if (ba_rev < BLOCK_MAX) {
-		return sc->is_sec_inuse_fp(sc, ba_rev, sa);
-#if defined(WYC)
-		is_sec_inuse_normal();
-		is_sec_inuse_during_snapshot();
-#endif
-	} else if (IS_META_ADDR(ba_rev)) {
-		uint32_t sa_rev = ma2sa(sc, (union meta_addr)ba_rev);
-		return (sa_rev == sa);
-	} else if (ba_rev == BLOCK_INVALID) {
-		return false;
-	} else {
-		MY_PANIC();
-		return false;
-	}
-}
-
-/*
-Description:
-  write metadata block to disk
-
-Return:
-  the sector address where the data/metadata is written
-*/
-static uint32_t
-logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
-{
-	static bool is_called = false;
+#if 1
+	printf("%s: BIO_DELETE not implemented yet\n", __func__);
+	g_io_deliver(bp, EOPNOTSUPP);
+#else
+	off_t offset = bp->bio_offset;
+	off_t length = bp->bio_length;
+	uint32_t ba;	// block address
+	int count;	// number of remaining sectors to process
 	int i;
-	struct _seg_sum *seg_sum = &sc->seg_sum;
-#if defined(MY_DEBUG)
-	union meta_addr ma __unused;
-	union meta_addr ma_rev __unused;
 
-	ma.uint32 = ba;
-#endif
-	MY_ASSERT(IS_META_ADDR(ba) ? data != NULL : data == NULL);
-	MY_ASSERT(ba < sc->superblock.block_cnt || IS_META_ADDR(ba));
-	if (is_called) // recursive call is not allowed
-		MY_PANIC();
-	is_called = true;
+	MY_ASSERT((offset & (SECTOR_SIZE - 1)) == 0);
+	MY_ASSERT((length & (SECTOR_SIZE - 1)) == 0);
+	ba = offset / SECTOR_SIZE;
+	count = length / SECTOR_SIZE;
+	MY_ASSERT(ba < sc->superblock.block_cnt);
 
-	// record the starting segment
-	// if the search for free sector rolls over to the starting segment
-	// it means that there is no free sector in this disk
-	sc->seg_allocp_start = sc->superblock.seg_allocp;
-again:
-	for (i = seg_sum->ss_allocp; i < SEG_SUM_OFFSET; ++i)
-	{
-		uint32_t sa = sc->seg_allocp_sa + i;
-		uint32_t ba_rev = seg_sum->ss_rm[i]; // ba from the reverse map
-#if defined(MY_DEBUG)
-		ma_rev.uint32 = ba_rev;
-#endif
-		if (is_sec_inuse(sc, ba_rev, sa))
-			continue;
-
-		if (IS_META_ADDR(ba)) {
-			struct g_consumer *cp;
-			cp = LIST_FIRST(&sc->sc_geom->consumer);
-			md_write(cp, data, sa);
-			++sc->other_write_count;
+	fbuf_clean_queue_check(sc);
+	for (i = 0; i < count; ++i) {
+		uint32_t sa = file_read_4byte(sc, sc->superblock.fd_cur, ba + i);
+		if (sa != SECTOR_NULL && sa != SECTOR_DEL) {
+			--sc->superblock.fh[sc->superblock.fd_cur].written;
+			sc->sb_modified = true;
 		}
-		seg_sum->ss_rm[i] = ba;		// record reverse mapping
-		sc->ss_modified = true;		// segment summary modified
-		seg_sum->ss_allocp = i + 1;	// advnace the alloc pointer
-		if (seg_sum->ss_allocp == SEG_SUM_OFFSET)
-			seg_alloc(sc);
-
-		if (!IS_META_ADDR(ba)) {
-			++sc->data_write_count;
-			// record the forward mapping for the %ba
-			// the forward mapping must be recorded after
-			// the segment summary block write
-			file_write_4byte(sc, sc->superblock.fd_cur, ba, sa);
-		}
-		is_called = false;
-		return sa;
+		file_write_4byte(sc, sc->superblock.fd_cur, ba + i, SECTOR_DEL);
 	}
-	seg_alloc(sc);
-	goto again;
+#endif
 }
 
 static uint32_t
@@ -981,7 +981,7 @@ Return:
 static uint32_t
 file_read_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba)
 {
-	uint32_t off_4byte;	// the offset in 4 bytes within the file buffer data
+	uint32_t eidx;	// entry index within the file data buffer
 	uint32_t sa;
 	struct _fbuf *fbuf;
 
@@ -998,9 +998,9 @@ file_read_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba)
 	    sc->superblock.fh[fd].root == SECTOR_DEL)
 		return SECTOR_NULL;
 
-	fbuf = file_access_4byte(sc, fd, ba, &off_4byte);
+	fbuf = file_access_4byte(sc, fd, ba, &eidx);
 	if (fbuf)
-		sa = fbuf->data[off_4byte];
+		sa = fbuf->data[eidx];
 	else
 		sa = SECTOR_NULL;
 	return sa;
@@ -1019,20 +1019,20 @@ static void
 file_write_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba, uint32_t sa)
 {
 	struct _fbuf *fbuf;
-	uint32_t off_4byte;	// the offset in 4 bytes within the file buffer data
+	uint32_t eidx;	// entry index within the file data buffer
 
 	MY_ASSERT(fd < FD_COUNT);
 	MY_ASSERT(ba < BLOCK_MAX);
 	MY_ASSERT(sc->superblock.fh[fd].root != SECTOR_DEL);
 
-	fbuf = file_access_4byte(sc, fd, ba, &off_4byte);
+	fbuf = file_access_4byte(sc, fd, ba, &eidx);
 	MY_ASSERT(fbuf != NULL);
-	uint32_t old_sa = fbuf->data[off_4byte];
+	uint32_t old_sa = fbuf->data[eidx];
 	if (old_sa == SECTOR_NULL || old_sa ==  SECTOR_DEL) {
 		++sc->superblock.fh[fd].written;
 		sc->sb_modified = true;
 	}
-	fbuf->data[off_4byte] = sa;
+	fbuf->data[eidx] = sa;
 	if (!fbuf->fc.modified) {
 		// move to QUEUE_F0_DIRTY
 		MY_ASSERT(fbuf->queue_which == QUEUE_F0_CLEAN);
@@ -1053,19 +1053,19 @@ Description:
 Parameters:
 	%fd: file descriptor
 	%ba: block address
-	%off_4byte: the offset (in unit of 4 bytes) within the file buffer data
+	%eidx: entry index within the file data buffer
 
 Return:
 	the address of the file buffer data
 */
 static struct _fbuf *
-file_access_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba, uint32_t *off_4byte)
+file_access_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba, uint32_t *eidx)
 {
 	union meta_addr	ma;		// metadata address
 	struct _fbuf *fbuf;
 
 	// the sector address stored in file for this ba is 4 bytes
-	*off_4byte = ((ba * 4) & (SECTOR_SIZE - 1)) / 4;
+	*eidx = ((ba * 4) & (SECTOR_SIZE - 1)) / 4;
 
 	// convert (%fd, %ba) to metadata address
 	ma.index = (ba * 4) / SECTOR_SIZE;
