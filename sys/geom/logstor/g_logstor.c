@@ -101,8 +101,8 @@ enum {
 struct _superblock {
 	uint32_t magic;
 	uint32_t version;
-	char name[16];
 	uint64_t provsize;	// Provider's size
+	uint32_t sb_gen;	// the generation number. Used for redo after system crash
 	/*
 	   The segments are treated as circular buffer
 	 */
@@ -111,9 +111,8 @@ struct _superblock {
 	// block_cnt must be < (4G/4)
 	uint32_t block_cnt;	// max block number for the virtual disk
 
-	uint32_t sb_gen;	// the generation number. Used for redo after system crash
-	uint32_t seg_allocp;	// allocate this segment
-	uint32_t sectors_free;
+	uint32_t seg_allocp;	// allocate from this segment
+	//uint32_t sectors_free;// not implemented yet
 	/*
 	   The files for forward mapping
 
@@ -365,6 +364,7 @@ disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)
 	sb->magic = G_LOGSTOR_MAGIC;
 	sb->version = G_LOGSTOR_VERSION;
 	sb->sb_gen = arc4random();
+	sb->provsize = pp->mediasize;
 	sector_cnt = pp->mediasize / SECTOR_SIZE;
 	sb->seg_cnt = sector_cnt / SECTORS_PER_SEG;
 	sb->block_cnt = sb->seg_cnt * BLOCKS_PER_SEG - SB_CNT -
@@ -640,7 +640,7 @@ logstor_snapshot(struct g_logstor_softc *sc)
 	// move fd_cur to fd_prev
 	sc->superblock.fd_prev = sc->superblock.fd_cur;
 	// create new files fd_cur and fd_snap_new
-	// fc_cur is either 0 or 2 and fd_snap always follows fd_cur
+	// fc_cur is either 0 or 2 and fd_snap_new always follows fd_cur
 	sc->superblock.fd_cur = sc->superblock.fd_cur ^ 2;
 	sc->superblock.fd_snap_new = sc->superblock.fd_cur + 1;
 	sc->superblock.fh[sc->superblock.fd_cur].root = SECTOR_NULL;
@@ -2105,7 +2105,7 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp, struct _superblock *
 
 	int n = snprintf(name, sizeof(name), "%s%s", pp->name, G_LOGSTOR_SUFFIX);
 	if (n <= 0 || n >= sizeof(name)) {
-		//gctl_error(req, "Invalid provider name.");
+		G_LOGSTOR_DEBUG(0, "Invalid provider name.");
 		return NULL;
 	}
 	G_LOGSTOR_DEBUG(1, "Creating device %s.", name);
@@ -2115,13 +2115,13 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp, struct _superblock *
 		sc = gp->softc;
 		if (sc != NULL && strcmp(gp->name, name) == 0) {
 			MY_ASSERT(sc->sc_geom == gp);
-			G_LOGSTOR_DEBUG(0, "Device %s already configured.",
-			    gp->name);
+			G_LOGSTOR_DEBUG(0, "Device %s already configured.", name);
 			return (NULL);
 		}
 	}
 	gp = g_new_geom(mp, name);
 	sc = malloc(sizeof(*sc), M_LOGSTOR, M_WAITOK | M_ZERO);
+	gp->softc = sc;
 	sc->sc_geom = gp;
 	gp->start = g_logstor_start;
 	gp->spoiled = g_logstor_orphan;
@@ -2139,13 +2139,12 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp, struct _superblock *
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	int error = g_attach(cp, pp);
 	if (error) {
-		//gctl_error(req, "Error %d: cannot attach to provider %s.",
-		//    error, lowerpp->name);
+		G_LOGSTOR_DEBUG(0, "Error %d: cannot attach to provider %s.",
+		    error, name);
 		goto fail;
 	}
 	logstor_init(sc, sb, sb_sa);
 	g_error_provider(newpp, 0);
-	gp->softc = sc;
 	G_LOGSTOR_DEBUG(0, "Device %s created.", gp->name);
 
 	return (gp);
@@ -2211,7 +2210,6 @@ static struct g_geom *
 g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
 	struct _superblock *sb;
-	struct g_consumer *cp;
 	struct g_geom *gp;
 	int error;
 	uint32_t sb_sa;
@@ -2226,10 +2224,10 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	G_LOGSTOR_DEBUG(3, "Tasting %s.", pp->name);
 
 	gp = g_new_geom(mp, "logstor:taste");
-	gp->start = g_logstor_start;
-	gp->access = g_logstor_access;
-	gp->orphan = g_logstor_orphan;
-	cp = g_new_consumer(gp);
+	gp->start = invalid_g_start;
+	gp->access = invalid_g_access;
+	gp->orphan = invalid_g_orphan;
+	struct g_consumer *cp = g_new_consumer(gp);
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (!error) {
@@ -2248,14 +2246,11 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp = g_logstor_create(mp, pp, sb, sb_sa);
 	free(sb, M_LOGSTOR);
 	if (gp == NULL) {
-		G_LOGSTOR_DEBUG(0, "Cannot create device %s.",
-		    sb->name);
 		goto fail;
 	}
 #if defined(MY_DEBUG)
 	//logstor_check(sc);
 #endif
-
 fail:
 	free(sb, M_LOGSTOR);
 	return (gp);
@@ -2308,7 +2303,6 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Can't configure %s.", pp->name);
 		return;
 	}
-	free(sb, M_LOGSTOR);
 }
 
 static void
