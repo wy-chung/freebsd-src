@@ -85,7 +85,7 @@ enum {
 	SECTOR_CACHE,	// the root sector of the file is still in the cache
 };
 
-#define	META_START	(((union meta_addr){.meta = 0xFF}).uint32)	// metadata block address start
+#define	META_START	(((union fbuf_addr){.xFF = 0xFF}).uint32)	// metadata block address start
 #define	IS_META_ADDR(x)	((x) >= META_START)
 
 #define FBUF_CLEAN_THRESHOLD	32
@@ -107,7 +107,7 @@ struct _superblock {
 	   The segments are treated as circular buffer
 	 */
 	uint32_t seg_cnt;	// total number of segments
-	// since the max meta file size is 4G (1K*1K*4K) and the entry size is 4
+	// since the max file size is 4G (1K*1K*4K) and the entry size is 4
 	// block_cnt must be < (4G/4)
 	uint32_t block_cnt;	// max block number for the virtual disk
 
@@ -153,21 +153,21 @@ _Static_assert(sizeof(struct _superblock) < SECTOR_SIZE,
   For block address that is >= META_START, it is actually a metadata address.
 */
 #define IDX_BITS	10	// number of index bits
-union meta_addr { // metadata address for fbuf
+union fbuf_addr { // metadata address for fbuf
 	uint32_t	uint32;
 	struct {
 		uint32_t index1 :IDX_BITS;	// index for indirect block of depth 1
 		uint32_t index0 :IDX_BITS;	// index for indirect block of depth 0
 		uint32_t depth	:2;	// depth of the fbuf
 		uint32_t fd	:2;	// file descriptor
-		uint32_t meta	:8;	// 0xFF for metadata address
+		uint32_t xFF	:8;	// 0xFF for metadata address
 	};
 	struct {
 		uint32_t index :20;	// index for indirect blocks
 	};
 };
 
-_Static_assert(sizeof(union meta_addr) == 4, "The size of emta_addr must be 4");
+_Static_assert(sizeof(union fbuf_addr) == 4, "The size of emta_addr must be 4");
 
 // when processing queues, we always process it from the leaf to root
 // so leaf has lower queue number
@@ -194,7 +194,7 @@ struct _fbuf_sentinel {
 	struct _fbuf_comm fc;
 };
 
-#define MBUF_LEAF_DEPTH	2
+#define FBUF_LEAF_DEPTH	2
 /*
   Metadata is cached in memory. The access unit of metadata is block so each cache line
   stores a block of metadata
@@ -208,7 +208,7 @@ struct _fbuf { // file buffer
 	struct _fbuf *parent;
 	uint16_t child_cnt; // number of children reference this fbuf
 	uint16_t queue_which;
-	union meta_addr	ma;	// the metadata address
+	union fbuf_addr	ma;	// the metadata address
 #if defined(MY_DEBUG)
 	uint16_t bucket_which;
 	uint16_t index; // the array index for this fbuf
@@ -287,20 +287,20 @@ static void fbuf_mod_fini(struct g_logstor_softc *sc);
 static void fbuf_queue_init(struct g_logstor_softc *sc, int which);
 static void fbuf_queue_insert_tail(struct g_logstor_softc *sc, int which, struct _fbuf *fbuf);
 static void fbuf_queue_remove(struct g_logstor_softc *sc, struct _fbuf *fbuf);
-static struct _fbuf *fbuf_search(struct g_logstor_softc *sc, union meta_addr ma);
-static void fbuf_hash_insert_head(struct g_logstor_softc *sc, struct _fbuf *fbuf, union meta_addr ma);
+static struct _fbuf *fbuf_search(struct g_logstor_softc *sc, union fbuf_addr ma);
+static void fbuf_hash_insert_head(struct g_logstor_softc *sc, struct _fbuf *fbuf, union fbuf_addr ma);
 static void fbuf_bucket_init(struct g_logstor_softc *sc, int which);
 static void fbuf_bucket_insert_head(struct g_logstor_softc *sc, int which, struct _fbuf *fbuf);
 static void fbuf_bucket_remove(struct _fbuf *fbuf);
 static void fbuf_write(struct g_logstor_softc *sc, struct _fbuf *fbuf);
-static struct _fbuf *fbuf_alloc(struct g_logstor_softc *sc, union meta_addr ma, int depth);
-static struct _fbuf *fbuf_access(struct g_logstor_softc *sc, union meta_addr ma);
+static struct _fbuf *fbuf_alloc(struct g_logstor_softc *sc, union fbuf_addr ma, int depth);
+static struct _fbuf *fbuf_access(struct g_logstor_softc *sc, union fbuf_addr ma);
 static void fbuf_cache_flush(struct g_logstor_softc *sc);
 static void fbuf_cache_flush_and_invalidate_fd(struct g_logstor_softc *sc, int fd1, int fd2);
 static void fbuf_clean_queue_check(struct g_logstor_softc *sc);
 
-static union meta_addr ma2pma(union meta_addr ma, unsigned *pindex_out);
-static uint32_t ma2sa(struct g_logstor_softc *sc, union meta_addr ma);
+static union fbuf_addr ma2pma(union fbuf_addr ma, unsigned *pindex_out);
+static uint32_t ma2sa(struct g_logstor_softc *sc, union fbuf_addr ma);
 
 static uint32_t ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba);
 static uint32_t ba2sa_during_snapshot(struct g_logstor_softc *sc, uint32_t ba);
@@ -501,7 +501,7 @@ static bool
 is_sec_inuse(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
 {
 #if defined(MY_DEBUG)
-	union meta_addr ma_rev __unused;
+	union fbuf_addr ma_rev __unused;
 	ma_rev.uint32 = ba_rev;
 #endif
 	if (ba_rev < BLOCK_MAX) {
@@ -511,7 +511,7 @@ is_sec_inuse(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
 		is_sec_inuse_during_snapshot();
 #endif
 	} else if (IS_META_ADDR(ba_rev)) {
-		uint32_t sa_rev = ma2sa(sc, (union meta_addr)ba_rev);
+		uint32_t sa_rev = ma2sa(sc, (union fbuf_addr)ba_rev);
 		return (sa_rev == sa);
 	} else if (ba_rev == BLOCK_INVALID) {
 		return false;
@@ -543,8 +543,8 @@ logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 	int i;
 	struct _seg_sum *seg_sum = &sc->seg_sum;
 #if defined(MY_DEBUG)
-	union meta_addr ma __unused;
-	union meta_addr ma_rev __unused;
+	union fbuf_addr ma __unused;
+	union fbuf_addr ma_rev __unused;
 
 	ma.uint32 = ba;
 #endif
@@ -1060,7 +1060,7 @@ Return:
 static struct _fbuf *
 file_access_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba, uint32_t *eidx)
 {
-	union meta_addr	ma;		// metadata address
+	union fbuf_addr	ma;		// metadata address
 	struct _fbuf *fbuf;
 
 	// the sector address stored in file for this ba is 4 bytes
@@ -1068,15 +1068,15 @@ file_access_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba, uint32_t 
 
 	// convert (%fd, %ba) to metadata address
 	ma.index = (ba * 4) / SECTOR_SIZE;
-	ma.depth = MBUF_LEAF_DEPTH;
+	ma.depth = FBUF_LEAF_DEPTH;
 	ma.fd = fd;
-	ma.meta = 0xFF;	// for metadata address, bits 31:24 are all 1s
+	ma.xFF = 0xFF;	// for metadata address, bits 31:24 are all 1s
 	fbuf = fbuf_access(sc, ma);
 	return fbuf;
 }
 
 static inline unsigned
-ma_index_get(union meta_addr ma, unsigned depth)
+ma_index_get(union fbuf_addr ma, unsigned depth)
 {
 	switch (depth) {
 	case 0:
@@ -1089,8 +1089,8 @@ ma_index_get(union meta_addr ma, unsigned depth)
 	}
 }
 
-static union meta_addr
-ma_index_set(union meta_addr ma, unsigned depth, unsigned index)
+static union fbuf_addr
+ma_index_set(union fbuf_addr ma, unsigned depth, unsigned index)
 {
 	MY_ASSERT(index < (2 << IDX_BITS));
 
@@ -1116,8 +1116,8 @@ output:
 return:
   parent's metadata address
 */
-static union meta_addr
-ma2pma(union meta_addr ma, unsigned *pindex_out)
+static union fbuf_addr
+ma2pma(union fbuf_addr ma, unsigned *pindex_out)
 {
 	switch (ma.depth)
 	{
@@ -1140,7 +1140,7 @@ ma2pma(union meta_addr ma, unsigned *pindex_out)
 
 // get the sector address where the metadata is stored on disk
 static uint32_t
-ma2sa(struct g_logstor_softc *sc, union meta_addr ma)
+ma2sa(struct g_logstor_softc *sc, union fbuf_addr ma)
 {
 	uint32_t sa;
 
@@ -1156,7 +1156,7 @@ ma2sa(struct g_logstor_softc *sc, union meta_addr ma)
 			sa = SECTOR_NULL;
 		else {
 			struct _fbuf *parent;	// parent buffer
-			union meta_addr pma;	// parent's metadata address
+			union fbuf_addr pma;	// parent's metadata address
 			unsigned pindex;	// index in the parent indirect block
 
 			pma = ma2pma(ma, &pindex);
@@ -1422,7 +1422,7 @@ fbuf_queue_remove(struct g_logstor_softc *sc, struct _fbuf *fbuf)
 
 // insert to the head of the hashed bucket
 static void
-fbuf_hash_insert_head(struct g_logstor_softc *sc, struct _fbuf *fbuf, union meta_addr ma)
+fbuf_hash_insert_head(struct g_logstor_softc *sc, struct _fbuf *fbuf, union fbuf_addr ma)
 {
 	unsigned hash;
 
@@ -1494,7 +1494,7 @@ Description:
     Search the file buffer with the tag value of @ma. Return NULL if not found
 */
 static struct _fbuf *
-fbuf_search(struct g_logstor_softc *sc, union meta_addr ma)
+fbuf_search(struct g_logstor_softc *sc, union fbuf_addr ma)
 {
 	unsigned	hash;	// hash value
 	struct _fbuf	*fbuf;
@@ -1524,12 +1524,12 @@ Description:
   using the second chance replacement policy to choose a fbuf in QUEUE_F0_CLEAN
 */
 struct _fbuf *
-fbuf_alloc(struct g_logstor_softc *sc, union meta_addr ma, int depth)
+fbuf_alloc(struct g_logstor_softc *sc, union fbuf_addr ma, int depth)
 {
 	struct _fbuf_sentinel *queue_sentinel;
 	struct _fbuf *fbuf, *parent;
 
-	MY_ASSERT(depth <= MBUF_LEAF_DEPTH);
+	MY_ASSERT(depth <= FBUF_LEAF_DEPTH);
 	queue_sentinel = &sc->fbuf_queue[QUEUE_F0_CLEAN];
 	fbuf = sc->fbuf_allocp;
 again:
@@ -1550,7 +1550,7 @@ again:
 	MY_ASSERT(!fbuf->fc.modified);
 	MY_ASSERT(fbuf->child_cnt == 0);
 	sc->fbuf_allocp = fbuf->fc.queue_next;
-	if (depth != MBUF_LEAF_DEPTH) {
+	if (depth != FBUF_LEAF_DEPTH) {
 		// for fbuf allocated for internal nodes insert it immediately
 		// to its internal queue
 		fbuf_queue_remove(sc, fbuf);
@@ -1574,17 +1574,17 @@ Description:
     Read or write the file buffer with metadata address @ma
 */
 static struct _fbuf *
-fbuf_access(struct g_logstor_softc *sc, union meta_addr ma)
+fbuf_access(struct g_logstor_softc *sc, union fbuf_addr ma)
 {
 	uint32_t sa;	// sector address where the metadata is stored
 	unsigned index;
-	union meta_addr	ima;	// the intermediate metadata address
+	union fbuf_addr	ima;	// the intermediate fbuf address
 	struct _fbuf *parent;	// parent buffer
 	struct _fbuf *fbuf;
 	struct g_consumer *cp = LIST_FIRST(&sc->sc_geom->consumer);
 
 	MY_ASSERT(IS_META_ADDR(ma.uint32));
-	MY_ASSERT(ma.depth <= MBUF_LEAF_DEPTH);
+	MY_ASSERT(ma.depth <= FBUF_LEAF_DEPTH);
 
 	// get the root sector address of the file %ma.fd
 	sa = sc->superblock.fh[ma.fd].root;
@@ -1596,7 +1596,7 @@ fbuf_access(struct g_logstor_softc *sc, union meta_addr ma)
 
 	// cache miss
 	parent = NULL;	// parent for root is NULL
-	ima = (union meta_addr){.meta = 0xFF};	// set .meta to 0xFF and all others to 0
+	ima = (union fbuf_addr){.xFF = 0xFF};	// set .xFF to 0xFF and all others to 0
 	ima.fd = ma.fd;
 	// read the metadata from root to leaf node
 	for (int i = 0; ; ++i) {
