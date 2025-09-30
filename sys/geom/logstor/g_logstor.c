@@ -455,14 +455,15 @@ fail0:
 
 // The common part of is_sec_inuse
 static bool
-is_sec_inuse_comm(uint8_t fd[], int fd_cnt, struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
+is_sec_inuse_comm(uint8_t fd[], int fd_cnt, struct g_logstor_softc *sc,
+	uint32_t sa, uint32_t ba_rev)
 {
 	uint32_t sa_rev; // the sector address for ba_rev
 
 	MY_ASSERT(ba_rev < BLOCK_MAX);
 	for (int i = 0; i < fd_cnt; ++i) {
 		sa_rev = file_read_4byte(sc, fd[i], ba_rev);
-		if (sa_rev == sa)
+		if (sa == sa_rev)
 			return true;
 	}
 	return false;
@@ -472,20 +473,20 @@ is_sec_inuse_comm(uint8_t fd[], int fd_cnt, struct g_logstor_softc *sc, uint32_t
 // Is a sector with a reverse ba valid?
 // This function is called normally
 static bool
-is_sec_inuse_normal(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
+is_sec_inuse_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 {
 	uint8_t fd[] = {
 	    sc->superblock.fd_cur,
 	    sc->superblock.fd_snap,
 	};
 
-	return is_sec_inuse_comm(fd, NUM_OF_ELEMS(fd), sc, ba_rev, sa);
+	return is_sec_inuse_comm(fd, NUM_OF_ELEMS(fd), sc, sa, ba_rev);
 }
 
 // Is a sector with a reverse ba valid?
 // This function is called during snapshot
 static bool
-is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
+is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 {
 	uint8_t fd[] = {
 	    sc->superblock.fd_cur,
@@ -493,26 +494,26 @@ is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t ba_rev, uint32
 	    sc->superblock.fd_snap,
 	};
 
-	return is_sec_inuse_comm(fd, NUM_OF_ELEMS(fd), sc, ba_rev, sa);
+	return is_sec_inuse_comm(fd, NUM_OF_ELEMS(fd), sc, sa, ba_rev);
 }
 
 // Is a sector with a reverse ba valid?
 static bool
-is_sec_inuse(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
+is_sec_inuse(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 {
 #if defined(MY_DEBUG)
 	union fbuf_addr fa_rev __unused;
 	fa_rev.uint32 = ba_rev;
 #endif
 	if (ba_rev < BLOCK_MAX) {
-		return sc->is_sec_inuse_fp(sc, ba_rev, sa);
+		return sc->is_sec_inuse_fp(sc, sa, ba_rev);
 #if defined(WYC)
 		is_sec_inuse_normal();
 		is_sec_inuse_during_snapshot();
 #endif
 	} else if (IS_FBUF_ADDR(ba_rev)) {
 		uint32_t sa_rev = fbuf_ba2sa(sc, (union fbuf_addr)ba_rev);
-		return (sa_rev == sa);
+		return (sa == sa_rev);
 	} else if (ba_rev == BLOCK_INVALID) {
 		return false;
 	} else {
@@ -525,6 +526,7 @@ is_sec_inuse(struct g_logstor_softc *sc, uint32_t ba_rev, uint32_t sa)
 static uint32_t
 sec_alloc_for_write(struct g_logstor_softc *sc, uint32_t ba)
 {
+	MY_ASSERT(!IS_FBUF_ADDR(ba));
 	uint32_t sa =logstor_write(sc, ba, NULL);
 	return sa;
 }
@@ -566,7 +568,7 @@ again:
 #if defined(MY_DEBUG)
 		dba_rev.uint32 = ba_rev;
 #endif
-		if (is_sec_inuse(sc, ba_rev, sa))
+		if (is_sec_inuse(sc, sa, ba_rev))
 			continue;
 
 		if (IS_FBUF_ADDR(ba)) {
@@ -806,9 +808,9 @@ seg_sum_write(struct g_logstor_softc *sc)
 }
 
 /*
-  Segment 0 is used to store superblock so there are SECTORS_PER_SEG sectors
+  Segment 0 is used to store superblock and there are SB_CNT sectors
   for storing superblock. Each time the superblock is synced, it is stored
-  in the next sector. When it reachs the end of segment 0, it wraps around
+  in the next sector. When it reachs SB_CNT, it wraps around
   to sector 0.
 */
 static struct _superblock *
@@ -844,7 +846,7 @@ superblock_read(struct g_consumer *cp, uint32_t *sb_sa)
 		g_read_datab(cp, (off_t)i * SECTOR_SIZE, sb, SECTOR_SIZE);
 		if (sb->magic != G_LOGSTOR_MAGIC)
 			break;
-		if (sb->sb_gen != sb_gen + 1) // IMPORTANT type cast
+		if (sb->sb_gen != sb_gen + 1)
 			break;
 		sb_gen = sb->sb_gen;
 	}
@@ -1491,7 +1493,7 @@ fbuf_bucket_remove(struct _fbuf *fbuf)
 
 /*
 Description:
-    Search the fbuf with the tag value of @ba. Return NULL if not found
+    Search the fbuf with block address %ba. Return NULL if not found
 */
 static struct _fbuf *
 fbuf_search(struct g_logstor_softc *sc, union fbuf_addr ba)
@@ -2111,17 +2113,12 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp, struct _superblock *
 
 	/* Check for duplicate unit */
 	LIST_FOREACH(gp, &mp->geom, geom) {
-		sc = gp->softc;
-		if (sc != NULL && strcmp(gp->name, name) == 0) {
-			MY_ASSERT(sc->sc_geom == gp);
+		if (strcmp(gp->name, name) == 0) {
 			G_LOGSTOR_DEBUG(0, "Device %s already configured.", name);
 			return (NULL);
 		}
 	}
 	gp = g_new_geom(mp, name);
-	sc = malloc(sizeof(*sc), M_LOGSTOR, M_WAITOK | M_ZERO);
-	gp->softc = sc;
-	sc->sc_geom = gp;
 	gp->start = g_logstor_start;
 	gp->spoiled = g_logstor_orphan;
 	gp->orphan = g_logstor_orphan;
@@ -2142,7 +2139,10 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp, struct _superblock *
 		    error, name);
 		goto fail;
 	}
+	sc = malloc(sizeof(*sc), M_LOGSTOR, M_WAITOK | M_ZERO);
 	logstor_init(sc, sb, sb_sa);
+	sc->sc_geom = gp;
+	gp->softc = sc;
 	g_error_provider(newpp, 0);
 	G_LOGSTOR_DEBUG(0, "Device %s created.", gp->name);
 
@@ -2150,7 +2150,6 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp, struct _superblock *
 fail:
 	g_destroy_consumer(cp);
 	g_destroy_provider(newpp);
-	free(sc, M_LOGSTOR);
 	g_destroy_geom(gp);
 	return NULL;
 }
