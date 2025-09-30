@@ -709,24 +709,21 @@ static logstor_rollback(struct g_logstor_softc *sc)
 static void
 logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
 {
-#if 1
-	printf("%s: BIO_DELETE not implemented yet\n", __func__);
-	g_io_deliver(bp, EOPNOTSUPP);
-#else
-	off_t offset = bp->bio_offset;
-	off_t length = bp->bio_length;
 	uint32_t ba;	// block address
 	int count;	// number of remaining sectors to process
-	int i;
 
+	off_t offset = bp->bio_offset;
+	off_t length = bp->bio_length;
 	MY_ASSERT((offset & (SECTOR_SIZE - 1)) == 0);
 	MY_ASSERT((length & (SECTOR_SIZE - 1)) == 0);
 	ba = offset / SECTOR_SIZE;
 	count = length / SECTOR_SIZE;
 	MY_ASSERT(ba < sc->superblock.block_cnt);
-
+#if 1
+	printf("%s: ba %d count %d\n", __func__, ba, count);
+#else
 	fbuf_clean_queue_check(sc);
-	for (i = 0; i < count; ++i) {
+	for (int i = 0; i < count; ++i) {
 		uint32_t sa = file_read_4byte(sc, sc->superblock.fd_cur, ba + i);
 		if (sa != SECTOR_NULL && sa != SECTOR_DEL) {
 			--sc->superblock.fh[sc->superblock.fd_cur].written;
@@ -735,6 +732,7 @@ logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
 		file_write_4byte(sc, sc->superblock.fd_cur, ba + i, SECTOR_DEL);
 	}
 #endif
+	g_io_deliver(bp, 0);
 }
 
 static uint32_t
@@ -2004,24 +2002,22 @@ g_logstor_start(struct bio *bp)
 		break;
 	case BIO_DELETE:
 		logstor_delete(sc, bp);
-		goto exit;
+		return;
 	case BIO_SPEEDUP:
 	case BIO_FLUSH:
 		g_logstor_passdown(sc, bp);
-		goto exit;
+		return;
 	case BIO_GETATTR:
-		if (strcmp("GEOM::candelete", bp->bio_attribute) == 0) {
-			int val = false;
-			g_handleattr(bp, "GEOM::candelete", &val, sizeof(val));
-			goto exit;
-		} else if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
+		if (g_handleattr_int(bp, "GEOM::candelete", 1))
+			return;
+		if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
 			printf("kerneldump not supported\n");
 		}
 		/* To which provider it should be delivered? */
 		/* FALLTHROUGH */
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
-		goto exit;
+		return;
 	}
 
 	struct bio_queue_head queue;
@@ -2048,7 +2044,7 @@ g_logstor_start(struct bio *bp)
 			if (bp->bio_error == 0)
 				bp->bio_error = ENOMEM;
 			g_io_deliver(bp, bp->bio_error);
-			goto exit;
+			return;
 		}
 		bioq_insert_tail(&queue, cbp);
 		uint32_t sa = get_sa_fp(sc, ba_start + i);
@@ -2093,12 +2089,11 @@ g_logstor_start(struct bio *bp)
 			g_io_request(cbp, cp);
 		}
 	}
-exit:
-	;
 }
 
 static struct g_geom *
-g_logstor_create(struct g_class *mp, struct g_provider *pp, struct _superblock *sb, uint32_t sb_sa)
+g_logstor_create(struct g_class *mp, struct g_provider *pp,
+	struct _superblock *sb, uint32_t sb_sa)
 {
 	struct g_logstor_softc *sc;
 	struct g_geom *gp;
