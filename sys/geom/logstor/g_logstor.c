@@ -2202,6 +2202,9 @@ g_logstor_destroy_geom(struct gctl_req *req __unused,
 static struct g_geom *
 g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
+#if 1
+	return NULL;
+#else
 	struct _superblock *sb;
 	struct g_geom *gp;
 	int error;
@@ -2247,6 +2250,7 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 fail:
 	free(sb, M_LOGSTOR);
 	return (gp);
+#endif
 }
 
 static struct g_logstor_softc *
