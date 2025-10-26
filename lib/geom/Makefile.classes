@@ -7,6 +7,7 @@ GEOM_CLASS_DIR?=/usr/lib${COMPAT_libcompat}/geom
 
 GEOM_CLASSES=	cache
 GEOM_CLASSES+=	concat
+GEOM_CLASSES+=	logstor
 .if ${MK_OPENSSL} != "no"
 GEOM_CLASSES+=	eli
 .endif

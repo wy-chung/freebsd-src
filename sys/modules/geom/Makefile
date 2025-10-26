@@ -5,6 +5,7 @@ SYSDIR?=${SRCTOP}/sys
 SUBDIR=	geom_bde \
 	geom_cache \
 	geom_concat \
+	geom_glogstor \
 	geom_eli \
 	geom_flashmap \
 	geom_gate \
