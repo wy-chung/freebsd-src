@@ -43,10 +43,12 @@
 #define	G_LOGSTOR_TYPE_MANUAL	0
 #define	G_LOGSTOR_TYPE_AUTOMATIC	1
 
-#define G_LOGSTOR_DEBUG(lvl, ...) \
-    _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, (lvl), NULL, __VA_ARGS__)
-#define G_LOGSTOR_LOGREQ(bp, ...) \
-    _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, 2, (bp), __VA_ARGS__)
+#define G_LOGSTOR_DEBUG(lvl, fmt, ...) \
+	printf(fmt, ## __VA_ARGS__)
+    //_GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, (lvl), NULL, fmt, ## __VA_ARGS__)
+#define G_LOGSTOR_LOGREQ(bp, fmt, ...) \
+	printf(fmt, ## __VA_ARGS__)
+    //_GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, 2, (bp), fmt, ## __VA_ARGS__)
 #endif	/* _KERNEL */
 
 #define IS_POWER_OF_2(n) ((n) > 0 && ((n) & ((n) - 1)) == 0)

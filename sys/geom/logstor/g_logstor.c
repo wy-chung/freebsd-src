@@ -352,20 +352,20 @@ sega2sa(uint32_t sega)
 static void
 invalid_g_start(struct bio *bp __unused)
 {
-	panic("%s: something is wrong here.", __func__);
+	printf("error %s: something is wrong here.", __func__);
 }
 
 static int
 invalid_g_access(struct g_provider *gp __unused, int dr __unused, int dw __unused, int de __unused)
 {
-	panic("%s: something is wrong here.", __func__);
+	printf("error %s: something is wrong here.", __func__);
 	return 1;
 }
 
 static void
 invalid_g_orphan(struct g_consumer *gc __unused)
 {
-	panic("%s: something is wrong here.", __func__);
+	printf("error %s: something is wrong here.", __func__);
 }
 
 /*
@@ -422,6 +422,7 @@ disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (error) {
+		printf("%s: g_attach\n", __func__);
 		goto fail0;
 	}
 	g_topology_assert();
@@ -435,15 +436,19 @@ disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)
 	// write out the first super block
 	*sb_sa = 0;
 	error = g_write_data(cp, 0, sb, SECTOR_SIZE);
-	if (error)
+	if (error) {
+		printf("%s(%d): g_write_data error %d\n", __func__, __LINE__, error);
 		goto fail2;
+	}
 
 	// clear the rest of the supeblocks
 	char *buf = malloc(SECTOR_SIZE, M_LOGSTOR, M_WAITOK | M_ZERO);
 	for (int i = 1; i < SB_CNT; i++) {
 		error = g_write_data(cp, i * SECTOR_SIZE, buf, SECTOR_SIZE);
-		if (error)
+		if (error) {
+			printf("%s(%d): g_write_data error %d\n", __func__, __LINE__, error);
 			goto fail3;
+		}
 	}
 	// initialize the segment summary block
 	seg_sum = (struct _seg_sum *)buf;
@@ -453,16 +458,20 @@ disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)
 	// write out the first segment summary block
 	seg_sum->ss_allocp = SB_CNT;
 	error = g_write_data(cp, SEG_SUM_OFFSET * SECTOR_SIZE, seg_sum, SECTOR_SIZE);
-	if (error)
+	if (error) {
+		printf("%s(%d): g_write_data error %d\n", __func__, __LINE__, error);
 		goto fail3;
+	}
 
 	// write out the rest of the segment summary blocks
 	seg_sum->ss_allocp = 0;
 	for (int i = 1; i < sb->seg_cnt; ++i) {
 		uint32_t sa = sega2sa(i) + SEG_SUM_OFFSET;
 		error = g_write_data(cp, (off_t)sa * SECTOR_SIZE, seg_sum, SECTOR_SIZE);
-		if (error)
+		if (error) {
+			printf("%s(%d): g_write_data error %d\n", __func__, __LINE__, error);
 			goto fail3;
+		}
 	}
 fail3:
 	free(buf, M_LOGSTOR);
@@ -2315,15 +2324,20 @@ g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	struct g_provider *pp = gctl_get_provider(req, "arg0");
-	if (pp == NULL)
+	if (pp == NULL) {
+		printf("%s: cannot get provider\n", __func__);
 		return;
+	}
 	uint32_t sb_sa;
 	struct _superblock *sb = disk_init(mp, pp, &sb_sa);
-	if (sb == NULL)
+	if (sb == NULL) {
+		printf("%s: cannot init disk\n", __func__);
 		return;
+	}
 	struct g_geom *gp = g_logstor_create(mp, pp, sb, sb_sa);
 	free(sb, M_LOGSTOR);
 	if (gp == NULL) {
+		printf("%s: g_logstor_create failed\n", __func__);
 		gctl_error(req, "Can't configure %s.", pp->name);
 		return;
 	}
