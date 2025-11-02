@@ -379,7 +379,7 @@ Return:
     The superblock
 */
 static struct _superblock *
-disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)
+disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)  __attribute__((optnone))
 {
 	struct _seg_sum *seg_sum;
 	int error;
@@ -426,7 +426,7 @@ disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)
 		goto fail0;
 	}
 	g_topology_assert();
-	error = g_access(cp, 0, 0, 1);
+	error = g_access(cp, 0, 1, 0);
 	if (error) {
 		printf("%s: Cannot store metadata on %s: %d",
 		    __func__, cp->provider->name, error);
@@ -476,7 +476,7 @@ disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)
 fail3:
 	free(buf, M_LOGSTOR);
 fail2:
-	(void)g_access(cp, 0, 0, -1);
+	(void)g_access(cp, 0, -1, 0);
 fail1:
 	g_detach(cp);
 fail0:
@@ -634,7 +634,7 @@ again:
 }
 
 static void
-logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_sa)
+logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_sa) __attribute__((optnone))
 {
 	memcpy(&sc->superblock, sb, sizeof(sc->superblock));
 	sc->sb_sa = sb_sa;
@@ -2012,7 +2012,7 @@ g_logstor_passdown(struct g_logstor_softc *sc, struct bio *bp)
 }
 
 static void
-g_logstor_start(struct bio *bp)
+g_logstor_start(struct bio *bp) __attribute__((optnone))
 {
 	// function pointer for get sector address
 	uint32_t (*get_sa_fp)(struct g_logstor_softc *sc, unsigned ba);
@@ -2101,7 +2101,7 @@ g_logstor_start(struct bio *bp)
 			cbp->bio_ma_offset %= PAGE_SIZE;
 			cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
 			    cbp->bio_length) / PAGE_SIZE;
-			MY_ASSERT(cbp->bio_ma_n == 1);
+			MY_ASSERT(cbp->bio_ma_n == 1); //wycdebug
 		} else
 			cbp->bio_data = addr;
 		addr += SECTOR_SIZE;
@@ -2129,7 +2129,7 @@ g_logstor_start(struct bio *bp)
 
 static struct g_geom *
 g_logstor_create(struct g_class *mp, struct g_provider *pp,
-	struct _superblock *sb, uint32_t sb_sa)
+	struct _superblock *sb, uint32_t sb_sa) __attribute__((optnone))
 {
 	struct g_logstor_softc *sc;
 	struct g_geom *gp;
@@ -2171,8 +2171,8 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp,
 		goto fail;
 	}
 	sc = malloc(sizeof(*sc), M_LOGSTOR, M_WAITOK | M_ZERO);
-	logstor_init(sc, sb, sb_sa);
 	sc->sc_geom = gp;
+	logstor_init(sc, sb, sb_sa);
 	gp->softc = sc;
 	g_error_provider(newpp, 0);
 	G_LOGSTOR_DEBUG(0, "Device %s created.", gp->name);
@@ -2310,7 +2310,7 @@ g_logstor_find_device(struct g_class *mp, const char *name)
 }
 
 static void
-g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp)
+g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp) __attribute__((optnone))
 {
 
 	g_topology_assert();
@@ -2450,7 +2450,7 @@ g_logstor_ctl_rollback(struct gctl_req *req, struct g_class *mp)
 }
 
 static void
-g_logstor_config(struct gctl_req *req, struct g_class *mp, const char *verb)
+g_logstor_config(struct gctl_req *req, struct g_class *mp, const char *verb) __attribute__((optnone))
 {
 	uint32_t *version;
 

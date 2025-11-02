@@ -113,6 +113,7 @@ IPI_PREEMPTION	opt_sched.h
 GEOM_BDE	opt_geom.h
 GEOM_CACHE	opt_geom.h
 GEOM_CONCAT	opt_geom.h
+GEOM_LOGSTOR	opt_geom.h
 GEOM_ELI	opt_geom.h
 GEOM_GATE	opt_geom.h
 GEOM_JOURNAL	opt_geom.h
