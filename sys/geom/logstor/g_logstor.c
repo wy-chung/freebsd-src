@@ -246,6 +246,7 @@ struct g_logstor_softc {
 	uint32_t sb_sa; 	// superblock's sector address
 	bool sb_modified;	// is the super block modified
 	bool ss_modified;	// is segment summary modified
+	bool logstor_write_called;
 
 	uint32_t seg_allocp_start;// the starting segment for doing logstor_write
 	uint32_t seg_allocp_sa;	// the sector address of the segment for allocation
@@ -577,7 +578,6 @@ Return:
 static uint32_t
 logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 {
-	static bool is_called = false;
 	int i;
 	struct _seg_sum *seg_sum = &sc->seg_sum;
 #if defined(MY_DEBUG)
@@ -588,9 +588,9 @@ logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 #endif
 	MY_ASSERT(IS_FBUF_ADDR(ba) ? data != NULL : data == NULL);
 	MY_ASSERT(ba < sc->superblock.block_cnt || IS_FBUF_ADDR(ba));
-	if (is_called) // recursive call is not allowed
+	if (sc->logstor_write_called) // recursive call is not allowed
 		MY_PANIC();
-	is_called = true;
+	sc->logstor_write_called = true;
 
 	// record the starting segment
 	// if the search for free sector rolls over to the starting segment
@@ -626,7 +626,7 @@ again:
 			// the segment summary block write
 			file_write_4byte(sc, sc->superblock.fd_cur, ba, sa);
 		}
-		is_called = false;
+		sc->logstor_write_called = false;
 		return sa;
 	}
 	seg_alloc(sc);
