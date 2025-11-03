@@ -2099,9 +2099,7 @@ g_logstor_start(struct bio *bp) __attribute__((optnone))
 			cbp->bio_ma_offset += (uintptr_t)addr;
 			cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
 			cbp->bio_ma_offset %= PAGE_SIZE;
-			cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
-			    cbp->bio_length) / PAGE_SIZE;
-			MY_ASSERT(cbp->bio_ma_n == 1); //wycdebug
+			cbp->bio_ma_n = round_page(cbp->bio_ma_offset + SECTOR_SIZE) / PAGE_SIZE;
 		} else
 			cbp->bio_data = addr;
 		addr += SECTOR_SIZE;
