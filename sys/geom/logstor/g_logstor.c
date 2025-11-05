@@ -130,10 +130,10 @@ struct _superblock {
 	   To support trim command, the mapping marked as delete will stop
 	   the checking for the next mapping file and return null immediately
 	*/
-	struct { // file handles
+	struct { // file table
 		uint32_t root;	// the root sector of the file
 		uint32_t written;// number of blocks written to this virtual disk
-	} fh[FD_COUNT];
+	} ft[FD_COUNT];
 	uint8_t fd_prev;	// the file descriptor for previous current mapping
 	uint8_t fd_snap;	// the file descriptor for snapshot mapping
 	uint8_t fd_cur;		// the file descriptor for current mapping
@@ -280,8 +280,8 @@ static struct _superblock *superblock_read(struct g_consumer *cp, uint32_t *sb_s
 static void superblock_write(struct g_logstor_softc *sc);
 
 static struct _fbuf *file_access_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t offset, uint32_t *off_4byte);
-static uint32_t file_read_4byte(struct g_logstor_softc *sc, uint8_t fh, uint32_t ba);
-static void file_write_4byte(struct g_logstor_softc *sc, uint8_t fh, uint32_t ba, uint32_t sa);
+static uint32_t file_read_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba);
+static void file_write_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba, uint32_t sa);
 
 static void fbuf_mod_init(struct g_logstor_softc *sc);
 static void fbuf_mod_fini(struct g_logstor_softc *sc);
@@ -407,11 +407,11 @@ disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)  __attribu
 	sb->fd_prev = FD_INVALID;	// previous mapping does not eixt
 	sb->fd_snap_new = FD_INVALID;	// snap_new mapping does not eixt
 
-	sb->fh[0].root = SECTOR_NULL;	// file 0 is all 0
-	sb->fh[0].written = 0;
+	sb->ft[0].root = SECTOR_NULL;	// file 0 is all 0
+	sb->ft[0].written = 0;
 	// files 1, 2 and 3: read returns 0 and write not allowed
 	for (int i = 1; i < FD_COUNT; i++) {
-		sb->fh[i].root = SECTOR_DEL;	// the file does not exit
+		sb->ft[i].root = SECTOR_DEL;	// the file does not exit
 	}
 	memset((char *)sb + sizeof(*sb), 0, SECTOR_SIZE - sizeof(*sb));
 
@@ -680,10 +680,10 @@ logstor_snapshot(struct g_logstor_softc *sc)
 	// fc_cur is either 0 or 2 and fd_snap_new always follows fd_cur
 	sc->superblock.fd_cur = sc->superblock.fd_cur ^ 2;
 	sc->superblock.fd_snap_new = sc->superblock.fd_cur + 1;
-	sc->superblock.fh[sc->superblock.fd_cur].root = SECTOR_NULL;
-	sc->superblock.fh[sc->superblock.fd_cur].written = 0;
-	sc->superblock.fh[sc->superblock.fd_snap_new].root = SECTOR_NULL;
-	sc->superblock.fh[sc->superblock.fd_snap_new].written = 0;
+	sc->superblock.ft[sc->superblock.fd_cur].root = SECTOR_NULL;
+	sc->superblock.ft[sc->superblock.fd_cur].written = 0;
+	sc->superblock.ft[sc->superblock.fd_snap_new].root = SECTOR_NULL;
+	sc->superblock.ft[sc->superblock.fd_snap_new].written = 0;
 
 	sc->is_sec_inuse_fp = is_sec_inuse_during_snapshot;
 	sc->ba2sa_fp = ba2sa_during_snapshot;
@@ -709,8 +709,8 @@ logstor_snapshot(struct g_logstor_softc *sc)
 	int fd_prev = sc->superblock.fd_prev;
 	int fd_snap = sc->superblock.fd_snap;
 	fbuf_cache_flush_and_invalidate_fd(sc, fd_prev, fd_snap);
-	sc->superblock.fh[fd_prev].root = SECTOR_DEL;
-	sc->superblock.fh[fd_snap].root = SECTOR_DEL;
+	sc->superblock.ft[fd_prev].root = SECTOR_DEL;
+	sc->superblock.ft[fd_snap].root = SECTOR_DEL;
 	// move fd_snap_new to fd_snap
 	sc->superblock.fd_snap = sc->superblock.fd_snap_new;
 	// delete fd_prev and fd_snap
@@ -731,8 +731,8 @@ static logstor_rollback(struct g_logstor_softc *sc)
 {
 
 	fbuf_cache_flush_and_invalidate_fd(sc, sc->superblock.fd_cur, FD_INVALID);
-	sc->superblock.fh[sc->superblock.fd_cur].root = SECTOR_NULL;
-	sc->superblock.fh[sc->superblock.fd_cur].written = 0;
+	sc->superblock.ft[sc->superblock.fd_cur].root = SECTOR_NULL;
+	sc->superblock.ft[sc->superblock.fd_cur].written = 0;
 	sc->sb_modified = true;
 }
 
@@ -762,7 +762,7 @@ logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
 	for (int i = 0; i < count; ++i) {
 		uint32_t sa = file_read_4byte(sc, sc->superblock.fd_cur, ba + i);
 		if (sa != SECTOR_NULL && sa != SECTOR_DEL) {
-			--sc->superblock.fh[sc->superblock.fd_cur].written;
+			--sc->superblock.ft[sc->superblock.fd_cur].written;
 			sc->sb_modified = true;
 		}
 		file_write_4byte(sc, sc->superblock.fd_cur, ba + i, SECTOR_DEL);
@@ -897,7 +897,7 @@ superblock_read(struct g_consumer *cp, uint32_t *sb_sa)
 	}
 	free(buf[i%2], M_LOGSTOR);
 	for (i=0; i<FD_COUNT; ++i)
-		MY_ASSERT(sb->fh[i].root != SECTOR_CACHE);
+		MY_ASSERT(sb->ft[i].root != SECTOR_CACHE);
 	return sb;
 exit:
 	free(buf[1], M_LOGSTOR);
@@ -916,7 +916,7 @@ superblock_write(struct g_logstor_softc *sc)
 	//	return;
 
 	for (int i = 0; i < 4; ++i) {
-		MY_ASSERT(sc->superblock.fh[i].root != SECTOR_CACHE);
+		MY_ASSERT(sc->superblock.ft[i].root != SECTOR_CACHE);
 	}
 	sc->superblock.sb_gen++;
 	if (++sc->sb_sa == SB_CNT)
@@ -1029,8 +1029,8 @@ file_read_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba)
 		return SECTOR_NULL;
 	}
 	// this file is all 0
-	if (sc->superblock.fh[fd].root == SECTOR_NULL ||
-	    sc->superblock.fh[fd].root == SECTOR_DEL)
+	if (sc->superblock.ft[fd].root == SECTOR_NULL ||
+	    sc->superblock.ft[fd].root == SECTOR_DEL)
 		return SECTOR_NULL;
 
 	fbuf = file_access_4byte(sc, fd, ba, &eidx);
@@ -1058,13 +1058,13 @@ file_write_4byte(struct g_logstor_softc *sc, uint8_t fd, uint32_t ba, uint32_t s
 
 	MY_ASSERT(fd < FD_COUNT);
 	MY_ASSERT(ba < BLOCK_MAX);
-	MY_ASSERT(sc->superblock.fh[fd].root != SECTOR_DEL);
+	MY_ASSERT(sc->superblock.ft[fd].root != SECTOR_DEL);
 
 	fbuf = file_access_4byte(sc, fd, ba, &eidx);
 	MY_ASSERT(fbuf != NULL);
 	uint32_t old_sa = fbuf->data[eidx];
 	if (old_sa == SECTOR_NULL || old_sa ==  SECTOR_DEL) {
-		++sc->superblock.fh[fd].written;
+		++sc->superblock.ft[fd].written;
 		sc->sb_modified = true;
 	}
 	fbuf->data[eidx] = sa;
@@ -1183,12 +1183,12 @@ fbuf_ba2sa(struct g_logstor_softc *sc, union fbuf_addr ba)
 	switch (ba.depth)
 	{
 	case 0:
-		sa = sc->superblock.fh[ba.fd].root;
+		sa = sc->superblock.ft[ba.fd].root;
 		break;
 	case 1:
 	case 2:
-		if (sc->superblock.fh[ba.fd].root == SECTOR_NULL ||
-		    sc->superblock.fh[ba.fd].root == SECTOR_DEL)
+		if (sc->superblock.ft[ba.fd].root == SECTOR_NULL ||
+		    sc->superblock.ft[ba.fd].root == SECTOR_DEL)
 			sa = SECTOR_NULL;
 		else {
 			struct _fbuf *parent;	// parent buffer
@@ -1623,7 +1623,7 @@ fbuf_access(struct g_logstor_softc *sc, union fbuf_addr ba)
 	MY_ASSERT(ba.depth <= FBUF_LEAF_DEPTH);
 
 	// get the root sector address of the file %ba.fd
-	sa = sc->superblock.fh[ba.fd].root;
+	sa = sc->superblock.ft[ba.fd].root;
 	MY_ASSERT(sa != SECTOR_DEL);
 
 	fbuf = fbuf_search(sc, ba);
@@ -1652,7 +1652,7 @@ fbuf_access(struct g_logstor_softc *sc, union fbuf_addr ba)
 			if (sa == SECTOR_NULL) {
 				bzero(fbuf->data, sizeof(fbuf->data));
 				if (i == 0)
-					sc->superblock.fh[ba.fd].root = SECTOR_CACHE;
+					sc->superblock.ft[ba.fd].root = SECTOR_CACHE;
 			} else {
 				MY_ASSERT(sa >= SECTORS_PER_SEG);
 				md_read(cp, fbuf->data, sa);
@@ -1705,7 +1705,7 @@ fbuf_write(struct g_logstor_softc *sc, struct _fbuf *fbuf)
 	} else {
 		MY_ASSERT(fbuf->ba.depth == 0);
 		// store the root sector address to the corresponding file table in super block
-		sc->superblock.fh[fbuf->ba.fd].root = sa;
+		sc->superblock.ft[fbuf->ba.fd].root = sa;
 		sc->sb_modified = true;
 	}
 }
