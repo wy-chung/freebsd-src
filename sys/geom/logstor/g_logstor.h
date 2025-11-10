@@ -29,8 +29,6 @@
 #ifndef	_G_LOGSTOR_H_
 #define	_G_LOGSTOR_H_
 
-#include <sys/endian.h>
-
 #define	G_LOGSTOR_CLASS_NAME	"LOGSTOR"
 #define	G_LOGSTOR_MAGIC		0x4C4F4753	// "LOGS": Log-Structured Storage
 /*
@@ -45,10 +43,5 @@
 #define G_LOGSTOR_LOGREQ(bp, fmt, ...) \
     _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, 2, (bp), fmt, ## __VA_ARGS__)
 #endif	/* _KERNEL */
-
-#define IS_POWER_OF_2(n) ((n) > 0 && ((n) & ((n) - 1)) == 0)
-
-#define	SECTOR_SIZE	0x1000	// 4K
-_Static_assert(IS_POWER_OF_2(SECTOR_SIZE) && SECTOR_SIZE <= PAGE_SIZE, "Invalid sector size");
 
 #endif	/* _G_LOGSTOR_H_ */

@@ -63,6 +63,8 @@ SYSCTL_UINT(_kern_geom_logstor, OID_AUTO, debug, CTLFLAG_RWTUN, &g_logstor_debug
 
 #define G_LOGSTOR_SUFFIX	".logstor"
 
+//===========================================
+#define	SECTOR_SIZE	0x1000	// 4K
 #define	SEG_SIZE	0x400000		// 4M
 #define	SECTORS_PER_SEG	(SEG_SIZE/SECTOR_SIZE)	// 1024
 #define BLOCKS_PER_SEG	(SECTORS_PER_SEG - 1)
@@ -182,9 +184,9 @@ enum {
 struct _fbuf_comm {
 	struct _fbuf *queue_next;
 	struct _fbuf *queue_prev;
-	bool is_sentinel;
-	bool accessed;	/* only used for fbufs on circular queue */
-	bool modified;	/* the fbuf is dirty */
+	uint8_t is_sentinel:1;
+	uint8_t accessed:1;	/* only used for fbufs on circular queue */
+	uint8_t modified:1;	/* the fbuf is dirty */
 };
 
 struct _fbuf_sentinel {
@@ -244,9 +246,9 @@ struct g_logstor_softc {
 	struct _superblock superblock;
 	struct _seg_sum seg_sum;// segment summary for the current segment
 	uint32_t sb_sa; 	// superblock's sector address
-	bool sb_modified;	// is the super block modified
-	bool ss_modified;	// is segment summary modified
-	bool logstor_write_called;
+	uint8_t sb_modified:1;	// is the super block modified
+	uint8_t ss_modified:1;	// is segment summary modified
+	uint8_t logstor_write_called:1;
 
 	uint32_t seg_allocp_start;// the starting segment for doing logstor_write
 	uint32_t seg_allocp_sa;	// the sector address of the segment for allocation
@@ -380,7 +382,7 @@ Return:
     The superblock
 */
 static struct _superblock *
-disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)  __attribute__((optnone))
+disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)
 {
 	struct _seg_sum *seg_sum;
 	int error;
@@ -634,7 +636,7 @@ again:
 }
 
 static void
-logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_sa) __attribute__((optnone))
+logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_sa)
 {
 	memcpy(&sc->superblock, sb, sizeof(sc->superblock));
 	sc->sb_sa = sb_sa;
@@ -726,8 +728,8 @@ logstor_snapshot(struct g_logstor_softc *sc)
 	//unlock metadata
 }
 
-void
-static logstor_rollback(struct g_logstor_softc *sc)
+static void
+logstor_rollback(struct g_logstor_softc *sc)
 {
 
 	fbuf_cache_flush_and_invalidate_fd(sc, sc->superblock.fd_cur, FD_INVALID);
@@ -928,40 +930,6 @@ superblock_write(struct g_logstor_softc *sc)
 	sc->sb_modified = false;
 	sc->other_write_count++;
 	free(buf, M_LOGSTOR);
-}
-
-static void
-md_read(struct g_consumer *cp, void *buf, uint32_t sa)
-{
-	int error;
-
-	g_topology_assert();
-	error = g_access(cp, 1, 0, 0);
-	if (error) {
-		printf("%s: Cannot access %s error %d",
-			__func__, cp->provider->name, error);
-		MY_PANIC();
-	}
-	error = g_read_datab(cp, (off_t)sa * SECTOR_SIZE, buf, SECTOR_SIZE);
-	g_access(cp, -1, 0, 0);
-	MY_ASSERT(error == 0);
-}
-
-static void
-md_write(struct g_consumer *cp, void *buf, uint32_t sa)
-{
-	int error;
-
-	g_topology_assert();
-	error = g_access(cp, 0, 1, 0);
-	if (error) {
-		printf("%s: Cannot store metadata on %s: %d",
-		    __func__, cp->provider->name, error);
-		MY_PANIC();
-	}
-	error = g_write_data(cp, (off_t)sa * SECTOR_SIZE, buf, SECTOR_SIZE);
-	(void)g_access(cp, 0, -1, 0);
-	MY_ASSERT(error == 0);
 }
 
 /*
@@ -1841,6 +1809,39 @@ logstor_check(struct g_logstor_softc *sc)
 }
 #endif
 
+static void
+md_read(struct g_consumer *cp, void *buf, uint32_t sa)
+{
+	int error;
+
+	g_topology_assert();
+	error = g_access(cp, 1, 0, 0);
+	if (error) {
+		printf("%s: Cannot access %s error %d",
+			__func__, cp->provider->name, error);
+		MY_PANIC();
+	}
+	error = g_read_datab(cp, (off_t)sa * SECTOR_SIZE, buf, SECTOR_SIZE);
+	g_access(cp, -1, 0, 0);
+	MY_ASSERT(error == 0);
+}
+
+static void
+md_write(struct g_consumer *cp, void *buf, uint32_t sa)
+{
+	int error;
+
+	g_topology_assert();
+	error = g_access(cp, 0, 1, 0);
+	if (error) {
+		printf("%s: Cannot store metadata on %s: %d",
+		    __func__, cp->provider->name, error);
+		MY_PANIC();
+	}
+	error = g_write_data(cp, (off_t)sa * SECTOR_SIZE, buf, SECTOR_SIZE);
+	(void)g_access(cp, 0, -1, 0);
+	MY_ASSERT(error == 0);
+}
 
 //==============================================
 static void g_logstor_start(struct bio *bp);
@@ -2012,7 +2013,7 @@ g_logstor_passdown(struct g_logstor_softc *sc, struct bio *bp)
 }
 
 static void
-g_logstor_start(struct bio *bp) __attribute__((optnone))
+g_logstor_start(struct bio *bp)
 {
 	// function pointer for get sector address
 	uint32_t (*get_sa_fp)(struct g_logstor_softc *sc, unsigned ba);
@@ -2127,7 +2128,7 @@ g_logstor_start(struct bio *bp) __attribute__((optnone))
 
 static struct g_geom *
 g_logstor_create(struct g_class *mp, struct g_provider *pp,
-	struct _superblock *sb, uint32_t sb_sa) __attribute__((optnone))
+	struct _superblock *sb, uint32_t sb_sa)
 {
 	struct g_logstor_softc *sc;
 	struct g_geom *gp;
@@ -2308,7 +2309,7 @@ g_logstor_find_device(struct g_class *mp, const char *name)
 }
 
 static void
-g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp) __attribute__((optnone))
+g_logstor_ctl_create(struct gctl_req *req, struct g_class *mp)
 {
 
 	g_topology_assert();
@@ -2448,7 +2449,7 @@ g_logstor_ctl_rollback(struct gctl_req *req, struct g_class *mp)
 }
 
 static void
-g_logstor_config(struct gctl_req *req, struct g_class *mp, const char *verb) __attribute__((optnone))
+g_logstor_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 {
 	uint32_t *version;
 
