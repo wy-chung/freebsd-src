@@ -250,7 +250,7 @@ struct g_logstor_softc {
 	uint8_t ss_modified:1;	// is segment summary modified
 	uint8_t logstor_write_called:1;
 
-	uint32_t seg_allocp_start;// the starting segment for doing logstor_write
+	uint32_t seg_allocp_start;// the starting segment for doing g_logstor_write
 	uint32_t seg_allocp_sa;	// the sector address of the segment for allocation
 
 	int fbuf_count;
@@ -272,7 +272,7 @@ struct g_logstor_softc {
 /*******************************
  *        logstor              *
  *******************************/
-static uint32_t logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data);
+static uint32_t g_logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data);
 static uint32_t sec_alloc_for_write(struct g_logstor_softc *sc, uint32_t ba);
 
 static void seg_alloc(struct g_logstor_softc *sc);
@@ -566,7 +566,7 @@ static uint32_t
 sec_alloc_for_write(struct g_logstor_softc *sc, uint32_t ba)
 {
 	MY_ASSERT(!IS_FBUF_ADDR(ba));
-	uint32_t sa =logstor_write(sc, ba, NULL);
+	uint32_t sa = g_logstor_write(sc, ba, NULL);
 	return sa;
 }
 
@@ -578,7 +578,7 @@ Return:
   the sector address where the data/metadata is written
 */
 static uint32_t
-logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
+g_logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 {
 	int i;
 	struct _seg_sum *seg_sum = &sc->seg_sum;
@@ -636,7 +636,7 @@ again:
 }
 
 static void
-logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_sa)
+g_logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_sa)
 {
 	memcpy(&sc->superblock, sb, sizeof(sc->superblock));
 	sc->sb_sa = sb_sa;
@@ -663,7 +663,7 @@ logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_sa)
 }
 
 static void
-logstor_close(struct g_logstor_softc *sc)
+g_logstor_close(struct g_logstor_softc *sc)
 {
 
 	fbuf_mod_fini(sc);
@@ -672,7 +672,7 @@ logstor_close(struct g_logstor_softc *sc)
 }
 
 static void
-logstor_snapshot(struct g_logstor_softc *sc)
+g_logstor_snapshot(struct g_logstor_softc *sc)
 {
 
 	// lock metadata
@@ -729,7 +729,7 @@ logstor_snapshot(struct g_logstor_softc *sc)
 }
 
 static void
-logstor_rollback(struct g_logstor_softc *sc)
+g_logstor_rollback(struct g_logstor_softc *sc)
 {
 
 	fbuf_cache_flush_and_invalidate_fd(sc, sc->superblock.fd_cur, FD_INVALID);
@@ -745,7 +745,7 @@ logstor_rollback(struct g_logstor_softc *sc)
 // and the command below must be executed before mounting the device
 //	tunefs -t enabled /dev/ggate0
 static void
-logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
+g_logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
 {
 	uint32_t ba;	// block address
 	int count;	// number of remaining sectors to process
@@ -757,19 +757,17 @@ logstor_delete(struct g_logstor_softc *sc, struct bio *bp)
 	ba = offset / SECTOR_SIZE;
 	count = length / SECTOR_SIZE;
 	MY_ASSERT(ba < sc->superblock.block_cnt);
-#if 1
+
 	printf("%s: ba %d count %d\n", __func__, ba, count);
-#else
 	fbuf_clean_queue_check(sc);
 	for (int i = 0; i < count; ++i) {
 		uint32_t sa = file_read_4byte(sc, sc->superblock.fd_cur, ba + i);
 		if (sa != SECTOR_NULL && sa != SECTOR_DEL) {
+			file_write_4byte(sc, sc->superblock.fd_cur, ba + i, SECTOR_DEL);
 			--sc->superblock.ft[sc->superblock.fd_cur].written;
 			sc->sb_modified = true;
 		}
-		file_write_4byte(sc, sc->superblock.fd_cur, ba + i, SECTOR_DEL);
 	}
-#endif
 	g_io_deliver(bp, 0);
 }
 
@@ -1656,7 +1654,7 @@ fbuf_write(struct g_logstor_softc *sc, struct _fbuf *fbuf)
 	uint32_t sa;		// sector address
 
 	MY_ASSERT(fbuf->fc.modified);
-	sa = logstor_write(sc, fbuf->ba.uint32, fbuf->data);
+	sa = g_logstor_write(sc, fbuf->ba.uint32, fbuf->data);
 #if defined(MY_DEBUG)
 	fbuf->sa = sa;
 #endif
@@ -2038,7 +2036,7 @@ g_logstor_start(struct bio *bp)
 		get_sa_fp = sec_alloc_for_write;
 		break;
 	case BIO_DELETE:
-		logstor_delete(sc, bp);
+		g_logstor_delete(sc, bp);
 		return;
 	case BIO_SPEEDUP:
 	case BIO_FLUSH:
@@ -2171,7 +2169,7 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp,
 	}
 	sc = malloc(sizeof(*sc), M_LOGSTOR, M_WAITOK | M_ZERO);
 	sc->sc_geom = gp;
-	logstor_init(sc, sb, sb_sa);
+	g_logstor_init(sc, sb, sb_sa);
 	gp->softc = sc;
 	g_error_provider(newpp, 0);
 	G_LOGSTOR_DEBUG(0, "Device %s created.", gp->name);
@@ -2212,7 +2210,7 @@ g_logstor_destroy(struct g_logstor_softc *sc, boolean_t force)
 	}
 	G_LOGSTOR_DEBUG(0, "Device %s deactivated.", sc->sc_geom->name);
 	g_wither_provider(pp, ENXIO);
-	logstor_close(sc);
+	g_logstor_close(sc);
 	free(sc, M_LOGSTOR);
 
 	cp = LIST_FIRST(&gp->consumer);
@@ -2413,7 +2411,7 @@ g_logstor_ctl_snapshot(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No such device: %s.", name);
 		return;
 	}
-	logstor_snapshot(sc);
+	g_logstor_snapshot(sc);
 }
 
 static void
@@ -2445,7 +2443,7 @@ g_logstor_ctl_rollback(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No such device: %s.", name);
 		return;
 	}
-	logstor_rollback(sc);
+	g_logstor_rollback(sc);
 }
 
 static void
