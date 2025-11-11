@@ -248,7 +248,6 @@ struct g_logstor_softc {
 	uint32_t sb_sa; 	// superblock's sector address
 	uint8_t sb_modified:1;	// is the super block modified
 	uint8_t ss_modified:1;	// is segment summary modified
-	uint8_t logstor_write_called:1;
 
 	uint32_t seg_allocp_start;// the starting segment for doing g_logstor_write
 	uint32_t seg_allocp_sa;	// the sector address of the segment for allocation
@@ -590,9 +589,6 @@ g_logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 #endif
 	MY_ASSERT(IS_FBUF_ADDR(ba) ? data != NULL : data == NULL);
 	MY_ASSERT(ba < sc->superblock.block_cnt || IS_FBUF_ADDR(ba));
-	if (sc->logstor_write_called) // recursive call is not allowed
-		MY_PANIC();
-	sc->logstor_write_called = true;
 
 	// record the starting segment
 	// if the search for free sector rolls over to the starting segment
@@ -628,7 +624,6 @@ again:
 			// the segment summary block write
 			file_write_4byte(sc, sc->superblock.fd_cur, ba, sa);
 		}
-		sc->logstor_write_called = false;
 		return sa;
 	}
 	seg_alloc(sc);
@@ -1562,8 +1557,8 @@ again:
 	fbuf_hash_insert_head(sc, fbuf, ba);
 	parent = fbuf->parent;
 	if (parent) {
-		// parent with child_cnt == 0 will stay in its queue
-		// it will only be moved to QUEUE_F0_CLEAN in fbuf_clean_queue_check()
+		// parent with child_cnt == 0 will be moved to
+		// QUEUE_F0_CLEAN in fbuf_clean_queue_check()
 		--parent->child_cnt;
 		MY_ASSERT(parent->child_cnt <= SECTOR_SIZE/4);
 		MY_ASSERT(parent->queue_which == d2q[parent->ba.depth]);
