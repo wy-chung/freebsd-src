@@ -245,6 +245,7 @@ struct g_logstor_softc {
 
 	struct _superblock superblock;
 	struct _seg_sum seg_sum;// segment summary for the current segment
+	uint32_t ss_allocp;
 	uint32_t sb_sa; 	// superblock's sector address
 	uint8_t sb_modified:1;	// is the super block modified
 	uint8_t ss_modified:1;	// is segment summary modified
@@ -457,17 +458,8 @@ disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)
 	for (int i = 0; i < BLOCKS_PER_SEG; ++i)
 		seg_sum->ss_rm[i] = BLOCK_INVALID;
 
-	// write out the first segment summary block
-	seg_sum->ss_allocp = SB_CNT;
-	error = g_write_data(cp, SEG_SUM_OFFSET * SECTOR_SIZE, seg_sum, SECTOR_SIZE);
-	if (error) {
-		printf("%s(%d): g_write_data error %d\n", __func__, __LINE__, error);
-		goto fail3;
-	}
-
-	// write out the rest of the segment summary blocks
-	seg_sum->ss_allocp = 0;
-	for (int i = 1; i < sb->seg_cnt; ++i) {
+	// write out the segment summary blocks
+	for (int i = 0; i < sb->seg_cnt; ++i) {
 		uint32_t sa = sega2sa(i) + SEG_SUM_OFFSET;
 		error = g_write_data(cp, (off_t)sa * SECTOR_SIZE, seg_sum, SECTOR_SIZE);
 		if (error) {
@@ -595,7 +587,7 @@ g_logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 	// it means that there is no free sector in this disk
 	sc->seg_allocp_start = sc->superblock.seg_allocp;
 again:
-	for (i = seg_sum->ss_allocp; i < SEG_SUM_OFFSET; ++i)
+	for (i = sc->ss_allocp; i < SEG_SUM_OFFSET; ++i)
 	{
 		uint32_t sa = sc->seg_allocp_sa + i;
 		uint32_t ba_rev = seg_sum->ss_rm[i]; // ba from the reverse map
@@ -613,8 +605,8 @@ again:
 		}
 		seg_sum->ss_rm[i] = ba;		// record reverse mapping
 		sc->ss_modified = true;		// segment summary modified
-		seg_sum->ss_allocp = i + 1;	// advnace the alloc pointer
-		if (seg_sum->ss_allocp == SEG_SUM_OFFSET)
+		sc->ss_allocp = i + 1;	// advnace the alloc pointer
+		if (sc->ss_allocp == SEG_SUM_OFFSET)
 			seg_alloc(sc);
 
 		if (!IS_FBUF_ADDR(ba)) {
@@ -642,11 +634,12 @@ g_logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_s
 
 	// the following is copied from logstor_open()
 	// read the segment summary block
+	if (sc->superblock.seg_allocp == 0)
+		sc->ss_allocp = SB_CNT;
 	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
 	uint32_t sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
 	struct g_consumer *cp = LIST_FIRST(&sc->sc_geom->consumer);
 	md_read(cp, &sc->seg_sum, sa);
-	MY_ASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET);
 	sc->ss_modified = false;
 
 	fbuf_mod_init(sc);
@@ -828,7 +821,6 @@ seg_sum_write(struct g_logstor_softc *sc)
 
 	if (!sc->ss_modified)
 		return;
-	MY_ASSERT(sc->seg_sum.ss_allocp < SEG_SUM_OFFSET);
 	cp = LIST_FIRST(&sc->sc_geom->consumer);
 	sa = sc->seg_allocp_sa + SEG_SUM_OFFSET;
 	md_write(cp, (void *)&sc->seg_sum, sa);
@@ -939,7 +931,6 @@ seg_alloc(struct g_logstor_softc *sc)
 	uint32_t ss_allocp;
 
 	// write the previous segment summary to disk if it has been modified
-	sc->seg_sum.ss_allocp = 0;	// the allocation starts from 0 in the next time
 	seg_sum_write(sc);
 
 	MY_ASSERT(sc->superblock.seg_allocp < sc->superblock.seg_cnt);
@@ -955,7 +946,7 @@ seg_alloc(struct g_logstor_softc *sc)
 	struct g_consumer *cp = LIST_FIRST(&sc->sc_geom->consumer);
 	sc->seg_allocp_sa = sega2sa(sc->superblock.seg_allocp);
 	md_read(cp, &sc->seg_sum, sc->seg_allocp_sa + SEG_SUM_OFFSET);
-	sc->seg_sum.ss_allocp = ss_allocp;
+	sc->ss_allocp = ss_allocp;
 }
 
 /*********************************************************
