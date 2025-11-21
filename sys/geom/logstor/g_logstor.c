@@ -53,12 +53,19 @@ static u_int g_logstor_debug = 0;
 SYSCTL_UINT(_kern_geom_logstor, OID_AUTO, debug, CTLFLAG_RWTUN, &g_logstor_debug, 0,
     "Debug level");
 
+static
+void my_break(void) //__attribute__((optnone))
+{
+}
+
 #define MY_DEBUG
 #define MY_PANIC()	panic("panic: %s %d %s\n", __FILE__, __LINE__, __func__)
 #define MY_ASSERT(x)\
     do\
-	if (!(x))\
+	if (!(x)) {\
+	    my_break();\
 	    panic("assert fail: %s %d %s\n", __FILE__, __LINE__, __func__);\
+	}\
     while(0)
 
 #define G_LOGSTOR_SUFFIX	".logstor"
@@ -79,13 +86,15 @@ SYSCTL_UINT(_kern_geom_logstor, OID_AUTO, debug, CTLFLAG_RWTUN, &g_logstor_debug
 #define BLOCK_MAX	0x40000000	// 1G
 // the address [BLOCK_MAX..META_STAR) are invalid block/metadata address
 #define BLOCK_INVALID	(BLOCK_MAX+1)
-#define META_INVALID	(BLOCK_MAX+1)
 
 enum {
 	SECTOR_NULL,	// the metadata are all NULL
 	SECTOR_DEL,	// the file does not exist or don't look the mapping further, it is NULL
 	SECTOR_CACHE,	// the root sector of the file is still in the cache
+	SECTOR_ENUM_CNT,
 };
+_Static_assert(SB_CNT >= SECTOR_ENUM_CNT,
+	"super block counts must be bigger than the number of SECTOR enum");
 
 #define	FBUF_ADDR_START	(((union fbuf_addr){.xFF = 0xFF}).uint32)	// fbuf block address start
 #define	IS_FBUF_ADDR(x)	((x) >= FBUF_ADDR_START)
@@ -1197,7 +1206,7 @@ fbuf_mod_init(struct g_logstor_softc *sc)
 		// insert fbuf to the last fbuf bucket
 		// this bucket is not used in hash search
 		// init ba, parent and child_cnt before inserting into FBUF_BUCKET_LAST
-		fbuf->ba.uint32 = META_INVALID; // ba must be invalid for fbuf in FBUF_BUCKET_LAST
+		fbuf->ba.uint32 = BLOCK_INVALID; // ba must be invalid for fbuf in FBUF_BUCKET_LAST
 		fbuf->parent = NULL;
 		fbuf->child_cnt = 0;
 		fbuf_bucket_insert_head(sc, FBUF_BUCKET_LAST, fbuf);
@@ -1262,9 +1271,9 @@ fbuf_clean_queue_check(struct g_logstor_softc *sc)
 					MY_ASSERT(parent->child_cnt <= SECTOR_SIZE/4);
 				}
 				// move it to the last bucket so that it cannot be searched
-				// fbufs on the last bucket will have the metadata address META_INVALID
+				// fbufs on the last bucket will have the metadata address BLOCK_INVALID
 				fbuf_bucket_remove(fbuf);
-				fbuf->ba.uint32 = META_INVALID;
+				fbuf->ba.uint32 = BLOCK_INVALID;
 				fbuf_bucket_insert_head(sc, FBUF_BUCKET_LAST, fbuf);
 			}
 			fbuf = next;
@@ -1331,8 +1340,8 @@ fbuf_cache_flush_and_invalidate_fd(struct g_logstor_softc *sc, int fd1, int fd2)
 	{
 		fbuf = &sc->fbufs[i];
 		MY_ASSERT(!fbuf->fc.modified);
-		if (fbuf->ba.uint32 == META_INVALID) {
-			// the fbufs with metadata address META_INVALID are
+		if (fbuf->ba.uint32 == BLOCK_INVALID) {
+			// the fbufs with metadata address BLOCK_INVALID are
 			// linked in bucket FBUF_BUCKET_LAST
 			MY_ASSERT(fbuf->bucket_which == FBUF_BUCKET_LAST);
 			continue;
@@ -1342,7 +1351,7 @@ fbuf_cache_flush_and_invalidate_fd(struct g_logstor_softc *sc, int fd1, int fd2)
 			MY_ASSERT(fbuf->bucket_which != FBUF_BUCKET_LAST);
 			fbuf_bucket_remove(fbuf);
 			// init ba, parent and child_cnt before inserting to bucket FBUF_BUCKET_LAST
-			fbuf->ba.uint32 = META_INVALID;
+			fbuf->ba.uint32 = BLOCK_INVALID;
 			fbuf->parent = NULL;
 			fbuf->child_cnt = 0;
 			fbuf_bucket_insert_head(sc, FBUF_BUCKET_LAST, fbuf);
@@ -1606,7 +1615,7 @@ fbuf_access(struct g_logstor_softc *sc, union fbuf_addr ba)
 				if (i == 0)
 					sc->superblock.ft[ba.fd].root = SECTOR_CACHE;
 			} else {
-				MY_ASSERT(sa >= SECTORS_PER_SEG);
+				MY_ASSERT(sa >= SB_CNT);
 				md_read(cp, fbuf->data, sa);
 			}
 #if defined(MY_DEBUG)
@@ -1679,7 +1688,7 @@ logstor_hash_check(struct g_logstor_softc *sc)
 			MY_ASSERT(!fbuf->fc.is_sentinel);
 			MY_ASSERT(fbuf->bucket_which == i);
 			if (i == FBUF_BUCKET_LAST)
-				MY_ASSERT(fbuf->ba.uint32 == META_INVALID);
+				MY_ASSERT(fbuf->ba.uint32 == BLOCK_INVALID);
 			else
 				MY_ASSERT(fbuf->ba.uint32 % FBUF_BUCKET_LAST == i);
 			fbuf = fbuf->bucket_next;
@@ -1718,7 +1727,7 @@ logstor_queue_check(struct g_logstor_softc *sc)
 				MY_ASSERT(fbuf->parent == NULL);
 				//++root_cnt;
 			} else
-				MY_ASSERT(fbuf->ba.uint32 == META_INVALID || fbuf->parent != NULL);
+				MY_ASSERT(fbuf->ba.uint32 == BLOCK_INVALID || fbuf->parent != NULL);
 			if (fbuf->parent)
 				++fbuf->parent->dbg_child_cnt; // increment parent's debug child count
 
