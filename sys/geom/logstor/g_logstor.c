@@ -163,6 +163,7 @@ _Static_assert(sizeof(struct _superblock) < SECTOR_SIZE,
 
   For block address that is >= FBUF_ADDR_START, it is actually a metadata address.
 */
+#define FBUF_LEAF_DEPTH	2
 #define IDX_BITS	10	// number of index bits
 union fbuf_addr { // metadata address for fbuf
 	uint32_t	uint32;
@@ -174,21 +175,11 @@ union fbuf_addr { // metadata address for fbuf
 		uint32_t xFF	:8;	// 0xFF for metadata address
 	};
 	struct {
-		uint32_t index :20;	// index for indirect blocks
+		uint32_t index :IDX_BITS*2;	// index for indirect blocks
 	};
 };
 
 _Static_assert(sizeof(union fbuf_addr) == 4, "The size of emta_addr must be 4");
-
-// when processing queues, we always process it from the leaf to root
-// so leaf has lower queue number
-enum {
-	QUEUE_F0_CLEAN,	// floor 0, clean queue
-	QUEUE_F0_DIRTY,	// floor 0, dirty queue
-	QUEUE_F1,	// floor 1
-	QUEUE_F2,	// floor 2
-	QUEUE_CNT,
-};
 
 struct _fbuf_comm {
 	struct _fbuf *queue_next;
@@ -205,7 +196,16 @@ struct _fbuf_sentinel {
 	struct _fbuf_comm fc;
 };
 
-#define FBUF_LEAF_DEPTH	2
+// when processing queues, we always process it from the leaf to root
+// so leaf has lower queue number
+enum queue_floor : uint8_t {
+	QUEUE_F0_CLEAN,	// floor 0, clean queue
+	QUEUE_F0_DIRTY,	// floor 0, dirty queue
+	QUEUE_F1,	// floor 1
+	QUEUE_F2,	// floor 2
+	QUEUE_CNT,
+};
+
 /*
   Metadata is cached in memory. The access unit of metadata is block so each cache line
   stores a block of metadata
@@ -218,7 +218,7 @@ struct _fbuf { // file buffer
 	struct _fbuf *bucket_prev;
 	struct _fbuf *parent;
 	uint16_t child_cnt; // number of children reference this fbuf
-	uint16_t queue_which;
+	enum queue_floor queue_which;
 	union fbuf_addr	ba;	// the block address for this fbuf
 #if defined(MY_DEBUG)
 	uint16_t bucket_which;
@@ -580,6 +580,7 @@ Return:
 static uint32_t
 g_logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 {
+	bool is_fbuf_addr = IS_FBUF_ADDR(ba);
 	int i;
 	struct _seg_sum *seg_sum = &sc->seg_sum;
 #if defined(MY_DEBUG)
@@ -588,8 +589,8 @@ g_logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 
 	dba.uint32 = ba;
 #endif
-	MY_ASSERT(IS_FBUF_ADDR(ba) ? data != NULL : data == NULL);
-	MY_ASSERT(ba < sc->superblock.block_cnt || IS_FBUF_ADDR(ba));
+	MY_ASSERT(is_fbuf_addr ? data != NULL : data == NULL);
+	MY_ASSERT(ba < sc->superblock.block_cnt || is_fbuf_addr);
 
 	// record the starting segment
 	// if the search for free sector rolls over to the starting segment
@@ -606,7 +607,7 @@ again:
 		if (is_sec_inuse(sc, sa, ba_rev))
 			continue;
 
-		if (IS_FBUF_ADDR(ba)) {
+		if (is_fbuf_addr) {
 			struct g_consumer *cp;
 			cp = LIST_FIRST(&sc->sc_geom->consumer);
 			md_write(cp, data, sa);
@@ -618,7 +619,7 @@ again:
 		if (sc->ss_allocp == SEG_SUM_OFFSET)
 			seg_alloc(sc);
 
-		if (!IS_FBUF_ADDR(ba)) {
+		if (!is_fbuf_addr) {
 			++sc->data_write_count;
 			// record the forward mapping for the %ba
 			// the forward mapping must be recorded after
@@ -663,8 +664,8 @@ static void
 g_logstor_close(struct g_logstor_softc *sc)
 {
 
-	fbuf_mod_fini(sc);
 	seg_sum_write(sc);
+	fbuf_mod_fini(sc);
 	superblock_write(sc);
 }
 
@@ -911,7 +912,7 @@ superblock_write(struct g_logstor_softc *sc)
 	//if (!sc->sb_modified)
 	//	return;
 
-	for (int i = 0; i < 4; ++i) {
+	for (int i = 0; i < FD_COUNT; ++i) {
 		MY_ASSERT(sc->superblock.ft[i].root != SECTOR_CACHE);
 	}
 	sc->superblock.sb_gen++;
@@ -1219,8 +1220,8 @@ fbuf_mod_init(struct g_logstor_softc *sc)
 static void
 md_flush(struct g_logstor_softc *sc)
 {
-	fbuf_cache_flush(sc);
 	seg_sum_write(sc);
+	fbuf_cache_flush(sc);
 	superblock_write(sc);
 }
 
