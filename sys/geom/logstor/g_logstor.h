@@ -44,4 +44,72 @@
     _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, 2, (bp), fmt, ## __VA_ARGS__)
 #endif	/* _KERNEL */
 
+#define	SEG_SIZE	0x400000	// 4M
+#define	SECTOR_SIZE	0x1000		// 4K
+#define	SECTORS_PER_SEG	(SEG_SIZE/SECTOR_SIZE)	// 1024
+#define SEG_SUM_OFFSET	(SECTORS_PER_SEG - 1)	// segment summary offset
+#define BLOCKS_PER_SEG	(SECTORS_PER_SEG - 1)
+#define SB_CNT	8	// number of superblock sectors
+
+#define FD_COUNT	4		// max number of metadata files supported
+#define FD_INVALID	FD_COUNT	// the valid file descriptor are 0 to 3
+
+struct _superblock {
+	uint32_t magic;
+	uint32_t version;
+	uint64_t provsize;	// Provider's size
+	uint32_t sb_gen;	// the generation number. Used for redo after system crash
+	/*
+	   The segments are treated as circular buffer
+	 */
+	uint32_t seg_cnt;	// total number of segments
+	// since the max file size is 4G (1K*1K*4K) and the entry size is 4
+	// block_cnt must be < (4G/4)
+	uint32_t block_cnt;	// max block number for the virtual disk
+
+	uint32_t seg_allocp;	// allocate from this segment
+	//uint32_t sectors_free;// not implemented yet
+	/*
+	   The files for forward mapping
+
+	   New mapping is written to %fd_cur. When snapshot command is issued
+	   %fd_cur is movied to %fd_prev, %fd_prev and %fd_snap are merged to %fd_snap_new
+	   After the snapshot command is complete, %fd_snap_new is movied to %fd_snap
+	   and %fd_prev is deleted.
+
+	   So the actual mapping in normal state is
+	       %fd_cur || %fd_snap
+	   and during snapshot it is
+	       %fd_cur || %fd_prev || %fd_snap
+
+	   The first mapping that is not null is used.
+	   To support trim command, the mapping marked as delete will stop
+	   the checking for the next mapping file and return null immediately
+	*/
+	struct { // file table
+		uint32_t root;	// the root sector of the file
+		uint32_t written;// number of blocks written to this virtual disk
+	} ft[FD_COUNT];
+	uint8_t fd_prev;	// the file descriptor for previous current mapping
+	uint8_t fd_snap;	// the file descriptor for snapshot mapping
+	uint8_t fd_cur;		// the file descriptor for current mapping
+	uint8_t fd_snap_new;	// the file descriptor for new snapshot mapping
+} __packed;
+
+_Static_assert(sizeof(struct _superblock) < SECTOR_SIZE,
+	"The size of the super block must be smaller than SECTOR_SIZE");
+
+/*
+  The last sector in a segment is the segment summary. It stores the reverse mapping table
+*/
+struct _seg_sum {
+	uint32_t ss_rm[SECTORS_PER_SEG - 1];	// reverse map
+	// reverse map SECTORS_PER_SEG - 1 is not used so we store something here
+	uint32_t ss_allocp;	// the sector for allocation in the segment
+	//uint32_t ss_gen;  // sequence number. used for redo after system crash
+} __packed;
+
+_Static_assert(sizeof(struct _seg_sum) == SECTOR_SIZE,
+	"The size of segment summary must be equal to SECTOR_SIZE");
+
 #endif	/* _G_LOGSTOR_H_ */
