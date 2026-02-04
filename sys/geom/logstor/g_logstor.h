@@ -51,8 +51,8 @@
 #define INV_MAP_OFFSET	(SECTORS_PER_SEG - 1)	// segment summary offset
 #define SB_CNT	8	// number of superblock sectors
 
-#define FD_COUNT	4		// max number of metadata files supported
-#define FD_INVALID	FD_COUNT	// the valid file descriptor are 0 to 3
+#define FM_COUNT	4		// max number of forward map
+#define FM_INVALID	FM_COUNT	// the valid file descriptor are 0 to 3
 
 struct _superblock {
 	uint32_t magic;
@@ -89,7 +89,7 @@ struct _superblock {
 	struct { // forward map table
 		uint32_t root;	// the root sector of the file
 		uint32_t written;// number of blocks written to this virtual disk
-	} fmt[FD_COUNT];
+	} fmt[FM_COUNT];
 	uint8_t fm_prev;	// the forward map for previous current mapping
 	uint8_t fm_cur;		// the forward map for current mapping
 	uint8_t fm_snap;	// the forward map for snapshot mapping
