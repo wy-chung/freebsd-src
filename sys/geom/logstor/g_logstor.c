@@ -90,15 +90,15 @@ enum {
 _Static_assert(SB_CNT >= SECTOR_ENUM_CNT,
 	"super block counts must be bigger than the number of SECTOR enum");
 
-#define	FBUF_ADDR_START	(((union fmbuf_addr){.xFF = 0xFF}).uint32)	// fmbuf block address start
-#define	IS_FBUF_ADDR(x)	((x) >= FBUF_ADDR_START)
+#define	FMBUF_ADDR_START	(((union fmbuf_addr){.xFF = 0xFF}).uint32)	// fmbuf block address start
+#define	IS_FMBUF_ADDR(x)	((x) >= FMBUF_ADDR_START)
 
-#define FBUF_CLEAN_THRESHOLD	32
-#define FBUF_MIN	1564
-#define FBUF_MAX	(FBUF_MIN * 2)
-// the last bucket is reserved for queuing fbufs that will not be searched
-#define FBUF_BUCKET_LAST 953	// this should be a prime number
-#define FBUF_BUCKET_CNT	(FBUF_BUCKET_LAST+1)
+#define FMBUF_CLEAN_THRESHOLD	32
+#define FMBUF_MIN	1564
+#define FMBUF_MAX	(FMBUF_MIN * 2)
+// the last bucket is reserved for queuing fmbufs that will not be searched
+#define FMBUF_BUCKET_LAST 953	// this should be a prime number
+#define FMBUF_BUCKET_CNT	(FMBUF_BUCKET_LAST+1)
 
 /*
   Forward map and its indirect blocks are also stored in the downstream disk.
@@ -107,7 +107,7 @@ _Static_assert(SB_CNT >= SECTOR_ENUM_CNT,
   Each metadata block (fmbuf) has a corresponding metadata address.
   Below is the format of the metadata address.
 
-  For block address that is >= FBUF_ADDR_START, it is actually a metadata address.
+  For block address that is >= FMBUF_ADDR_START, it is actually a metadata address.
 */
 #define FMBUF_LEAF_DEPTH	2	// leaf page depth of forward map
 #define IDX_BITS	10	// number of index bits
@@ -141,7 +141,7 @@ struct fmbuf_comm {	// common part of fmbuf and fmbuf_sentinel
 	struct _fmbuf *queue_next;
 	struct _fmbuf *queue_prev;
 	uint8_t is_sentinel:1;
-	uint8_t accessed:1;	/* only used for fbufs on circular queue */
+	uint8_t accessed:1;	/* only used for fmbufs on circular queue */
 	uint8_t modified:1;	/* the fmbuf is dirty */
 };
 
@@ -203,13 +203,13 @@ struct g_logstor_softc {
 	uint32_t seg_allocp_sa;	// the sector address of the segment for allocation
 
 	int fmbuf_count;
-	fmbuf_t *fbufs;	// an array of fbufs
+	fmbuf_t *fmbufs;	// an array of fmbufs
 	fmbuf_t *fmbuf_allocp; // point to the fmbuf candidate for replacement
 	struct fmbuf_sentinel fmbuf_queue[QUEUE_CNT];
-	struct fmbuf_sentinel fmbuf_bucket[FBUF_BUCKET_CNT]; // buffer hash queue
+	struct fmbuf_sentinel fmbuf_bucket[FMBUF_BUCKET_CNT]; // buffer hash queue
 	int fmbuf_queue_len[QUEUE_CNT];
 #if defined(MY_DEBUG)
-	int fmbuf_bucket_len[FBUF_BUCKET_CNT];
+	int fmbuf_bucket_len[FMBUF_BUCKET_CNT];
 #endif
 	// statistics
 	unsigned data_write_count;	// data block write to disk
@@ -490,7 +490,7 @@ is_sec_inuse(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 		is_sec_inuse_normal();
 		is_sec_inuse_during_snapshot();
 #endif
-	} else if (IS_FBUF_ADDR(ba_rev)) {
+	} else if (IS_FMBUF_ADDR(ba_rev)) {
 		uint32_t sa_rev = fmbuf_ba2sa(sc, (union fmbuf_addr)ba_rev);
 		return (sa == sa_rev);
 	} else if (ba_rev == BLOCK_INVALID) {
@@ -505,7 +505,7 @@ is_sec_inuse(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev)
 static uint32_t
 sec_alloc_for_write(struct g_logstor_softc *sc, uint32_t ba)
 {
-	MY_ASSERT(!IS_FBUF_ADDR(ba));
+	MY_ASSERT(!IS_FMBUF_ADDR(ba));
 	uint32_t sa = g_logstor_write(sc, ba, NULL);
 	return sa;
 }
@@ -520,7 +520,7 @@ Return:
 static uint32_t
 g_logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 {
-	bool is_fmbuf_addr = IS_FBUF_ADDR(ba);
+	bool is_fmbuf_addr = IS_FMBUF_ADDR(ba);
 	int i;
 	inv_map_t *inv_map = &sc->inv_map;
 #if defined(MY_DEBUG)
@@ -1120,15 +1120,15 @@ fmbuf_mod_init(struct g_logstor_softc *sc)
 	int i;
 
 	//fmbuf_count = sc.superblock.block_cnt / (SECTOR_SIZE / 4);
-	fmbuf_count = FBUF_MIN;
-	if (fmbuf_count < FBUF_MIN)
-		fmbuf_count = FBUF_MIN;
-	if (fmbuf_count > FBUF_MAX)
-		fmbuf_count = FBUF_MAX;
+	fmbuf_count = FMBUF_MIN;
+	if (fmbuf_count < FMBUF_MIN)
+		fmbuf_count = FMBUF_MIN;
+	if (fmbuf_count > FMBUF_MAX)
+		fmbuf_count = FMBUF_MAX;
 	sc->fmbuf_count = fmbuf_count;
-	sc->fbufs = malloc(fmbuf_count * sizeof(*sc->fbufs), M_LOGSTOR, M_WAITOK | M_ZERO);
+	sc->fmbufs = malloc(fmbuf_count * sizeof(*sc->fmbufs), M_LOGSTOR, M_WAITOK | M_ZERO);
 
-	for (i = 0; i < FBUF_BUCKET_CNT; ++i) {
+	for (i = 0; i < FMBUF_BUCKET_CNT; ++i) {
 		fmbuf_bucket_init(sc, i);
 	}
 	for (i = 0; i < QUEUE_CNT; ++i) {
@@ -1136,7 +1136,7 @@ fmbuf_mod_init(struct g_logstor_softc *sc)
 	}
 	// insert fmbuf to both QUEUE_F0_CLEAN and hash queue
 	for (i = 0; i < fmbuf_count; ++i) {
-		fmbuf_t *fmbuf = &sc->fbufs[i];
+		fmbuf_t *fmbuf = &sc->fmbufs[i];
 #if defined(MY_DEBUG)
 		fmbuf->index = i;
 #endif
@@ -1146,13 +1146,13 @@ fmbuf_mod_init(struct g_logstor_softc *sc)
 		fmbuf_queue_insert_tail(sc, QUEUE_F0_CLEAN, fmbuf);
 		// insert fmbuf to the last fmbuf bucket
 		// this bucket is not used in hash search
-		// init ba, parent and child_cnt before inserting into FBUF_BUCKET_LAST
-		fmbuf->ba.uint32 = BLOCK_INVALID; // ba must be invalid for fmbuf in FBUF_BUCKET_LAST
+		// init ba, parent and child_cnt before inserting into FMBUF_BUCKET_LAST
+		fmbuf->ba.uint32 = BLOCK_INVALID; // ba must be invalid for fmbuf in FMBUF_BUCKET_LAST
 		fmbuf->parent = NULL;
 		fmbuf->child_cnt = 0;
-		fmbuf_bucket_insert_head(sc, FBUF_BUCKET_LAST, fmbuf);
+		fmbuf_bucket_insert_head(sc, FMBUF_BUCKET_LAST, fmbuf);
 	}
-	sc->fmbuf_allocp = &sc->fbufs[0];;
+	sc->fmbuf_allocp = &sc->fmbufs[0];;
 	sc->fmbuf_hit = sc->fmbuf_miss = 0;
 }
 
@@ -1169,7 +1169,7 @@ static void
 fmbuf_mod_fini(struct g_logstor_softc *sc)
 {
 	md_flush(sc);
-	free(sc->fbufs, M_LOGSTOR);
+	free(sc->fmbufs, M_LOGSTOR);
 }
 
 static inline bool
@@ -1188,7 +1188,7 @@ fmbuf_clean_queue_check(struct g_logstor_softc *sc)
 	struct fmbuf_sentinel *queue_sentinel;
 	fmbuf_t *fmbuf;
 
-	if (sc->fmbuf_queue_len[QUEUE_F0_CLEAN] > FBUF_CLEAN_THRESHOLD)
+	if (sc->fmbuf_queue_len[QUEUE_F0_CLEAN] > FMBUF_CLEAN_THRESHOLD)
 		return;
 
 	md_flush(sc);
@@ -1212,17 +1212,17 @@ fmbuf_clean_queue_check(struct g_logstor_softc *sc)
 					MY_ASSERT(parent->child_cnt <= SECTOR_SIZE/4);
 				}
 				// move it to the last bucket so that it cannot be searched
-				// fbufs on the last bucket will have the metadata address BLOCK_INVALID
+				// fmbufs on the last bucket will have the metadata address BLOCK_INVALID
 				fmbuf_bucket_remove(fmbuf);
 				fmbuf->ba.uint32 = BLOCK_INVALID;
-				fmbuf_bucket_insert_head(sc, FBUF_BUCKET_LAST, fmbuf);
+				fmbuf_bucket_insert_head(sc, FMBUF_BUCKET_LAST, fmbuf);
 			}
 			fmbuf = next;
 		}
 	}
 }
 
-// write back all the dirty fbufs to disk
+// write back all the dirty fmbufs to disk
 static void
 fmbuf_cache_flush(struct g_logstor_softc *sc)
 {
@@ -1237,7 +1237,7 @@ fmbuf_cache_flush(struct g_logstor_softc *sc)
 		fmbuf = queue_sentinel->fc.queue_next;
 		while (fmbuf != (fmbuf_t *)queue_sentinel) {
 			MY_ASSERT(fmbuf->queue_which == q);
-			MY_ASSERT(IS_FBUF_ADDR(fmbuf->ba.uint32));
+			MY_ASSERT(IS_FMBUF_ADDR(fmbuf->ba.uint32));
 			// QUEUE_F0_DIRTY nodes are always dirty
 			MY_ASSERT(q != QUEUE_F0_DIRTY || fmbuf->fc.modified);
 			if (__predict_true(fmbuf->fc.modified))
@@ -1245,11 +1245,11 @@ fmbuf_cache_flush(struct g_logstor_softc *sc)
 			fmbuf = fmbuf->fc.queue_next;
 		}
 	}
-	// move all fbufs in the dirty leaf queue to clean leaf queue
+	// move all fmbufs in the dirty leaf queue to clean leaf queue
 	dirty_sentinel = &sc->fmbuf_queue[QUEUE_F0_DIRTY];
 	if (is_queue_empty(dirty_sentinel))
 		return;
-	// first, set queue_which to QUEUE_F0_CLEAN for all fbufs on dirty leaf queue
+	// first, set queue_which to QUEUE_F0_CLEAN for all fmbufs on dirty leaf queue
 	fmbuf = dirty_sentinel->fc.queue_next;
 	while (fmbuf != (fmbuf_t *)dirty_sentinel) {
 		fmbuf->queue_which = QUEUE_F0_CLEAN;
@@ -1269,7 +1269,7 @@ fmbuf_cache_flush(struct g_logstor_softc *sc)
 	fmbuf_queue_init(sc, QUEUE_F0_DIRTY);
 }
 
-// flush the cache and invalid fbufs with file descriptors fm1 or fm2
+// flush the cache and invalid fmbufs with file descriptors fm1 or fm2
 static void
 fmbuf_cache_flush_and_invalidate_fm(struct g_logstor_softc *sc, int fm1, int fm2)
 {
@@ -1279,23 +1279,23 @@ fmbuf_cache_flush_and_invalidate_fm(struct g_logstor_softc *sc, int fm1, int fm2
 
 	for (int i = 0; i < sc->fmbuf_count; ++i)
 	{
-		fmbuf = &sc->fbufs[i];
+		fmbuf = &sc->fmbufs[i];
 		MY_ASSERT(!fmbuf->fc.modified);
 		if (fmbuf->ba.uint32 == BLOCK_INVALID) {
-			// the fbufs with metadata address BLOCK_INVALID are
-			// linked in bucket FBUF_BUCKET_LAST
-			MY_ASSERT(fmbuf->bucket_which == FBUF_BUCKET_LAST);
+			// the fmbufs with metadata address BLOCK_INVALID are
+			// linked in bucket FMBUF_BUCKET_LAST
+			MY_ASSERT(fmbuf->bucket_which == FMBUF_BUCKET_LAST);
 			continue;
 		}
-		// move fbufs with fm equals to fm1 or fm2 to the last bucket
+		// move fmbufs with fm equals to fm1 or fm2 to the last bucket
 		if (fmbuf->ba.fm == fm1 || fmbuf->ba.fm == fm2) {
-			MY_ASSERT(fmbuf->bucket_which != FBUF_BUCKET_LAST);
+			MY_ASSERT(fmbuf->bucket_which != FMBUF_BUCKET_LAST);
 			fmbuf_bucket_remove(fmbuf);
-			// init ba, parent and child_cnt before inserting to bucket FBUF_BUCKET_LAST
+			// init ba, parent and child_cnt before inserting to bucket FMBUF_BUCKET_LAST
 			fmbuf->ba.uint32 = BLOCK_INVALID;
 			fmbuf->parent = NULL;
 			fmbuf->child_cnt = 0;
-			fmbuf_bucket_insert_head(sc, FBUF_BUCKET_LAST, fmbuf);
+			fmbuf_bucket_insert_head(sc, FMBUF_BUCKET_LAST, fmbuf);
 			fmbuf->fc.accessed = false; // so it will be recycled sooner
 			if (fmbuf->queue_which != QUEUE_F0_CLEAN) {
 				// it is an internal node, move it to QUEUE_F0_CLEAN
@@ -1365,9 +1365,9 @@ fmbuf_hash_insert_head(struct g_logstor_softc *sc, fmbuf_t *fmbuf, union fmbuf_a
 	unsigned hash;
 
 	fmbuf->ba = ba;
-	// the bucket FBUF_BUCKET_LAST is reserved for storing unused fbufs
-	// so %hash will be [0..FBUF_BUCKET_LAST)
-	hash = ba.uint32 % FBUF_BUCKET_LAST;
+	// the bucket FMBUF_BUCKET_LAST is reserved for storing unused fmbufs
+	// so %hash will be [0..FMBUF_BUCKET_LAST)
+	hash = ba.uint32 % FMBUF_BUCKET_LAST;
 	fmbuf_bucket_insert_head(sc, hash, fmbuf);
 }
 
@@ -1377,7 +1377,7 @@ fmbuf_bucket_init(struct g_logstor_softc *sc, int which)
 	struct fmbuf_sentinel *bucket_head;
 
 #if defined(MY_DEBUG)
-	MY_ASSERT(which < FBUF_BUCKET_CNT);
+	MY_ASSERT(which < FMBUF_BUCKET_CNT);
 	sc->fmbuf_bucket_len[which] = 0;
 #endif
 	bucket_head = &sc->fmbuf_bucket[which];
@@ -1393,7 +1393,7 @@ fmbuf_bucket_insert_head(struct g_logstor_softc *sc, int which, fmbuf_t *fmbuf)
 	fmbuf_t *next;
 
 #if defined(MY_DEBUG)
-	MY_ASSERT(which < FBUF_BUCKET_CNT);
+	MY_ASSERT(which < FMBUF_BUCKET_CNT);
 	fmbuf->bucket_which = which;
 	++sc->fmbuf_bucket_len[which];
 #endif
@@ -1438,9 +1438,9 @@ fmbuf_search(struct g_logstor_softc *sc, union fmbuf_addr ba)
 	fmbuf_t	*fmbuf;
 	struct fmbuf_sentinel	*bucket_sentinel;
 
-	// the bucket FBUF_BUCKET_LAST is reserved for storing unused fbufs
-	// so %hash will be [0..FBUF_BUCKET_LAST)
-	hash = ba.uint32 % FBUF_BUCKET_LAST;
+	// the bucket FMBUF_BUCKET_LAST is reserved for storing unused fmbufs
+	// so %hash will be [0..FMBUF_BUCKET_LAST)
+	hash = ba.uint32 % FMBUF_BUCKET_LAST;
 	bucket_sentinel = &sc->fmbuf_bucket[hash];
 	fmbuf = bucket_sentinel->fc.queue_next;
 	while (fmbuf != (fmbuf_t *)bucket_sentinel) {
@@ -1521,7 +1521,7 @@ fmbuf_access(struct g_logstor_softc *sc, union fmbuf_addr ba)
 	fmbuf_t *fmbuf;
 	struct g_consumer *cp = LIST_FIRST(&sc->sc_geom->consumer);
 
-	MY_ASSERT(IS_FBUF_ADDR(ba.uint32));
+	MY_ASSERT(IS_FMBUF_ADDR(ba.uint32));
 	MY_ASSERT(ba.depth <= FMBUF_LEAF_DEPTH);
 
 	// get the root sector address of the file %ba.fm
@@ -1620,7 +1620,7 @@ logstor_hash_check(struct g_logstor_softc *sc)
 	struct fmbuf_sentinel *bucket_sentinel;
 	int total = 0;
 
-	for (int i = 0; i < FBUF_BUCKET_CNT; ++i)
+	for (int i = 0; i < FMBUF_BUCKET_CNT; ++i)
 	{
 		bucket_sentinel = &sc->fmbuf_bucket[i];
 		fmbuf = bucket_sentinel->fc.queue_next;
@@ -1628,10 +1628,10 @@ logstor_hash_check(struct g_logstor_softc *sc)
 			++total;
 			MY_ASSERT(!fmbuf->fc.is_sentinel);
 			MY_ASSERT(fmbuf->bucket_which == i);
-			if (i == FBUF_BUCKET_LAST)
+			if (i == FMBUF_BUCKET_LAST)
 				MY_ASSERT(fmbuf->ba.uint32 == BLOCK_INVALID);
 			else
-				MY_ASSERT(fmbuf->ba.uint32 % FBUF_BUCKET_LAST == i);
+				MY_ASSERT(fmbuf->ba.uint32 % FMBUF_BUCKET_LAST == i);
 			fmbuf = fmbuf->bucket_next;
 		}
 	}
