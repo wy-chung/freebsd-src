@@ -258,7 +258,7 @@ static uint32_t ba2sa_normal(struct g_logstor_softc *sc, uint32_t ba);
 static uint32_t ba2sa_during_snapshot(struct g_logstor_softc *sc, uint32_t ba);
 static bool is_sec_inuse_normal(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
 static bool is_sec_inuse_during_snapshot(struct g_logstor_softc *sc, uint32_t sa, uint32_t ba_rev);
-#if defined(MY_DEBUG)
+#if defined(WYC)//MY_DEBUG)
 static void logstor_check(struct g_logstor_softc *sc);
 #endif
 static void md_read(struct g_consumer *cp, void *buf, uint32_t sa);
@@ -595,7 +595,7 @@ g_logstor_init(struct g_logstor_softc *sc, struct _superblock *sb, uint32_t sb_s
 	fmbuf_mod_init(sc);
 
 	sc->data_write_count = sc->other_write_count = 0;
-#if defined(MY_DEBUG)
+#if defined(WYC)//MY_DEBUG)
 	logstor_check(sc);
 #endif
 }
@@ -1612,7 +1612,7 @@ fmbuf_write(struct g_logstor_softc *sc, fmbuf_t *fmbuf)
 	}
 }
 
-#if defined(MY_DEBUG)
+#if defined(WYC) //MY_DEBUG)
 static void
 logstor_hash_check(struct g_logstor_softc *sc)
 {
@@ -1741,7 +1741,7 @@ logstor_check(struct g_logstor_softc *sc)
 	}
 	printf("%s done.\n\n", __func__);
 }
-#endif
+#endif // MY_DEBUG
 
 static void
 md_read(struct g_consumer *cp, void *buf, uint32_t sa)
@@ -1840,6 +1840,7 @@ g_logstor_access(struct g_provider *pp, int dr, int dw, int de)
 	return (error);
 }
 
+#if defined(WYC)
 static void
 g_logstor_kernel_dump(struct bio *bp)
 {
@@ -1860,38 +1861,8 @@ g_logstor_kernel_dump(struct bio *bp)
 	g_io_request(cbp, cp);
 	G_LOGSTOR_DEBUG(1, "Kernel dump will go to %s.",
 	    cp->provider->name);
-#if 0
-	struct g_logstor_softc *sc;
-	struct g_logstor_disk *disk;
-	struct bio *cbp;
-	struct g_kerneldump *gkd;
-
-	sc = bp->bio_to->geom->softc;
-	gkd = (struct g_kerneldump *)bp->bio_data;
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_start <= gkd->offset &&
-		    disk->d_end > gkd->offset)
-			break;
-	}
-	if (disk == NULL) {
-		g_io_deliver(bp, EOPNOTSUPP);
-		return;
-	}
-
-	gkd->offset -= disk->d_start;
-	if (gkd->length > disk->d_end - disk->d_start - gkd->offset)
-		gkd->length = disk->d_end - disk->d_start - gkd->offset;
-	cbp = g_clone_bio(bp);
-	if (cbp == NULL) {
-		g_io_deliver(bp, ENOMEM);
-		return;
-	}
-	cbp->bio_done = g_std_done;
-	g_io_request(cbp, disk->d_consumer);
-	G_LOGSTOR_DEBUG(1, "Kernel dump will go to %s.",
-	    disk->d_consumer->provider->name);
-#endif
 }
+#endif
 
 /*
  * Called for both BIO_FLUSH and BIO_SPEEDUP. Just pass the call down
