@@ -44,15 +44,34 @@
     _GEOM_DEBUG("GEOM_LOGSTOR", g_logstor_debug, 2, (bp), fmt, ## __VA_ARGS__)
 #endif	/* _KERNEL */
 
+/*
+  The max file size is 1K*1K*4K=4G, each entry is 4 bytes
+  so the max block number is 4G/4 = 1G
+*/
+#define BLOCK_MAX	0x40000000	// 1G
+// the address [BLOCK_MAX..META_STAR) are invalid block/metadata address
+#define BLOCK_INVALID	(BLOCK_MAX+1)
+
+
 #define	SEG_SIZE	0x400000	// 4M
 #define	SECTOR_SIZE	0x1000		// 4K
 #define	SECTORS_PER_SEG	(SEG_SIZE/SECTOR_SIZE)	// 1024
+#define SEC_PER_SEG_SHIFT 10	// sectors per segment shift
 #define BLOCKS_PER_SEG	(SECTORS_PER_SEG - 1)
-#define INV_MAP_OFFSET	(SECTORS_PER_SEG - 1)	// segment summary offset
+#define INV_MAP_OFFSET	(SECTORS_PER_SEG - 1)	// offset of segment inverse map
 #define SB_CNT	8	// number of superblock sectors
 
 #define FM_COUNT	4		// max number of forward map
 #define FM_INVALID	FM_COUNT	// the valid file descriptor are 0 to 3
+
+enum {
+	SECTOR_NULL,	// the metadata are all NULL
+	SECTOR_DEL,	// the file does not exist or don't look the mapping further, it is NULL
+	SECTOR_CACHE,	// the root sector of the file is still in the cache
+	SECTOR_ENUM_CNT,
+};
+_Static_assert(SB_CNT >= SECTOR_ENUM_CNT,
+	"super block counts must be bigger than the number of SECTOR enum");
 
 struct _superblock {
 	uint32_t magic;
@@ -98,5 +117,23 @@ struct _superblock {
 
 _Static_assert(sizeof(struct _superblock) < SECTOR_SIZE,
 	"The size of the super block must be smaller than SECTOR_SIZE");
+
+struct _inv_map {
+	uint32_t ba[BLOCKS_PER_SEG] ; // inverse map for the current segment
+	uint32_t reserved;
+} __packed;
+
+_Static_assert(sizeof(struct _inv_map) == SECTOR_SIZE,
+	"The size of segment summary must be equal to SECTOR_SIZE");
+
+/*
+Description:
+    segment address to sector address
+*/
+static inline uint32_t
+sega2sa(uint32_t sega)
+{
+	return sega << SEC_PER_SEG_SHIFT;
+}
 
 #endif	/* _G_LOGSTOR_H_ */

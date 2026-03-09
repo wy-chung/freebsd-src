@@ -71,25 +71,6 @@ void my_break(void) //__attribute__((optnone))
 #define G_LOGSTOR_SUFFIX	".logstor"
 
 //===========================================
-#define SEC_PER_SEG_SHIFT 10	// sectors per segment shift
-
-/*
-  The max file size is 1K*1K*4K=4G, each entry is 4 bytes
-  so the max block number is 4G/4 = 1G
-*/
-#define BLOCK_MAX	0x40000000	// 1G
-// the address [BLOCK_MAX..META_STAR) are invalid block/metadata address
-#define BLOCK_INVALID	(BLOCK_MAX+1)
-
-enum {
-	SECTOR_NULL,	// the metadata are all NULL
-	SECTOR_DEL,	// the file does not exist or don't look the mapping further, it is NULL
-	SECTOR_CACHE,	// the root sector of the file is still in the cache
-	SECTOR_ENUM_CNT,
-};
-_Static_assert(SB_CNT >= SECTOR_ENUM_CNT,
-	"super block counts must be bigger than the number of SECTOR enum");
-
 #define	FMBUF_ADDR_START	(((union fmbuf_addr){.xFF = 0xFF}).uint32)	// fmbuf block address start
 #define	IS_FMBUF_ADDR(x)	((x) >= FMBUF_ADDR_START)
 
@@ -177,13 +158,6 @@ typedef struct _fmbuf { // file buffer
 	uint32_t	data[SECTOR_SIZE/sizeof(uint32_t)];
 }fmbuf_t;
 
-typedef struct __packed {
-	uint32_t ba[BLOCKS_PER_SEG] ; // inverse map for the current segment
-	uint32_t reserved;
-} inv_map_t;
-
-_Static_assert(sizeof(inv_map_t) == SECTOR_SIZE,
-	"The size of segment summary must be equal to SECTOR_SIZE");
 /*
 	logstor soft control
 */
@@ -194,7 +168,7 @@ struct g_logstor_softc {
 
 	uint32_t sb_sa; 	// superblock's sector address
 	struct _superblock superblock;
-	inv_map_t inv_map;	// inverse map for the current segment
+	struct _inv_map inv_map;	// inverse map for the current segment
 	uint32_t inv_allocp;
 	uint8_t inv_modified:1;	// is segment summary modified
 	uint8_t sb_modified:1;	// is the super block modified
@@ -291,16 +265,6 @@ g_read_datab(struct g_consumer *cp, off_t offset, void *buf, off_t length) //wyc
 	return (errorc);
 }
 
-/*
-Description:
-    segment address to sector address
-*/
-static inline uint32_t
-sega2sa(uint32_t sega)
-{
-	return sega << SEC_PER_SEG_SHIFT;
-}
-
 static void
 invalid_g_start(struct bio *bp __unused)
 {
@@ -333,7 +297,7 @@ Return:
 static struct _superblock *
 disk_init(struct g_class *mp, struct g_provider *pp, uint32_t *sb_sa)
 {
-	inv_map_t *inv_map;
+	struct _inv_map *inv_map;
 	int error;
 	uint32_t sector_cnt;
 
@@ -522,7 +486,7 @@ g_logstor_write(struct g_logstor_softc *sc, uint32_t ba, void *data)
 {
 	bool is_fmbuf_addr = IS_FMBUF_ADDR(ba);
 	int i;
-	inv_map_t *inv_map = &sc->inv_map;
+	struct _inv_map *inv_map = &sc->inv_map;
 #if defined(MY_DEBUG)
 	union fmbuf_addr dba __unused;
 	union fmbuf_addr dba_rev __unused;
@@ -798,45 +762,45 @@ superblock_read(struct g_consumer *cp, uint32_t *sb_sa)
 	g_topology_assert();
 	error = g_access(cp, 1, 0, 0);
 	if (error) {
-		printf("%s: Cannot access %s error %d",
-			__func__, cp->provider->name, error);
-		goto exit;
+		error = 1;
+		goto fail;
 	}
 	// get the superblock
 	sb = (struct _superblock *)buf[0];
 	g_read_datab(cp, 0, sb, SECTOR_SIZE);
 	if (sb->magic != G_LOGSTOR_MAGIC ||
 	    sb->seg_allocp >= sb->seg_cnt) {
-		error = EINVAL;
-		goto exit;
+		error = 2;//EINVAL;
+		goto fail;
 	}
 
 	sb_gen = sb->sb_gen;
 	for (i = 1 ; i < SB_CNT; i++) {
 		sb = (struct _superblock *)buf[i%2];
 		g_read_datab(cp, (off_t)i * SECTOR_SIZE, sb, SECTOR_SIZE);
-		if (sb->magic != G_LOGSTOR_MAGIC)
-			break;
 		if (sb->sb_gen != sb_gen + 1)
+			break;
+		if (sb->magic != G_LOGSTOR_MAGIC)
 			break;
 		sb_gen = sb->sb_gen;
 	}
 	g_access(cp, -1, 0, 0);
-	if (i == SECTORS_PER_SEG) {
-		error = EINVAL;
-		goto exit;
+	if (i == SB_CNT) {
+		error = 3;//EINVAL;
+		goto fail;
 	}
 	*sb_sa = (i - 1);
 	sb = (struct _superblock *)buf[(i-1)%2]; // get the previous valid superblock
 	if (sb->seg_allocp >= sb->seg_cnt) {
-		error = EINVAL;
-		goto exit;
+		error = 4;//EINVAL;
+		goto fail;
 	}
 	free(buf[i%2], M_LOGSTOR);
 	for (i=0; i<FM_COUNT; ++i)
 		MY_ASSERT(sb->fmt[i].root != SECTOR_CACHE);
 	return sb;
-exit:
+fail:
+	printf("%s: Cannot access %s error %d\n", __func__, cp->provider->name, error);
 	free(buf[1], M_LOGSTOR);
 	free(buf[0], M_LOGSTOR);
 	return NULL;
@@ -2070,8 +2034,8 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp,
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	int error = g_attach(cp, pp);
 	if (error) {
-		G_LOGSTOR_DEBUG(0, "Error %d: cannot attach to provider %s.",
-		    error, name);
+		G_LOGSTOR_DEBUG(0, "%s: Error %d: cannot attach to provider %s.",
+		    __func__, error, name);
 		goto fail;
 	}
 	sc = malloc(sizeof(*sc), M_LOGSTOR, M_WAITOK | M_ZERO);
@@ -2079,7 +2043,7 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp,
 	g_logstor_init(sc, sb, sb_sa);
 	gp->softc = sc;
 	g_error_provider(newpp, 0);
-	G_LOGSTOR_DEBUG(0, "Device %s created.", gp->name);
+	G_LOGSTOR_DEBUG(0, "%s: Device %s created.", __func__, gp->name);
 
 	return (gp);
 fail:
@@ -2159,7 +2123,7 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	G_LOGSTOR_DEBUG(3, "Tasting %s.", pp->name);
 
-	gp = g_new_geom(mp, "logstor:taste");
+	gp = g_new_geomf(mp, "logstor:taste");
 	gp->start = invalid_g_start;
 	gp->access = invalid_g_access;
 	gp->orphan = invalid_g_orphan;
@@ -2181,9 +2145,6 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	}
 	gp = g_logstor_create(mp, pp, sb, sb_sa);
 	free(sb, M_LOGSTOR);
-	if (gp == NULL) {
-		goto fail;
-	}
 #if defined(MY_DEBUG)
 	//logstor_check(sc);
 #endif
