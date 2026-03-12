@@ -124,6 +124,7 @@ logstor_label(struct gctl_req *req)
 	sector_cnt = sb->provsize / SECTOR_SIZE;
 	uint32_t seg_cnt = sector_cnt / SECTORS_PER_SEG;
 	sb->seg_cnt = seg_cnt;
+printf("%s: sector_cnt %u, seg_cnt %u\n", __func__, sector_cnt, sb->seg_cnt);
 	sb->block_cnt = sb->seg_cnt * BLOCKS_PER_SEG - SB_CNT -
 	    (sector_cnt / (SECTOR_SIZE / 4)) * FM_COUNT * 4;
 	assert(sb->block_cnt < 0x40000000); // 1G

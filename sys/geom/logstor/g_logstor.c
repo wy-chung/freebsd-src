@@ -768,23 +768,28 @@ superblock_read(struct g_consumer *cp, uint32_t *sb_sa)
 	// get the superblock
 	sb = (struct _superblock *)buf[0];
 	g_read_datab(cp, 0, sb, SECTOR_SIZE);
+	g_access(cp, -1, 0, 0);
 	if (sb->magic != G_LOGSTOR_MAGIC ||
 	    sb->seg_allocp >= sb->seg_cnt) {
 		error = 2;//EINVAL;
 		goto fail;
 	}
 
+	printf("%s(%d): sb->seg_cnt %u\n", __func__, __LINE__, sb->seg_cnt);
 	sb_gen = sb->sb_gen;
 	for (i = 1 ; i < SB_CNT; i++) {
 		sb = (struct _superblock *)buf[i%2];
 		g_read_datab(cp, (off_t)i * SECTOR_SIZE, sb, SECTOR_SIZE);
-		if (sb->sb_gen != sb_gen + 1)
+		if (sb->sb_gen != sb_gen + i) {
+			printf("%s(%d): %d, sb->sb_gen %u sb_gen %u\n",
+				__func__, __LINE__, i, sb->sb_gen, sb_gen);
 			break;
-		if (sb->magic != G_LOGSTOR_MAGIC)
+		}
+		if (sb->magic != G_LOGSTOR_MAGIC) {
+			printf("%s(%d): %X\n", __func__, __LINE__, sb->magic);
 			break;
-		sb_gen = sb->sb_gen;
+		}
 	}
-	g_access(cp, -1, 0, 0);
 	if (i == SB_CNT) {
 		error = 3;//EINVAL;
 		goto fail;
@@ -792,6 +797,8 @@ superblock_read(struct g_consumer *cp, uint32_t *sb_sa)
 	*sb_sa = (i - 1);
 	sb = (struct _superblock *)buf[(i-1)%2]; // get the previous valid superblock
 	if (sb->seg_allocp >= sb->seg_cnt) {
+		printf("%s(%d): i %d, seg_allocp %u, seg_cnt %u\n",
+			__func__, __LINE__, i, sb->seg_allocp, sb->seg_cnt);
 		error = 4;//EINVAL;
 		goto fail;
 	}
@@ -800,7 +807,7 @@ superblock_read(struct g_consumer *cp, uint32_t *sb_sa)
 		MY_ASSERT(sb->fmt[i].root != SECTOR_CACHE);
 	return sb;
 fail:
-	printf("%s: Cannot access %s error %d\n", __func__, cp->provider->name, error);
+	printf("%s(%d): Cannot access %s error %d\n", __func__, __LINE__, cp->provider->name, error);
 	free(buf[1], M_LOGSTOR);
 	free(buf[0], M_LOGSTOR);
 	return NULL;
@@ -2005,7 +2012,7 @@ g_logstor_create(struct g_class *mp, struct g_provider *pp,
 
 	int n = snprintf(name, sizeof(name), "%s%s", pp->name, G_LOGSTOR_SUFFIX);
 	if (n <= 0 || n >= sizeof(name)) {
-		G_LOGSTOR_DEBUG(0, "Invalid provider name.");
+		G_LOGSTOR_DEBUG(0, "%s(%d): Invalid provider name.", __func__, __LINE__);
 		return NULL;
 	}
 	G_LOGSTOR_DEBUG(1, "Creating device %s.", name);
@@ -2106,9 +2113,6 @@ g_logstor_destroy_geom(struct gctl_req *req __unused,
 static struct g_geom *
 g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
-#if 1
-	return NULL;
-#else
 	struct _superblock *sb;
 	struct g_geom *gp;
 	int error;
@@ -2144,14 +2148,12 @@ g_logstor_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		goto fail;
 	}
 	gp = g_logstor_create(mp, pp, sb, sb_sa);
-	free(sb, M_LOGSTOR);
 #if defined(MY_DEBUG)
 	//logstor_check(sc);
 #endif
 fail:
 	free(sb, M_LOGSTOR);
 	return (gp);
-#endif
 }
 
 static struct g_logstor_softc *
